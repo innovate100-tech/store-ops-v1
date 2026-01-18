@@ -6,9 +6,13 @@ from datetime import datetime
 import pandas as pd
 
 # 로그인 체크
-from src.auth import check_login, show_login_page, get_current_store_name, logout
+from src.auth import check_login, show_login_page, get_current_store_name, logout, apply_dev_mode_session, is_dev_mode
 
-if not check_login():
+# DEV MODE 체크 (로그인 체크 전에 실행)
+dev_mode_active = apply_dev_mode_session()
+
+# DEV MODE가 아니고 로그인이 안 되어 있으면 로그인 화면 표시
+if not dev_mode_active and not check_login():
     show_login_page()
     st.stop()
 
@@ -177,16 +181,29 @@ st.markdown("""
 # 사이드바 상단: 매장명 및 로그아웃
 with st.sidebar:
     store_name = get_current_store_name()
+    
+    # DEV MODE 배지 표시
+    dev_mode_badge = ""
+    if is_dev_mode():
+        dev_mode_badge = """
+        <div style="background: rgba(255,193,7,0.2); padding: 0.5rem; border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid rgba(255,193,7,0.5);">
+            <div style="font-size: 0.8rem; color: #ffc107; font-weight: 600; text-align: center;">⚡ DEV MODE (로그인 스킵)</div>
+        </div>
+        """
+    
     st.markdown(f"""
     <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        {dev_mode_badge}
         <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">🏪 현재 매장</div>
         <div style="font-size: 1.1rem; font-weight: 600; color: white;">{store_name}</div>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("🚪 로그아웃", use_container_width=True, type="secondary"):
-        logout()
-        st.rerun()
+    # DEV MODE가 아닐 때만 로그아웃 버튼 표시
+    if not is_dev_mode():
+        if st.button("🚪 로그아웃", use_container_width=True, type="secondary"):
+            logout()
+            st.rerun()
     
     st.markdown("---")
     

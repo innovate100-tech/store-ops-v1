@@ -34,24 +34,31 @@ def get_supabase_client() -> Client:
     # 클라이언트 생성
     client = create_client(url, anon_key)
     
-    # 세션에 access_token이 있으면 설정
-    if 'access_token' in st.session_state:
-        # access_token을 헤더에 설정하기 위해 세션 업데이트
-        client.auth.set_session(
-            access_token=st.session_state.access_token,
-            refresh_token=st.session_state.get('refresh_token', '')
-        )
+    # 세션에 access_token이 있으면 설정 (DEV MODE 제외)
+    if 'access_token' in st.session_state and not is_dev_mode():
+        # DEV MODE가 아닐 때만 실제 토큰 설정
+        access_token = st.session_state.access_token
+        # "dev" 토큰은 무시
+        if access_token and access_token != "dev":
+            client.auth.set_session(
+                access_token=access_token,
+                refresh_token=st.session_state.get('refresh_token', '')
+            )
     
     return client
 
 
 def check_login() -> bool:
     """
-    로그인 상태 확인
+    로그인 상태 확인 (DEV MODE는 제외)
     
     Returns:
         bool: 로그인 여부
     """
+    # DEV MODE는 항상 True 반환
+    if is_dev_mode():
+        return True
+    
     # 세션에 user_id와 access_token이 있으면 로그인 상태
     if 'user_id' in st.session_state and 'access_token' in st.session_state:
         # access_token이 있으면 로그인된 것으로 간주
@@ -139,6 +146,58 @@ def clear_session():
         del st.session_state.store_id
     if 'user_role' in st.session_state:
         del st.session_state.user_role
+
+
+def apply_dev_mode_session():
+    """
+    DEV MODE 세션 설정
+    로컬 개발 시 로그인 없이 앱을 사용하기 위한 더미 세션 값 설정
+    
+    Returns:
+        bool: DEV MODE 활성화 여부
+    """
+    try:
+        dev_mode = st.secrets.get("app", {}).get("dev_mode", False)
+        
+        if dev_mode:
+            dev_store_id = st.secrets.get("app", {}).get("dev_store_id", "")
+            
+            if not dev_store_id:
+                st.error("""
+                **DEV MODE 오류:**
+                
+                `.streamlit/secrets.toml` 파일에 `dev_store_id`가 설정되지 않았습니다.
+                
+                다음과 같이 설정하세요:
+                ```toml
+                [app]
+                dev_mode = true
+                dev_store_id = "your-store-id-here"
+                ```
+                """)
+                st.stop()
+                return False
+            
+            # DEV MODE 세션 값 설정
+            st.session_state.user_id = "dev-user"
+            st.session_state.access_token = "dev"
+            st.session_state.refresh_token = "dev"
+            st.session_state.store_id = dev_store_id
+            st.session_state.user_role = "manager"
+            st.session_state.dev_mode = True
+            
+            logger.info(f"DEV MODE activated (store_id: {dev_store_id})")
+            return True
+        
+        return False
+    except Exception as e:
+        logger.warning(f"DEV MODE check failed: {e}")
+        return False
+
+
+def is_dev_mode() -> bool:
+    """DEV MODE 여부 확인"""
+    return st.session_state.get('dev_mode', False)
 
 
 def get_current_store_id() -> str:
