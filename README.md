@@ -49,9 +49,19 @@
 
 - Python 3.11+
 - Streamlit (웹 UI)
+- Supabase (Postgres + Auth) - **v2.0**
 - pandas (데이터 처리)
 - matplotlib (차트)
 - reportlab (PDF 생성) (v1.3)
+
+### v2.0 신규 기능 (Supabase 연동)
+
+- ✅ **로그인 인증**: Supabase Auth 기반 이메일/비밀번호 로그인
+- ✅ **매장 분리**: 로그인한 점장은 자신의 매장 데이터만 접근 (RLS 보안)
+- ✅ **영구 저장**: 모든 데이터는 Supabase Postgres에 저장
+- ✅ **클라우드 배포**: Streamlit Cloud 배포 지원
+
+자세한 설정 방법은 `README_SUPABASE_SETUP.md` 참고
 
 ## 📦 설치 방법
 

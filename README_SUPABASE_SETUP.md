@@ -81,17 +81,23 @@
 ### Streamlit Cloud 배포
 
 1. [Streamlit Cloud](https://streamlit.io/cloud)에 접속
-2. 앱 선택 또는 새 앱 생성
-3. **Settings** > **Secrets** 메뉴
-4. 다음 내용을 입력:
+2. GitHub 저장소를 연결 (앱 배포)
+3. 앱 선택 또는 새 앱 생성
+4. **⚙️ Settings** (톱니바퀴 아이콘) 클릭
+5. 왼쪽 메뉴에서 **Secrets** 선택
+6. 다음 내용을 입력:
    ```toml
    [supabase]
    url = "https://your-project-id.supabase.co"
    anon_key = "your-anon-key-here"
    ```
    
-   ⚠️ **중요**: `service_role_key`는 절대 넣지 마세요!
-5. **Save** 클릭
+   ⚠️ **중요**: 
+   - `service_role_key`는 절대 넣지 마세요!
+   - 모든 값을 따옴표 없이 입력하세요
+   - URL과 anon_key는 Supabase 대시보드 > Settings > API에서 확인
+7. **Save** 버튼 클릭
+8. 앱이 자동으로 재배포됩니다
 
 ---
 

@@ -1,11 +1,19 @@
 """
-매장 운영 시스템 v1 - 메인 앱
+매장 운영 시스템 v1 - 메인 앱 (Supabase 기반)
 """
 import streamlit as st
 from datetime import datetime
 import pandas as pd
 
-from src.storage import (
+# 로그인 체크
+from src.auth import check_login, show_login_page, get_current_store_name, logout
+
+if not check_login():
+    show_login_page()
+    st.stop()
+
+# Supabase 기반 storage 사용
+from src.storage_supabase import (
     load_csv,
     save_sales,
     save_visitor,
@@ -166,9 +174,23 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 백업 기능 (상단에 배치)
+# 사이드바 상단: 매장명 및 로그아웃
 with st.sidebar:
+    store_name = get_current_store_name()
+    st.markdown(f"""
+    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">🏪 현재 매장</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: white;">{store_name}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🚪 로그아웃", use_container_width=True, type="secondary"):
+        logout()
+        st.rerun()
+    
     st.markdown("---")
+    
+    # 백업 기능
     if st.button("💾 데이터 백업 생성", use_container_width=True):
         try:
             success, message = create_backup()

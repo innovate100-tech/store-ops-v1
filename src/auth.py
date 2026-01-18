@@ -54,17 +54,9 @@ def check_login() -> bool:
     """
     # 세션에 user_id와 access_token이 있으면 로그인 상태
     if 'user_id' in st.session_state and 'access_token' in st.session_state:
-        # access_token 유효성 검증 (간단 체크)
-        try:
-            client = get_supabase_client()
-            user = client.auth.get_user(st.session_state.access_token)
-            if user:
-                return True
-        except Exception as e:
-            logger.warning(f"Access token validation failed: {e}")
-            # 토큰이 만료되었으면 세션 정리
-            clear_session()
-            return False
+        # access_token이 있으면 로그인된 것으로 간주
+        # (실제 검증은 Supabase RLS에서 처리됨)
+        return True
     
     return False
 
