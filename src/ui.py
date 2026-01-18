@@ -905,3 +905,124 @@ def render_abc_analysis(abc_df, cost_df, a_threshold=70, b_threshold=20, c_thres
         
         # C인데 작업복잡도 높은 메뉴 (수동 체크용 안내)
         st.info("💡 C등급 메뉴 중 작업복잡도가 높은 메뉴는 수동으로 검토해주세요.")
+
+
+def render_manager_closing_input(key_menu_list, menu_list):
+    """
+    점장용 마감 입력 폼 렌더링 (간단한 위에서 아래 흐름 구조)
+    
+    Args:
+        key_menu_list: 핵심 메뉴 목록
+        menu_list: 전체 메뉴 목록
+    
+    Returns:
+        tuple: (date, store, card_sales, cash_sales, total_sales, visitors, 
+                sales_items, issues, memo)
+    """
+    from datetime import datetime
+    
+    # 1) 오늘 마감 - 날짜 및 매장
+    st.markdown("### 1️⃣ 오늘 마감")
+    col1, col2 = st.columns(2)
+    with col1:
+        date = st.date_input("📅 날짜", value=datetime.now().date(), key="manager_date")
+    with col2:
+        store = st.text_input("🏪 매장", value="Plate&Share", key="manager_store")
+    
+    st.markdown("---")
+    
+    # 2) 매출 입력 (가장 상단, 크게)
+    st.markdown("### 2️⃣ 매출 입력")
+    st.markdown("""
+    <style>
+    .big-number {
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        color: #1f4788 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        card_sales = st.number_input(
+            "💳 카드매출 (원)",
+            min_value=0,
+            value=0,
+            step=10000,
+            key="manager_card_sales"
+        )
+    with col2:
+        cash_sales = st.number_input(
+            "💵 현금매출 (원)",
+            min_value=0,
+            value=0,
+            step=10000,
+            key="manager_cash_sales"
+        )
+    with col3:
+        total_sales = card_sales + cash_sales
+        st.markdown(f"""
+        <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    border-radius: 12px; color: white; text-align: center; margin-top: 0.5rem;">
+            <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">💰 총매출</div>
+            <div class="big-number" style="color: white;">{total_sales:,}원</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # 3) 방문자
+    st.markdown("### 3️⃣ 방문자")
+    visitors = st.number_input(
+        "👥 네이버 방문자 수",
+        min_value=0,
+        value=0,
+        step=1,
+        key="manager_visitors"
+    )
+    
+    st.markdown("---")
+    
+    # 4) 핵심 메뉴 판매량
+    st.markdown("### 4️⃣ 핵심 메뉴 판매량")
+    if not key_menu_list:
+        st.info("💡 사장님이 지정한 핵심 메뉴가 없습니다. 사장 설계 메뉴에서 핵심 메뉴를 먼저 설정해주세요.")
+        sales_items = []
+    else:
+        sales_items = []
+        for menu_name in key_menu_list:
+            if menu_name in menu_list:
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"**{menu_name}**")
+                with col2:
+                    quantity = st.number_input(
+                        "수량",
+                        min_value=0,
+                        value=0,
+                        step=1,
+                        key=f"manager_menu_{menu_name}"
+                    )
+                if quantity > 0:
+                    sales_items.append((menu_name, quantity))
+    
+    st.markdown("---")
+    
+    # 5) 오늘 특이사항
+    st.markdown("### 5️⃣ 오늘 특이사항")
+    
+    col1, col2 = st.columns(2)
+    issues = {}
+    
+    with col1:
+        issues['품절'] = st.checkbox("🔴 품절 발생", key="manager_issue_outofstock")
+        issues['컴플레인'] = st.checkbox("⚠️ 컴플레인 발생", key="manager_issue_complaint")
+    
+    with col2:
+        issues['단체손님'] = st.checkbox("👥 단체손님 있음", key="manager_issue_group")
+        issues['직원이슈'] = st.checkbox("👨‍💼 직원 이슈 있음", key="manager_issue_staff")
+    
+    memo = st.text_area("📝 자유 메모 (짧게)", max_chars=200, key="manager_memo")
+    
+    return date, store, card_sales, cash_sales, total_sales, visitors, sales_items, issues, memo

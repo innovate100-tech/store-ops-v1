@@ -767,3 +767,112 @@ def save_abc_history(year, month, abc_df):
     
     save_csv(df, 'abc_history.csv', mode='overwrite')
     return True
+
+
+def load_key_menus():
+    """
+    핵심 메뉴 목록 로드
+    
+    Returns:
+        list: 핵심 메뉴명 리스트
+    """
+    key_menus_df = load_csv('key_menus.csv', default_columns=['메뉴명'])
+    if key_menus_df.empty:
+        return []
+    return key_menus_df['메뉴명'].tolist()
+
+
+def save_key_menus(menu_list):
+    """
+    핵심 메뉴 목록 저장
+    
+    Args:
+        menu_list: 메뉴명 리스트
+    """
+    logger = setup_logger()
+    df = pd.DataFrame({'메뉴명': menu_list})
+    save_csv(df, 'key_menus.csv', mode='overwrite')
+    logger.info(f"핵심 메뉴 저장: {len(menu_list)}개")
+    return True
+
+
+def save_daily_close(date, store, card_sales, cash_sales, total_sales, 
+                     visitors, sales_items, issues, memo):
+    """
+    일일 마감 데이터 통합 저장 (daily_close.csv)
+    
+    Args:
+        date: 날짜
+        store: 매장명
+        card_sales: 카드매출
+        cash_sales: 현금매출
+        total_sales: 총매출
+        visitors: 방문자수
+        sales_items: 판매 아이템 리스트 [(메뉴명, 수량), ...]
+        issues: 특이사항 체크박스 딕셔너리 {'품절': bool, '컴플레인': bool, ...}
+        memo: 메모 텍스트
+    """
+    logger = setup_logger()
+    
+    # 기존 마감 데이터 로드
+    existing_df = load_csv('daily_close.csv', default_columns=[
+        '날짜', '매장', '카드매출', '현금매출', '총매출', '방문자수',
+        '품절발생', '컴플레인발생', '단체손님', '직원이슈', '메모'
+    ])
+    
+    # 날짜를 datetime으로 변환
+    new_date = pd.to_datetime(date)
+    
+    # 판매 아이템을 JSON 문자열로 변환
+    import json
+    sales_items_json = json.dumps(sales_items, ensure_ascii=False)
+    
+    # 새로운 행 데이터
+    new_row_data = {
+        '날짜': [date],
+        '매장': [store],
+        '카드매출': [card_sales],
+        '현금매출': [cash_sales],
+        '총매출': [total_sales],
+        '방문자수': [visitors],
+        '품절발생': [issues.get('품절', False)],
+        '컴플레인발생': [issues.get('컴플레인', False)],
+        '단체손님': [issues.get('단체손님', False)],
+        '직원이슈': [issues.get('직원이슈', False)],
+        '메모': [memo],
+        '판매내역': [sales_items_json]
+    }
+    
+    # 같은 날짜+매장이 있으면 업데이트, 없으면 추가
+    if not existing_df.empty:
+        existing_df['날짜'] = pd.to_datetime(existing_df['날짜'])
+        mask = (existing_df['날짜'] == new_date) & (existing_df['매장'] == store)
+        
+        if mask.any():
+            # 기존 데이터 업데이트
+            for col, val in new_row_data.items():
+                existing_df.loc[mask, col] = val[0]
+            df = existing_df
+            logger.info(f"마감 데이터 업데이트: {date}, {store}")
+        else:
+            # 새 데이터 추가
+            new_row = pd.DataFrame(new_row_data)
+            df = pd.concat([existing_df, new_row], ignore_index=True)
+            logger.info(f"마감 데이터 추가: {date}, {store}")
+    else:
+        # 첫 번째 데이터
+        df = pd.DataFrame(new_row_data)
+        logger.info(f"마감 데이터 최초 저장: {date}, {store}")
+    
+    save_csv(df, 'daily_close.csv', mode='overwrite')
+    
+    # 기존 매출, 방문자, 판매 데이터에도 저장 (호환성 유지)
+    if total_sales > 0:
+        save_sales(date, store, card_sales, cash_sales, total_sales)
+    if visitors > 0:
+        save_visitor(date, visitors)
+    for menu_name, quantity in sales_items:
+        if quantity > 0:
+            save_daily_sales_item(date, menu_name, quantity)
+    
+    return True
