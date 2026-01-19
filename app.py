@@ -2263,7 +2263,15 @@ elif page == "통합 대시보드":
 
 # 비용구조 페이지
 elif page == "비용구조":
-    render_page_header("비용구조 관리", "💳")
+    # 비용구조 페이지 전용 헤더 (화이트 모드에서도 항상 흰색 텍스트로 표시)
+    header_color = "#ffffff"
+    st.markdown(f"""
+    <div style="margin: 0 0 1.0rem 0;">
+        <h2 style="color: {header_color}; font-weight: 700; margin: 0;">
+            💳 비용구조 관리
+        </h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     from datetime import datetime
     current_year = datetime.now().year

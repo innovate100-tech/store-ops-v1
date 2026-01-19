@@ -5,10 +5,14 @@ import streamlit as st
 
 
 def render_page_header(title, icon="📋"):
-    """페이지 헤더 렌더링 (개선된 디자인)"""
+    """페이지 헤더 렌더링 (개선된 디자인)
+
+    화이트/다크 테마 상관없이 제목 텍스트는 항상 흰색으로 표시.
+    배경은 각 페이지의 레이아웃/CSS에서 제어하도록 분리한다.
+    """
     st.markdown(f"""
     <div style="margin-bottom: 2rem;">
-        <h2 style="color: #1f4788; border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+        <h2 style="color: #ffffff; border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 1rem;">
             {icon} {title}
         </h2>
     </div>
