@@ -373,72 +373,72 @@ elif page == "매출 관리":
         )
         
         render_section_divider()
-    
-    if input_mode == "단일 입력":
-        # 단일 입력 폼
-        date, store, card_sales, cash_sales, total_sales = render_sales_input()
         
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 저장", type="primary", use_container_width=True):
-                if not store or store.strip() == "":
-                    st.error("매장명을 입력해주세요.")
-                elif total_sales <= 0:
-                    st.error("매출은 0보다 큰 값이어야 합니다.")
-                else:
-                    try:
-                        save_sales(date, store, card_sales, cash_sales, total_sales)
-                        st.success(f"매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
-    
-    else:
-        # 일괄 입력 폼
-        sales_data = render_sales_batch_input()
-        
-        if sales_data:
-            render_section_divider()
-            
-            # 입력 요약 표시
-            st.write("**📊 입력 요약**")
-            summary_df = pd.DataFrame(
-                [(d.strftime('%Y-%m-%d'), s, f"{card:,}원", f"{cash:,}원", f"{total:,}원") 
-                 for d, s, card, cash, total in sales_data],
-                columns=['날짜', '매장', '카드매출', '현금매출', '총매출']
-            )
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-            
-            total_card = sum(card for _, _, card, _, _ in sales_data)
-            total_cash = sum(cash for _, _, _, cash, _ in sales_data)
-            total_all = sum(total for _, _, _, _, total in sales_data)
-            
-            st.markdown(f"**총 {len(sales_data)}일, 카드매출: {total_card:,}원, 현금매출: {total_cash:,}원, 총 매출: {total_all:,}원**")
+        if input_mode == "단일 입력":
+            # 단일 입력 폼
+            date, store, card_sales, cash_sales, total_sales = render_sales_input()
             
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button("💾 일괄 저장", type="primary", use_container_width=True):
-                    errors = []
-                    success_count = 0
-                    
-                    for date, store, card_sales, cash_sales, total_sales in sales_data:
-                        if not store or store.strip() == "":
-                            errors.append(f"{date}: 매장명이 없습니다.")
-                        else:
-                            try:
-                                save_sales(date, store, card_sales, cash_sales, total_sales)
-                                success_count += 1
-                            except Exception as e:
-                                errors.append(f"{date}: {e}")
-                    
-                    if errors:
-                        for error in errors:
-                            st.error(error)
-                    
-                    if success_count > 0:
-                        st.success(f"✅ {success_count}일의 매출이 저장되었습니다!")
-                        st.balloons()
-                        st.rerun()
+                if st.button("💾 저장", type="primary", use_container_width=True):
+                    if not store or store.strip() == "":
+                        st.error("매장명을 입력해주세요.")
+                    elif total_sales <= 0:
+                        st.error("매출은 0보다 큰 값이어야 합니다.")
+                    else:
+                        try:
+                            save_sales(date, store, card_sales, cash_sales, total_sales)
+                            st.success(f"매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"저장 중 오류가 발생했습니다: {e}")
+        
+        else:
+            # 일괄 입력 폼
+            sales_data = render_sales_batch_input()
+            
+            if sales_data:
+                render_section_divider()
+                
+                # 입력 요약 표시
+                st.write("**📊 입력 요약**")
+                summary_df = pd.DataFrame(
+                    [(d.strftime('%Y-%m-%d'), s, f"{card:,}원", f"{cash:,}원", f"{total:,}원") 
+                     for d, s, card, cash, total in sales_data],
+                    columns=['날짜', '매장', '카드매출', '현금매출', '총매출']
+                )
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                
+                total_card = sum(card for _, _, card, _, _ in sales_data)
+                total_cash = sum(cash for _, _, _, cash, _ in sales_data)
+                total_all = sum(total for _, _, _, _, total in sales_data)
+                
+                st.markdown(f"**총 {len(sales_data)}일, 카드매출: {total_card:,}원, 현금매출: {total_cash:,}원, 총 매출: {total_all:,}원**")
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                        errors = []
+                        success_count = 0
+                        
+                        for date, store, card_sales, cash_sales, total_sales in sales_data:
+                            if not store or store.strip() == "":
+                                errors.append(f"{date}: 매장명이 없습니다.")
+                            else:
+                                try:
+                                    save_sales(date, store, card_sales, cash_sales, total_sales)
+                                    success_count += 1
+                                except Exception as e:
+                                    errors.append(f"{date}: {e}")
+                        
+                        if errors:
+                            for error in errors:
+                                st.error(error)
+                        
+                        if success_count > 0:
+                            st.success(f"✅ {success_count}일의 매출이 저장되었습니다!")
+                            st.balloons()
+                            st.rerun()
     
     # ========== 방문자 입력 섹션 ==========
     else:
