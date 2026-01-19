@@ -354,11 +354,13 @@ st.markdown("""
         }
     }
     
-    /* ========== 컬럼 레이아웃 최적화 ========== */
+    /* ========== 컬럼 레이아웃 최적화 (모바일) ========== */
     @media (max-width: 768px) {
-        /* 3개 이상의 컬럼은 모바일에서 1개로 쌓기 (2개 컬럼은 기본 1:1 비율 유지) */
-        .stColumn:has(+ .stColumn + .stColumn) {
-            width: 100% !important;
+        /* Streamlit 컬럼을 한 줄에 2개씩 배치 (데이터타입: 손익분기 타일, 입력칸 등) */
+        [data-testid="column"] {
+            flex: 1 1 50% !important;
+            max-width: 50% !important;
+            min-width: 0 !important;
         }
     }
     
