@@ -2757,33 +2757,80 @@ elif page == "재료 사용량 집계":
         usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
 
         if not usage_df.empty:
-            # 날짜 필터
-            usage_date_list = sorted(usage_df['날짜'].unique(), reverse=True)
-            selected_usage_date = st.selectbox(
-                "날짜 필터 (재료 사용량)",
-                options=["전체"] + [str(d.date()) if hasattr(d, 'date') else str(d) for d in usage_date_list],
-                key="usage_date_filter"
-            )
-
-            display_usage_df = usage_df.copy()
-            if selected_usage_date != "전체":
-                display_usage_df = display_usage_df[display_usage_df['날짜'].astype(str).str.startswith(selected_usage_date)]
-
-            if not display_usage_df.empty:
-                display_usage_df['날짜'] = pd.to_datetime(display_usage_df['날짜']).dt.strftime('%Y-%m-%d')
-
-                # 재료별 총 사용량 표시
-                st.write("**재료별 사용량**")
-                st.dataframe(display_usage_df, use_container_width=True, hide_index=True)
-
-                # 오늘 사용한 재료 TOP (선택된 날짜가 오늘이거나 전체일 때)
-                if selected_usage_date == "전체" or selected_usage_date == str(pd.Timestamp.now().date()):
+            # 날짜를 datetime으로 변환
+            usage_df['날짜'] = pd.to_datetime(usage_df['날짜'])
+            
+            # 사용 가능한 날짜 범위
+            min_date = usage_df['날짜'].min().date()
+            max_date = usage_df['날짜'].max().date()
+            
+            # 기간 선택 필터
+            st.markdown("**📅 기간 선택**")
+            col1, col2 = st.columns(2)
+            with col1:
+                start_date = st.date_input(
+                    "시작일",
+                    value=min_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    key="usage_start_date"
+                )
+            with col2:
+                end_date = st.date_input(
+                    "종료일",
+                    value=max_date,
+                    min_value=min_date,
+                    max_value=max_date,
+                    key="usage_end_date"
+                )
+            
+            # 기간 유효성 검사
+            if start_date > end_date:
+                st.error("⚠️ 시작일은 종료일보다 이전이어야 합니다.")
+            else:
+                # 기간 필터링
+                display_usage_df = usage_df[
+                    (usage_df['날짜'].dt.date >= start_date) & 
+                    (usage_df['날짜'].dt.date <= end_date)
+                ].copy()
+                
+                if not display_usage_df.empty:
+                    display_usage_df['날짜'] = display_usage_df['날짜'].dt.strftime('%Y-%m-%d')
+                    
+                    # 기간 표시
+                    st.markdown(f"**📊 조회 기간: {start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')}**")
+                    
+                    render_section_divider()
+                    
+                    # 재료별 총 사용량 표시 (날짜별 상세)
+                    st.markdown("**📋 재료별 사용량 (날짜별 상세)**")
+                    st.dataframe(display_usage_df, use_container_width=True, hide_index=True)
+                    
+                    render_section_divider()
+                    
+                    # 재료별 총 사용량 집계 (기간 전체 합계)
                     ingredient_summary = display_usage_df.groupby('재료명')['총사용량'].sum().reset_index()
-                    ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False).head(10)
+                    ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False)
                     ingredient_summary.columns = ['재료명', '총 사용량']
-
-                    st.write("**🔝 사용량 TOP 10 재료**")
-                    st.dataframe(ingredient_summary, use_container_width=True, hide_index=True)
+                    
+                    # TOP 10 재료
+                    st.markdown("**🔝 사용량 TOP 10 재료**")
+                    top10_df = ingredient_summary.head(10).copy()
+                    top10_df.insert(0, '순위', range(1, len(top10_df) + 1))
+                    st.dataframe(top10_df, use_container_width=True, hide_index=True)
+                    
+                    render_section_divider()
+                    
+                    # 전체 재료 사용량 순위표 (1위부터 끝까지)
+                    st.markdown("**📊 전체 재료 사용량 순위**")
+                    full_ranking_df = ingredient_summary.copy()
+                    full_ranking_df.insert(0, '순위', range(1, len(full_ranking_df) + 1))
+                    st.dataframe(full_ranking_df, use_container_width=True, hide_index=True)
+                    
+                    # 통계 정보
+                    st.markdown(f"**총 {len(full_ranking_df)}개 재료** | **총 사용량: {full_ranking_df['총 사용량'].sum():,.2f}**")
+                else:
+                    st.warning(f"선택한 기간({start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')})에 해당하는 데이터가 없습니다.")
         else:
             st.info("재료 사용량을 계산할 데이터가 없습니다.")
     else:
