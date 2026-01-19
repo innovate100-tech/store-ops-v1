@@ -2671,80 +2671,80 @@ elif page == "비용구조":
             # 기존 항목은 기본적으로 접어두고 필요할 때만 펼치도록 처리 (모바일 스크롤 최소화)
             with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=False):
                 for item in existing_items[category]:
-                # 수정 모드 체크
-                edit_key = f"edit_{category}_{item['id']}"
-                is_editing = st.session_state.get(edit_key, False)
-                
-                if is_editing:
-                    # 수정 모드
-                    with st.container():
-                        st.markdown("---")
-                        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                        with col1:
-                            edit_name = st.text_input(
-                                "항목명",
-                                value=item['item_name'],
-                                key=f"edit_name_{category}_{item['id']}"
-                            )
-                        with col2:
-                            if info['type'] == 'fixed':
-                                edit_amount = st.number_input(
-                                    "금액 (원)",
-                                    min_value=0,
-                                    value=int(item['amount']),
-                                    step=10000,
-                                    key=f"edit_amount_{category}_{item['id']}"
+                    # 수정 모드 체크
+                    edit_key = f"edit_{category}_{item['id']}"
+                    is_editing = st.session_state.get(edit_key, False)
+                    
+                    if is_editing:
+                        # 수정 모드
+                        with st.container():
+                            st.markdown("---")
+                            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                            with col1:
+                                edit_name = st.text_input(
+                                    "항목명",
+                                    value=item['item_name'],
+                                    key=f"edit_name_{category}_{item['id']}"
                                 )
-                            else:
-                                edit_amount = st.number_input(
-                                    "매출 대비 비율 (%)",
-                                    min_value=0.0,
-                                    max_value=100.0,
-                                    value=float(item['amount']),
-                                    step=0.1,
-                                    format="%.2f",
-                                    key=f"edit_rate_{category}_{item['id']}"
-                                )
-                        with col3:
-                            st.write("")
-                            st.write("")
-                            if st.button("💾 저장", key=f"save_edit_{category}_{item['id']}"):
-                                try:
-                                    # 변동비율 검증 (변동비인 경우)
-                                    if info['type'] == 'variable':
-                                        existing_variable_total = sum(
-                                            other_item['amount'] 
-                                            for other_item in category_items 
-                                            if other_item['id'] != item['id']
-                                        )
-                                        total_variable_rate = existing_variable_total + edit_amount
+                            with col2:
+                                if info['type'] == 'fixed':
+                                    edit_amount = st.number_input(
+                                        "금액 (원)",
+                                        min_value=0,
+                                        value=int(item['amount']),
+                                        step=10000,
+                                        key=f"edit_amount_{category}_{item['id']}"
+                                    )
+                                else:
+                                    edit_amount = st.number_input(
+                                        "매출 대비 비율 (%)",
+                                        min_value=0.0,
+                                        max_value=100.0,
+                                        value=float(item['amount']),
+                                        step=0.1,
+                                        format="%.2f",
+                                        key=f"edit_rate_{category}_{item['id']}"
+                                    )
+                            with col3:
+                                st.write("")
+                                st.write("")
+                                if st.button("💾 저장", key=f"save_edit_{category}_{item['id']}"):
+                                    try:
+                                        # 변동비율 검증 (변동비인 경우)
+                                        if info['type'] == 'variable':
+                                            existing_variable_total = sum(
+                                                other_item['amount'] 
+                                                for other_item in category_items 
+                                                if other_item['id'] != item['id']
+                                            )
+                                            total_variable_rate = existing_variable_total + edit_amount
+                                            
+                                            # 모든 변동비 카테고리 합계 검증
+                                            all_variable_categories = ['재료비', '부가세&카드수수료']
+                                            all_variable_total = 0
+                                            for var_cat in all_variable_categories:
+                                                var_items = existing_items.get(var_cat, [])
+                                                if var_cat == category:
+                                                    all_variable_total += total_variable_rate
+                                                else:
+                                                    all_variable_total += sum(
+                                                        other_item['amount'] 
+                                                        for other_item in var_items
+                                                    )
+                                            
+                                            if all_variable_total > 100:
+                                                st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (합계: {all_variable_total:.2f}%)")
+                                                st.stop()
                                         
-                                        # 모든 변동비 카테고리 합계 검증
-                                        all_variable_categories = ['재료비', '부가세&카드수수료']
-                                        all_variable_total = 0
-                                        for var_cat in all_variable_categories:
-                                            var_items = existing_items.get(var_cat, [])
-                                            if var_cat == category:
-                                                all_variable_total += total_variable_rate
-                                            else:
-                                                all_variable_total += sum(
-                                                    other_item['amount'] 
-                                                    for other_item in var_items
-                                                )
-                                        
-                                        if all_variable_total > 100:
-                                            st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (합계: {all_variable_total:.2f}%)")
-                                            st.stop()
-                                    
-                                    update_expense_item(item['id'], edit_name.strip(), edit_amount, item.get('notes'))
-                                    st.session_state[edit_key] = False
-                                    st.success("수정되었습니다!")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"수정 중 오류: {e}")
-                        with col4:
-                            st.write("")
-                            st.write("")
+                                        update_expense_item(item['id'], edit_name.strip(), edit_amount, item.get('notes'))
+                                        st.session_state[edit_key] = False
+                                        st.success("수정되었습니다!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"수정 중 오류: {e}")
+                            with col4:
+                                st.write("")
+                                st.write("")
                             if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
                                 st.session_state[edit_key] = False
                                 st.rerun()
