@@ -1794,109 +1794,109 @@ elif page == "메뉴 등록":
             
             col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([0.3, 0.5, 2.5, 1.5, 1.5, 1, 1, 1])
             
-                with col1:
-                    checkbox_key = f"menu_checkbox_{idx}"
-                    if st.checkbox("", key=checkbox_key, label_visibility="collapsed"):
-                        selected_indices.append(idx)
+            with col1:
+                checkbox_key = f"menu_checkbox_{idx}"
+                if st.checkbox("", key=checkbox_key, label_visibility="collapsed"):
+                    selected_indices.append(idx)
+            
+            with col2:
+                st.write(f"**{row['번호']}**")
+            
+            with col3:
+                st.write(f"**{row['메뉴명']}**")
+            
+            with col4:
+                st.write(f"{int(row['판매가']):,}원")
+            
+            with col5:
+                # 카테고리 선택
+                category_options = ['대표메뉴', '주력메뉴', '유인메뉴', '보조메뉴', '기타메뉴']
+                current_category = category if category in category_options else '기타메뉴'
+                category_key = f"category_select_{idx}"
+                new_category = st.selectbox(
+                    "",
+                    category_options,
+                    index=category_options.index(current_category) if current_category in category_options else 4,
+                    key=category_key,
+                    label_visibility="collapsed"
+                )
                 
-                with col2:
-                    st.write(f"**{row['번호']}**")
-                
-                with col3:
-                    st.write(f"**{row['메뉴명']}**")
-                
-                with col4:
-                    st.write(f"{int(row['판매가']):,}원")
-                
-                with col5:
-                    # 카테고리 선택
-                    category_options = ['대표메뉴', '주력메뉴', '유인메뉴', '보조메뉴', '기타메뉴']
-                    current_category = category if category in category_options else '기타메뉴'
-                    category_key = f"category_select_{idx}"
-                    new_category = st.selectbox(
-                        "",
-                        category_options,
-                        index=category_options.index(current_category) if current_category in category_options else 4,
-                        key=category_key,
-                        label_visibility="collapsed"
-                    )
-                    
-                    # 카테고리가 변경되었으면 업데이트
-                    if new_category != current_category:
-                        try:
-                            success, message = update_menu_category(row['메뉴명'], new_category)
-                            if success:
-                                try:
-                                    load_csv.clear()
-                                except:
-                                    pass
-                                st.rerun()
-                            else:
-                                st.error(message)
-                        except Exception as e:
-                            st.error(f"카테고리 업데이트 중 오류: {e}")
-                
-                with col6:
-                    # 위로 이동 버튼
-                    if idx > 0:
-                        if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동", use_container_width=True):
-                            # 순서 변경: 현재 항목과 위 항목의 순서 교환
-                            current_menu = row['메뉴명']
-                            prev_menu = menu_df.iloc[idx - 1]['메뉴명']
-                            current_order = st.session_state[menu_order_key][current_menu]
-                            prev_order = st.session_state[menu_order_key][prev_menu]
-                            st.session_state[menu_order_key][current_menu] = prev_order
-                            st.session_state[menu_order_key][prev_menu] = current_order
+                # 카테고리가 변경되었으면 업데이트
+                if new_category != current_category:
+                    try:
+                        success, message = update_menu_category(row['메뉴명'], new_category)
+                        if success:
                             try:
                                 load_csv.clear()
                             except:
                                 pass
                             st.rerun()
-                
-                with col7:
-                    # 아래로 이동 버튼
-                    if idx < len(menu_df) - 1:
-                        if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동", use_container_width=True):
-                            # 순서 변경: 현재 항목과 아래 항목의 순서 교환
-                            current_menu = row['메뉴명']
-                            next_menu = menu_df.iloc[idx + 1]['메뉴명']
-                            current_order = st.session_state[menu_order_key][current_menu]
-                            next_order = st.session_state[menu_order_key][next_menu]
-                            st.session_state[menu_order_key][current_menu] = next_order
-                            st.session_state[menu_order_key][next_menu] = current_order
+                        else:
+                            st.error(message)
+                    except Exception as e:
+                        st.error(f"카테고리 업데이트 중 오류: {e}")
+            
+            with col6:
+                # 위로 이동 버튼
+                if idx > 0:
+                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 위 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        prev_menu = menu_df.iloc[idx - 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        prev_order = st.session_state[menu_order_key][prev_menu]
+                        st.session_state[menu_order_key][current_menu] = prev_order
+                        st.session_state[menu_order_key][prev_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            with col7:
+                # 아래로 이동 버튼
+                if idx < len(menu_df) - 1:
+                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 아래 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        next_menu = menu_df.iloc[idx + 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        next_order = st.session_state[menu_order_key][next_menu]
+                        st.session_state[menu_order_key][current_menu] = next_order
+                        st.session_state[menu_order_key][next_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            with col8:
+                # 개별 삭제 버튼
+                if st.button("🗑️", key=f"delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
+                    menu_name = row['메뉴명']
+                    try:
+                        success, message, refs = delete_menu(menu_name)
+                        if success:
+                            st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
+                            # session_state에서도 제거
+                            if menu_name in st.session_state[menu_order_key]:
+                                del st.session_state[menu_order_key][menu_name]
+                            # 순서 재정렬
+                            remaining_menus = list(st.session_state[menu_order_key].keys())
+                            st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
+                            # 캐시 클리어
                             try:
                                 load_csv.clear()
                             except:
                                 pass
                             st.rerun()
-                
-                with col8:
-                    # 개별 삭제 버튼
-                    if st.button("🗑️", key=f"delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
-                        menu_name = row['메뉴명']
-                        try:
-                            success, message, refs = delete_menu(menu_name)
-                            if success:
-                                st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
-                                # session_state에서도 제거
-                                if menu_name in st.session_state[menu_order_key]:
-                                    del st.session_state[menu_order_key][menu_name]
-                                # 순서 재정렬
-                                remaining_menus = list(st.session_state[menu_order_key].keys())
-                                st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
-                                # 캐시 클리어
-                                try:
-                                    load_csv.clear()
-                                except:
-                                    pass
-                                st.rerun()
-                            else:
-                                st.error(message)
-                                if refs:
-                                    st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
-                        except Exception as e:
-                            st.error(f"삭제 중 오류: {e}")
-                
+                        else:
+                            st.error(message)
+                            if refs:
+                                st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
+                    except Exception as e:
+                        st.error(f"삭제 중 오류: {e}")
+            
             # 행 종료
             st.markdown('</div>', unsafe_allow_html=True)
             
