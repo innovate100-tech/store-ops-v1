@@ -43,8 +43,11 @@ from src.storage_supabase import (
     create_backup,
     save_daily_close,
     save_expense_item,
+    update_expense_item,
     delete_expense_item,
-    load_expense_structure
+    load_expense_structure,
+    load_expense_structure_range,
+    copy_expense_structure_from_previous_month
 )
 from src.analytics import (
     calculate_correlation,
@@ -1387,8 +1390,8 @@ elif page == "비용구조":
     current_year = datetime.now().year
     current_month = datetime.now().month
     
-    # 기간 선택
-    col1, col2 = st.columns(2)
+    # 기간 선택 및 전월 데이터 복사
+    col1, col2, col3 = st.columns([2, 2, 2])
     with col1:
         selected_year = st.number_input(
             "연도",
@@ -1405,6 +1408,19 @@ elif page == "비용구조":
             value=current_month,
             key="expense_month"
         )
+    with col3:
+        st.write("")
+        st.write("")
+        if st.button("📋 전월 데이터 복사", key="copy_prev_month", use_container_width=True):
+            try:
+                success, message = copy_expense_structure_from_previous_month(selected_year, selected_month)
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.warning(message)
+            except Exception as e:
+                st.error(f"복사 중 오류: {e}")
     
     render_section_divider()
     
@@ -1533,8 +1549,12 @@ elif page == "비용구조":
                 weekday_daily_target = (target_sales_input * weekday_ratio / 100) / 22
                 weekend_daily_target = (target_sales_input * weekend_ratio / 100) / 8
             
-            # 일일 고정비 계산 (월간 고정비를 30일로 나눔)
-            daily_fixed_cost = fixed_costs / 30
+            # 일일 고정비 계산 개선 (평일/주말 비율 반영)
+            # 평일 고정비 = 고정비 × (평일 일수 / 총 일수) / 평일 일수
+            weekday_monthly_fixed = fixed_costs * (22 / 30)
+            weekend_monthly_fixed = fixed_costs * (8 / 30)
+            weekday_daily_fixed = weekday_monthly_fixed / 22
+            weekend_daily_fixed = weekend_monthly_fixed / 8
             
             # 일일 영업이익 계산
             # 일일 영업이익 = 일일 매출 × (1 - 변동비율) - 일일 고정비
@@ -1544,8 +1564,8 @@ elif page == "비용구조":
             weekday_daily_target_profit = 0
             weekend_daily_target_profit = 0
             if target_sales_input > 0:
-                weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - daily_fixed_cost
-                weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - daily_fixed_cost
+                weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
+                weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
             
             # 손익분기 매출과 목표 매출 비교
             st.markdown(f"""
@@ -1776,25 +1796,108 @@ elif page == "비용구조":
             """, unsafe_allow_html=True)
             
             for item in existing_items[category]:
-                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                with col1:
-                    st.write(f"**{item['item_name']}**")
-                with col2:
-                    if info['type'] == 'fixed':
-                        st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
-                    else:
-                        st.write(f"{item['amount']:.2f}%")
-                with col3:
-                    if item.get('notes'):
-                        st.write(f"📝 {item['notes']}")
-                with col4:
-                    if st.button("🗑️", key=f"del_{category}_{item['id']}"):
-                        try:
-                            delete_expense_item(item['id'])
-                            st.success("삭제되었습니다!")
+                # 수정 모드 체크
+                edit_key = f"edit_{category}_{item['id']}"
+                is_editing = st.session_state.get(edit_key, False)
+                
+                if is_editing:
+                    # 수정 모드
+                    with st.container():
+                        st.markdown("---")
+                        col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                        with col1:
+                            edit_name = st.text_input(
+                                "항목명",
+                                value=item['item_name'],
+                                key=f"edit_name_{category}_{item['id']}"
+                            )
+                        with col2:
+                            if info['type'] == 'fixed':
+                                edit_amount = st.number_input(
+                                    "금액 (원)",
+                                    min_value=0,
+                                    value=int(item['amount']),
+                                    step=10000,
+                                    key=f"edit_amount_{category}_{item['id']}"
+                                )
+                            else:
+                                edit_amount = st.number_input(
+                                    "매출 대비 비율 (%)",
+                                    min_value=0.0,
+                                    max_value=100.0,
+                                    value=float(item['amount']),
+                                    step=0.1,
+                                    format="%.2f",
+                                    key=f"edit_rate_{category}_{item['id']}"
+                                )
+                        with col3:
+                            st.write("")
+                            st.write("")
+                            if st.button("💾 저장", key=f"save_edit_{category}_{item['id']}"):
+                                try:
+                                    # 변동비율 검증 (변동비인 경우)
+                                    if info['type'] == 'variable':
+                                        existing_variable_total = sum(
+                                            other_item['amount'] 
+                                            for other_item in category_items 
+                                            if other_item['id'] != item['id']
+                                        )
+                                        total_variable_rate = existing_variable_total + edit_amount
+                                        
+                                        # 모든 변동비 카테고리 합계 검증
+                                        all_variable_categories = ['재료비', '부가세&카드수수료']
+                                        all_variable_total = 0
+                                        for var_cat in all_variable_categories:
+                                            var_items = existing_items.get(var_cat, [])
+                                            if var_cat == category:
+                                                all_variable_total += total_variable_rate
+                                            else:
+                                                all_variable_total += sum(
+                                                    other_item['amount'] 
+                                                    for other_item in var_items
+                                                )
+                                        
+                                        if all_variable_total > 100:
+                                            st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (합계: {all_variable_total:.2f}%)")
+                                            st.stop()
+                                    
+                                    update_expense_item(item['id'], edit_name.strip(), edit_amount, item.get('notes'))
+                                    st.session_state[edit_key] = False
+                                    st.success("수정되었습니다!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"수정 중 오류: {e}")
+                        with col4:
+                            st.write("")
+                            st.write("")
+                            if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
+                                st.session_state[edit_key] = False
+                                st.rerun()
+                else:
+                    # 일반 표시 모드
+                    col1, col2, col3, col4, col5 = st.columns([3, 2, 1, 1, 1])
+                    with col1:
+                        st.write(f"**{item['item_name']}**")
+                    with col2:
+                        if info['type'] == 'fixed':
+                            st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
+                        else:
+                            st.write(f"{item['amount']:.2f}%")
+                    with col3:
+                        if item.get('notes'):
+                            st.write(f"📝 {item['notes']}")
+                    with col4:
+                        if st.button("✏️", key=f"edit_btn_{category}_{item['id']}", help="수정"):
+                            st.session_state[edit_key] = True
                             st.rerun()
-                        except Exception as e:
-                            st.error(f"삭제 중 오류: {e}")
+                    with col5:
+                        if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
+                            try:
+                                delete_expense_item(item['id'])
+                                st.success("삭제되었습니다!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"삭제 중 오류: {e}")
         
         # 새 항목 입력
         if info['type'] == 'fixed':
@@ -1832,14 +1935,19 @@ elif page == "비용구조":
                     st.write("")
                     if st.button("➕ 추가", key=f"add_{category}"):
                         if new_item_name and new_item_name.strip() and new_amount > 0:
-                            try:
-                                save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
-                                # 입력 필드 초기화를 위해 카운터 증가
-                                st.session_state[reset_key] += 1
-                                st.success(f"{category} 항목이 추가되었습니다!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"저장 중 오류: {e}")
+                            # 항목명 중복 체크
+                            existing_names = [item['item_name'] for item in category_items]
+                            if new_item_name.strip() in existing_names:
+                                st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
+                            else:
+                                try:
+                                    save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
+                                    # 입력 필드 초기화를 위해 카운터 증가
+                                    st.session_state[reset_key] += 1
+                                    st.success(f"{category} 항목이 추가되었습니다!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"저장 중 오류: {e}")
                         else:
                             st.error("항목명과 금액을 모두 입력해주세요.")
         else:
@@ -1879,19 +1987,232 @@ elif page == "비용구조":
                     st.write("")
                     if st.button("➕ 추가", key=f"add_{category}"):
                         if new_item_name and new_item_name.strip() and new_rate > 0:
-                            try:
-                                # 변동비는 비율(%)을 amount에 저장
-                                save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
-                                # 입력 필드 초기화를 위해 카운터 증가
-                                st.session_state[reset_key] += 1
-                                st.success(f"{category} 항목이 추가되었습니다!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"저장 중 오류: {e}")
+                            # 변동비율 합계 검증
+                            existing_variable_total = sum(item['amount'] for item in category_items)
+                            total_variable_rate = existing_variable_total + new_rate
+                            
+                            # 모든 변동비 카테고리 합계 검증
+                            all_variable_categories = ['재료비', '부가세&카드수수료']
+                            all_variable_total = 0
+                            for var_cat in all_variable_categories:
+                                var_items = existing_items.get(var_cat, [])
+                                if var_cat == category:
+                                    all_variable_total += total_variable_rate
+                                else:
+                                    all_variable_total += sum(item['amount'] for item in var_items)
+                            
+                            if all_variable_total > 100:
+                                st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (현재 합계: {all_variable_total:.2f}%)")
+                            elif new_item_name.strip() in [item['item_name'] for item in category_items]:
+                                st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
+                            else:
+                                try:
+                                    # 변동비는 비율(%)을 amount에 저장
+                                    save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
+                                    # 입력 필드 초기화를 위해 카운터 증가
+                                    st.session_state[reset_key] += 1
+                                    st.success(f"{category} 항목이 추가되었습니다!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"저장 중 오류: {e}")
                         else:
                             st.error("항목명과 비율을 모두 입력해주세요.")
         
         render_section_divider()
+    
+    # ========== 시각화 및 월별 비교 ==========
+    if breakeven_sales is not None and breakeven_sales > 0:
+        # 탭 구조로 변경
+        tab1, tab2, tab3 = st.tabs(["📊 비용 구조 시각화", "📈 월별 비교", "💰 비용 분석"])
+        
+        with tab1:
+            # 비용 구조 파이 차트
+            import matplotlib.pyplot as plt
+            import matplotlib.font_manager as fm
+            
+            # 한글 폰트 설정
+            plt.rcParams['font.family'] = 'Malgun Gothic'
+            plt.rcParams['axes.unicode_minus'] = False
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # 고정비/변동비 비율 파이 차트
+                if not expense_df.empty:
+                    fixed_total = fixed_costs
+                    variable_total = target_sales_input * (variable_cost_rate / 100) if target_sales_input > 0 else breakeven_sales * (variable_cost_rate / 100)
+                    
+                    if fixed_total > 0 or variable_total > 0:
+                        fig, ax = plt.subplots(figsize=(8, 6))
+                        labels = ['고정비', '변동비 (예상)']
+                        sizes = [fixed_total, variable_total]
+                        colors = ['#667eea', '#f093fb']
+                        explode = (0.05, 0.05)
+                        
+                        ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
+                              shadow=True, startangle=90)
+                        ax.set_title('고정비 vs 변동비 비율', fontsize=14, fontweight='bold', pad=20)
+                        st.pyplot(fig)
+                        plt.close()
+            
+            with col2:
+                # 카테고리별 비용 파이 차트
+                if not expense_df.empty:
+                    category_amounts = {}
+                    for category in expense_categories.keys():
+                        cat_df = expense_df[expense_df['category'] == category]
+                        if not cat_df.empty:
+                            if expense_categories[category]['type'] == 'fixed':
+                                category_amounts[category] = cat_df['amount'].sum()
+                            else:
+                                # 변동비는 목표 매출 기준으로 계산
+                                rate_sum = cat_df['amount'].sum()
+                                if target_sales_input > 0:
+                                    category_amounts[category] = target_sales_input * (rate_sum / 100)
+                                else:
+                                    category_amounts[category] = breakeven_sales * (rate_sum / 100)
+                    
+                    if category_amounts:
+                        fig, ax = plt.subplots(figsize=(8, 6))
+                        labels = list(category_amounts.keys())
+                        sizes = list(category_amounts.values())
+                        colors = ['#667eea', '#4CAF50', '#FF9800', '#f093fb', '#ffd700']
+                        
+                        ax.pie(sizes, labels=labels, colors=colors[:len(labels)], autopct='%1.1f%%',
+                              shadow=True, startangle=90)
+                        ax.set_title('카테고리별 비용 비율', fontsize=14, fontweight='bold', pad=20)
+                        st.pyplot(fig)
+                        plt.close()
+        
+        with tab2:
+            # 월별 비교 기능
+            st.markdown("### 📈 월별 비교")
+            
+            # 비교할 기간 선택
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                compare_year1 = st.number_input("기준 연도", min_value=2020, max_value=2100, value=selected_year, key="compare_year1")
+            with col2:
+                compare_month1 = st.number_input("기준 월", min_value=1, max_value=12, value=selected_month, key="compare_month1")
+            with col3:
+                compare_year2 = st.number_input("비교 연도", min_value=2020, max_value=2100, value=selected_year, key="compare_year2")
+            with col4:
+                compare_month2 = st.number_input("비교 월", min_value=1, max_value=12, value=selected_month-1 if selected_month > 1 else 12, key="compare_month2")
+            
+            # 데이터 로드
+            compare_df1 = load_expense_structure(compare_year1, compare_month1)
+            compare_df2 = load_expense_structure(compare_year2, compare_month2)
+            
+            if not compare_df1.empty or not compare_df2.empty:
+                # 카테고리별 비교
+                comparison_data = []
+                for category in expense_categories.keys():
+                    cat1_df = compare_df1[compare_df1['category'] == category] if not compare_df1.empty else pd.DataFrame()
+                    cat2_df = compare_df2[compare_df2['category'] == category] if not compare_df2.empty else pd.DataFrame()
+                    
+                    if expense_categories[category]['type'] == 'fixed':
+                        amount1 = cat1_df['amount'].sum() if not cat1_df.empty else 0
+                        amount2 = cat2_df['amount'].sum() if not cat2_df.empty else 0
+                        change = amount2 - amount1
+                        change_pct = (change / amount1 * 100) if amount1 > 0 else 0
+                    else:
+                        rate1 = cat1_df['amount'].sum() if not cat1_df.empty else 0
+                        rate2 = cat2_df['amount'].sum() if not cat2_df.empty else 0
+                        amount1 = rate1
+                        amount2 = rate2
+                        change = rate2 - rate1
+                        change_pct = change
+                    
+                    comparison_data.append({
+                        '카테고리': category,
+                        f'{compare_year1}년 {compare_month1}월': amount1,
+                        f'{compare_year2}년 {compare_month2}월': amount2,
+                        '변화량': change,
+                        '변화율(%)': change_pct
+                    })
+                
+                comparison_df = pd.DataFrame(comparison_data)
+                
+                # 숫자 포맷팅
+                for col in [f'{compare_year1}년 {compare_month1}월', f'{compare_year2}년 {compare_month2}월', '변화량']:
+                    if col in comparison_df.columns:
+                        if expense_categories[comparison_df['카테고리'].iloc[0]]['type'] == 'fixed':
+                            comparison_df[col] = comparison_df[col].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                        else:
+                            comparison_df[col] = comparison_df[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "-")
+                
+                comparison_df['변화율(%)'] = comparison_df['변화율(%)'].apply(
+                    lambda x: f"{x:+.2f}%" if pd.notna(x) else "-"
+                )
+                
+                st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+                
+                # 트렌드 차트
+                if len(comparison_data) > 0:
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    categories = [d['카테고리'] for d in comparison_data]
+                    values1 = [d[f'{compare_year1}년 {compare_month1}월'] for d in comparison_data]
+                    values2 = [d[f'{compare_year2}년 {compare_month2}월'] for d in comparison_data]
+                    
+                    x = range(len(categories))
+                    width = 0.35
+                    
+                    ax.bar([i - width/2 for i in x], values1, width, label=f'{compare_year1}년 {compare_month1}월', color='#667eea')
+                    ax.bar([i + width/2 for i in x], values2, width, label=f'{compare_year2}년 {compare_month2}월', color='#f093fb')
+                    
+                    ax.set_xlabel('카테고리')
+                    ax.set_ylabel('금액' if expense_categories[categories[0]]['type'] == 'fixed' else '비율(%)')
+                    ax.set_title('월별 비용 비교', fontsize=14, fontweight='bold')
+                    ax.set_xticks(x)
+                    ax.set_xticklabels(categories, rotation=45, ha='right')
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    
+                    st.pyplot(fig)
+                    plt.close()
+            else:
+                st.info("비교할 데이터가 없습니다.")
+        
+        with tab3:
+            # 비용 분석
+            st.markdown("### 💰 비용 분석")
+            
+            if not expense_df.empty and target_sales_input > 0:
+                # 비용 대비 매출 비율
+                total_expenses = fixed_costs + (target_sales_input * variable_cost_rate / 100)
+                expense_ratio = (total_expenses / target_sales_input * 100) if target_sales_input > 0 else 0
+                profit_margin = 100 - expense_ratio
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("총 비용", f"{int(total_expenses):,}원")
+                with col2:
+                    st.metric("비용률", f"{expense_ratio:.2f}%")
+                with col3:
+                    st.metric("이익률", f"{profit_margin:.2f}%")
+                
+                # 알림 시스템
+                st.markdown("#### ⚠️ 알림")
+                alerts = []
+                
+                if variable_cost_rate > 50:
+                    alerts.append("🔴 변동비율이 50%를 초과했습니다. 원가 관리가 필요합니다.")
+                elif variable_cost_rate > 40:
+                    alerts.append("🟡 변동비율이 40%를 초과했습니다. 주의가 필요합니다.")
+                
+                if fixed_costs > target_sales_input * 0.3:
+                    alerts.append("🔴 고정비가 목표 매출의 30%를 초과했습니다.")
+                
+                if expense_ratio > 90:
+                    alerts.append("🔴 총 비용률이 90%를 초과했습니다. 수익성이 매우 낮습니다.")
+                elif expense_ratio > 80:
+                    alerts.append("🟡 총 비용률이 80%를 초과했습니다. 비용 절감이 필요합니다.")
+                
+                if alerts:
+                    for alert in alerts:
+                        st.warning(alert)
+                else:
+                    st.success("✅ 모든 비용 지표가 정상 범위입니다.")
     
     # ========== 월간 집계 표시 ==========
     render_section_header("월간 비용 집계", "📊")

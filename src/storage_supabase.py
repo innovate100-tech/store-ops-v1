@@ -895,6 +895,38 @@ def save_expense_item(year, month, category, item_name, amount, notes=None):
         raise
 
 
+def update_expense_item(expense_id, item_name, amount, notes=None):
+    """비용구조 항목 수정"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False, "DEV MODE에서는 수정할 수 없습니다."
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        update_data = {
+            "item_name": item_name,
+            "amount": float(amount),
+            "updated_at": datetime.now().isoformat()
+        }
+        if notes is not None:
+            update_data["notes"] = notes
+        
+        supabase.table("expense_structure")\
+            .update(update_data)\
+            .eq("id", expense_id)\
+            .eq("store_id", store_id)\
+            .execute()
+        
+        logger.info(f"Expense item updated: {expense_id}")
+        return True, "수정 성공"
+    except Exception as e:
+        logger.error(f"Failed to update expense item: {e}")
+        raise
+
+
 def delete_expense_item(expense_id):
     """비용구조 항목 삭제"""
     supabase = _check_supabase_for_dev_mode()
@@ -940,6 +972,97 @@ def load_expense_structure(year, month):
     except Exception as e:
         logger.error(f"Failed to load expense structure: {e}")
         return pd.DataFrame()
+
+
+def load_expense_structure_range(year_start, month_start, year_end, month_end):
+    """비용구조 데이터 로드 (기간 범위)"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return pd.DataFrame()
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        return pd.DataFrame()
+    
+    try:
+        # 모든 데이터를 가져온 후 필터링
+        result = supabase.table("expense_structure")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .execute()
+        
+        if result.data:
+            df = pd.DataFrame(result.data)
+            # 기간 필터링
+            def in_range(row):
+                y, m = row['year'], row['month']
+                if y < year_start or y > year_end:
+                    return False
+                if y == year_start and m < month_start:
+                    return False
+                if y == year_end and m > month_end:
+                    return False
+                return True
+            
+            df = df[df.apply(in_range, axis=1)]
+            return df
+        else:
+            return pd.DataFrame(columns=['id', 'category', 'item_name', 'amount', 'notes', 'year', 'month'])
+    except Exception as e:
+        logger.error(f"Failed to load expense structure range: {e}")
+        return pd.DataFrame()
+
+
+def copy_expense_structure_from_previous_month(year, month):
+    """전월 비용구조 데이터를 현재 월로 복사"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False, "DEV MODE에서는 복사할 수 없습니다."
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 전월 계산
+        prev_month = month - 1
+        prev_year = year
+        if prev_month == 0:
+            prev_month = 12
+            prev_year = year - 1
+        
+        # 전월 데이터 로드
+        prev_data = load_expense_structure(prev_year, prev_month)
+        if prev_data.empty:
+            return False, "복사할 전월 데이터가 없습니다."
+        
+        # 현재 월 데이터 확인
+        current_data = load_expense_structure(year, month)
+        if not current_data.empty:
+            return False, "이미 현재 월에 데이터가 있습니다. 먼저 삭제해주세요."
+        
+        # 전월 데이터 복사
+        records = []
+        for _, row in prev_data.iterrows():
+            records.append({
+                "store_id": store_id,
+                "year": int(year),
+                "month": int(month),
+                "category": row['category'],
+                "item_name": row['item_name'],
+                "amount": float(row['amount']),
+                "notes": row.get('notes')
+            })
+        
+        if records:
+            supabase.table("expense_structure").insert(records).execute()
+            logger.info(f"Expense structure copied from {prev_year}-{prev_month} to {year}-{month}")
+            return True, f"전월({prev_year}년 {prev_month}월) 데이터가 복사되었습니다."
+        else:
+            return False, "복사할 데이터가 없습니다."
+    except Exception as e:
+        logger.error(f"Failed to copy expense structure: {e}")
+        raise
 
 
 def create_backup():
