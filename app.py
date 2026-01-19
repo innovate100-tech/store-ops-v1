@@ -2167,6 +2167,28 @@ elif page == "레시피 등록":
         # 각 재료별 입력 필드 (재료명, 기준단위, 사용량, 사용단가)
         recipe_data = []
         
+        # 컴팩트 스타일 CSS 추가
+        st.markdown("""
+        <style>
+        .compact-recipe-row {
+            margin: 0.2rem 0 !important;
+            padding: 0.3rem 0 !important;
+        }
+        .compact-recipe-row [data-testid="stTextInput"] > div > div {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+        }
+        .compact-recipe-row [data-testid="stSelectbox"] > div > div {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+        }
+        .compact-recipe-row [data-testid="stNumberInput"] > div > div {
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         # 헤더 행
         header_col1, header_col2, header_col3, header_col4 = st.columns([3, 1.5, 2, 2])
         with header_col1:
@@ -2178,87 +2200,89 @@ elif page == "레시피 등록":
         with header_col4:
             st.markdown("**사용단가**")
         
-        st.markdown("---")
+        st.markdown("<hr style='margin: 0.3rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
         
         for i in range(ingredient_count):
-            col1, col2, col3, col4 = st.columns([3, 1.5, 2, 2])
-            
-            with col1:
-                # 재료 검색 기능
-                search_key = f"recipe_search_{i}"
-                search_term = st.text_input(
-                    "",
-                    key=search_key,
-                    placeholder="🔍 재료명 검색...",
-                    label_visibility="collapsed"
-                )
+            # 컴팩트 행 컨테이너
+            with st.container():
+                st.markdown('<div class="compact-recipe-row">', unsafe_allow_html=True)
+                col1, col2, col3, col4 = st.columns([3, 1.5, 2, 2])
                 
-                # 검색어로 필터링된 재료 목록
-                if search_term and search_term.strip():
-                    filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
-                    if not filtered_ingredients:
-                        st.caption("⚠️ 검색 결과가 없습니다.")
+                with col1:
+                    # 재료 검색 기능
+                    search_key = f"recipe_search_{i}"
+                    search_term = st.text_input(
+                        "",
+                        key=search_key,
+                        placeholder="🔍 재료명 검색...",
+                        label_visibility="collapsed"
+                    )
+                    
+                    # 검색어로 필터링된 재료 목록
+                    if search_term and search_term.strip():
+                        filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
+                        if not filtered_ingredients:
+                            filtered_ingredients = ingredient_list
+                    else:
                         filtered_ingredients = ingredient_list
-                else:
-                    filtered_ingredients = ingredient_list
+                    
+                    # 재료 선택 (필터링된 목록에서)
+                    ingredient_key = f"batch_recipe_ingredient_{i}"
+                    selected_ingredient = st.selectbox(
+                        "",
+                        options=filtered_ingredients,
+                        key=ingredient_key,
+                        index=None,
+                        label_visibility="collapsed"
+                    )
                 
-                # 재료 선택 (필터링된 목록에서)
-                ingredient_key = f"batch_recipe_ingredient_{i}"
-                selected_ingredient = st.selectbox(
-                    "",
-                    options=filtered_ingredients,
-                    key=ingredient_key,
-                    index=None,
-                    label_visibility="collapsed"
-                )
+                with col2:
+                    # 기준단위 (자동 표시)
+                    if selected_ingredient and selected_ingredient in ingredient_info_dict:
+                        unit = ingredient_info_dict[selected_ingredient]['단위']
+                        st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{unit}</strong></div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='margin-top: 0.5rem;'>-</div>", unsafe_allow_html=True)
                 
-                if selected_ingredient:
-                    st.caption(f"✅ {selected_ingredient}")
-            
-            with col2:
-                # 기준단위 (자동 표시)
-                if selected_ingredient and selected_ingredient in ingredient_info_dict:
-                    unit = ingredient_info_dict[selected_ingredient]['단위']
-                    st.write(f"**{unit}**")
-                else:
-                    st.write("-")
-            
-            with col3:
-                # 사용량 입력
-                quantity_key = f"batch_recipe_quantity_{i}"
-                quantity = st.number_input(
-                    "",
-                    min_value=0.0,
-                    value=0.0,
-                    step=0.1,
-                    format="%.2f",
-                    key=quantity_key,
-                    label_visibility="collapsed"
-                )
-            
-            with col4:
-                # 사용단가 (자동 계산: 사용량 × 1단위 단가)
-                if selected_ingredient and selected_ingredient in ingredient_info_dict and quantity > 0:
-                    unit_price = ingredient_info_dict[selected_ingredient]['단가']
+                with col3:
+                    # 사용량 입력
+                    quantity_key = f"batch_recipe_quantity_{i}"
+                    quantity = st.number_input(
+                        "",
+                        min_value=0.0,
+                        value=0.0,
+                        step=0.1,
+                        format="%.2f",
+                        key=quantity_key,
+                        label_visibility="collapsed"
+                    )
+                
+                with col4:
+                    # 사용단가 (자동 계산: 사용량 × 1단위 단가)
+                    if selected_ingredient and selected_ingredient in ingredient_info_dict and quantity > 0:
+                        unit_price = ingredient_info_dict[selected_ingredient]['단가']
+                        total_price = quantity * unit_price
+                        st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{total_price:,.1f}원</strong></div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='margin-top: 0.5rem;'>-</div>", unsafe_allow_html=True)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # 유효한 데이터만 수집
+                if selected_ingredient and quantity > 0:
+                    unit = ingredient_info_dict.get(selected_ingredient, {}).get('단위', '')
+                    unit_price = ingredient_info_dict.get(selected_ingredient, {}).get('단가', 0)
                     total_price = quantity * unit_price
-                    st.write(f"**{total_price:,.1f}원**")
-                else:
-                    st.write("-")
-            
-            # 유효한 데이터만 수집
-            if selected_ingredient and quantity > 0:
-                unit = ingredient_info_dict.get(selected_ingredient, {}).get('단위', '')
-                unit_price = ingredient_info_dict.get(selected_ingredient, {}).get('단가', 0)
-                total_price = quantity * unit_price
-                recipe_data.append({
-                    'ingredient': selected_ingredient,
-                    'quantity': quantity,
-                    'unit': unit,
-                    'total_price': total_price
-                })
-            
-            if i < ingredient_count - 1:
-                st.markdown("---")
+                    recipe_data.append({
+                        'ingredient': selected_ingredient,
+                        'quantity': quantity,
+                        'unit': unit,
+                        'total_price': total_price
+                    })
+                
+                # 마지막 행이 아니면 얇은 구분선
+                if i < ingredient_count - 1:
+                    st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
         
         # 조리방법 입력 필드
         render_section_divider()
@@ -2444,6 +2468,28 @@ elif page == "레시피 등록":
                 # 각 재료별 사용량 수정/삭제 UI
                 st.markdown("**✏️ 재료 사용량 수정 및 삭제**")
                 
+                # 컴팩트 스타일 CSS 추가
+                st.markdown("""
+                <style>
+                .compact-edit-row {
+                    margin: 0.2rem 0 !important;
+                    padding: 0.3rem 0 !important;
+                }
+                .compact-edit-row [data-testid="stNumberInput"] > div > div {
+                    padding-top: 0.3rem !important;
+                    padding-bottom: 0.3rem !important;
+                }
+                .compact-edit-row [data-testid="stButton"] {
+                    margin-top: 0.2rem !important;
+                }
+                .compact-edit-row [data-testid="stButton"] > button {
+                    padding: 0.3rem 0.5rem !important;
+                    font-size: 0.85rem !important;
+                    height: auto !important;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
                 # 테이블 헤더
                 header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
                 with header_col1:
@@ -2457,7 +2503,7 @@ elif page == "레시피 등록":
                 with header_col5:
                     st.markdown("**삭제**")
                 
-                st.markdown("---")
+                st.markdown("<hr style='margin: 0.3rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
                 
                 # 각 재료별 사용량 수정/삭제 UI (표 형태)
                 for idx, row in display_recipe_df.iterrows():
@@ -2465,60 +2511,63 @@ elif page == "레시피 등록":
                     unit = row['단위'] if pd.notna(row['단위']) else ""
                     current_qty = float(row['사용량'])
                     
-                    # 각 행을 표처럼 정렬
-                    col1, col2, col3, col4, col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
-                    
-                    with col1:
-                        st.write(f"**{ing_name}**")
-                    with col2:
-                        st.write(unit)
-                    with col3:
-                        new_qty = st.number_input(
-                            "",
-                            min_value=0.0,
-                            value=current_qty,
-                            step=0.1,
-                            format="%.2f",
-                            key=f"edit_recipe_qty_{filter_menu}_{ing_name}",
-                            label_visibility="collapsed"
-                        )
-                    with col4:
-                        st.write("")  # 버튼 정렬을 위한 공간
-                        if st.button("💾 수정", key=f"save_recipe_{filter_menu}_{ing_name}", use_container_width=True):
-                            if new_qty <= 0:
-                                st.error("사용량은 0보다 큰 값이어야 합니다.")
-                            else:
-                                try:
-                                    save_recipe(filter_menu, ing_name, new_qty)
-                                    st.success(
-                                        f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
-                                    )
-                                    try:
-                                        load_csv.clear()
-                                    except Exception:
-                                        pass
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"사용량 수정 중 오류: {e}")
-                    with col5:
-                        st.write("")  # 버튼 정렬을 위한 공간
-                        if st.button("🗑️ 삭제", key=f"delete_recipe_{filter_menu}_{ing_name}", use_container_width=True):
-                            try:
-                                success, msg = delete_recipe(filter_menu, ing_name)
-                                if success:
-                                    st.success(f"'{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
-                                    try:
-                                        load_csv.clear()
-                                    except Exception:
-                                        pass
-                                    st.rerun()
+                    # 컴팩트 행 컨테이너
+                    with st.container():
+                        st.markdown('<div class="compact-edit-row">', unsafe_allow_html=True)
+                        col1, col2, col3, col4, col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
+                        
+                        with col1:
+                            st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{ing_name}</strong></div>", unsafe_allow_html=True)
+                        with col2:
+                            st.markdown(f"<div style='margin-top: 0.5rem;'>{unit}</div>", unsafe_allow_html=True)
+                        with col3:
+                            new_qty = st.number_input(
+                                "",
+                                min_value=0.0,
+                                value=current_qty,
+                                step=0.1,
+                                format="%.2f",
+                                key=f"edit_recipe_qty_{filter_menu}_{ing_name}",
+                                label_visibility="collapsed"
+                            )
+                        with col4:
+                            if st.button("💾 수정", key=f"save_recipe_{filter_menu}_{ing_name}", use_container_width=True):
+                                if new_qty <= 0:
+                                    st.error("사용량은 0보다 큰 값이어야 합니다.")
                                 else:
-                                    st.error(msg)
-                            except Exception as e:
-                                st.error(f"레시피 삭제 중 오류: {e}")
-                    
-                    if idx < len(display_recipe_df) - 1:
-                        st.markdown("---")
+                                    try:
+                                        save_recipe(filter_menu, ing_name, new_qty)
+                                        st.success(
+                                            f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
+                                        )
+                                        try:
+                                            load_csv.clear()
+                                        except Exception:
+                                            pass
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"사용량 수정 중 오류: {e}")
+                        with col5:
+                            if st.button("🗑️ 삭제", key=f"delete_recipe_{filter_menu}_{ing_name}", use_container_width=True):
+                                try:
+                                    success, msg = delete_recipe(filter_menu, ing_name)
+                                    if success:
+                                        st.success(f"'{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
+                                        try:
+                                            load_csv.clear()
+                                        except Exception:
+                                            pass
+                                        st.rerun()
+                                    else:
+                                        st.error(msg)
+                                except Exception as e:
+                                    st.error(f"레시피 삭제 중 오류: {e}")
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        # 마지막 행이 아니면 얇은 구분선
+                        if idx < len(display_recipe_df) - 1:
+                            st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
                 
                 # 조리방법 표시
                 render_section_divider()
