@@ -69,7 +69,6 @@ from src.ui import (
     render_daily_sales_input,
     render_inventory_input,
     render_report_input,
-    render_daily_closing_input,
     render_target_input,
     render_target_dashboard,
     render_abc_analysis,
@@ -213,7 +212,6 @@ st.sidebar.markdown('<hr style="border: 1px solid rgba(255,255,255,0.2); margin:
 # 메뉴 항목들
 menu_items = [
     ("점장 마감", "📋"),
-    ("일일 마감 입력", "📋"),
     ("매출 관리", "📊"),
     ("방문자 관리", "👥"),
     ("메뉴 관리", "🍽️"),
@@ -353,115 +351,6 @@ if page == "점장 마감":
                     
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
-
-# 일일 마감 입력 페이지 (통합 입력)
-if page == "일일 마감 입력":
-    render_page_header("일일 마감 입력", "📋")
-    
-    st.markdown("""
-    <div class="info-box">
-        <strong>💡 팁:</strong> 마감 시 매출, 방문자수, 일일 판매 내역을 한 번에 입력할 수 있습니다.
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 메뉴 목록 로드
-    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-    menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
-    
-    # 통합 입력 폼
-    date, store, card_sales, cash_sales, total_sales, visitors, sales_items = render_daily_closing_input(menu_list)
-    
-    render_section_divider()
-    
-    # 입력 요약 표시 (개선된 디자인)
-    render_section_header("입력 요약", "📊")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">날짜</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #1f4788;">{date.strftime('%Y-%m-%d')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        sales_display = f"{total_sales:,}원" if total_sales > 0 else "0원"
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">총매출</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #28a745;">{sales_display}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        visitors_display = f"{visitors}명" if visitors > 0 else "0명"
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">네이버 방문자수</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #17a2b8;">{visitors_display}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">판매 메뉴 수</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #ffc107;">{len(sales_items)}개</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    if sales_items:
-        st.write("**입력된 판매 내역:**")
-        sales_summary_df = pd.DataFrame(sales_items, columns=['메뉴명', '판매수량'])
-        st.dataframe(sales_summary_df, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
-    
-    # 저장 버튼
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        if st.button("💾 마감 저장", type="primary", use_container_width=True):
-            errors = []
-            success_count = 0
-            
-            # 매출 저장
-            if total_sales > 0:
-                if not store or store.strip() == "":
-                    errors.append("매장명을 입력해주세요.")
-                else:
-                    try:
-                        save_sales(date, store, card_sales, cash_sales, total_sales)
-                        success_count += 1
-                    except Exception as e:
-                        errors.append(f"매출 저장 오류: {e}")
-            
-            # 방문자 저장
-            if visitors > 0:
-                try:
-                    save_visitor(date, visitors)
-                    success_count += 1
-                except Exception as e:
-                    errors.append(f"방문자 저장 오류: {e}")
-            
-            # 일일 판매 내역 저장
-            if sales_items:
-                for menu_name, quantity in sales_items:
-                    if quantity > 0:
-                        try:
-                            save_daily_sales_item(date, menu_name, quantity)
-                            success_count += 1
-                        except Exception as e:
-                            errors.append(f"{menu_name} 판매 내역 저장 오류: {e}")
-            
-            # 결과 표시
-            if errors:
-                for error in errors:
-                    st.error(error)
-            
-            if success_count > 0:
-                st.success(f"✅ {success_count}개 항목이 저장되었습니다!")
-                st.balloons()
-                st.rerun()
-            elif not errors:
-                st.warning("저장할 데이터가 없습니다. 최소 하나 이상의 항목을 입력해주세요.")
 
 # 매출 관리 페이지
 elif page == "매출 관리":
