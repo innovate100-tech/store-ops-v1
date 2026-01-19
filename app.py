@@ -1551,29 +1551,34 @@ elif page == "비용구조":
                     </div>
                     """, unsafe_allow_html=True)
         
-        # 기존 항목 표시 - expander 제목 간소화 (중첩 방지)
+        # 기존 항목 표시 - Expander 제거하고 직접 표시 (중첩 문제 해결)
         if category in existing_items and existing_items[category]:
-            with st.expander(f"기존 항목 보기 ({len(existing_items[category])}개)", expanded=True):
-                for item in existing_items[category]:
-                    col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                    with col1:
-                        st.write(f"**{item['item_name']}**")
-                    with col2:
-                        if info['type'] == 'fixed':
-                            st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
-                        else:
-                            st.write(f"{item['amount']:.2f}%")
-                    with col3:
-                        if item.get('notes'):
-                            st.write(f"📝 {item['notes']}")
-                    with col4:
-                        if st.button("🗑️", key=f"del_{category}_{item['id']}"):
-                            try:
-                                delete_expense_item(item['id'])
-                                st.success("삭제되었습니다!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"삭제 중 오류: {e}")
+            st.markdown(f"""
+            <div style="margin: 1rem 0 0.5rem 0; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
+                <strong style="color: #667eea;">📋 기존 입력된 항목 ({len(existing_items[category])}개)</strong>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            for item in existing_items[category]:
+                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                with col1:
+                    st.write(f"**{item['item_name']}**")
+                with col2:
+                    if info['type'] == 'fixed':
+                        st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
+                    else:
+                        st.write(f"{item['amount']:.2f}%")
+                with col3:
+                    if item.get('notes'):
+                        st.write(f"📝 {item['notes']}")
+                with col4:
+                    if st.button("🗑️", key=f"del_{category}_{item['id']}"):
+                        try:
+                            delete_expense_item(item['id'])
+                            st.success("삭제되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"삭제 중 오류: {e}")
         
         # 새 항목 입력
         if info['type'] == 'fixed':
