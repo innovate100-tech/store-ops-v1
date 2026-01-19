@@ -2740,6 +2740,11 @@ elif page == "비용구조":
                                                 st.stop()
                                         
                                         update_expense_item(item['id'], edit_name.strip(), edit_amount, item.get('notes'))
+                                        # 캐시된 비용구조 데이터를 무효화하여 즉시 반영되도록 처리
+                                        try:
+                                            load_expense_structure.clear()
+                                        except Exception:
+                                            pass
                                         st.session_state[edit_key] = False
                                         st.success("수정되었습니다!")
                                         st.rerun()
@@ -2774,6 +2779,10 @@ elif page == "비용구조":
                         if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
                             try:
                                 delete_expense_item(item['id'])
+                                try:
+                                    load_expense_structure.clear()
+                                except Exception:
+                                    pass
                                 st.success("삭제되었습니다!")
                                 st.rerun()
                             except Exception as e:
@@ -2822,6 +2831,10 @@ elif page == "비용구조":
                             else:
                                 try:
                                     save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
+                                    try:
+                                        load_expense_structure.clear()
+                                    except Exception:
+                                        pass
                                     # 입력 필드 초기화를 위해 카운터 증가
                                     st.session_state[reset_key] += 1
                                     st.success(f"{category} 항목이 추가되었습니다!")
@@ -2889,6 +2902,10 @@ elif page == "비용구조":
                                 try:
                                     # 변동비는 비율(%)을 amount에 저장
                                     save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
+                                    try:
+                                        load_expense_structure.clear()
+                                    except Exception:
+                                        pass
                                     # 입력 필드 초기화를 위해 카운터 증가
                                     st.session_state[reset_key] += 1
                                     st.success(f"{category} 항목이 추가되었습니다!")
