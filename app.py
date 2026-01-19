@@ -120,8 +120,9 @@ st.markdown("""
     }
     
     [data-testid="stIconMaterial"]::before {
-        content: '⇔';
-        font-size: 16px;
+        /* 사이드바 접기/펼치기 아이콘을 웃는 스마일 이모티콘으로 표시 */
+        content: '😊';
+        font-size: 18px;
         line-height: 1;
         color: #ffffff;
         display: inline-block;
