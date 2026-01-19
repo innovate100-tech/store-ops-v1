@@ -1113,6 +1113,7 @@ menu_categories = {
     ],
     "재무": [
         ("비용구조", "💳"),
+        ("매출구조", "📈"),
     ],
     "기타": [
         ("주간 리포트", "📄"),
@@ -3024,3 +3025,115 @@ elif page == "비용구조":
         st.info(f"{selected_year}년 {selected_month}월의 비용 데이터가 없습니다. 위에서 비용 항목을 입력해주세요.")
 
 # 비용구조 페이지 끝
+
+# 매출구조 페이지
+elif page == "매출구조":
+    render_page_header("매출구조 분석", "📈")
+    
+    from datetime import datetime
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    
+    # 기간 선택 (비용구조와 동일한 기준)
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_year = st.number_input(
+            "연도",
+            min_value=2020,
+            max_value=2100,
+            value=current_year,
+            key="revenue_structure_year"
+        )
+    with col2:
+        selected_month = st.number_input(
+            "월",
+            min_value=1,
+            max_value=12,
+            value=current_month,
+            key="revenue_structure_month"
+        )
+    
+    render_section_divider()
+    
+    # 비용구조에서 고정비/변동비율과 목표매출 불러오기
+    expense_df = load_expense_structure(selected_year, selected_month)
+    
+    fixed_costs = 0
+    variable_cost_rate = 0.0  # % 단위
+    
+    if not expense_df.empty:
+        fixed_categories = ['임차료', '인건비', '공과금']
+        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+        
+        variable_categories = ['재료비', '부가세&카드수수료']
+        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+        if not variable_df.empty:
+            variable_cost_rate = variable_df['amount'].sum()
+    
+    # 목표 매출 로드
+    targets_df = load_csv('targets.csv', default_columns=[
+        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+        '목표임대료율', '목표기타비용율', '목표순이익률'
+    ])
+    
+    target_sales = 0
+    if not targets_df.empty:
+        target_row = targets_df[(targets_df['연도'] == selected_year) & (targets_df['월'] == selected_month)]
+        if not target_row.empty:
+            target_sales = float(target_row.iloc[0].get('목표매출', 0))
+    
+    # 기본 검증
+    variable_rate_decimal = variable_cost_rate / 100 if variable_cost_rate > 0 else 0
+    
+    if fixed_costs <= 0 or variable_rate_decimal <= 0 or variable_rate_decimal >= 1:
+        st.info("비용구조 페이지에서 고정비와 변동비율을 먼저 올바르게 입력해주세요.")
+    elif target_sales <= 0:
+        st.info("비용구조 페이지에서 목표 매출을 먼저 설정해주세요.")
+    else:
+        # 목표매출을 기준으로 다양한 시나리오 생성
+        scenarios = [
+            ("목표매출 - 1,000만원", max(target_sales - 10_000_000, 0)),
+            ("목표매출 - 500만원", max(target_sales - 5_000_000, 0)),
+            ("목표매출 (기준)", target_sales),
+            ("목표매출 + 500만원", target_sales + 5_000_000),
+            ("목표매출 + 1,000만원", target_sales + 10_000_000),
+            ("목표매출 + 1,500만원", target_sales + 15_000_000),
+        ]
+        
+        st.markdown("""
+        <div class="info-box">
+            <strong>📊 매출 수준별 비용·영업이익 시뮬레이션</strong><br>
+            <span style="font-size: 0.9rem; opacity: 0.9;">
+                비용구조의 고정비와 변동비율, 목표 매출을 기준으로 다양한 매출 수준에서의 비용과 영업이익을 비교합니다.
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns(3)
+        cols = [col1, col2, col3]
+        
+        for idx, (label, sales) in enumerate(scenarios):
+            if sales <= 0:
+                continue
+            
+            total_cost = sales * variable_rate_decimal + fixed_costs
+            profit = sales - total_cost
+            
+            tile_col = cols[idx % 3]
+            with tile_col:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1.2rem; border-radius: 10px; margin-top: 0.8rem; color: #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+                    <div style="font-size: 0.9rem; margin-bottom: 0.4rem; opacity: 0.9;">{label}</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem;">매출: {int(sales):,}원</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem;">
+                        비용 합계
+                    </div>
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem;">{int(total_cost):,}원</div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem;">
+                        추정 영업이익
+                    </div>
+                    <div style="font-size: 1.1rem; font-weight: 600; color: {'#4ade80' if profit >= 0 else '#f97373'};">
+                        {int(profit):,}원
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
