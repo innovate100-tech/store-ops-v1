@@ -1479,21 +1479,88 @@ elif page == "비용구조":
                 'notes': row.get('notes')
             })
     
+    # 한글 원화 변환 함수
+    def format_korean_currency(amount):
+        """숫자를 한글 원화로 변환 (예: 10000 -> 1만원, 15000000 -> 1천5백만원)"""
+        if amount == 0:
+            return "0원"
+        
+        # 억 단위
+        eok = amount // 100000000
+        remainder = amount % 100000000
+        
+        # 만 단위
+        man = remainder // 10000
+        remainder = remainder % 10000
+        
+        parts = []
+        if eok > 0:
+            parts.append(f"{eok}억")
+        if man > 0:
+            parts.append(f"{man}만")
+        if remainder > 0:
+            parts.append(f"{remainder:,}".replace(",", ""))
+        
+        if not parts:
+            return "0원"
+        
+        return "".join(parts) + "원"
+    
     # 각 카테고리별 입력 섹션
     for category, info in expense_categories.items():
-        render_section_header(f"{info['icon']} {category}", "")
-        st.caption(f"{info['description']}")
+        # 카테고리별 총액 계산
+        category_total = 0
+        category_items = existing_items.get(category, [])
+        if category_items:
+            if info['type'] == 'fixed':
+                category_total = sum(item['amount'] for item in category_items)
+            else:
+                # 변동비는 비율 합계
+                category_total = sum(item['amount'] for item in category_items)
         
-        # 기존 항목 표시
+        # 섹션 헤더와 총액 표시
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"""
+            <div style="margin: 1.5rem 0 0.5rem 0;">
+                <h3 style="color: #2c3e50; font-weight: 600; margin: 0;">
+                    {info['icon']} {category}
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
+            st.caption(f"{info['description']}")
+        with col2:
+            if category_items:
+                if info['type'] == 'fixed':
+                    st.markdown(f"""
+                    <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
+                        <strong style="color: #667eea; font-size: 1.1rem;">
+                            총액: {format_korean_currency(int(category_total))}
+                        </strong>
+                        <div style="font-size: 0.85rem; color: #666;">
+                            ({category_total:,.0f}원)
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div style="text-align: right; margin-top: 0.5rem;">
+                        <strong style="color: #667eea; font-size: 1.1rem;">
+                            총 비율: {category_total:.2f}%
+                        </strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # 기존 항목 표시 - expander 제목 간소화 (중첩 방지)
         if category in existing_items and existing_items[category]:
-            with st.expander(f"📋 기존 입력된 {category} 항목 ({len(existing_items[category])}개)", expanded=False):
+            with st.expander(f"기존 항목 보기 ({len(existing_items[category])}개)", expanded=False):
                 for item in existing_items[category]:
                     col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
                     with col1:
                         st.write(f"**{item['item_name']}**")
                     with col2:
                         if info['type'] == 'fixed':
-                            st.write(f"{int(item['amount']):,}원")
+                            st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
                         else:
                             st.write(f"{item['amount']:.2f}%")
                     with col3:
@@ -1527,6 +1594,9 @@ elif page == "비용구조":
                         step=10000,
                         key=f"new_amount_{category}"
                     )
+                    # 한글 원화 표시
+                    if new_amount > 0:
+                        st.caption(f"💬 {format_korean_currency(int(new_amount))}")
                 with col3:
                     st.write("")
                     st.write("")
