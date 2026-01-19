@@ -160,6 +160,23 @@ st.markdown("""
         margin: 1rem 0;
         border-left: 4px solid #667eea;
     }
+    
+    /* 사이드바 카테고리별 메뉴 구분 스타일 */
+    [data-testid="stSidebar"] .stRadio {
+        margin-top: 0 !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* 라디오 버튼 항목 그룹핑을 위한 스타일 */
+    [data-testid="stSidebar"] .stRadio > label {
+        position: relative;
+    }
+    
+    /* 카테고리 구분선 효과 */
+    .category-separator {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -234,8 +251,12 @@ for category_name, items in menu_categories.items():
         all_menu_items.append((menu_name, icon))
         all_menu_options.append(f"{icon} {menu_name}")
 
-# 카테고리별로 헤더 표시 (먼저 모두 표시)
-for category_name in menu_categories.keys():
+# 카테고리별로 헤더와 메뉴를 함께 표시
+# 각 카테고리의 메뉴를 버튼으로 표시하여 카테고리별 구분이 명확하게 보이도록 함
+selected_menu_text = st.session_state.current_page
+
+for category_name, items in menu_categories.items():
+    # 카테고리 헤더
     st.sidebar.markdown(f"""
     <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
         <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
@@ -243,30 +264,21 @@ for category_name in menu_categories.keys():
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-# 모든 메뉴를 하나의 라디오 버튼으로 선택 (하나만 선택 가능)
-menu_options_plain = [name for name, icon in all_menu_items]
-
-try:
-    default_index = menu_options_plain.index(st.session_state.current_page)
-except (ValueError, AttributeError):
-    default_index = 0
-
-selected_menu_with_icon = st.sidebar.radio(
-    "메뉴를 선택하세요",
-    options=all_menu_options,
-    label_visibility="collapsed",
-    index=default_index,
-    key="main_menu_radio"
-)
-
-# 아이콘 제거하여 페이지명만 추출
-selected_menu_text = selected_menu_with_icon.split(" ", 1)[1] if " " in selected_menu_with_icon else selected_menu_with_icon
-
-# 페이지가 변경되었으면 상태 업데이트 및 rerun
-if selected_menu_text != st.session_state.get('current_page'):
-    st.session_state.current_page = selected_menu_text
-    st.rerun()
+    
+    # 카테고리 내 각 메뉴를 버튼으로 표시
+    for menu_name, icon in items:
+        # 현재 선택된 메뉴인지 확인
+        is_selected = (selected_menu_text == menu_name)
+        button_type = "primary" if is_selected else "secondary"
+        
+        if st.sidebar.button(
+            f"{icon} {menu_name}",
+            key=f"menu_btn_{menu_name}",
+            use_container_width=True,
+            type=button_type
+        ):
+            st.session_state.current_page = menu_name
+            st.rerun()
 
 page = st.session_state.current_page
 
