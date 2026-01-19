@@ -113,8 +113,10 @@ st.markdown("""
         height: 28px;
         border-radius: 999px;
         background-color: #667eea;
-        color: #ffffff;
-        font-size: 0; /* 내부 영어 텍스트는 안 보이게 */
+        /* 원래 영어 텍스트는 완전히 숨기기 (모바일에서도 강제로 적용) */
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
     }
     
     [data-testid="stIconMaterial"]::before {
@@ -329,8 +331,11 @@ st.markdown("""
     
     /* ========== 사이드바 최적화 (모바일) ========== */
     @media (max-width: 768px) {
+        /* 화면 전체를 덮지 않도록 폭을 적당히 제한 */
         [data-testid="stSidebar"] {
-            min-width: 100% !important;
+            width: 80vw !important;
+            max-width: 320px !important;
+            min-width: auto !important;
         }
         
         [data-testid="stSidebar"] .stButton > button {
