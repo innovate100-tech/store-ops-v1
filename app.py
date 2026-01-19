@@ -2352,10 +2352,10 @@ elif page == "비용구조":
     
     # 손익분기점 상단 공지 표시
     if breakeven_sales is not None and breakeven_sales > 0:
-        # 평일/주말 비율 입력
+        # 평일/주말 비율 입력 - 공통 info-box 스타일 사용
         st.markdown("""
-        <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #667eea;">
-            <div style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #2c3e50;">📅 평일/주말 매출 비율 설정</div>
+        <div class="info-box">
+            <strong>📅 평일/주말 매출 비율 설정</strong>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2391,10 +2391,10 @@ elif page == "비용구조":
             else:
                 st.success(f"✓ 합계: {total_ratio:.1f}%")
         
-        # 목표 월매출 입력
+        # 목표 월매출 입력 - 공통 info-box 스타일 사용
         st.markdown("""
-        <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; margin-top: 1rem; border-left: 4px solid #28a745;">
-            <div style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #2c3e50;">🎯 목표 월매출 설정</div>
+        <div class="info-box">
+            <strong>🎯 목표 월매출 설정</strong>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2454,12 +2454,10 @@ elif page == "비용구조":
                 weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
                 weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
             
-            # 손익분기 매출과 목표 매출 비교
+            # 손익분기 매출과 목표 매출 비교 - 공통 info-box 스타일 사용
             st.markdown(f"""
-            <div style="background: white; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 0.5rem;">
-                    📊 손익분기 매출 vs 목표 매출 비교
-                </div>
+            <div class="info-box">
+                <strong>📊 손익분기 매출 vs 목표 매출 비교</strong>
             </div>
             """, unsafe_allow_html=True)
             
@@ -2520,12 +2518,10 @@ elif page == "비용구조":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # 일일 매출 비교
+            # 일일 매출 비교 - 공통 info-box 스타일 사용
             st.markdown("""
-            <div style="background: white; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 0.5rem;">
-                    📅 일일 매출 비교
-                </div>
+            <div class="info-box">
+                <strong>📅 일일 매출 비교</strong>
             </div>
             """, unsafe_allow_html=True)
             
