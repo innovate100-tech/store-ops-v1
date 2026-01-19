@@ -3236,68 +3236,141 @@ elif page == "판매 관리":
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
     
-    # 일일 판매 입력 폼
-    sales_result = render_daily_sales_input(menu_list)
+    # ========== 1. 일일 판매 입력 (점장 마감 스타일 - 지정 날짜에 전 메뉴 수량 입력) ==========
+    from datetime import datetime
+    st.subheader("📦 일일 판매 입력 (전 메뉴 일괄 입력)")
     
-    if sales_result[0] is not None:
-        date, menu_name, quantity = sales_result
+    if not menu_list:
+        st.warning("먼저 메뉴를 등록해주세요.")
+    else:
+        col_date, _ = st.columns([1, 3])
+        with col_date:
+            sales_date = st.date_input(
+                "판매 날짜 선택",
+                value=datetime.now().date(),
+                key="daily_sales_full_date",
+            )
         
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 저장", type="primary", use_container_width=True):
-                if quantity <= 0:
-                    st.error("판매수량은 0보다 큰 값이어야 합니다.")
+        st.markdown("---")
+        st.write("**선택한 날짜의 각 메뉴별 판매 수량을 한 번에 입력하세요. (0은 미판매)**")
+        
+        sales_items = []
+        # 메뉴를 3열 그리드로 표시 (점장 마감 페이지와 동일한 스타일)
+        num_rows = (len(menu_list) + 2) // 3
+        for row in range(num_rows):
+            cols = st.columns(3)
+            for col_idx in range(3):
+                menu_idx = row * 3 + col_idx
+                if menu_idx < len(menu_list):
+                    menu_name = menu_list[menu_idx]
+                    with cols[col_idx]:
+                        qty = st.number_input(
+                            menu_name,
+                            min_value=0,
+                            value=0,
+                            step=1,
+                            key=f"daily_sales_full_{menu_name}",
+                        )
+                        if qty > 0:
+                            sales_items.append((menu_name, qty))
+        
+        render_section_divider()
+        
+        save_col, _ = st.columns([1, 3])
+        with save_col:
+            if st.button("💾 일괄 저장", type="primary", use_container_width=True, key="daily_sales_full_save"):
+                if not sales_items:
+                    st.error("저장할 판매 내역이 없습니다. 한 개 이상의 메뉴에 판매 수량을 입력해주세요.")
                 else:
-                    try:
-                        save_daily_sales_item(date, menu_name, quantity)
-                        st.success(f"판매 내역이 저장되었습니다! ({date}, {menu_name}: {quantity}개)")
+                    success_count = 0
+                    errors = []
+                    for menu_name, quantity in sales_items:
+                        try:
+                            save_daily_sales_item(sales_date, menu_name, quantity)
+                            success_count += 1
+                        except Exception as e:
+                            errors.append(f"{menu_name}: {e}")
+                    
+                    if errors:
+                        for msg in errors:
+                            st.error(msg)
+                    
+                    if success_count > 0:
+                        st.success(f"✅ {sales_date} 기준 {success_count}개 메뉴의 판매 내역이 저장되었습니다.")
+                        st.balloons()
                         st.rerun()
-                    except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
     
     render_section_divider()
     
-    # 저장된 판매 내역 표시
-    render_section_header("일일 판매 내역", "📋")
-    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+    # ========== 2. ABC 분석 (메뉴, 가격, 판매수량, 비율, 누계, 원가, 총판매원가) ==========
+    st.subheader("📊 판매 ABC 분석")
     
-    if not daily_sales_df.empty:
-        # 날짜 필터
-        date_list = sorted(daily_sales_df['날짜'].unique(), reverse=True)
-        selected_date = st.selectbox("날짜 필터", options=["전체"] + [str(d.date()) if hasattr(d, 'date') else str(d) for d in date_list], key="sales_date_filter")
+    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    
+    if daily_sales_df.empty or menu_df.empty or recipe_df.empty or ingredient_df.empty:
+        st.info("ABC 분석을 위해서는 메뉴, 레시피, 재료, 일일 판매 데이터가 모두 필요합니다.")
+    else:
+        # 메뉴별 총 판매수량 집계
+        sales_summary = (
+            daily_sales_df.groupby('메뉴명')['판매수량']
+            .sum()
+            .reset_index()
+        )
+        sales_summary.columns = ['메뉴명', '판매수량']
         
-        display_df = daily_sales_df.copy()
-        if selected_date != "전체":
-            display_df = display_df[display_df['날짜'].astype(str).str.startswith(selected_date)]
+        # 메뉴 마스터와 조인하여 판매가 가져오기
+        summary_df = pd.merge(
+            sales_summary,
+            menu_df[['메뉴명', '판매가']],
+            on='메뉴명',
+            how='left',
+        )
         
-        if not display_df.empty:
-            # 날짜를 문자열로 변환
-            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+        # 매출 금액 계산
+        summary_df['매출'] = summary_df['판매수량'] * summary_df['판매가']
+        
+        # 원가 정보 계산
+        cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+        summary_df = pd.merge(
+            summary_df,
+            cost_df[['메뉴명', '원가']],
+            on='메뉴명',
+            how='left',
+        )
+        
+        # 총 판매 원가
+        summary_df['총판매원가'] = summary_df['판매수량'] * summary_df['원가']
+        
+        # 매출 기준 비율 및 누적 비율
+        total_revenue = summary_df['매출'].sum()
+        if total_revenue <= 0:
+            st.info("매출 데이터가 충분하지 않아 ABC 분석을 할 수 없습니다.")
+        else:
+            summary_df = summary_df.sort_values('매출', ascending=False)
+            summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
+            summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
+            
+            # 표시용 데이터프레임 구성
+            display_df = summary_df.copy()
+            display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_df['매출'] = display_df['매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_df['원가'] = display_df['원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_df['총판매원가'] = display_df['총판매원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            
+            display_df = display_df[[
+                '메뉴명',
+                '판매가',
+                '판매수량',
+                '매출',
+                '비율(%)',
+                '누계 비율(%)',
+                '원가',
+                '총판매원가',
+            ]]
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            # 집계 정보
-            render_section_divider()
-            render_section_header("판매 집계", "📊")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write("**날짜별 판매량**")
-                date_summary = display_df.groupby('날짜')['판매수량'].sum().reset_index()
-                date_summary.columns = ['날짜', '총 판매수량']
-                st.dataframe(date_summary, use_container_width=True, hide_index=True)
-            
-            with col2:
-                st.write("**메뉴별 판매량**")
-                menu_summary = display_df.groupby('메뉴명')['판매수량'].sum().reset_index()
-                menu_summary.columns = ['메뉴명', '총 판매수량']
-                menu_summary = menu_summary.sort_values('총 판매수량', ascending=False)
-                st.dataframe(menu_summary, use_container_width=True, hide_index=True)
-        else:
-            st.info(f"'{selected_date}' 날짜의 판매 내역이 없습니다.")
-    else:
-        st.info("저장된 판매 내역이 없습니다.")
 
 # 재료 사용량 집계 페이지
 elif page == "재료 사용량 집계":
