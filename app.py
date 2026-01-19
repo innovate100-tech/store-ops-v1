@@ -761,6 +761,27 @@ st.markdown("""
                     });
                 });
             }
+            
+            // 사이드바 열기/닫기 토글 버튼 색상 및 툴팁 제거
+            const sidebarToggleButtons = document.querySelectorAll(
+                'button[aria-label*="sidebar" i], ' +
+                'button[aria-label*="사이드바"], ' +
+                'button[title*="sidebar" i], ' +
+                'button[title*="사이드바"]'
+            );
+            
+            sidebarToggleButtons.forEach(btn => {
+                // hover 시 뜨는 영어/한글 툴팁 제거
+                btn.removeAttribute('title');
+                btn.removeAttribute('aria-label');
+                
+                // 버튼이 명확하게 보이도록 스타일 적용
+                btn.style.backgroundColor = '#667eea';
+                btn.style.color = '#ffffff';
+                btn.style.borderRadius = '999px';
+                btn.style.border = 'none';
+                btn.style.boxShadow = '0 0 0 2px rgba(255, 255, 255, 0.6)';
+            });
         }
         setInterval(watchSidebar, 1000);
         
