@@ -2750,9 +2750,6 @@ elif page == "재료 사용량 집계":
     daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
     recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
 
-    render_section_divider()
-    render_section_header("재료 사용량 집계", "📈")
-
     if not daily_sales_df.empty and not recipe_df.empty:
         usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
 
