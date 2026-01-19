@@ -2749,6 +2749,7 @@ elif page == "재료 사용량 집계":
     # 데이터 로드
     daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
     recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
 
     if not daily_sales_df.empty and not recipe_df.empty:
         usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
@@ -2792,6 +2793,21 @@ elif page == "재료 사용량 집계":
                 ].copy()
                 
                 if not display_usage_df.empty:
+                    # 재료 단가와 조인하여 총 사용 단가 계산
+                    if not ingredient_df.empty:
+                        display_usage_df = pd.merge(
+                            display_usage_df,
+                            ingredient_df[['재료명', '단가']],
+                            on='재료명',
+                            how='left'
+                        )
+                        display_usage_df['단가'] = display_usage_df['단가'].fillna(0)
+                    else:
+                        display_usage_df['단가'] = 0.0
+
+                    display_usage_df['총사용단가'] = display_usage_df['총사용량'] * display_usage_df['단가']
+
+                    # 날짜 포맷 정리
                     display_usage_df['날짜'] = display_usage_df['날짜'].dt.strftime('%Y-%m-%d')
                     
                     # 기간 표시
@@ -2805,27 +2821,53 @@ elif page == "재료 사용량 집계":
                     
                     render_section_divider()
                     
-                    # 재료별 총 사용량 집계 (기간 전체 합계)
-                    ingredient_summary = display_usage_df.groupby('재료명')['총사용량'].sum().reset_index()
-                    ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False)
-                    ingredient_summary.columns = ['재료명', '총 사용량']
+                    # 재료별 총 사용량/총 사용 단가 집계 (기간 전체 합계)
+                    ingredient_summary = (
+                        display_usage_df
+                        .groupby('재료명')[['총사용량', '총사용단가']]
+                        .sum()
+                        .reset_index()
+                    )
+
+                    # 정렬 기준 선택 (사용량 / 사용 단가)
+                    sort_option = st.radio(
+                        "정렬 기준 선택",
+                        ("사용량 기준", "사용 단가 기준"),
+                        horizontal=True,
+                        key="ingredient_usage_sort"
+                    )
+
+                    if sort_option == "사용량 기준":
+                        ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False)
+                    else:
+                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
                     
-                    # TOP 10 재료
-                    st.markdown("**🔝 사용량 TOP 10 재료**")
+                    # TOP 10 재료 (정렬 기준에 따라)
+                    st.markdown("**🔝 사용량 TOP 10 재료**" if sort_option == "사용량 기준" else "**💰 사용 단가 TOP 10 재료**")
                     top10_df = ingredient_summary.head(10).copy()
                     top10_df.insert(0, '순위', range(1, len(top10_df) + 1))
+                    top10_df['총 사용량'] = top10_df['총사용량']
+                    top10_df['총 사용단가'] = top10_df['총사용단가']
+                    top10_df = top10_df[['순위', '재료명', '총 사용량', '총 사용단가']]
                     st.dataframe(top10_df, use_container_width=True, hide_index=True)
                     
                     render_section_divider()
                     
-                    # 전체 재료 사용량 순위표 (1위부터 끝까지)
-                    st.markdown("**📊 전체 재료 사용량 순위**")
+                    # 전체 재료 사용량/사용 단가 순위표 (1위부터 끝까지)
+                    st.markdown("**📊 전체 재료 사용량 순위**" if sort_option == "사용량 기준" else "**📊 전체 재료 사용 단가 순위**")
                     full_ranking_df = ingredient_summary.copy()
                     full_ranking_df.insert(0, '순위', range(1, len(full_ranking_df) + 1))
+                    full_ranking_df['총 사용량'] = full_ranking_df['총사용량']
+                    full_ranking_df['총 사용단가'] = full_ranking_df['총사용단가']
+                    full_ranking_df = full_ranking_df[['순위', '재료명', '총 사용량', '총 사용단가']]
                     st.dataframe(full_ranking_df, use_container_width=True, hide_index=True)
                     
                     # 통계 정보
-                    st.markdown(f"**총 {len(full_ranking_df)}개 재료** | **총 사용량: {full_ranking_df['총 사용량'].sum():,.2f}**")
+                    st.markdown(
+                        f"**총 {len(full_ranking_df)}개 재료**"
+                        f" | **총 사용량: {full_ranking_df['총 사용량'].sum():,.2f}**"
+                        f" | **총 사용 단가: {full_ranking_df['총 사용단가'].sum():,.0f}원**"
+                    )
                 else:
                     st.warning(f"선택한 기간({start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')})에 해당하는 데이터가 없습니다.")
         else:
