@@ -41,7 +41,10 @@ from src.storage_supabase import (
     delete_sales,
     delete_visitor,
     create_backup,
-    save_daily_close
+    save_daily_close,
+    save_expense_item,
+    delete_expense_item,
+    load_expense_structure
 )
 from src.analytics import (
     calculate_correlation,
@@ -231,10 +234,12 @@ menu_categories = {
         ("레시피 관리", "📝"),
         ("원가 분석", "💰"),
     ],
+    "재무": [
+        ("비용구조", "💳"),
+    ],
     "기타": [
         ("주간 리포트", "📄"),
         ("통합 대시보드", "📊"),
-        ("사장 설계", "👔")
     ]
 }
 
@@ -1374,8 +1379,8 @@ elif page == "통합 대시보드":
     else:
         st.info("통합할 데이터가 없습니다. 매출과 방문자 데이터를 먼저 입력해주세요.")
 
-# 사장 설계 페이지
-elif page == "사장 설계":
+# 비용구조 페이지
+elif page == "비용구조":
     render_page_header("사장 설계 영역", "👔")
     
     st.markdown("""

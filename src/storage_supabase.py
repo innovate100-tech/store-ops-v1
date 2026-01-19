@@ -867,6 +867,81 @@ def delete_visitor(date):
         raise
 
 
+def save_expense_item(year, month, category, item_name, amount, notes=None):
+    """비용구조 항목 저장"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        supabase.table("expense_structure").insert({
+            "store_id": store_id,
+            "year": int(year),
+            "month": int(month),
+            "category": category,
+            "item_name": item_name,
+            "amount": float(amount),
+            "notes": notes if notes else None
+        }).execute()
+        
+        logger.info(f"Expense item saved: {year}-{month}, {category}, {item_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save expense item: {e}")
+        raise
+
+
+def delete_expense_item(expense_id):
+    """비용구조 항목 삭제"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False, "DEV MODE에서는 삭제할 수 없습니다."
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        supabase.table("expense_structure").delete().eq("id", expense_id).eq("store_id", store_id).execute()
+        logger.info(f"Expense item deleted: {expense_id}")
+        return True, "삭제 성공"
+    except Exception as e:
+        logger.error(f"Failed to delete expense item: {e}")
+        raise
+
+
+def load_expense_structure(year, month):
+    """비용구조 데이터 로드 (특정 연도/월)"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return pd.DataFrame()
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        return pd.DataFrame()
+    
+    try:
+        result = supabase.table("expense_structure")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .eq("year", int(year))\
+            .eq("month", int(month))\
+            .execute()
+        
+        if result.data:
+            df = pd.DataFrame(result.data)
+            return df
+        else:
+            return pd.DataFrame(columns=['id', 'category', 'item_name', 'amount', 'notes'])
+    except Exception as e:
+        logger.error(f"Failed to load expense structure: {e}")
+        return pd.DataFrame()
+
+
 def create_backup():
     """데이터 백업 (DB 기반에서는 단순 로그만)"""
     logger = logging.getLogger(__name__)
