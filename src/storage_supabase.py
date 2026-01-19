@@ -9,7 +9,8 @@ from typing import Optional, List, Tuple
 import json
 
 # auth.py에서 함수 import
-from src.auth import get_supabase_client, get_current_store_id
+from src.auth import get_supabase_client, get_current_store_id, is_dev_mode
+import streamlit as st
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,24 @@ def setup_logger():
 
 
 setup_logger()
+
+
+# ============================================
+# Helper Functions
+# ============================================
+
+def _check_supabase_for_dev_mode():
+    """
+    DEV MODE 체크 및 Supabase 클라이언트 반환
+    DEV MODE일 때는 None을 반환하고 경고 표시
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        if is_dev_mode():
+            st.warning("⚠️ DEV MODE: 데이터 저장은 Supabase가 필요합니다. 실제 데이터는 저장되지 않습니다.")
+            return None
+        raise Exception("Supabase not available")
+    return supabase
 
 
 # ============================================
@@ -244,9 +263,9 @@ def load_key_menus() -> List[str]:
 
 def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
     """매출 데이터 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -275,9 +294,9 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
 
 def save_visitor(date, visitors):
     """방문자 데이터 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -301,9 +320,9 @@ def save_visitor(date, visitors):
 
 def save_menu(menu_name, price):
     """메뉴 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 저장할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -331,9 +350,9 @@ def save_menu(menu_name, price):
 
 def update_menu(old_menu_name, new_menu_name, new_price):
     """메뉴 수정"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 수정할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -368,9 +387,9 @@ def update_menu(old_menu_name, new_menu_name, new_price):
 
 def delete_menu(menu_name, check_references=True):
     """메뉴 삭제"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 삭제할 수 없습니다.", None
     
     store_id = get_current_store_id()
     if not store_id:
@@ -411,9 +430,9 @@ def delete_menu(menu_name, check_references=True):
 
 def save_ingredient(ingredient_name, unit, unit_price):
     """재료 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 저장할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -441,9 +460,9 @@ def save_ingredient(ingredient_name, unit, unit_price):
 
 def update_ingredient(old_ingredient_name, new_ingredient_name, new_unit, new_unit_price):
     """재료 수정"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 수정할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -479,9 +498,9 @@ def update_ingredient(old_ingredient_name, new_ingredient_name, new_unit, new_un
 
 def delete_ingredient(ingredient_name, check_references=True):
     """재료 삭제"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 삭제할 수 없습니다.", None
     
     store_id = get_current_store_id()
     if not store_id:
@@ -522,9 +541,9 @@ def delete_ingredient(ingredient_name, check_references=True):
 
 def save_recipe(menu_name, ingredient_name, quantity):
     """레시피 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -560,9 +579,9 @@ def save_recipe(menu_name, ingredient_name, quantity):
 
 def delete_recipe(menu_name, ingredient_name):
     """레시피 삭제"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 삭제할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -593,9 +612,9 @@ def delete_recipe(menu_name, ingredient_name):
 
 def save_daily_sales_item(date, menu_name, quantity):
     """일일 판매 아이템 저장 (같은 날짜/메뉴가 있으면 수량 합산)"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -635,9 +654,9 @@ def save_daily_sales_item(date, menu_name, quantity):
 
 def save_inventory(ingredient_name, current_stock, safety_stock):
     """재고 정보 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -668,9 +687,9 @@ def save_inventory(ingredient_name, current_stock, safety_stock):
 def save_targets(year, month, target_sales, target_cost_rate, target_labor_rate, 
                  target_rent_rate, target_other_rate, target_profit_rate):
     """목표 매출/비용 구조 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -698,9 +717,9 @@ def save_targets(year, month, target_sales, target_cost_rate, target_labor_rate,
 
 def save_abc_history(year, month, abc_df):
     """ABC 분석 히스토리 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -739,9 +758,9 @@ def save_abc_history(year, month, abc_df):
 
 def save_key_menus(menu_list):
     """핵심 메뉴 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -766,9 +785,9 @@ def save_key_menus(menu_list):
 def save_daily_close(date, store_name, card_sales, cash_sales, total_sales, 
                      visitors, sales_items, issues, memo):
     """일일 마감 데이터 통합 저장"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False
     
     store_id = get_current_store_id()
     if not store_id:
@@ -814,9 +833,9 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
 
 def delete_sales(date, store=None):
     """매출 데이터 삭제"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 삭제할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:
@@ -834,9 +853,9 @@ def delete_sales(date, store=None):
 
 def delete_visitor(date):
     """방문자 데이터 삭제"""
-    supabase = get_supabase_client()
+    supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        raise Exception("Supabase not available")
+        return False, "DEV MODE에서는 삭제할 수 없습니다."
     
     store_id = get_current_store_id()
     if not store_id:

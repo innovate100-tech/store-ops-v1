@@ -5,6 +5,14 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 
+# 페이지 설정은 최상단에 위치 (다른 st.* 호출 전에)
+st.set_page_config(
+    page_title="매장 운영 시스템 v1",
+    page_icon="🏪",
+    layout="wide",
+    initial_sidebar_state="expanded"  # 사이드바 항상 열림
+)
+
 # 로그인 체크
 from src.auth import check_login, show_login_page, get_current_store_name, logout, apply_dev_mode_session, is_dev_mode
 
@@ -72,15 +80,6 @@ from src.ui import (
 )
 from src.reporting import generate_weekly_report
 from src.ui_helpers import render_page_header, render_section_header, render_section_divider
-
-
-# 페이지 설정
-st.set_page_config(
-    page_title="매장 운영 시스템 v1",
-    page_icon="🏪",
-    layout="wide",
-    initial_sidebar_state="expanded"  # 사이드바 항상 열림
-)
 
 # 커스텀 CSS 적용
 st.markdown("""
@@ -286,14 +285,23 @@ if page == "점장 마감":
                     st.error(error)
             else:
                 try:
-                    # daily_close.csv에 저장
-                    save_daily_close(
+                    # daily_close에 저장
+                    result = save_daily_close(
                         date, store, card_sales, cash_sales, total_sales,
                         visitors, sales_items, issues, memo
                     )
                     
-                    st.success("✅ 오늘 마감이 완료되었습니다!")
-                    st.balloons()
+                    # 저장 결과에 따라 메시지 표시
+                    if result:
+                        st.success("✅ 마감이 완료되었습니다! 데이터가 저장되었습니다.")
+                    else:
+                        # DEV MODE 등에서 저장되지 않은 경우
+                        st.warning("⚠️ DEV MODE: 마감 정보는 표시되지만 실제 데이터는 저장되지 않았습니다.")
+                        st.info("💡 실제 저장을 원하시면 Supabase를 설정하고 DEV MODE를 비활성화하세요.")
+                    
+                    # 저장 성공 여부와 관계없이 풍선 애니메이션 및 마감 완료 메시지 표시
+                    st.balloons()  # 항상 풍선 애니메이션 표시
+                    st.info("💡 **마감 수정 방법**: 같은 날짜로 다시 마감을 입력하시면 기존 데이터가 자동으로 업데이트됩니다.")
                     
                     # 오늘 요약 카드 표시
                     st.markdown("---")

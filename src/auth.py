@@ -7,20 +7,26 @@ import logging
 
 try:
     from supabase import create_client, Client
+    from typing import Optional
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
+    from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-def get_supabase_client() -> Client:
+def get_supabase_client() -> Optional[Client]:
     """
     Supabase 클라이언트 생성 (anon key + access_token 사용)
     
     Returns:
-        Supabase Client
+        Supabase Client or None (DEV MODE일 때 또는 연결 실패 시)
     """
+    # DEV MODE일 때는 Supabase 연결이 필요 없음
+    if is_dev_mode():
+        return None
+    
     if not SUPABASE_AVAILABLE:
         raise ImportError("supabase-py가 설치되지 않았습니다. pip install supabase 실행하세요.")
     
@@ -34,11 +40,10 @@ def get_supabase_client() -> Client:
     # 클라이언트 생성
     client = create_client(url, anon_key)
     
-    # 세션에 access_token이 있으면 설정 (DEV MODE 제외)
-    if 'access_token' in st.session_state and not is_dev_mode():
-        # DEV MODE가 아닐 때만 실제 토큰 설정
+    # 세션에 access_token이 있으면 설정
+    if 'access_token' in st.session_state:
+        # 실제 토큰만 설정 (DEV MODE는 이미 위에서 처리됨)
         access_token = st.session_state.access_token
-        # "dev" 토큰은 무시
         if access_token and access_token != "dev":
             client.auth.set_session(
                 access_token=access_token,
@@ -217,12 +222,26 @@ def get_current_store_name() -> str:
     Returns:
         str: 매장명
     """
+    # DEV MODE일 때는 secrets에서 매장명을 가져오거나 기본값 사용
+    if is_dev_mode():
+        dev_store_name = st.secrets.get("app", {}).get("dev_store_name", "")
+        if dev_store_name:
+            return dev_store_name
+        # dev_store_name이 없으면 store_id를 기반으로 기본값 반환
+        store_id = get_current_store_id()
+        if store_id:
+            return "DEV MODE 매장"
+        return "DEV MODE"
+    
     store_id = get_current_store_id()
     if not store_id:
         return "매장 정보 없음"
     
     try:
         client = get_supabase_client()
+        if not client:
+            return "매장 정보 없음"
+            
         result = client.table("stores").select("name").eq("id", store_id).execute()
         
         if result.data:
@@ -237,11 +256,8 @@ def show_login_page():
     """
     로그인 페이지 UI 표시
     """
-    st.set_page_config(
-        page_title="로그인 - 매장 운영 시스템",
-        page_icon="🏪",
-        layout="centered"
-    )
+    # st.set_page_config()는 이미 app.py에서 호출되었으므로 제거
+    # 로그인 페이지는 layout="centered"로 표시하기 위해 컨테이너 사용
     
     st.markdown("""
     <style>
