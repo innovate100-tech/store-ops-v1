@@ -2454,10 +2454,13 @@ elif page == "비용구조":
                 weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
                 weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
             
-            # 손익분기 매출과 목표 매출 비교 - 공통 info-box 스타일 사용
+            # 손익분기 매출과 목표 매출 비교 - 공통 info-box 스타일 사용 + 계산 공식 안내
             st.markdown(f"""
             <div class="info-box">
-                <strong>📊 손익분기 매출 vs 목표 매출 비교</strong>
+                <strong>📊 손익분기 매출 vs 목표 매출 비교</strong><br>
+                <span style="font-size: 0.85rem; opacity: 0.95;">
+                    계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
+                </span>
             </div>
             """, unsafe_allow_html=True)
             
