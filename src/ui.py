@@ -907,12 +907,11 @@ def render_abc_analysis(abc_df, cost_df, a_threshold=70, b_threshold=20, c_thres
         st.info("💡 C등급 메뉴 중 작업복잡도가 높은 메뉴는 수동으로 검토해주세요.")
 
 
-def render_manager_closing_input(key_menu_list, menu_list):
+def render_manager_closing_input(menu_list):
     """
     점장용 마감 입력 폼 렌더링 (간단한 위에서 아래 흐름 구조)
     
     Args:
-        key_menu_list: 핵심 메뉴 목록
         menu_list: 전체 메뉴 목록
     
     Returns:
@@ -984,28 +983,35 @@ def render_manager_closing_input(key_menu_list, menu_list):
     
     st.markdown("---")
     
-    # 4) 핵심 메뉴 판매량
-    st.markdown("### 4️⃣ 핵심 메뉴 판매량")
-    if not key_menu_list:
-        st.info("💡 사장님이 지정한 핵심 메뉴가 없습니다. 사장 설계 메뉴에서 핵심 메뉴를 먼저 설정해주세요.")
+    # 4) 메뉴별 판매량 (전체 메뉴)
+    st.markdown("### 4️⃣ 메뉴별 판매량")
+    if not menu_list:
+        st.warning("먼저 메뉴를 등록해주세요. (메뉴 관리 페이지에서 등록)")
         sales_items = []
     else:
         sales_items = []
-        for menu_name in key_menu_list:
-            if menu_name in menu_list:
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.write(f"**{menu_name}**")
-                with col2:
-                    quantity = st.number_input(
-                        "수량",
-                        min_value=0,
-                        value=0,
-                        step=1,
-                        key=f"manager_menu_{menu_name}"
-                    )
-                if quantity > 0:
-                    sales_items.append((menu_name, quantity))
+        st.write("**전체 메뉴의 당일 판매수량을 입력하세요:**")
+        st.markdown("---")
+        
+        # 메뉴를 3열 그리드로 표시
+        # 전체 메뉴를 3개씩 묶어서 행 단위로 표시
+        num_rows = (len(menu_list) + 2) // 3  # 올림 계산
+        for row in range(num_rows):
+            cols = st.columns(3)
+            for col_idx in range(3):
+                menu_idx = row * 3 + col_idx
+                if menu_idx < len(menu_list):
+                    menu_name = menu_list[menu_idx]
+                    with cols[col_idx]:
+                        quantity = st.number_input(
+                            menu_name,
+                            min_value=0,
+                            value=0,
+                            step=1,
+                            key=f"manager_menu_{menu_name}"
+                        )
+                        if quantity > 0:
+                            sales_items.append((menu_name, quantity))
     
     st.markdown("---")
     
