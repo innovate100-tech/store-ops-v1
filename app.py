@@ -1381,194 +1381,248 @@ elif page == "통합 대시보드":
 
 # 비용구조 페이지
 elif page == "비용구조":
-    render_page_header("사장 설계 영역", "👔")
+    render_page_header("비용구조 관리", "💳")
     
-    st.markdown("""
-    <div class="info-box">
-        <strong>💼 사장님 전용:</strong> 목표 설정 및 메뉴 ABC 분석을 통해 전략적 의사결정을 지원합니다.
-    </div>
-    """, unsafe_allow_html=True)
+    from datetime import datetime
+    current_year = datetime.now().year
+    current_month = datetime.now().month
     
-    # 하위 메뉴 선택
-    submenu = st.radio(
-        "기능 선택",
-        ["목표 매출/비용 구조", "메뉴 ABC 분석"],
-        horizontal=True,
-        key="owner_submenu"
-    )
+    # 기간 선택
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_year = st.number_input(
+            "연도",
+            min_value=2020,
+            max_value=2100,
+            value=current_year,
+            key="expense_year"
+        )
+    with col2:
+        selected_month = st.number_input(
+            "월",
+            min_value=1,
+            max_value=12,
+            value=current_month,
+            key="expense_month"
+        )
     
     render_section_divider()
     
-    # 목표 매출/비용 구조
-    if submenu == "목표 매출/비용 구조":
-        render_section_header("목표 매출/비용 구조 설정", "🎯")
+    # ========== 손익분기점 계산 및 상단 표시 ==========
+    expense_df = load_expense_structure(selected_year, selected_month)
+    
+    # 고정비 계산 (임차료, 인건비, 공과금)
+    fixed_costs = 0
+    if not expense_df.empty:
+        fixed_categories = ['임차료', '인건비', '공과금']
+        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    
+    # 변동비율 계산 (재료비, 부가세&카드수수료)
+    # 변동비 카테고리의 모든 항목 비율 합계
+    variable_cost_rate = 0.0  # % 단위
+    if not expense_df.empty:
+        variable_categories = ['재료비', '부가세&카드수수료']
+        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+        if not variable_df.empty:
+            # 각 항목의 비율 합계 (amount 필드에 비율 저장됨)
+            variable_cost_rate = variable_df['amount'].sum()
+    
+    # 손익분기점 계산: 고정비 / (1 - 변동비율)
+    if variable_cost_rate >= 100:
+        breakeven_sales = None
+    else:
+        variable_rate_decimal = variable_cost_rate / 100
+        if variable_rate_decimal >= 1:
+            breakeven_sales = None
+        else:
+            breakeven_sales = fixed_costs / (1 - variable_rate_decimal) if (1 - variable_rate_decimal) > 0 else None
+    
+    # 손익분기점 상단 공지 표시
+    if breakeven_sales is not None and breakeven_sales > 0:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; color: white;">
+            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 {selected_year}년 {selected_month}월 손익분기 매출</div>
+            <div style="font-size: 2rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
+            <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.9;">고정비: {int(fixed_costs):,}원 / 변동비율: {variable_cost_rate:.1f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
+            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
+            <div style="font-size: 0.9rem; color: #666;">비용 구조를 입력하면 자동으로 계산됩니다.</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    render_section_divider()
+    
+    # ========== 비용 구조 입력 ==========
+    # 5개 카테고리별 입력
+    expense_categories = {
+        '임차료': {'type': 'fixed', 'icon': '🏢', 'description': '고정비 (금액 직접 입력)'},
+        '인건비': {'type': 'fixed', 'icon': '👥', 'description': '고정비 (금액 직접 입력)'},
+        '재료비': {'type': 'variable', 'icon': '🥬', 'description': '변동비 (매출 대비 비율)'},
+        '공과금': {'type': 'fixed', 'icon': '💡', 'description': '고정비 (금액 직접 입력)'},
+        '부가세&카드수수료': {'type': 'variable', 'icon': '💳', 'description': '변동비 (매출 대비 비율)'}
+    }
+    
+    # 기존 데이터 로드
+    existing_items = {}
+    if not expense_df.empty:
+        for _, row in expense_df.iterrows():
+            cat = row['category']
+            if cat not in existing_items:
+                existing_items[cat] = []
+            existing_items[cat].append({
+                'id': row.get('id'),
+                'item_name': row.get('item_name'),
+                'amount': row.get('amount'),
+                'notes': row.get('notes')
+            })
+    
+    # 각 카테고리별 입력 섹션
+    for category, info in expense_categories.items():
+        render_section_header(f"{info['icon']} {category}", "")
+        st.caption(f"{info['description']}")
         
-        # 목표 입력
-        year, month, target_sales, target_cost_rate, target_labor_rate, \
-        target_rent_rate, target_other_rate, target_profit_rate = render_target_input()
+        # 기존 항목 표시
+        if category in existing_items and existing_items[category]:
+            with st.expander(f"기존 {category} 항목 ({len(existing_items[category])}개)", expanded=False):
+                for item in existing_items[category]:
+                    col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                    with col1:
+                        st.write(f"**{item['item_name']}**")
+                    with col2:
+                        if info['type'] == 'fixed':
+                            st.write(f"{int(item['amount']):,}원")
+                        else:
+                            st.write(f"{item['amount']:.2f}%")
+                    with col3:
+                        if item.get('notes'):
+                            st.write(f"📝 {item['notes']}")
+                    with col4:
+                        if st.button("🗑️", key=f"del_{category}_{item['id']}"):
+                            try:
+                                delete_expense_item(item['id'])
+                                st.success("삭제되었습니다!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"삭제 중 오류: {e}")
         
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 목표 저장", type="primary", use_container_width=True):
-                try:
-                    save_targets(
-                        year, month, target_sales, target_cost_rate,
-                        target_labor_rate, target_rent_rate,
-                        target_other_rate, target_profit_rate
+        # 새 항목 입력
+        if info['type'] == 'fixed':
+            # 고정비: 금액 직접 입력
+            with st.container():
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    new_item_name = st.text_input(
+                        "항목명",
+                        key=f"new_item_name_{category}",
+                        placeholder="예: 본점 임차료, 메인 요리사 급여 등"
                     )
-                    st.success(f"{year}년 {month}월 목표가 저장되었습니다!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"저장 중 오류가 발생했습니다: {e}")
+                with col2:
+                    new_amount = st.number_input(
+                        "금액 (원)",
+                        min_value=0,
+                        value=0,
+                        step=10000,
+                        key=f"new_amount_{category}"
+                    )
+                with col3:
+                    st.write("")
+                    st.write("")
+                    if st.button("➕ 추가", key=f"add_{category}"):
+                        if new_item_name and new_item_name.strip() and new_amount > 0:
+                            try:
+                                save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
+                                st.success(f"{category} 항목이 추가되었습니다!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"저장 중 오류: {e}")
+                        else:
+                            st.error("항목명과 금액을 모두 입력해주세요.")
+        else:
+            # 변동비: 매출 대비 비율 입력
+            with st.container():
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    new_item_name = st.text_input(
+                        "항목명",
+                        key=f"new_item_name_{category}",
+                        placeholder="예: 식자재 구매비, 카드사 수수료 등"
+                    )
+                with col2:
+                    new_rate = st.number_input(
+                        "매출 대비 비율 (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=0.0,
+                        step=0.1,
+                        format="%.2f",
+                        key=f"new_rate_{category}"
+                    )
+                    # 비율을 금액으로 저장 (나중에 계산 시 사용)
+                    # 실제로는 비율(%)로 저장하되, amount 필드에 비율 값을 저장
+                    # 하지만 DB 스키마상 amount는 NUMERIC이므로 비율도 저장 가능
+                with col3:
+                    st.write("")
+                    st.write("")
+                    if st.button("➕ 추가", key=f"add_{category}"):
+                        if new_item_name and new_item_name.strip() and new_rate > 0:
+                            try:
+                                # 변동비는 비율(%)을 amount에 저장
+                                save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
+                                st.success(f"{category} 항목이 추가되었습니다!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"저장 중 오류: {e}")
+                        else:
+                            st.error("항목명과 비율을 모두 입력해주세요.")
         
         render_section_divider()
-        
-        # 목표 대비 분석 대시보드
-        targets_df = load_csv('targets.csv', default_columns=[
-            '연도', '월', '목표매출', '목표원가율', '목표인건비율',
-            '목표임대료율', '목표기타비용율', '목표순이익률'
-        ])
-        
-        if not targets_df.empty:
-            # 현재 월 목표 데이터 확인
-            from datetime import datetime
-            current_year = datetime.now().year
-            current_month = datetime.now().month
-            
-            # 분석할 연도/월 선택
-            col1, col2 = st.columns(2)
-            with col1:
-                analysis_year = st.number_input(
-                    "분석 연도",
-                    min_value=2020,
-                    max_value=2100,
-                    value=current_year,
-                    key="analysis_year"
-                )
-            with col2:
-                analysis_month = st.number_input(
-                    "분석 월",
-                    min_value=1,
-                    max_value=12,
-                    value=current_month,
-                    key="analysis_month"
-                )
-            
-            # 매출 및 원가 데이터 로드
-            sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-            menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-            recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-            ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
-            daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-            
-            # 원가 계산
-            cost_df = pd.DataFrame()
-            if not menu_df.empty and not recipe_df.empty and not ingredient_df.empty:
-                from src.analytics import calculate_menu_cost
-                cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
-            
-            # 목표 대비 분석 (판매 비중 반영)
-            analysis_result = target_gap_analysis(
-                sales_df, targets_df, cost_df, analysis_year, analysis_month,
-                daily_sales_df=daily_sales_df, menu_df=menu_df
-            )
-            
-            if analysis_result:
-                render_target_dashboard(analysis_result)
-            else:
-                st.info(f"{analysis_year}년 {analysis_month}월의 목표 데이터가 없습니다.")
-        else:
-            st.info("목표 데이터를 먼저 설정해주세요.")
     
-    # 메뉴 ABC 분석
-    elif submenu == "메뉴 ABC 분석":
-        render_section_header("메뉴 ABC 분석", "📊")
+    # ========== 월간 집계 표시 ==========
+    render_section_header("월간 비용 집계", "📊")
+    
+    if not expense_df.empty:
+        # 카테고리별 집계
+        summary_data = []
+        total_amount = 0
         
-        # 기간 선택
-        from datetime import datetime
-        col1, col2, col3 = st.columns(3)
+        for category in expense_categories.keys():
+            cat_df = expense_df[expense_df['category'] == category]
+            if not cat_df.empty:
+                if expense_categories[category]['type'] == 'fixed':
+                    # 고정비: 합계
+                    cat_total = cat_df['amount'].sum()
+                    summary_data.append({
+                        '카테고리': category,
+                        '유형': '고정비',
+                        '항목수': len(cat_df),
+                        '합계': f"{int(cat_total):,}원"
+                    })
+                    total_amount += cat_total
+                else:
+                    # 변동비: 비율 표시 (평균 또는 합계)
+                    # 실제로는 각 항목이 비율이므로, 가장 큰 비율 또는 합계를 표시
+                    cat_max_rate = cat_df['amount'].max()
+                    summary_data.append({
+                        '카테고리': category,
+                        '유형': '변동비',
+                        '항목수': len(cat_df),
+                        '합계': f"{cat_max_rate:.2f}% (최대 비율)"
+                    })
         
-        with col1:
-            analysis_year = st.number_input(
-                "분석 연도",
-                min_value=2020,
-                max_value=2100,
-                value=datetime.now().year,
-                key="abc_year"
-            )
-        with col2:
-            analysis_month = st.number_input(
-                "분석 월",
-                min_value=1,
-                max_value=12,
-                value=datetime.now().month,
-                key="abc_month"
-            )
-        with col3:
-            a_threshold = st.number_input(
-                "A 등급 비중 (%)",
-                min_value=0,
-                max_value=100,
-                value=70,
-                step=5,
-                key="abc_a_threshold"
-            )
-            b_threshold = st.number_input(
-                "B 등급 비중 (%)",
-                min_value=0,
-                max_value=100,
-                value=20,
-                step=5,
-                key="abc_b_threshold"
-            )
-            c_threshold = 100 - a_threshold - b_threshold
-            if c_threshold < 0:
-                st.warning("A + B 비중이 100%를 초과합니다.")
-                c_threshold = 10
-        
-        # 데이터 로드
-        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-        menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-        ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
-        
-        # 해당 월 데이터 필터링
-        if not daily_sales_df.empty:
-            daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
-            monthly_sales = daily_sales_df[
-                (daily_sales_df['날짜'].dt.year == analysis_year) &
-                (daily_sales_df['날짜'].dt.month == analysis_month)
-            ]
-        else:
-            monthly_sales = pd.DataFrame()
-        
-        # 원가 계산
-        cost_df = pd.DataFrame()
-        if not menu_df.empty and not recipe_df.empty and not ingredient_df.empty:
-            from src.analytics import calculate_menu_cost
-            cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
-        
-        # ABC 분석 실행
-        if not monthly_sales.empty and not menu_df.empty:
-            abc_result = abc_analysis(
-                monthly_sales, menu_df, cost_df,
-                a_threshold=a_threshold,
-                b_threshold=b_threshold,
-                c_threshold=c_threshold
-            )
+        if summary_data:
+            summary_df = pd.DataFrame(summary_data)
+            st.dataframe(summary_df, use_container_width=True, hide_index=True)
             
-            if not abc_result.empty:
-                render_abc_analysis(abc_result, cost_df, a_threshold, b_threshold, c_threshold)
-                
-                # ABC 히스토리 저장 버튼
-                render_section_divider()
-                if st.button("💾 ABC 분석 결과 저장", type="primary"):
-                    try:
-                        save_abc_history(analysis_year, analysis_month, abc_result)
-                        st.success(f"{analysis_year}년 {analysis_month}월 ABC 분석 결과가 저장되었습니다!")
-                    except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
-            else:
-                st.info("ABC 분석 결과가 없습니다.")
-        else:
-            st.info("ABC 분석을 수행하려면 판매 데이터와 메뉴 데이터가 필요합니다.")
+            st.markdown(f"""
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <strong>총 고정비: {int(total_amount):,}원</strong>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info(f"{selected_year}년 {selected_month}월의 비용 데이터가 없습니다. 위에서 비용 항목을 입력해주세요.")
+
+# 비용구조 페이지 끝
