@@ -44,10 +44,31 @@ def get_supabase_client() -> Optional[Client]:
     if 'access_token' in st.session_state:
         access_token = st.session_state.access_token
         if access_token:
-            client.auth.set_session(
-                access_token=access_token,
-                refresh_token=st.session_state.get('refresh_token', '')
-            )
+            try:
+                refresh_token = st.session_state.get('refresh_token', '')
+                if refresh_token:
+                    client.auth.set_session(
+                        access_token=access_token,
+                        refresh_token=refresh_token
+                    )
+                else:
+                    # refresh_token이 없으면 access_token만 설정 시도
+                    try:
+                        client.auth.set_session(
+                            access_token=access_token,
+                            refresh_token=''
+                        )
+                    except Exception:
+                        # 세션 설정 실패 시 세션 정보 초기화
+                        logger.warning("세션 설정 실패. 세션 정보를 초기화합니다.")
+                        clear_session()
+            except Exception as e:
+                # 세션 설정 중 에러 발생 시 (토큰 만료 등)
+                logger.warning(f"세션 설정 중 오류 발생: {e}. 세션 정보를 초기화합니다.")
+                # 세션 정보 초기화하여 재로그인 유도
+                clear_session()
+                # 에러를 다시 발생시키지 않고 클라이언트만 반환 (재로그인 필요)
+                pass
     
     return client
 

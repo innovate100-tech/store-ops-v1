@@ -2806,18 +2806,9 @@ elif page == "재료 사용량 집계":
                         display_usage_df['단가'] = 0.0
 
                     display_usage_df['총사용단가'] = display_usage_df['총사용량'] * display_usage_df['단가']
-
-                    # 날짜 포맷 정리
-                    display_usage_df['날짜'] = display_usage_df['날짜'].dt.strftime('%Y-%m-%d')
                     
                     # 기간 표시
                     st.markdown(f"**📊 조회 기간: {start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')}**")
-                    
-                    render_section_divider()
-                    
-                    # 재료별 총 사용량 표시 (날짜별 상세)
-                    st.markdown("**📋 재료별 사용량 (날짜별 상세)**")
-                    st.dataframe(display_usage_df, use_container_width=True, hide_index=True)
                     
                     render_section_divider()
                     
@@ -2829,38 +2820,58 @@ elif page == "재료 사용량 집계":
                         .reset_index()
                     )
 
-                    # 정렬 기준 선택 (사용량 / 사용 단가)
-                    sort_option = st.radio(
-                        "정렬 기준 선택",
-                        ("사용량 기준", "사용 단가 기준"),
-                        horizontal=True,
-                        key="ingredient_usage_sort"
-                    )
-
-                    if sort_option == "사용량 기준":
-                        ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False)
-                    else:
-                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
+                    # 사용 단가 기준으로 정렬
+                    ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
                     
-                    # TOP 10 재료 (정렬 기준에 따라)
-                    st.markdown("**🔝 사용량 TOP 10 재료**" if sort_option == "사용량 기준" else "**💰 사용 단가 TOP 10 재료**")
+                    # 총 사용단가 합계 계산
+                    total_cost = ingredient_summary['총사용단가'].sum()
+                    
+                    # 비율 및 누적 비율 계산
+                    ingredient_summary['비율(%)'] = (ingredient_summary['총사용단가'] / total_cost * 100).round(2)
+                    ingredient_summary['누적 비율(%)'] = ingredient_summary['비율(%)'].cumsum().round(2)
+                    
+                    # ABC 등급 부여
+                    def assign_abc_grade(cumulative_ratio):
+                        if cumulative_ratio <= 70:
+                            return 'A'
+                        elif cumulative_ratio <= 90:
+                            return 'B'
+                        else:
+                            return 'C'
+                    
+                    ingredient_summary['ABC 등급'] = ingredient_summary['누적 비율(%)'].apply(assign_abc_grade)
+                    
+                    # TOP 10 재료
+                    st.markdown("**💰 사용 단가 TOP 10 재료**")
                     top10_df = ingredient_summary.head(10).copy()
                     top10_df.insert(0, '순위', range(1, len(top10_df) + 1))
                     top10_df['총 사용량'] = top10_df['총사용량']
                     top10_df['총 사용단가'] = top10_df['총사용단가']
-                    top10_df = top10_df[['순위', '재료명', '총 사용량', '총 사용단가']]
+                    top10_df = top10_df[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']]
                     st.dataframe(top10_df, use_container_width=True, hide_index=True)
                     
                     render_section_divider()
                     
-                    # 전체 재료 사용량/사용 단가 순위표 (1위부터 끝까지)
-                    st.markdown("**📊 전체 재료 사용량 순위**" if sort_option == "사용량 기준" else "**📊 전체 재료 사용 단가 순위**")
+                    # 전체 재료 사용 단가 순위표 (1위부터 끝까지, ABC 분석 포함)
+                    st.markdown("**📊 전체 재료 사용 단가 순위 (ABC 분석)**")
                     full_ranking_df = ingredient_summary.copy()
                     full_ranking_df.insert(0, '순위', range(1, len(full_ranking_df) + 1))
                     full_ranking_df['총 사용량'] = full_ranking_df['총사용량']
                     full_ranking_df['총 사용단가'] = full_ranking_df['총사용단가']
-                    full_ranking_df = full_ranking_df[['순위', '재료명', '총 사용량', '총 사용단가']]
+                    full_ranking_df = full_ranking_df[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']]
                     st.dataframe(full_ranking_df, use_container_width=True, hide_index=True)
+                    
+                    # ABC 등급별 통계
+                    abc_stats = full_ranking_df.groupby('ABC 등급').agg({
+                        '재료명': 'count',
+                        '총 사용단가': 'sum',
+                        '비율(%)': 'sum'
+                    }).reset_index()
+                    abc_stats.columns = ['ABC 등급', '재료 수', '총 사용단가', '비율 합계(%)']
+                    
+                    render_section_divider()
+                    st.markdown("**📈 ABC 등급별 통계**")
+                    st.dataframe(abc_stats, use_container_width=True, hide_index=True)
                     
                     # 통계 정보
                     st.markdown(
