@@ -2934,7 +2934,7 @@ elif page == "실제정산":
                             """, unsafe_allow_html=True)
                 
                 # 고정 항목인지 확인
-                is_fixed = 'fixed_items' in info and info['type'] == 'fixed'
+                is_fixed = 'fixed_items' in info and (info['type'] == 'fixed' or info['type'] == 'rate')
                 is_mixed = 'fixed_items' in info and info['type'] == 'mixed'
                 
                 # 항목 표시 및 수정
