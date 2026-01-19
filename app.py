@@ -2043,16 +2043,12 @@ elif page == "재료 등록":
         base_columns = [col for col in ['재료명', '단위', '단가'] if col in ingredient_df.columns]
         display_df = ingredient_df[base_columns].copy()
         
-        # 단가 표시 포맷팅 (g, ml의 경우 소수점 4자리까지 표시)
+        # 단가 표시 포맷팅 (단가는 소수점 1자리까지 표시)
         def format_price(row):
             unit = row['단위']
             price = row['단가']
-            if unit in ['g', 'ml']:
-                # g, ml는 소수점이 많을 수 있으므로 4자리까지 표시
-                return f"{price:,.4f}원/{unit}"
-            else:
-                # 다른 단위는 2자리까지 표시
-                return f"{price:,.2f}원/{unit}"
+            # 모든 단위를 소수점 1자리까지 통일
+            return f"{price:,.1f}원/{unit}"
         
         display_df['단가'] = display_df.apply(format_price, axis=1)
         
