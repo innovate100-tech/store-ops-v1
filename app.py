@@ -211,7 +211,6 @@ st.sidebar.markdown('<hr style="border: 1px solid rgba(255,255,255,0.2); margin:
 menu_items = [
     ("점장 마감", "📋"),
     ("매출 관리", "📊"),
-    ("방문자 관리", "👥"),
     ("메뉴 관리", "🍽️"),
     ("재료 관리", "🥬"),
     ("레시피 관리", "📝"),
@@ -349,19 +348,31 @@ if page == "점장 마감":
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
 
-# 매출 관리 페이지
+# 매출 관리 페이지 (매출 + 방문자 통합)
 elif page == "매출 관리":
     render_page_header("매출 관리", "📊")
     
-    # 입력 모드 선택 (단일 / 일괄)
-    input_mode = st.radio(
-        "입력 모드",
-        ["단일 입력", "일괄 입력 (여러 날짜)"],
+    # 카테고리 선택 (매출 / 방문자)
+    category = st.radio(
+        "카테고리",
+        ["💰 매출", "👥 방문자"],
         horizontal=True,
-        key="sales_input_mode"
+        key="sales_category"
     )
     
     render_section_divider()
+    
+    # ========== 매출 입력 섹션 ==========
+    if category == "💰 매출":
+        # 입력 모드 선택 (단일 / 일괄)
+        input_mode = st.radio(
+            "입력 모드",
+            ["단일 입력", "일괄 입력 (여러 날짜)"],
+            horizontal=True,
+            key="sales_input_mode"
+        )
+        
+        render_section_divider()
     
     if input_mode == "단일 입력":
         # 단일 입력 폼
@@ -429,10 +440,80 @@ elif page == "매출 관리":
                         st.balloons()
                         st.rerun()
     
+    # ========== 방문자 입력 섹션 ==========
+    else:  # category == "👥 방문자"
+        # 입력 모드 선택 (단일 / 일괄)
+        input_mode = st.radio(
+            "입력 모드",
+            ["단일 입력", "일괄 입력 (여러 날짜)"],
+            horizontal=True,
+            key="visitor_input_mode"
+        )
+        
+        render_section_divider()
+        
+        if input_mode == "단일 입력":
+            # 단일 입력 폼
+            date, visitors = render_visitor_input()
+            
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if st.button("💾 저장", type="primary", use_container_width=True):
+                    if visitors <= 0:
+                        st.error("방문자수는 0보다 큰 값이어야 합니다.")
+                    else:
+                        try:
+                            save_visitor(date, visitors)
+                            st.success(f"방문자수가 저장되었습니다! ({date}, {visitors}명)")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"저장 중 오류가 발생했습니다: {e}")
+        
+        else:
+            # 일괄 입력 폼
+            visitor_data = render_visitor_batch_input()
+            
+            if visitor_data:
+                render_section_divider()
+                
+                # 입력 요약 표시
+                st.write("**📊 입력 요약**")
+                summary_df = pd.DataFrame(
+                    [(d.strftime('%Y-%m-%d'), f"{v}명") for d, v in visitor_data],
+                    columns=['날짜', '방문자수']
+                )
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                
+                st.markdown(f"**총 {len(visitor_data)}일, 총 방문자수: {sum(v for _, v in visitor_data):,}명**")
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                        errors = []
+                        success_count = 0
+                        
+                        for date, visitors in visitor_data:
+                            try:
+                                save_visitor(date, visitors)
+                                success_count += 1
+                            except Exception as e:
+                                errors.append(f"{date}: {e}")
+                        
+                        if errors:
+                            for error in errors:
+                                st.error(error)
+                        
+                        if success_count > 0:
+                            st.success(f"✅ {success_count}일의 방문자수가 저장되었습니다!")
+                            st.balloons()
+                            st.rerun()
+    
     render_section_divider()
     
-    # 저장된 매출 표시 및 삭제
-    render_section_header("저장된 매출 내역", "📋")
+    # ========== 저장된 데이터 표시 ==========
+    if category == "💰 매출":
+        # 저장된 매출 표시 및 삭제
+        render_section_header("저장된 매출 내역", "📋")
     sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
     
     if not sales_df.empty:
@@ -505,126 +586,55 @@ elif page == "매출 관리":
         render_sales_chart(sales_df)
     else:
         st.info("저장된 매출 데이터가 없습니다.")
-
-# 방문자 관리 페이지
-elif page == "방문자 관리":
-    render_page_header("방문자 관리", "👥")
     
-    # 입력 모드 선택 (단일 / 일괄)
-    input_mode = st.radio(
-        "입력 모드",
-        ["단일 입력", "일괄 입력 (여러 날짜)"],
-        horizontal=True,
-        key="visitor_input_mode"
-    )
-    
-    render_section_divider()
-    
-    if input_mode == "단일 입력":
-        # 단일 입력 폼
-        date, visitors = render_visitor_input()
+    else:  # category == "👥 방문자"
+        # 저장된 방문자 표시 및 삭제
+        render_section_header("저장된 방문자 내역", "📋")
+        visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
         
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 저장", type="primary", use_container_width=True):
-                if visitors <= 0:
-                    st.error("방문자수는 0보다 큰 값이어야 합니다.")
-                else:
+        if not visitors_df.empty:
+            # 삭제 기능
+            st.write("**🗑️ 방문자 데이터 삭제**")
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                delete_date = st.date_input("삭제할 날짜", key="visitor_delete_date")
+            with col2:
+                st.write("")
+                st.write("")
+                if st.button("🗑️ 삭제", key="visitor_delete_btn", type="primary"):
                     try:
-                        save_visitor(date, visitors)
-                        st.success(f"방문자수가 저장되었습니다! ({date}, {visitors}명)")
-                        st.rerun()
+                        success, message = delete_visitor(delete_date)
+                        if success:
+                            st.success(message)
+                            st.rerun()
+                        else:
+                            st.error(message)
                     except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
-    
-    else:
-        # 일괄 입력 폼
-        visitor_data = render_visitor_batch_input()
-        
-        if visitor_data:
+                        st.error(f"삭제 중 오류: {e}")
+            
             render_section_divider()
             
-            # 입력 요약 표시
-            st.write("**📊 입력 요약**")
-            summary_df = pd.DataFrame(
-                [(d.strftime('%Y-%m-%d'), f"{v}명") for d, v in visitor_data],
-                columns=['날짜', '방문자수']
-            )
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            # 실제 입력값만 표시 (기술적 컬럼 제거)
+            display_df = visitors_df.copy()
             
-            st.markdown(f"**총 {len(visitor_data)}일, 총 방문자수: {sum(v for _, v in visitor_data):,}명**")
-            
-            col1, col2 = st.columns([1, 4])
-            with col1:
-                if st.button("💾 일괄 저장", type="primary", use_container_width=True):
-                    errors = []
-                    success_count = 0
-                    
-                    for date, visitors in visitor_data:
-                        try:
-                            save_visitor(date, visitors)
-                            success_count += 1
-                        except Exception as e:
-                            errors.append(f"{date}: {e}")
-                    
-                    if errors:
-                        for error in errors:
-                            st.error(error)
-                    
-                    if success_count > 0:
-                        st.success(f"✅ {success_count}일의 방문자수가 저장되었습니다!")
-                        st.balloons()
-                        st.rerun()
-    
-    render_section_divider()
-    
-    # 저장된 방문자 표시 및 삭제
-    render_section_header("저장된 방문자 내역", "📋")
-    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-    
-    if not visitors_df.empty:
-        # 삭제 기능
-        st.write("**🗑️ 방문자 데이터 삭제**")
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            delete_date = st.date_input("삭제할 날짜", key="visitor_delete_date")
-        with col2:
-            st.write("")
-            st.write("")
-            if st.button("🗑️ 삭제", key="visitor_delete_btn", type="primary"):
-                try:
-                    success, message = delete_visitor(delete_date)
-                    if success:
-                        st.success(message)
-                        st.rerun()
-                    else:
-                        st.error(message)
-                except Exception as e:
-                    st.error(f"삭제 중 오류: {e}")
-        
-        render_section_divider()
-        
-        # 실제 입력값만 표시 (기술적 컬럼 제거)
-        display_df = visitors_df.copy()
-        
-        # 표시할 컬럼만 선택
-        display_columns = []
-        if '날짜' in display_df.columns:
-            display_columns.append('날짜')
-        if '방문자수' in display_df.columns:
-            display_columns.append('방문자수')
-        
-        # 필요한 컬럼만 선택
-        if display_columns:
-            display_df = display_df[display_columns]
-            
-            # 날짜를 문자열로 변환
+            # 표시할 컬럼만 선택
+            display_columns = []
             if '날짜' in display_df.columns:
-                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("저장된 방문자 데이터가 없습니다.")
+                display_columns.append('날짜')
+            if '방문자수' in display_df.columns:
+                display_columns.append('방문자수')
+            
+            # 필요한 컬럼만 선택
+            if display_columns:
+                display_df = display_df[display_columns]
+                
+                # 날짜를 문자열로 변환
+                if '날짜' in display_df.columns:
+                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("저장된 방문자 데이터가 없습니다.")
 
 # 메뉴 관리 페이지
 elif page == "메뉴 관리":
