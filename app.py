@@ -2771,7 +2771,7 @@ elif page == "실제정산":
             # 5대 비용 항목 정의
             expense_categories = {
                 '임차료': {'icon': '🏢', 'description': '임차료', 'type': 'fixed', 'fixed_items': ['임차료']},
-                '인건비': {'icon': '👥', 'description': '인건비 관련 모든 비용', 'type': 'variable'},
+                '인건비': {'icon': '👥', 'description': '인건비 관련 모든 비용', 'type': 'fixed', 'fixed_items': ['직원 실지급 인건비', '사회보험(직원+회사분 통합)', '원천징수(국세+지방세)', '퇴직급여 충당금', '보너스']},
                 '재료비': {'icon': '🥬', 'description': '재료비 관련 모든 비용', 'type': 'variable'},
                 '공과금': {'icon': '💡', 'description': '공과금 관련 모든 비용', 'type': 'variable'},
                 '부가세&카드수수료': {'icon': '💳', 'description': '부가세 및 카드수수료 (매출 대비 비율)', 'type': 'rate', 'fixed_items': ['부가세', '카드수수료']}
@@ -2785,6 +2785,16 @@ elif page == "실제정산":
                 # 임차료: 임차료 1개 항목
                 if '임차료' in expense_items:
                     expense_items['임차료'] = [{'item_name': '임차료', 'amount': 0}]
+                
+                # 인건비: 5개 고정 항목
+                if '인건비' in expense_items:
+                    expense_items['인건비'] = [
+                        {'item_name': '직원 실지급 인건비', 'amount': 0},
+                        {'item_name': '사회보험(직원+회사분 통합)', 'amount': 0},
+                        {'item_name': '원천징수(국세+지방세)', 'amount': 0},
+                        {'item_name': '퇴직급여 충당금', 'amount': 0},
+                        {'item_name': '보너스', 'amount': 0}
+                    ]
                 
                 # 부가세&카드수수료: 부가세, 카드수수료 2개 항목 (비율로 저장)
                 if '부가세&카드수수료' in expense_items:
@@ -2800,6 +2810,18 @@ elif page == "실제정산":
                 # 고정 항목이 없으면 초기화
                 if '임차료' in expense_items and not expense_items['임차료']:
                     expense_items['임차료'] = [{'item_name': '임차료', 'amount': 0}]
+                
+                if '인건비' in expense_items:
+                    fixed_items = ['직원 실지급 인건비', '사회보험(직원+회사분 통합)', '원천징수(국세+지방세)', '퇴직급여 충당금', '보너스']
+                    existing_names = [item.get('item_name') for item in expense_items['인건비']]
+                    for fixed_name in fixed_items:
+                        if fixed_name not in existing_names:
+                            expense_items['인건비'].append({'item_name': fixed_name, 'amount': 0})
+                    # 순서 정렬
+                    expense_items['인건비'] = sorted(
+                        expense_items['인건비'],
+                        key=lambda x: fixed_items.index(x['item_name']) if x['item_name'] in fixed_items else 999
+                    )
                 
                 if '부가세&카드수수료' in expense_items:
                     fixed_items = ['부가세', '카드수수료']
