@@ -355,7 +355,7 @@ def save_menu(menu_name, price):
         raise
 
 
-def update_menu(old_menu_name, new_menu_name, new_price):
+def update_menu(old_menu_name, new_menu_name, new_price, category=None):
     """메뉴 수정"""
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
@@ -379,16 +379,51 @@ def update_menu(old_menu_name, new_menu_name, new_price):
             if dup_check.data:
                 return False, f"'{new_menu_name}' 메뉴명은 이미 사용 중입니다."
         
-        # 업데이트
-        supabase.table("menu_master").update({
+        # 업데이트 데이터 준비
+        update_data = {
             "name": new_menu_name,
             "price": float(new_price)
-        }).eq("id", menu_id).execute()
+        }
+        if category is not None:
+            update_data["category"] = category
+        
+        # 업데이트
+        supabase.table("menu_master").update(update_data).eq("id", menu_id).execute()
         
         logger.info(f"Menu updated: {old_menu_name} -> {new_menu_name}")
         return True, "수정 성공"
     except Exception as e:
         logger.error(f"Failed to update menu: {e}")
+        raise
+
+
+def update_menu_category(menu_name, category):
+    """메뉴 카테고리 업데이트"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False, "DEV MODE에서는 수정할 수 없습니다."
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 기존 메뉴 찾기
+        existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
+        if not existing.data:
+            return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다."
+        
+        menu_id = existing.data[0]['id']
+        
+        # 카테고리 업데이트
+        supabase.table("menu_master").update({
+            "category": category
+        }).eq("id", menu_id).execute()
+        
+        logger.info(f"Menu category updated: {menu_name} -> {category}")
+        return True, "카테고리 수정 성공"
+    except Exception as e:
+        logger.error(f"Failed to update menu category: {e}")
         raise
 
 
