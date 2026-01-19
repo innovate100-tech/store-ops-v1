@@ -1583,21 +1583,30 @@ elif page == "비용구조":
         # 새 항목 입력
         if info['type'] == 'fixed':
             # 고정비: 금액 직접 입력
+            # 입력 필드 초기화를 위한 카운터 사용
+            reset_key = f"reset_count_{category}"
+            if reset_key not in st.session_state:
+                st.session_state[reset_key] = 0
+            
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
+                    # value 파라미터로 초기값 설정
+                    default_name = "" if st.session_state[reset_key] == 0 else ""
                     new_item_name = st.text_input(
                         "항목명",
-                        key=f"new_item_name_{category}",
+                        value=default_name,
+                        key=f"new_item_name_{category}_{st.session_state[reset_key]}",
                         placeholder="예: 본점 임차료, 메인 요리사 급여 등"
                     )
                 with col2:
+                    default_amount = 0 if st.session_state[reset_key] == 0 else 0
                     new_amount = st.number_input(
                         "금액 (원)",
                         min_value=0,
-                        value=0,
+                        value=default_amount,
                         step=10000,
-                        key=f"new_amount_{category}"
+                        key=f"new_amount_{category}_{st.session_state[reset_key]}"
                     )
                     # 한글 원화 표시
                     if new_amount > 0:
@@ -1609,9 +1618,8 @@ elif page == "비용구조":
                         if new_item_name and new_item_name.strip() and new_amount > 0:
                             try:
                                 save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
-                                # 입력 필드 초기화
-                                st.session_state[f"new_item_name_{category}"] = ""
-                                st.session_state[f"new_amount_{category}"] = 0
+                                # 입력 필드 초기화를 위해 카운터 증가
+                                st.session_state[reset_key] += 1
                                 st.success(f"{category} 항목이 추가되었습니다!")
                                 st.rerun()
                             except Exception as e:
@@ -1620,23 +1628,32 @@ elif page == "비용구조":
                             st.error("항목명과 금액을 모두 입력해주세요.")
         else:
             # 변동비: 매출 대비 비율 입력
+            # 입력 필드 초기화를 위한 카운터 사용
+            reset_key = f"reset_count_{category}"
+            if reset_key not in st.session_state:
+                st.session_state[reset_key] = 0
+            
             with st.container():
                 col1, col2, col3 = st.columns([3, 2, 1])
                 with col1:
+                    # value 파라미터로 초기값 설정
+                    default_name = "" if st.session_state[reset_key] == 0 else ""
                     new_item_name = st.text_input(
                         "항목명",
-                        key=f"new_item_name_{category}",
+                        value=default_name,
+                        key=f"new_item_name_{category}_{st.session_state[reset_key]}",
                         placeholder="예: 식자재 구매비, 카드사 수수료 등"
                     )
                 with col2:
+                    default_rate = 0.0 if st.session_state[reset_key] == 0 else 0.0
                     new_rate = st.number_input(
                         "매출 대비 비율 (%)",
                         min_value=0.0,
                         max_value=100.0,
-                        value=0.0,
+                        value=default_rate,
                         step=0.1,
                         format="%.2f",
-                        key=f"new_rate_{category}"
+                        key=f"new_rate_{category}_{st.session_state[reset_key]}"
                     )
                     # 비율을 금액으로 저장 (나중에 계산 시 사용)
                     # 실제로는 비율(%)로 저장하되, amount 필드에 비율 값을 저장
@@ -1649,9 +1666,8 @@ elif page == "비용구조":
                             try:
                                 # 변동비는 비율(%)을 amount에 저장
                                 save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
-                                # 입력 필드 초기화
-                                st.session_state[f"new_item_name_{category}"] = ""
-                                st.session_state[f"new_rate_{category}"] = 0.0
+                                # 입력 필드 초기화를 위해 카운터 증가
+                                st.session_state[reset_key] += 1
                                 st.success(f"{category} 항목이 추가되었습니다!")
                                 st.rerun()
                             except Exception as e:
