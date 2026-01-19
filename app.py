@@ -2138,6 +2138,11 @@ elif page == "레시피 등록":
                     try:
                         save_recipe(menu_name, ingredient_name, quantity)
                         st.success(f"레시피가 저장되었습니다! ({menu_name} - {ingredient_name}: {quantity})")
+                        # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
+                        try:
+                            load_csv.clear()
+                        except Exception:
+                            pass
                         st.rerun()
                     except Exception as e:
                         st.error(f"저장 중 오류가 발생했습니다: {e}")
