@@ -2020,175 +2020,57 @@ elif page == "비용구조":
         
         render_section_divider()
     
-    # ========== 시각화 및 월별 비교 ==========
-    if breakeven_sales is not None and breakeven_sales > 0:
-        # 탭 구조로 변경
-        tab1, tab2, tab3 = st.tabs(["📊 비용 구조 시각화", "📈 월별 비교", "💰 비용 분석"])
+    # ========== 목표매출 달성시 비용구조 분석 ==========
+    if breakeven_sales is not None and breakeven_sales > 0 and target_sales_input > 0:
+        render_section_header("목표매출 달성시 비용구조 분석", "💰")
         
-        with tab1:
-            # 비용 구조 파이 차트
-            import matplotlib.pyplot as plt
-            import matplotlib.font_manager as fm
+        if not expense_df.empty:
+            # 목표매출 달성시 각 비용 카테고리별 월매출 대비 비율 계산
+            analysis_data = []
             
-            # 한글 폰트 설정
-            plt.rcParams['font.family'] = 'Malgun Gothic'
-            plt.rcParams['axes.unicode_minus'] = False
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                # 고정비/변동비 비율 파이 차트
-                if not expense_df.empty:
-                    fixed_total = fixed_costs
-                    variable_total = target_sales_input * (variable_cost_rate / 100) if target_sales_input > 0 else breakeven_sales * (variable_cost_rate / 100)
-                    
-                    if fixed_total > 0 or variable_total > 0:
-                        fig, ax = plt.subplots(figsize=(8, 6))
-                        labels = ['고정비', '변동비 (예상)']
-                        sizes = [fixed_total, variable_total]
-                        colors = ['#667eea', '#f093fb']
-                        explode = (0.05, 0.05)
-                        
-                        ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-                              shadow=True, startangle=90)
-                        ax.set_title('고정비 vs 변동비 비율', fontsize=14, fontweight='bold', pad=20)
-                        st.pyplot(fig)
-                        plt.close()
-            
-            with col2:
-                # 카테고리별 비용 파이 차트
-                if not expense_df.empty:
-                    category_amounts = {}
-                    for category in expense_categories.keys():
-                        cat_df = expense_df[expense_df['category'] == category]
-                        if not cat_df.empty:
-                            if expense_categories[category]['type'] == 'fixed':
-                                category_amounts[category] = cat_df['amount'].sum()
-                            else:
-                                # 변동비는 목표 매출 기준으로 계산
-                                rate_sum = cat_df['amount'].sum()
-                                if target_sales_input > 0:
-                                    category_amounts[category] = target_sales_input * (rate_sum / 100)
-                                else:
-                                    category_amounts[category] = breakeven_sales * (rate_sum / 100)
-                    
-                    if category_amounts:
-                        fig, ax = plt.subplots(figsize=(8, 6))
-                        labels = list(category_amounts.keys())
-                        sizes = list(category_amounts.values())
-                        colors = ['#667eea', '#4CAF50', '#FF9800', '#f093fb', '#ffd700']
-                        
-                        ax.pie(sizes, labels=labels, colors=colors[:len(labels)], autopct='%1.1f%%',
-                              shadow=True, startangle=90)
-                        ax.set_title('카테고리별 비용 비율', fontsize=14, fontweight='bold', pad=20)
-                        st.pyplot(fig)
-                        plt.close()
-        
-        with tab2:
-            # 월별 비교 기능
-            st.markdown("### 📈 월별 비교")
-            
-            # 비교할 기간 선택
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                compare_year1 = st.number_input("기준 연도", min_value=2020, max_value=2100, value=selected_year, key="compare_year1")
-            with col2:
-                compare_month1 = st.number_input("기준 월", min_value=1, max_value=12, value=selected_month, key="compare_month1")
-            with col3:
-                compare_year2 = st.number_input("비교 연도", min_value=2020, max_value=2100, value=selected_year, key="compare_year2")
-            with col4:
-                compare_month2 = st.number_input("비교 월", min_value=1, max_value=12, value=selected_month-1 if selected_month > 1 else 12, key="compare_month2")
-            
-            # 데이터 로드
-            compare_df1 = load_expense_structure(compare_year1, compare_month1)
-            compare_df2 = load_expense_structure(compare_year2, compare_month2)
-            
-            if not compare_df1.empty or not compare_df2.empty:
-                # 카테고리별 비교
-                comparison_data = []
-                for category in expense_categories.keys():
-                    cat1_df = compare_df1[compare_df1['category'] == category] if not compare_df1.empty else pd.DataFrame()
-                    cat2_df = compare_df2[compare_df2['category'] == category] if not compare_df2.empty else pd.DataFrame()
-                    
+            for category in expense_categories.keys():
+                cat_df = expense_df[expense_df['category'] == category]
+                if not cat_df.empty:
                     if expense_categories[category]['type'] == 'fixed':
-                        amount1 = cat1_df['amount'].sum() if not cat1_df.empty else 0
-                        amount2 = cat2_df['amount'].sum() if not cat2_df.empty else 0
-                        change = amount2 - amount1
-                        change_pct = (change / amount1 * 100) if amount1 > 0 else 0
+                        # 고정비: 금액을 월매출 대비 비율로 계산
+                        category_amount = cat_df['amount'].sum()
+                        category_ratio = (category_amount / target_sales_input * 100) if target_sales_input > 0 else 0
+                        analysis_data.append({
+                            '비용 카테고리': category,
+                            '비용 금액': f"{int(category_amount):,}원",
+                            '월매출 대비 비율': f"{category_ratio:.2f}%"
+                        })
                     else:
-                        rate1 = cat1_df['amount'].sum() if not cat1_df.empty else 0
-                        rate2 = cat2_df['amount'].sum() if not cat2_df.empty else 0
-                        amount1 = rate1
-                        amount2 = rate2
-                        change = rate2 - rate1
-                        change_pct = change
-                    
-                    comparison_data.append({
-                        '카테고리': category,
-                        f'{compare_year1}년 {compare_month1}월': amount1,
-                        f'{compare_year2}년 {compare_month2}월': amount2,
-                        '변화량': change,
-                        '변화율(%)': change_pct
-                    })
-                
-                comparison_df = pd.DataFrame(comparison_data)
-                
-                # 숫자 포맷팅
-                for col in [f'{compare_year1}년 {compare_month1}월', f'{compare_year2}년 {compare_month2}월', '변화량']:
-                    if col in comparison_df.columns:
-                        if expense_categories[comparison_df['카테고리'].iloc[0]]['type'] == 'fixed':
-                            comparison_df[col] = comparison_df[col].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                        else:
-                            comparison_df[col] = comparison_df[col].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else "-")
-                
-                comparison_df['변화율(%)'] = comparison_df['변화율(%)'].apply(
-                    lambda x: f"{x:+.2f}%" if pd.notna(x) else "-"
-                )
-                
-                st.dataframe(comparison_df, use_container_width=True, hide_index=True)
-                
-                # 트렌드 차트
-                if len(comparison_data) > 0:
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    categories = [d['카테고리'] for d in comparison_data]
-                    values1 = [d[f'{compare_year1}년 {compare_month1}월'] for d in comparison_data]
-                    values2 = [d[f'{compare_year2}년 {compare_month2}월'] for d in comparison_data]
-                    
-                    x = range(len(categories))
-                    width = 0.35
-                    
-                    ax.bar([i - width/2 for i in x], values1, width, label=f'{compare_year1}년 {compare_month1}월', color='#667eea')
-                    ax.bar([i + width/2 for i in x], values2, width, label=f'{compare_year2}년 {compare_month2}월', color='#f093fb')
-                    
-                    ax.set_xlabel('카테고리')
-                    ax.set_ylabel('금액' if expense_categories[categories[0]]['type'] == 'fixed' else '비율(%)')
-                    ax.set_title('월별 비용 비교', fontsize=14, fontweight='bold')
-                    ax.set_xticks(x)
-                    ax.set_xticklabels(categories, rotation=45, ha='right')
-                    ax.legend()
-                    ax.grid(True, alpha=0.3)
-                    
-                    st.pyplot(fig)
-                    plt.close()
-            else:
-                st.info("비교할 데이터가 없습니다.")
-        
-        with tab3:
-            # 비용 분석
-            st.markdown("### 💰 비용 분석")
+                        # 변동비: 이미 비율로 저장되어 있음
+                        category_rate = cat_df['amount'].sum()
+                        category_amount = target_sales_input * (category_rate / 100)
+                        analysis_data.append({
+                            '비용 카테고리': category,
+                            '비용 금액': f"{int(category_amount):,}원",
+                            '월매출 대비 비율': f"{category_rate:.2f}%"
+                        })
             
-            if not expense_df.empty and target_sales_input > 0:
-                # 비용 대비 매출 비율
+            # 분석 데이터프레임 생성
+            if analysis_data:
+                analysis_df = pd.DataFrame(analysis_data)
+                st.dataframe(analysis_df, use_container_width=True, hide_index=True)
+                
+                # 총 비용 및 이익률 계산
                 total_expenses = fixed_costs + (target_sales_input * variable_cost_rate / 100)
                 expense_ratio = (total_expenses / target_sales_input * 100) if target_sales_input > 0 else 0
                 profit_margin = 100 - expense_ratio
                 
-                col1, col2, col3 = st.columns(3)
+                st.markdown("---")
+                
+                # 요약 지표
+                col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("총 비용", f"{int(total_expenses):,}원")
+                    st.metric("목표 월매출", f"{int(target_sales_input):,}원")
                 with col2:
-                    st.metric("비용률", f"{expense_ratio:.2f}%")
+                    st.metric("총 비용", f"{int(total_expenses):,}원")
                 with col3:
+                    st.metric("총 비용률", f"{expense_ratio:.2f}%")
+                with col4:
                     st.metric("이익률", f"{profit_margin:.2f}%")
                 
                 # 알림 시스템
@@ -2213,6 +2095,10 @@ elif page == "비용구조":
                         st.warning(alert)
                 else:
                     st.success("✅ 모든 비용 지표가 정상 범위입니다.")
+            else:
+                st.info("비용 데이터가 없습니다.")
+        else:
+            st.info("목표 매출을 입력하고 비용 데이터를 입력해주세요.")
     
     # ========== 월간 집계 표시 ==========
     render_section_header("월간 비용 집계", "📊")
