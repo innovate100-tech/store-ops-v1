@@ -1117,6 +1117,7 @@ menu_categories = {
     "재무": [
         ("비용구조", "💳"),
         ("매출구조", "📈"),
+        ("실제정산", "🧾"),
     ],
     "기타": [
         ("주간 리포트", "📄"),
@@ -2670,6 +2671,178 @@ elif page == "원가 파악":
             st.metric("레시피 수", len(recipe_df))
         with col3:
             st.metric("재료 수", len(ingredient_df))
+
+# 실제 정산 페이지
+elif page == "실제정산":
+    render_page_header("실제 정산 (월별 실적)", "🧾")
+    
+    # 매출 데이터 로드 (일별 총매출)
+    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+    
+    if sales_df.empty:
+        st.info("저장된 매출 데이터가 없습니다. 먼저 매출 관리 페이지에서 일매출을 입력해주세요.")
+    else:
+        # 날짜 컬럼을 datetime으로 변환
+        sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
+        sales_df['연도'] = sales_df['날짜'].dt.year
+        sales_df['월'] = sales_df['날짜'].dt.month
+        
+        # 사용 가능한 연/월 목록
+        available_years = sorted(sales_df['연도'].unique().tolist(), reverse=True)
+        
+        from datetime import datetime
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_year = st.selectbox(
+                "정산 연도 선택",
+                options=available_years,
+                index=0 if current_year in available_years else 0,
+                key="settlement_year",
+            )
+        
+        # 선택한 연도의 사용 가능한 월만 표시
+        available_months = sorted(
+            sales_df[sales_df['연도'] == selected_year]['월'].unique().tolist()
+        )
+        if current_month in available_months:
+            default_month_index = available_months.index(current_month)
+        else:
+            default_month_index = len(available_months) - 1
+        
+        with col2:
+            selected_month = st.selectbox(
+                "정산 월 선택",
+                options=available_months,
+                index=default_month_index,
+                key="settlement_month",
+            )
+        
+        # 선택한 연/월의 매출 합계 계산
+        month_sales_df = sales_df[
+            (sales_df['연도'] == selected_year) & (sales_df['월'] == selected_month)
+        ].copy()
+        
+        if month_sales_df.empty:
+            st.info(f"{selected_year}년 {selected_month}월에 해당하는 매출 데이터가 없습니다.")
+        else:
+            month_total_sales = float(month_sales_df['총매출'].sum())
+            
+            render_section_divider()
+            
+            # 상단 요약 카드
+            st.markdown(
+                f"""
+                <div class="info-box">
+                    <strong>📅 정산 대상 기간</strong><br>
+                    <span style="font-size: 0.9rem; opacity: 0.9;">
+                        {selected_year}년 {selected_month}월의 실제 매출과 비용을 기준으로 정산합니다.
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("해당 월 총 매출", f"{month_total_sales:,.0f}원")
+            # 비용/이익은 아래 입력값 기준으로 다시 표시
+            
+            # 기존 실제 정산 데이터 로드
+            actual_df = load_csv(
+                "actual_settlement.csv",
+                default_columns=["연도", "월", "실제매출", "실제비용", "실제이익", "실제이익률"],
+            )
+            
+            existing_row = None
+            if not actual_df.empty:
+                existing_row = actual_df[
+                    (actual_df["연도"] == selected_year)
+                    & (actual_df["월"] == selected_month)
+                ]
+                if not existing_row.empty:
+                    existing_row = existing_row.iloc[0]
+            
+            render_section_divider()
+            st.markdown("**💸 해당 월 실제 비용 입력**")
+            
+            # 기본값: 기존 정산 데이터가 있으면 그 값, 없으면 0
+            default_cost = float(existing_row["실제비용"]) if existing_row is not None else 0.0
+            actual_cost = st.number_input(
+                "실제 총 비용 (해당 월 전체 비용 합계)",
+                min_value=0.0,
+                value=default_cost,
+                step=10000.0,
+                format="%.0f",
+                key="actual_total_cost",
+            )
+            
+            # 이익 및 이익률 계산
+            actual_sales = month_total_sales
+            actual_profit = actual_sales - actual_cost
+            profit_margin = (actual_profit / actual_sales * 100) if actual_sales > 0 else 0.0
+            
+            with col2:
+                st.metric("실제 총 비용", f"{actual_cost:,.0f}원")
+            with col3:
+                st.metric("실제 이익 / 이익률", f"{actual_profit:,.0f}원", f"{profit_margin:,.1f}%")
+            
+            render_section_divider()
+            
+            # 저장 버튼
+            save_col, _ = st.columns([1, 4])
+            with save_col:
+                if st.button("💾 실제 정산 저장", type="primary", use_container_width=True):
+                    try:
+                        from src.storage_supabase import save_actual_settlement
+                        
+                        success = save_actual_settlement(
+                            selected_year,
+                            selected_month,
+                            actual_sales,
+                            actual_cost,
+                            actual_profit,
+                            profit_margin,
+                        )
+                        if success:
+                            st.success(
+                                f"{selected_year}년 {selected_month}월 실제 정산 데이터가 저장되었습니다."
+                            )
+                            try:
+                                load_csv.clear()
+                            except Exception:
+                                pass
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"실제 정산 데이터 저장 중 오류가 발생했습니다: {e}")
+            
+            # 하단에 기존 정산 이력 표시
+            render_section_divider()
+            st.markdown("**📜 실제 정산 이력 (월별)**")
+            history_df = load_csv(
+                "actual_settlement.csv",
+                default_columns=["연도", "월", "실제매출", "실제비용", "실제이익", "실제이익률"],
+            )
+            if not history_df.empty:
+                history_df = history_df.sort_values(["연도", "월"], ascending=[False, False])
+                display_history = history_df.copy()
+                display_history["실제매출"] = display_history["실제매출"].apply(
+                    lambda x: f"{float(x):,.0f}원"
+                )
+                display_history["실제비용"] = display_history["실제비용"].apply(
+                    lambda x: f"{float(x):,.0f}원"
+                )
+                display_history["실제이익"] = display_history["실제이익"].apply(
+                    lambda x: f"{float(x):,.0f}원"
+                )
+                display_history["실제이익률"] = display_history["실제이익률"].apply(
+                    lambda x: f"{float(x):,.1f}%"
+                )
+                st.dataframe(display_history, use_container_width=True, hide_index=True)
+            else:
+                st.info("저장된 실제 정산 데이터가 없습니다.")
 
 # 판매 관리 페이지
 elif page == "판매 관리":

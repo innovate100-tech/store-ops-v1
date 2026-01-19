@@ -91,6 +91,7 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
             'targets.csv': 'targets',
             'abc_history.csv': 'abc_history',
             'daily_close.csv': 'daily_close',
+            'actual_settlement.csv': 'actual_settlement',
             # 파일명 없이 테이블명으로 직접 호출 가능
             'sales': 'sales',
             'naver_visitors': 'naver_visitors',
@@ -101,7 +102,8 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
             'inventory': 'inventory',
             'targets': 'targets',
             'abc_history': 'abc_history',
-            'daily_close': 'daily_close'
+            'daily_close': 'daily_close',
+            'actual_settlement': 'actual_settlement',
         }
         
         actual_table = table_mapping.get(filename, filename.replace('.csv', ''))
@@ -210,6 +212,21 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
                     df['목표기타비용율'] = df['target_other_rate']
                 if 'target_profit_rate' in df.columns:
                     df['목표순이익률'] = df['target_profit_rate']
+            
+            elif actual_table == 'actual_settlement':
+                # 실제 정산 데이터 (월별 실적)
+                if 'year' in df.columns:
+                    df['연도'] = df['year']
+                if 'month' in df.columns:
+                    df['월'] = df['month']
+                if 'actual_sales' in df.columns:
+                    df['실제매출'] = df['actual_sales']
+                if 'actual_cost' in df.columns:
+                    df['실제비용'] = df['actual_cost']
+                if 'actual_profit' in df.columns:
+                    df['실제이익'] = df['actual_profit']
+                if 'profit_margin' in df.columns:
+                    df['실제이익률'] = df['profit_margin']
             
             elif actual_table == 'abc_history':
                 # 컬럼명이 이미 일치하는 경우도 있음
@@ -788,6 +805,36 @@ def save_targets(year, month, target_sales, target_cost_rate, target_labor_rate,
         return True
     except Exception as e:
         logger.error(f"Failed to save targets: {e}")
+        raise
+
+
+def save_actual_settlement(year, month, actual_sales, actual_cost, actual_profit, profit_margin):
+    """월별 실제 정산 데이터 저장"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        supabase.table("actual_settlement").upsert(
+            {
+                "store_id": store_id,
+                "year": int(year),
+                "month": int(month),
+                "actual_sales": float(actual_sales),
+                "actual_cost": float(actual_cost),
+                "actual_profit": float(actual_profit),
+                "profit_margin": float(profit_margin),
+            },
+            on_conflict="store_id,year,month",
+        ).execute()
+        logger.info(f"Actual settlement saved: {year}-{month}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save actual settlement: {e}")
         raise
 
 
