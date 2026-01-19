@@ -183,7 +183,64 @@ st.markdown("""
         border-top: 1px solid rgba(255, 255, 255, 0.1);
         margin: 0.5rem 0;
     }
+    
+    /* 사이드바 토글 버튼 툴팁 숨기기 */
+    button[title*="keyboard_double"],
+    button[title*="KeyboardDouble"],
+    [data-testid="stSidebar"] button[title],
+    [data-testid="stSidebar"] button::after,
+    [data-testid="stSidebar"] button::before {
+        pointer-events: none;
+    }
+    
+    /* Material Icons 툴팁 숨기기 */
+    .material-icons[title],
+    button .material-icons[title] {
+        pointer-events: none;
+    }
+    
+    /* 모든 툴팁 숨기기 (사이드바 토글 버튼) */
+    [data-testid="stSidebar"] [title*="keyboard"] {
+        pointer-events: none;
+    }
+    
+    /* 사이드바 토글 버튼의 title 속성 제거 효과 */
+    [data-testid="stSidebar"] button:hover::after,
+    [data-testid="stSidebar"] button:hover::before {
+        display: none !important;
+        content: none !important;
+    }
 </style>
+<script>
+    // 사이드바 토글 버튼의 툴팁 제거
+    function removeSidebarToggleTooltip() {
+        // 모든 버튼에서 keyboard_double이 포함된 title 속성 제거
+        const buttons = document.querySelectorAll('button[title*="keyboard"], button[title*="Keyboard"]');
+        buttons.forEach(button => {
+            if (button.title && (button.title.includes('keyboard') || button.title.includes('Keyboard'))) {
+                button.removeAttribute('title');
+            }
+        });
+        
+        // Material Icons의 title 속성도 제거
+        const icons = document.querySelectorAll('.material-icons[title*="keyboard"], .material-icons[title*="Keyboard"]');
+        icons.forEach(icon => {
+            if (icon.title && (icon.title.includes('keyboard') || icon.title.includes('Keyboard'))) {
+                icon.removeAttribute('title');
+            }
+        });
+    }
+    
+    // 페이지 로드 시 실행
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', removeSidebarToggleTooltip);
+    } else {
+        removeSidebarToggleTooltip();
+    }
+    
+    // Streamlit이 동적으로 요소를 추가할 수 있으므로 주기적으로 체크
+    setInterval(removeSidebarToggleTooltip, 500);
+</script>
 """, unsafe_allow_html=True)
 
 # 타이틀 (개선된 디자인)
