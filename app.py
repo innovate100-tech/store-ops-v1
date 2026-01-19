@@ -358,7 +358,7 @@ st.markdown("""
     /* Z 플립5처럼 가로 폭이 넓은 모바일/폴더블에서도 적용되도록 1024px 까지 확장 */
     @media (max-width: 1024px) {
         /* Streamlit 컬럼을 한 줄에 2개씩 배치 (데이터타입: 손익분기 타일, 입력칸 등) */
-        [data-testid="column"] {
+        [data-testid="stHorizontalBlock"] > div {
             flex: 1 1 50% !important;
             max-width: 50% !important;
             min-width: 0 !important;
