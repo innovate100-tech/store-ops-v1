@@ -2167,32 +2167,76 @@ elif page == "레시피 등록":
         # 각 재료별 입력 필드 (재료명, 기준단위, 사용량, 사용단가)
         recipe_data = []
         
-        # 컴팩트 스타일 CSS 추가 (세로 구분선 포함)
+        # 컴팩트 스타일 CSS 추가 (세로 구분선 포함, 엑셀처럼 오밀조밀하게)
         st.markdown("""
         <style>
         .compact-recipe-row {
-            margin: 0.2rem 0 !important;
-            padding: 0.3rem 0 !important;
+            margin: 0.05rem 0 !important;
+            padding: 0.1rem 0 !important;
+        }
+        /* 입력 필드 높이 최소화 */
+        .compact-recipe-row [data-testid="stTextInput"] {
+            margin-bottom: 0.1rem !important;
         }
         .compact-recipe-row [data-testid="stTextInput"] > div > div {
-            padding-top: 0.3rem !important;
-            padding-bottom: 0.3rem !important;
+            padding-top: 0.1rem !important;
+            padding-bottom: 0.1rem !important;
+            min-height: 28px !important;
+            height: 28px !important;
+        }
+        .compact-recipe-row [data-testid="stTextInput"] input {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            line-height: 1.2 !important;
+        }
+        .compact-recipe-row [data-testid="stSelectbox"] {
+            margin-bottom: 0.1rem !important;
         }
         .compact-recipe-row [data-testid="stSelectbox"] > div > div {
-            padding-top: 0.3rem !important;
-            padding-bottom: 0.3rem !important;
+            padding-top: 0.1rem !important;
+            padding-bottom: 0.1rem !important;
+            min-height: 28px !important;
+            height: 28px !important;
+        }
+        .compact-recipe-row [data-testid="stSelectbox"] select {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            line-height: 1.2 !important;
+        }
+        .compact-recipe-row [data-testid="stNumberInput"] {
+            margin-bottom: 0.1rem !important;
         }
         .compact-recipe-row [data-testid="stNumberInput"] > div > div {
-            padding-top: 0.3rem !important;
-            padding-bottom: 0.3rem !important;
+            padding-top: 0.1rem !important;
+            padding-bottom: 0.1rem !important;
+            min-height: 28px !important;
+            height: 28px !important;
+        }
+        .compact-recipe-row [data-testid="stNumberInput"] input {
+            padding: 0.2rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            line-height: 1.2 !important;
+        }
+        /* 텍스트 표시 영역도 컴팩트하게 */
+        .compact-recipe-row div[style*="margin-top: 0.5rem"] {
+            margin-top: 0.2rem !important;
+            margin-bottom: 0.1rem !important;
+            font-size: 0.85rem !important;
+            line-height: 1.3 !important;
         }
         /* 세로 구분선: 컬럼 사이에 얇은 선 표시 */
         .compact-recipe-row > div[data-testid="column"] {
             border-right: 1px solid rgba(148, 163, 184, 0.35);
-            padding-right: 0.4rem;
+            padding-right: 0.3rem;
+            padding-left: 0.3rem;
         }
         .compact-recipe-row > div[data-testid="column"]:last-child {
             border-right: none;
+        }
+        /* 컬럼 간격 최소화 */
+        .compact-recipe-row [data-testid="column"] {
+            padding-left: 0.2rem !important;
+            padding-right: 0.2rem !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -2208,7 +2252,7 @@ elif page == "레시피 등록":
         with header_col4:
             st.markdown("**사용단가**")
         
-        st.markdown("<hr style='margin: 0.3rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+        st.markdown("<hr style='margin: 0.1rem 0; border-color: rgba(255,255,255,0.1); border-width: 0.5px;'>", unsafe_allow_html=True)
         
         for i in range(ingredient_count):
             # 컴팩트 행 컨테이너
@@ -2248,9 +2292,9 @@ elif page == "레시피 등록":
                     # 기준단위 (자동 표시)
                     if selected_ingredient and selected_ingredient in ingredient_info_dict:
                         unit = ingredient_info_dict[selected_ingredient]['단위']
-                        st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{unit}</strong></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{unit}</strong></div>", unsafe_allow_html=True)
                     else:
-                        st.markdown("<div style='margin-top: 0.5rem;'>-</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
                 
                 with col3:
                     # 사용량 입력
@@ -2270,9 +2314,9 @@ elif page == "레시피 등록":
                     if selected_ingredient and selected_ingredient in ingredient_info_dict and quantity > 0:
                         unit_price = ingredient_info_dict[selected_ingredient]['단가']
                         total_price = quantity * unit_price
-                        st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{total_price:,.1f}원</strong></div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{total_price:,.1f}원</strong></div>", unsafe_allow_html=True)
                     else:
-                        st.markdown("<div style='margin-top: 0.5rem;'>-</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
                 
                 st.markdown('</div>', unsafe_allow_html=True)
                 
@@ -2290,7 +2334,7 @@ elif page == "레시피 등록":
                 
                 # 마지막 행이 아니면 얇은 구분선
                 if i < ingredient_count - 1:
-                    st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+                    st.markdown("<hr style='margin: 0.05rem 0; border-color: rgba(255,255,255,0.05); border-width: 0.5px;'>", unsafe_allow_html=True)
         
         # 조리방법 입력 필드
         render_section_divider()
