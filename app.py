@@ -2528,8 +2528,8 @@ elif page == "비용구조":
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
                     <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">📅 평일 일일 매출</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
-                    {f'<div style="font-size: 1.1rem; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.4rem; margin-top: 0.4rem;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.4rem;">목표 매출 입력 필요</div>'}
+                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
+                    {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
                     <div style="font-size: 1.275rem; margin-top: 0.9rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
                         💰 일일 영업이익
                     </div>
@@ -2545,8 +2545,8 @@ elif page == "비용구조":
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
                     <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">🎉 주말 일일 매출</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
-                    {f'<div style="font-size: 1.1rem; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.4rem; margin-top: 0.4rem;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.4rem;">목표 매출 입력 필요</div>'}
+                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
+                    {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
                     <div style="font-size: 1.275rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
                         💰 일일 영업이익
                     </div>
