@@ -1998,6 +1998,11 @@ elif page == "재료 등록":
                     success, message = save_ingredient(ingredient_name, unit, unit_price)
                     if success:
                         st.success(f"재료가 저장되었습니다! ({ingredient_name}, {unit_price:,.2f}원/{unit})")
+                        # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
+                        try:
+                            load_csv.clear()
+                        except Exception:
+                            pass
                         st.rerun()
                     else:
                         st.error(message)
@@ -2041,6 +2046,11 @@ elif page == "재료 등록":
                         success, message = update_ingredient(ingredient_info['재료명'], new_ingredient_name, new_unit, new_unit_price)
                         if success:
                             st.success(message)
+                            # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
+                            try:
+                                load_csv.clear()
+                            except Exception:
+                                pass
                             st.rerun()
                         else:
                             st.error(message)
@@ -2055,6 +2065,11 @@ elif page == "재료 등록":
                         success, message, refs = delete_ingredient(selected_ingredient)
                         if success:
                             st.success(message)
+                            # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
+                            try:
+                                load_csv.clear()
+                            except Exception:
+                                pass
                             st.rerun()
                         else:
                             st.error(message)
