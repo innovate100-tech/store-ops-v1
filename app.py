@@ -846,19 +846,6 @@ st.markdown("""
         
     })();
     
-    // ========== 테마 적용 ==========
-    (function() {
-        'use strict';
-        const root = document.documentElement;
-        root.classList.remove('light-mode', 'dark-mode');
-        const theme = '{{THEME}}';
-        if (theme === 'dark') {
-            root.classList.add('dark-mode');
-        } else {
-            root.classList.add('light-mode');
-        }
-    })();
-    
     // ========== 반응형 레이아웃 자동 조정 ==========
     (function() {
         'use strict';
@@ -926,129 +913,126 @@ st.markdown("""
 </script>
 """.replace('{{THEME}}', st.session_state.get('theme', 'light')), unsafe_allow_html=True)
 
-# 테마별 다크 모드 스타일 추가
-st.markdown("""
-<style>
-    /* 다크 모드 전용 스타일 */
-    html.dark-mode {
-        color-scheme: dark;
-    }
-    
-    html.dark-mode body,
-    /* Streamlit 메인 컨테이너 */
-    html.dark-mode [data-testid="stAppViewContainer"] > .main {
-        background-color: #020617 !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .main-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
-    }
-    
-    html.dark-mode .info-box {
-        background: linear-gradient(135deg, #1e293b80 0%, #0f172a80 100%) !important;
-        border-left-color: #38bdf8 !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .metric-card {
-        background: #1e293b !important;
-        border-color: #334155 !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .card-section {
-        background: #1e293b !important;
-        border-left-color: #38bdf8 !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .form-container {
-        background: #1e293b !important;
-        border-color: #334155 !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode [data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-    }
-    
-    html.dark-mode [data-testid="stSidebar"] .stMarkdown,
-    html.dark-mode [data-testid="stSidebar"] p,
-    html.dark-mode [data-testid="stSidebar"] div {
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode h1,
-    html.dark-mode h2,
-    html.dark-mode h3,
-    html.dark-mode h4,
-    html.dark-mode h5,
-    html.dark-mode h6,
-    html.dark-mode p,
-    html.dark-mode span,
-    html.dark-mode div {
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .stDataFrame {
-        background-color: #1e293b !important;
-    }
-    
-    html.dark-mode .stDataFrame table {
-        background-color: #1e293b !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .stDataFrame th {
-        background-color: #0f172a !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode .stDataFrame td {
-        border-color: #334155 !important;
-        color: #e5e7eb !important;
-    }
-    
-    html.dark-mode button[data-testid="baseButton-primary"] {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-        border-color: #1d4ed8 !important;
-    }
-    
-    html.dark-mode button[data-testid="baseButton-primary"]:hover {
-        background-color: #1d4ed8 !important;
-    }
-    
-    html.dark-mode button[data-testid="baseButton-secondary"] {
-        background-color: #1e293b !important;
-        color: #e5e7eb !important;
-        border-color: #334155 !important;
-    }
-    
-    html.dark-mode button[data-testid="baseButton-secondary"]:hover {
-        background-color: #334155 !important;
-    }
-    
-    html.dark-mode input,
-    html.dark-mode select,
-    html.dark-mode textarea {
-        background-color: #1e293b !important;
-        color: #e5e7eb !important;
-        border-color: #334155 !important;
-    }
-    
-    html.dark-mode .stSelectbox > div > div > select,
-    html.dark-mode .stTextInput > div > div > input,
-    html.dark-mode .stNumberInput > div > div > input {
-        background-color: #1e293b !important;
-        color: #e5e7eb !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# 테마별 다크 모드 스타일 추가 (Python에서 theme 값으로 직접 제어)
+if st.session_state.get("theme", "light") == "dark":
+    st.markdown("""
+    <style>
+        /* 다크 모드 전용 스타일 */
+        body,
+        /* Streamlit 메인 컨테이너 */
+        [data-testid="stAppViewContainer"] > .main {
+            background-color: #020617 !important;
+            color: #e5e7eb !important;
+        }
+        
+        .main-header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #1e293b80 0%, #0f172a80 100%) !important;
+            border-left-color: #38bdf8 !important;
+            color: #e5e7eb !important;
+        }
+        
+        .metric-card {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
+            color: #e5e7eb !important;
+        }
+        
+        .card-section {
+            background: #1e293b !important;
+            border-left-color: #38bdf8 !important;
+            color: #e5e7eb !important;
+        }
+        
+        .form-container {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
+            color: #e5e7eb !important;
+        }
+        
+        [data-testid="stSidebar"] {
+            background-color: #0f172a !important;
+        }
+        
+        [data-testid="stSidebar"] .stMarkdown,
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] div {
+            color: #e5e7eb !important;
+        }
+        
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        p,
+        span,
+        div {
+            color: #e5e7eb !important;
+        }
+        
+        .stDataFrame {
+            background-color: #1e293b !important;
+        }
+        
+        .stDataFrame table {
+            background-color: #1e293b !important;
+            color: #e5e7eb !important;
+        }
+        
+        .stDataFrame th {
+            background-color: #0f172a !important;
+            color: #e5e7eb !important;
+        }
+        
+        .stDataFrame td {
+            border-color: #334155 !important;
+            color: #e5e7eb !important;
+        }
+        
+        button[data-testid="baseButton-primary"] {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+            border-color: #1d4ed8 !important;
+        }
+        
+        button[data-testid="baseButton-primary"]:hover {
+            background-color: #1d4ed8 !important;
+        }
+        
+        button[data-testid="baseButton-secondary"] {
+            background-color: #1e293b !important;
+            color: #e5e7eb !important;
+            border-color: #334155 !important;
+        }
+        
+        button[data-testid="baseButton-secondary"]:hover {
+            background-color: #334155 !important;
+        }
+        
+        input,
+        select,
+        textarea {
+            background-color: #1e293b !important;
+            color: #e5e7eb !important;
+            border-color: #334155 !important;
+        }
+        
+        .stSelectbox > div > div > select,
+        .stTextInput > div > div > input,
+        .stNumberInput > div > div > input {
+            background-color: #1e293b !important;
+            color: #e5e7eb !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
 # 타이틀 (개선된 디자인)
 st.markdown("""
