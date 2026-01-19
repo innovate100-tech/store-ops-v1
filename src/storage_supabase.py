@@ -9,7 +9,7 @@ from typing import Optional, List, Tuple
 import json
 
 # auth.py에서 함수 import
-from src.auth import get_supabase_client, get_current_store_id, is_dev_mode
+from src.auth import get_supabase_client, get_current_store_id
 import streamlit as st
 
 logger = logging.getLogger(__name__)
@@ -35,14 +35,10 @@ setup_logger()
 
 def _check_supabase_for_dev_mode():
     """
-    DEV MODE 체크 및 Supabase 클라이언트 반환
-    DEV MODE일 때는 None을 반환하고 경고 표시
+    Supabase 클라이언트 반환 (에러 처리)
     """
     supabase = get_supabase_client()
     if not supabase:
-        if is_dev_mode():
-            st.warning("⚠️ DEV MODE: 데이터 저장은 Supabase가 필요합니다. 실제 데이터는 저장되지 않습니다.")
-            return None
         raise Exception("Supabase not available")
     return supabase
 

@@ -16,17 +16,13 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def get_supabase_client() -> Optional[Client]:
+def get_supabase_client() -> Client:
     """
     Supabase 클라이언트 생성 (anon key + access_token 사용)
     
     Returns:
-        Supabase Client or None (DEV MODE일 때 또는 연결 실패 시)
+        Supabase Client
     """
-    # DEV MODE일 때는 Supabase 연결이 필요 없음
-    if is_dev_mode():
-        return None
-    
     if not SUPABASE_AVAILABLE:
         raise ImportError("supabase-py가 설치되지 않았습니다. pip install supabase 실행하세요.")
     
@@ -42,9 +38,8 @@ def get_supabase_client() -> Optional[Client]:
     
     # 세션에 access_token이 있으면 설정
     if 'access_token' in st.session_state:
-        # 실제 토큰만 설정 (DEV MODE는 이미 위에서 처리됨)
         access_token = st.session_state.access_token
-        if access_token and access_token != "dev":
+        if access_token:
             client.auth.set_session(
                 access_token=access_token,
                 refresh_token=st.session_state.get('refresh_token', '')
@@ -55,15 +50,11 @@ def get_supabase_client() -> Optional[Client]:
 
 def check_login() -> bool:
     """
-    로그인 상태 확인 (DEV MODE는 제외)
+    로그인 상태 확인
     
     Returns:
         bool: 로그인 여부
     """
-    # DEV MODE는 항상 True 반환
-    if is_dev_mode():
-        return True
-    
     # 세션에 user_id와 access_token이 있으면 로그인 상태
     if 'user_id' in st.session_state and 'access_token' in st.session_state:
         # access_token이 있으면 로그인된 것으로 간주
@@ -222,26 +213,12 @@ def get_current_store_name() -> str:
     Returns:
         str: 매장명
     """
-    # DEV MODE일 때는 secrets에서 매장명을 가져오거나 기본값 사용
-    if is_dev_mode():
-        dev_store_name = st.secrets.get("app", {}).get("dev_store_name", "")
-        if dev_store_name:
-            return dev_store_name
-        # dev_store_name이 없으면 store_id를 기반으로 기본값 반환
-        store_id = get_current_store_id()
-        if store_id:
-            return "DEV MODE 매장"
-        return "DEV MODE"
-    
     store_id = get_current_store_id()
     if not store_id:
         return "매장 정보 없음"
     
     try:
         client = get_supabase_client()
-        if not client:
-            return "매장 정보 없음"
-            
         result = client.table("stores").select("name").eq("id", store_id).execute()
         
         if result.data:
