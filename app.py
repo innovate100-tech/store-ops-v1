@@ -2167,7 +2167,7 @@ elif page == "레시피 등록":
         # 각 재료별 입력 필드 (재료명, 기준단위, 사용량, 사용단가)
         recipe_data = []
         
-        # 컴팩트 스타일 CSS 추가
+        # 컴팩트 스타일 CSS 추가 (세로 구분선 포함)
         st.markdown("""
         <style>
         .compact-recipe-row {
@@ -2185,6 +2185,14 @@ elif page == "레시피 등록":
         .compact-recipe-row [data-testid="stNumberInput"] > div > div {
             padding-top: 0.3rem !important;
             padding-bottom: 0.3rem !important;
+        }
+        /* 세로 구분선: 컬럼 사이에 얇은 선 표시 */
+        .compact-recipe-row > div[data-testid="column"] {
+            border-right: 1px solid rgba(148, 163, 184, 0.35);
+            padding-right: 0.4rem;
+        }
+        .compact-recipe-row > div[data-testid="column"]:last-child {
+            border-right: none;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -2463,12 +2471,27 @@ elif page == "레시피 등록":
                 ingredients_table_df = pd.DataFrame(table_data)
                 st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
                 
+                # 조리방법 표시 (구성 재료 다음에 배치)
+                render_section_divider()
+                st.markdown("**👨‍🍳 조리방법**")
+                if cooking_method_text:
+                    st.markdown(f"""
+                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
+                                border-left: 4px solid #667eea; margin: 1rem 0;">
+                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
+                            {cooking_method_text.replace(chr(10), '<br>')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
+                
                 render_section_divider()
                 
                 # 각 재료별 사용량 수정/삭제 UI
                 st.markdown("**✏️ 재료 사용량 수정 및 삭제**")
                 
-                # 컴팩트 스타일 CSS 추가
+                # 컴팩트 스타일 CSS 추가 (세로 구분선 포함)
                 st.markdown("""
                 <style>
                 .compact-edit-row {
@@ -2486,6 +2509,14 @@ elif page == "레시피 등록":
                     padding: 0.3rem 0.5rem !important;
                     font-size: 0.85rem !important;
                     height: auto !important;
+                }
+                /* 세로 구분선: 컬럼 사이에 얇은 선 표시 */
+                .compact-edit-row > div[data-testid="column"] {
+                    border-right: 1px solid rgba(148, 163, 184, 0.35);
+                    padding-right: 0.4rem;
+                }
+                .compact-edit-row > div[data-testid="column"]:last-child {
+                    border-right: none;
                 }
                 </style>
                 """, unsafe_allow_html=True)
@@ -2568,24 +2599,6 @@ elif page == "레시피 등록":
                         # 마지막 행이 아니면 얇은 구분선
                         if idx < len(display_recipe_df) - 1:
                             st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
-                
-                # 조리방법 표시
-                render_section_divider()
-                st.markdown("**👨‍🍳 조리방법**")
-                if cooking_method_text:
-                    st.markdown(f"""
-                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
-                                border-left: 4px solid #667eea; margin: 1rem 0;">
-                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
-                            {cooking_method_text.replace(chr(10), '<br>')}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
-                    
-                    if idx < len(display_recipe_df) - 1:
-                        st.markdown("---")
         else:
             st.info("등록된 레시피가 없습니다.")
     else:
