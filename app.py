@@ -2668,13 +2668,9 @@ elif page == "비용구조":
         
         # 기존 항목 표시 - Expander 제거하고 직접 표시 (중첩 문제 해결)
         if category in existing_items and existing_items[category]:
-            st.markdown(f"""
-            <div class="expense-existing-items" style="margin: 1rem 0 0.5rem 0; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
-                <strong style="color: #667eea;">📋 기존 입력된 항목 ({len(existing_items[category])}개)</strong>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            for item in existing_items[category]:
+            # 기존 항목은 기본적으로 접어두고 필요할 때만 펼치도록 처리 (모바일 스크롤 최소화)
+            with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=False):
+                for item in existing_items[category]:
                 # 수정 모드 체크
                 edit_key = f"edit_{category}_{item['id']}"
                 is_editing = st.session_state.get(edit_key, False)
