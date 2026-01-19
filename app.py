@@ -2849,6 +2849,9 @@ elif page == "재료 사용량 집계":
                     top10_df['총 사용단가'] = top10_df['총사용단가']
                     top10_df = top10_df[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']]
                     st.dataframe(top10_df, use_container_width=True, hide_index=True)
+                    # TOP 10 총합계
+                    top10_total = top10_df['총 사용단가'].sum()
+                    st.markdown(f"**💰 TOP 10 총 사용단가 합계: {top10_total:,.0f}원**")
                     
                     render_section_divider()
                     
@@ -2860,6 +2863,9 @@ elif page == "재료 사용량 집계":
                     full_ranking_df['총 사용단가'] = full_ranking_df['총사용단가']
                     full_ranking_df = full_ranking_df[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']]
                     st.dataframe(full_ranking_df, use_container_width=True, hide_index=True)
+                    # 전체 총합계
+                    full_total = full_ranking_df['총 사용단가'].sum()
+                    st.markdown(f"**📊 전체 총 사용단가 합계: {full_total:,.0f}원**")
                     
                     # ABC 등급별 통계
                     abc_stats = full_ranking_df.groupby('ABC 등급').agg({
