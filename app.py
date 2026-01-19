@@ -1682,7 +1682,9 @@ elif page == "메뉴 등록":
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     
     if not menu_df.empty:
-        display_df = menu_df.copy()
+        # 화면에는 메뉴명/판매가만 보여주도록 최소 컬럼만 선택
+        base_columns = [col for col in ['메뉴명', '판매가'] if col in menu_df.columns]
+        display_df = menu_df[base_columns].copy()
         if '판매가' in display_df.columns:
             display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원")
         
