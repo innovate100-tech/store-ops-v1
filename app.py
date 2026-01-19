@@ -2753,40 +2753,40 @@ elif page == "비용구조":
                             with col4:
                                 st.write("")
                                 st.write("")
-                            if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
-                                st.session_state[edit_key] = False
+                                if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
+                                    st.session_state[edit_key] = False
+                                    st.rerun()
+                    else:
+                        # 일반 표시 모드
+                        # 마지막 두 컬럼(✏️, 🗑️ 버튼) 간격이 화면이 넓어져도 너무 벌어지지 않도록
+                        # 버튼 컬럼 자체의 비율을 줄여 간격을 일정하게 보이게 조정
+                        col1, col2, col3, col4, col5 = st.columns([6, 4, 1.2, 0.6, 0.6])
+                        with col1:
+                            st.write(f"**{item['item_name']}**")
+                        with col2:
+                            if info['type'] == 'fixed':
+                                st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
+                            else:
+                                st.write(f"{item['amount']:.2f}%")
+                        with col3:
+                            if item.get('notes'):
+                                st.write(f"📝 {item['notes']}")
+                        with col4:
+                            if st.button("✏️", key=f"edit_btn_{category}_{item['id']}", help="수정"):
+                                st.session_state[edit_key] = True
                                 st.rerun()
-                else:
-                    # 일반 표시 모드
-                    # 마지막 두 컬럼(✏️, 🗑️ 버튼) 간격이 화면이 넓어져도 너무 벌어지지 않도록
-                    # 버튼 컬럼 자체의 비율을 줄여 간격을 일정하게 보이게 조정
-                    col1, col2, col3, col4, col5 = st.columns([6, 4, 1.2, 0.6, 0.6])
-                    with col1:
-                        st.write(f"**{item['item_name']}**")
-                    with col2:
-                        if info['type'] == 'fixed':
-                            st.write(f"{format_korean_currency(int(item['amount']))} ({int(item['amount']):,}원)")
-                        else:
-                            st.write(f"{item['amount']:.2f}%")
-                    with col3:
-                        if item.get('notes'):
-                            st.write(f"📝 {item['notes']}")
-                    with col4:
-                        if st.button("✏️", key=f"edit_btn_{category}_{item['id']}", help="수정"):
-                            st.session_state[edit_key] = True
-                            st.rerun()
-                    with col5:
-                        if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
-                            try:
-                                delete_expense_item(item['id'])
+                        with col5:
+                            if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
                                 try:
-                                    load_expense_structure.clear()
-                                except Exception:
-                                    pass
-                                st.success("삭제되었습니다!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"삭제 중 오류: {e}")
+                                    delete_expense_item(item['id'])
+                                    try:
+                                        load_expense_structure.clear()
+                                    except Exception:
+                                        pass
+                                    st.success("삭제되었습니다!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"삭제 중 오류: {e}")
         
         # 새 항목 입력
         if info['type'] == 'fixed':
