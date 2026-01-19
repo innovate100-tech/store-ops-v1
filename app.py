@@ -3131,31 +3131,31 @@ elif page == "매출구조":
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1.2rem; border-radius: 10px; margin-top: 0.8rem; color: #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
                     <div style="font-size: 0.9rem; margin-bottom: 0.4rem; opacity: 0.9;">{label}</div>
-                    <!-- 매출 영역: 흰색 -->
+                    <!-- 매출 영역: 선명한 흰색 -->
                     <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; color: #ffffff !important;">
                         매출: {int(sales):,}원
                     </div>
-                    <!-- 비용 영역 제목: 빨간색 계열 -->
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #f97373 !important;">
+                    <!-- 비용 영역 제목: 더 진한 빨간색 -->
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ff4d4f !important;">
                         비용 합계 및 세부내역
                     </div>
-                    <!-- 총 비용: 빨간색 -->
-                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem; color: #f97373 !important;">
+                    <!-- 총 비용: 더 진한 빨간색 -->
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem; color: #ff4d4f !important;">
                         총 비용: {int(total_cost):,}원
                     </div>
-                    <div style="font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.4; color: #f97373 !important;">
+                    <div style="font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.4; color: #ff4d4f !important;">
                         임차료(고정비): {int(rent_cost):,}원<br>
                         인건비(고정비): {int(labor_cost):,}원<br>
                         공과금(고정비): {int(utility_cost):,}원<br>
                         재료비(변동비): {int(material_cost):,}원<br>
                         부가세·카드수수료(변동비): {int(fee_cost):,}원
                     </div>
-                    <!-- 추정 영업이익 제목: 노란색 -->
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #facc15 !important;">
+                    <!-- 추정 영업이익 제목: 선명한 노란색 -->
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ffd700 !important;">
                         추정 영업이익
                     </div>
-                    <!-- 추정 영업이익 값: 노란색 -->
-                    <div style="font-size: 1.1rem; font-weight: 600; color: #facc15 !important;">
+                    <!-- 추정 영업이익 값: 선명한 노란색 -->
+                    <div style="font-size: 1.1rem; font-weight: 600; color: #ffd700 !important;">
                         {int(profit):,}원
                     </div>
                 </div>
