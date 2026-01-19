@@ -297,20 +297,20 @@ st.markdown("""
     
     /* ========== Streamlit 버튼 최적화 (모바일) ========== */
     @media (max-width: 768px) {
-        /* 기본 버튼: 살짝만 키우고, 너무 크지 않게 */
+        /* 기본 버튼: 기존보다 한 단계 더 작게 */
         button[data-testid="baseButton-secondary"],
         button[data-testid="baseButton-primary"] {
-            min-height: 40px !important;
-            padding: 0.5rem 0.75rem !important;
-            font-size: 0.9rem !important;
+            min-height: 34px !important;
+            padding: 0.35rem 0.6rem !important;
+            font-size: 0.85rem !important;
         }
         
-        /* 사이드바 버튼: 더 컴팩트하게 */
+        /* 사이드바 버튼: 최대한 컴팩트하게 */
         [data-testid="stSidebar"] button {
-            min-height: 36px !important;
-            padding: 0.4rem 0.6rem !important;
-            font-size: 0.85rem !important;
-            margin-bottom: 0.35rem !important;
+            min-height: 30px !important;
+            padding: 0.25rem 0.5rem !important;
+            font-size: 0.8rem !important;
+            margin-bottom: 0.25rem !important;
         }
     }
     
@@ -333,23 +333,23 @@ st.markdown("""
     
     /* ========== 사이드바 최적화 (모바일) ========== */
     @media (max-width: 768px) {
-        /* 화면 전체를 덮지 않도록 폭을 적당히 제한 */
+        /* 폭을 더 줄여서 콘텐츠 공간 확보 */
         [data-testid="stSidebar"] {
-            width: 75vw !important;
-            max-width: 300px !important;
+            width: 70vw !important;
+            max-width: 260px !important;
             min-width: auto !important;
         }
         
         [data-testid="stSidebar"] .stButton > button {
             width: 100% !important;
-            margin-bottom: 0.35rem !important;
+            margin-bottom: 0.25rem !important;
         }
         
-        /* 사이드바 카테고리 헤더: 여백 줄이고 글자 조금 작게 */
+        /* 사이드바 카테고리 헤더: 아주 타이트하게 */
         [data-testid="stSidebar"] .category-header {
-            font-size: 0.7rem !important;
-            padding: 0.35rem 0.5rem !important;
-            margin-bottom: 0.1rem !important;
+            font-size: 0.65rem !important;
+            padding: 0.25rem 0.4rem !important;
+            margin-bottom: 0.05rem !important;
         }
     }
     
