@@ -16,13 +16,17 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def get_supabase_client() -> Client:
+def get_supabase_client() -> Optional[Client]:
     """
     Supabase 클라이언트 생성 (anon key + access_token 사용)
     
     Returns:
-        Supabase Client
+        Supabase Client 또는 None (DEV MODE일 때)
     """
+    # DEV MODE일 때는 None 반환 (예외 발생 안 함)
+    if st.session_state.get('dev_mode', False):
+        return None
+    
     if not SUPABASE_AVAILABLE:
         raise ImportError("supabase-py가 설치되지 않았습니다. pip install supabase 실행하세요.")
     
@@ -123,7 +127,8 @@ def logout():
     """로그아웃 실행"""
     try:
         client = get_supabase_client()
-        client.auth.sign_out()
+        if client:  # DEV MODE일 때는 None이므로 체크
+            client.auth.sign_out()
     except Exception as e:
         logger.warning(f"Logout error (non-critical): {e}")
     finally:
@@ -213,6 +218,10 @@ def get_current_store_name() -> str:
     Returns:
         str: 매장명
     """
+    # DEV MODE일 때는 Supabase를 호출하지 않고 기본값 반환
+    if is_dev_mode():
+        return "DEV MODE (로컬 개발)"
+    
     store_id = get_current_store_id()
     if not store_id:
         return "매장 정보 없음"

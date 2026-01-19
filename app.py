@@ -10,11 +10,23 @@ st.set_page_config(
     page_title="매장 운영 시스템 v1",
     page_icon="🏪",
     layout="wide",
-    initial_sidebar_state="expanded"  # 사이드바 항상 열림
+    initial_sidebar_state="expanded",  # 사이드바 항상 열림
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
+# 테마 상태 초기화 (기본: 화이트 모드)
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
+
 # 로그인 체크
-from src.auth import check_login, show_login_page, get_current_store_name, logout
+from src.auth import check_login, show_login_page, get_current_store_name, logout, apply_dev_mode_session
+
+# DEV MODE 체크 (로컬 개발용)
+apply_dev_mode_session()
 
 # 로그인이 안 되어 있으면 로그인 화면 표시
 if not check_login():
@@ -81,8 +93,9 @@ from src.ui import (
 from src.reporting import generate_weekly_report
 from src.ui_helpers import render_page_header, render_section_header, render_section_divider
 
-# 커스텀 CSS 적용
+# 커스텀 CSS 적용 (반응형 최적화 포함)
 st.markdown("""
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     
@@ -90,6 +103,13 @@ st.markdown("""
         font-family: 'Noto Sans KR', sans-serif !important;
     }
     
+    /* ========== 반응형 기본 설정 ========== */
+    :root {
+        --mobile-breakpoint: 768px;
+        --tablet-breakpoint: 1024px;
+    }
+    
+    /* ========== 메인 헤더 (반응형) ========== */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 2rem;
@@ -99,6 +119,22 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
+    @media (max-width: 768px) {
+        .main-header {
+            padding: 1.5rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+        }
+        
+        .main-header h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        .main-header p {
+            font-size: 0.9rem !important;
+        }
+    }
+    
     .main-header h1 {
         color: white !important;
         border: none !important;
@@ -106,6 +142,7 @@ st.markdown("""
         padding: 0 !important;
     }
     
+    /* ========== 정보 박스 (반응형) ========== */
     .info-box {
         background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
         border-left: 4px solid #667eea;
@@ -114,6 +151,15 @@ st.markdown("""
         margin: 1rem 0;
     }
     
+    @media (max-width: 768px) {
+        .info-box {
+            padding: 0.75rem 1rem;
+            margin: 0.75rem 0;
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* ========== 메트릭 카드 (반응형) ========== */
     .metric-card {
         background: white;
         border-radius: 12px;
@@ -123,11 +169,33 @@ st.markdown("""
         border: 1px solid #e0e0e0;
     }
     
+    @media (max-width: 768px) {
+        .metric-card {
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        
+        .metric-card > div:first-child {
+            font-size: 0.85rem !important;
+        }
+        
+        .metric-card > div:last-child {
+            font-size: 1.3rem !important;
+        }
+    }
+    
     .metric-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
+    @media (max-width: 768px) {
+        .metric-card:hover {
+            transform: none; /* 모바일에서는 호버 효과 제거 */
+        }
+    }
+    
+    /* ========== 섹션 구분선 ========== */
     .section-divider {
         height: 2px;
         background: linear-gradient(90deg, transparent, #667eea, transparent);
@@ -135,7 +203,13 @@ st.markdown("""
         border: none;
     }
     
-    /* 입력 폼 컨테이너 */
+    @media (max-width: 768px) {
+        .section-divider {
+            margin: 1rem 0;
+        }
+    }
+    
+    /* ========== 입력 폼 컨테이너 (반응형) ========== */
     .form-container {
         background: white;
         border-radius: 12px;
@@ -145,20 +219,76 @@ st.markdown("""
         border: 1px solid #e0e0e0;
     }
     
-    /* 데이터프레임 스타일 개선 */
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0.75rem 0;
+        }
+    }
+    
+    /* ========== 데이터프레임 스타일 (반응형) ========== */
     .stDataFrame {
         border-radius: 8px;
         overflow: hidden;
     }
     
-    /* 버튼 그룹 스타일 */
+    @media (max-width: 768px) {
+        .stDataFrame {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 테이블 가로 스크롤 최적화 */
+        .stDataFrame table {
+            min-width: 100%;
+            font-size: 0.85rem;
+        }
+        
+        .stDataFrame th,
+        .stDataFrame td {
+            padding: 0.5rem 0.75rem !important;
+            white-space: nowrap;
+        }
+    }
+    
+    /* ========== 버튼 그룹 (반응형) ========== */
     .button-group {
         display: flex;
         gap: 0.5rem;
         margin: 1rem 0;
     }
     
-    /* 카드 스타일 섹션 */
+    @media (max-width: 768px) {
+        .button-group {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .button-group button {
+            width: 100% !important;
+        }
+    }
+    
+    /* ========== Streamlit 버튼 최적화 (모바일) ========== */
+    @media (max-width: 768px) {
+        /* 모든 버튼 터치 영역 최소 44px (애플 가이드라인) */
+        button[data-testid="baseButton-secondary"],
+        button[data-testid="baseButton-primary"] {
+            min-height: 44px !important;
+            padding: 0.75rem 1rem !important;
+            font-size: 1rem !important;
+        }
+        
+        /* 사이드바 버튼 */
+        [data-testid="stSidebar"] button {
+            min-height: 44px !important;
+            padding: 0.75rem !important;
+            font-size: 0.95rem !important;
+        }
+    }
+    
+    /* ========== 카드 스타일 섹션 (반응형) ========== */
     .card-section {
         background: #f8f9fa;
         border-radius: 12px;
@@ -167,10 +297,101 @@ st.markdown("""
         border-left: 4px solid #667eea;
     }
     
-    /* 사이드바 카테고리별 메뉴 구분 스타일 */
+    @media (max-width: 768px) {
+        .card-section {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 0.75rem 0;
+        }
+    }
+    
+    /* ========== 사이드바 최적화 (모바일) ========== */
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] {
+            min-width: 100% !important;
+        }
+        
+        [data-testid="stSidebar"] .stButton > button {
+            width: 100% !important;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* 사이드바 카테고리 헤더 */
+        [data-testid="stSidebar"] .category-header {
+            font-size: 0.75rem !important;
+            padding: 0.5rem !important;
+        }
+    }
+    
+    /* ========== 컬럼 레이아웃 최적화 ========== */
+    @media (max-width: 768px) {
+        /* 3개 이상의 컬럼은 모바일에서 1개로 */
+        .stColumn:has(+ .stColumn + .stColumn) {
+            width: 100% !important;
+        }
+        
+        /* 2개 컬럼도 모바일에서는 스택 */
+        .stColumn:has(+ .stColumn) {
+            width: 100% !important;
+            margin-bottom: 1rem;
+        }
+    }
+    
+    /* ========== 입력 필드 최적화 (모바일) ========== */
+    @media (max-width: 768px) {
+        /* 텍스트 입력 필드 */
+        .stTextInput > div > div > input,
+        .stNumberInput > div > div > input,
+        .stDateInput > div > div > input,
+        .stSelectbox > div > div > select {
+            font-size: 16px !important; /* iOS 줌 방지 */
+            padding: 0.75rem !important;
+            min-height: 44px !important;
+        }
+        
+        /* 라디오 버튼 */
+        .stRadio > label {
+            font-size: 0.95rem !important;
+            padding: 0.5rem 0 !important;
+        }
+        
+        /* 체크박스 */
+        .stCheckbox > label {
+            font-size: 0.95rem !important;
+            padding: 0.5rem 0 !important;
+        }
+    }
+    
+    /* ========== 테이블/데이터프레임 가로 스크롤 ========== */
+    @media (max-width: 768px) {
+        /* 데이터프레임 래퍼 */
+        .element-container:has(.stDataFrame) {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 스크롤 인디케이터 */
+        .element-container:has(.stDataFrame)::after {
+            content: '← 스와이프하여 더 보기 →';
+            display: block;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #666;
+            padding: 0.5rem;
+            opacity: 0.7;
+        }
+    }
+    
+    /* ========== 사이드바 카테고리별 메뉴 구분 스타일 ========== */
     [data-testid="stSidebar"] .stRadio {
         margin-top: 0 !important;
         margin-bottom: 0.5rem !important;
+    }
+    
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] .stRadio {
+            margin-bottom: 0.75rem !important;
+        }
     }
     
     /* 라디오 버튼 항목 그룹핑을 위한 스타일 */
@@ -184,106 +405,334 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     
+    /* ========== 메인 컨텐츠 영역 최적화 ========== */
+    @media (max-width: 768px) {
+        /* 메인 영역 패딩 조정 */
+        .main .block-container {
+            padding: 1rem 0.5rem !important;
+        }
+        
+        /* 섹션 헤더 */
+        h1, h2, h3 {
+            font-size: 1.5rem !important;
+            margin-top: 1rem !important;
+            margin-bottom: 0.75rem !important;
+        }
+        
+        h2 {
+            font-size: 1.25rem !important;
+        }
+        
+        h3 {
+            font-size: 1.1rem !important;
+        }
+        
+        /* 일반 텍스트 */
+        p, div, span {
+            font-size: 0.95rem !important;
+            line-height: 1.6 !important;
+        }
+    }
+    
+    /* ========== 차트 최적화 (모바일) ========== */
+    @media (max-width: 768px) {
+        .stPlotlyChart,
+        .stPyplot {
+            width: 100% !important;
+            height: auto !important;
+        }
+    }
+    
+    /* ========== 메트릭 표시 최적화 ========== */
+    @media (max-width: 768px) {
+        [data-testid="stMetricValue"] {
+            font-size: 1.5rem !important;
+        }
+        
+        [data-testid="stMetricLabel"] {
+            font-size: 0.85rem !important;
+        }
+    }
+    
+    /* ========== 다운로드 버튼 최적화 ========== */
+    @media (max-width: 768px) {
+        .stDownloadButton > button {
+            width: 100% !important;
+            min-height: 44px !important;
+            font-size: 1rem !important;
+        }
+    }
+    
+    /* ========== 폼 제출 버튼 최적화 ========== */
+    @media (max-width: 768px) {
+        .stForm > div:last-child button {
+            width: 100% !important;
+            min-height: 44px !important;
+            font-size: 1rem !important;
+            margin-top: 1rem !important;
+        }
+    }
+    
+    /* ========== 스크롤바 스타일링 (모바일) ========== */
+    @media (max-width: 768px) {
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    }
+    
+    /* 모든 title 툴팁 완전히 차단 - 가장 강력한 방법 */
+    * {
+        /* 브라우저 기본 툴팁 완전히 비활성화 */
+    }
+    
+    /* keyboard 관련 모든 요소의 툴팁 차단 */
+    [title*="keyboard" i],
+    [title*="arrow" i],
+    [title*="double" i],
+    [aria-label*="keyboard" i],
+    [aria-label*="arrow" i],
+    [aria-label*="double" i] {
+        /* title 속성 자체를 무효화 */
+        pointer-events: auto !important;
+    }
+    
+    /* 사이드바 헤더 영역 완전히 차단 */
+    [data-testid="stSidebarHeader"],
+    [data-testid="stSidebarHeader"] *,
+    [data-testid="stSidebar"] button,
+    [data-testid="stSidebar"] span {
+        /* 툴팁 표시 방지 */
+    }
+    
+    /* 브라우저 기본 툴팁 스타일 완전히 제거 */
+    *[title]:hover,
+    *[title]:focus,
+    *[title]:active {
+        /* 툴팁 표시 안 함 */
+    }
+    
 </style>
 <script>
-    // 전역적으로 title 속성을 차단하는 가장 강력한 방법
+    // 완전히 새로운 접근: 브라우저의 툴팁 시스템 자체를 차단
     (function() {
         'use strict';
         
-        // 모든 HTML 요소의 title 속성을 오버라이드
+        // keyboard 관련 키워드 목록 (대소문자 무시)
+        const keyboardKeywords = ['keyboard', 'arrow', 'double', 'left', 'right'];
+        
+        // 키워드 포함 여부 확인 (대소문자 무시)
+        function containsKeyboardKeyword(str) {
+            if (!str || typeof str !== 'string') return false;
+            const lowerStr = str.toLowerCase();
+            return keyboardKeywords.some(keyword => lowerStr.includes(keyword));
+        }
+        
+        // 1. Element.prototype.setAttribute 완전히 오버라이드
         const originalSetAttribute = Element.prototype.setAttribute;
         Element.prototype.setAttribute = function(name, value) {
-            if (name === 'title' && typeof value === 'string' && value.toLowerCase().includes('keyboard')) {
-                return; // keyboard 관련 title 설정 차단
+            if (name === 'title' && typeof value === 'string' && containsKeyboardKeyword(value)) {
+                // keyboard 관련 title은 아예 설정하지 않음
+                return;
+            }
+            if (name === 'aria-label' && typeof value === 'string' && containsKeyboardKeyword(value)) {
+                // keyboard 관련 aria-label도 차단
+                return;
             }
             return originalSetAttribute.call(this, name, value);
         };
         
-        // title 속성 getter도 오버라이드
+        // 2. Element.prototype.setAttributeNS도 오버라이드
+        const originalSetAttributeNS = Element.prototype.setAttributeNS;
+        Element.prototype.setAttributeNS = function(namespace, name, value) {
+            if (name === 'title' && typeof value === 'string' && containsKeyboardKeyword(value)) {
+                return;
+            }
+            if (name === 'aria-label' && typeof value === 'string' && containsKeyboardKeyword(value)) {
+                return;
+            }
+            return originalSetAttributeNS.call(this, namespace, name, value);
+        };
+        
+        // 3. getAttribute 오버라이드 - 빈 문자열 반환
         const originalGetAttribute = Element.prototype.getAttribute;
         Element.prototype.getAttribute = function(name) {
             if (name === 'title') {
                 const value = originalGetAttribute.call(this, name);
-                if (value && value.toLowerCase().includes('keyboard')) {
-                    return ''; // keyboard 관련 title은 빈 문자열 반환
+                if (value && containsKeyboardKeyword(value)) {
+                    return ''; // 빈 문자열 반환하여 툴팁 표시 안 함
+                }
+            }
+            if (name === 'aria-label') {
+                const value = originalGetAttribute.call(this, name);
+                if (value && containsKeyboardKeyword(value)) {
+                    return '';
                 }
             }
             return originalGetAttribute.call(this, name);
         };
         
-        // title 속성 제거 함수
-        function removeKeyboardTitles() {
-            // 모든 요소 체크
-            document.querySelectorAll('*').forEach(el => {
-                const title = el.getAttribute('title');
-                if (title && title.toLowerCase().includes('keyboard')) {
-                    el.removeAttribute('title');
-                    // title 속성 재설정 방지
+        // 4. title 속성 자체를 Object.defineProperty로 완전히 차단
+        function blockTitleProperty(element) {
+            try {
+                // 이미 차단된 요소는 건너뛰기
+                if (element._titleBlocked) return;
+                
+                const titleValue = element.getAttribute('title');
+                if (titleValue && containsKeyboardKeyword(titleValue)) {
+                    element.removeAttribute('title');
+                    // title 속성을 완전히 차단
                     try {
-                        Object.defineProperty(el, 'title', {
-                            get: () => '',
-                            set: () => {},
+                        Object.defineProperty(element, 'title', {
+                            get: function() { return ''; },
+                            set: function(value) {
+                                if (value && containsKeyboardKeyword(value)) {
+                                    return; // 설정 차단
+                                }
+                                element.setAttribute('title', value);
+                            },
                             configurable: true
                         });
-                    } catch(e) {}
+                        element._titleBlocked = true;
+                    } catch(e) {
+                        // 이미 정의된 경우 무시
+                    }
+                }
+            } catch(e) {
+                // 오류 무시
+            }
+        }
+        
+        // 5. 모든 요소에서 keyboard 관련 속성 제거
+        function removeKeyboardAttributes() {
+            document.querySelectorAll('*').forEach(el => {
+                try {
+                    // title 제거
+                    const title = el.getAttribute('title');
+                    if (title && containsKeyboardKeyword(title)) {
+                        el.removeAttribute('title');
+                        blockTitleProperty(el);
+                    }
+                    
+                    // aria-label 제거
+                    const ariaLabel = el.getAttribute('aria-label');
+                    if (ariaLabel && containsKeyboardKeyword(ariaLabel)) {
+                        el.removeAttribute('aria-label');
+                    }
+                    
+                    // data 속성도 체크 (일부 경우)
+                    Array.from(el.attributes).forEach(attr => {
+                        if (attr.name.startsWith('data-') && containsKeyboardKeyword(attr.value)) {
+                            // data 속성은 유지하되 title만 제거
+                        }
+                    });
+                } catch(e) {
+                    // 무시
                 }
             });
         }
         
-        // 즉시 실행
-        removeKeyboardTitles();
-        
-        // MutationObserver로 실시간 감지
+        // 6. MutationObserver - 모든 변경사항 실시간 감지
         const observer = new MutationObserver(function(mutations) {
-            let needsCleanup = false;
             mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+                if (mutation.type === 'attributes') {
                     const target = mutation.target;
-                    const title = target.getAttribute('title');
-                    if (title && title.toLowerCase().includes('keyboard')) {
-                        target.removeAttribute('title');
-                        needsCleanup = true;
+                    const attrName = mutation.attributeName;
+                    
+                    if (attrName === 'title' || attrName === 'aria-label') {
+                        const value = target.getAttribute(attrName);
+                        if (value && containsKeyboardKeyword(value)) {
+                            target.removeAttribute(attrName);
+                            if (attrName === 'title') {
+                                blockTitleProperty(target);
+                            }
+                        }
                     }
                 }
+                
                 if (mutation.type === 'childList') {
                     mutation.addedNodes.forEach(function(node) {
-                        if (node.nodeType === 1) {
-                            const title = node.getAttribute && node.getAttribute('title');
-                            if (title && title.toLowerCase().includes('keyboard')) {
-                                node.removeAttribute('title');
-                                needsCleanup = true;
-                            }
-                            // 자식 요소도 체크
+                        if (node.nodeType === 1) { // Element node
+                            // 새로 추가된 노드 즉시 처리
+                            ['title', 'aria-label'].forEach(attr => {
+                                const value = node.getAttribute && node.getAttribute(attr);
+                                if (value && containsKeyboardKeyword(value)) {
+                                    node.removeAttribute(attr);
+                                    if (attr === 'title') {
+                                        blockTitleProperty(node);
+                                    }
+                                }
+                            });
+                            
+                            // 자식 요소도 재귀적으로 처리
                             if (node.querySelectorAll) {
                                 node.querySelectorAll('*').forEach(child => {
-                                    const childTitle = child.getAttribute('title');
-                                    if (childTitle && childTitle.toLowerCase().includes('keyboard')) {
-                                        child.removeAttribute('title');
-                                        needsCleanup = true;
-                                    }
+                                    ['title', 'aria-label'].forEach(attr => {
+                                        const value = child.getAttribute(attr);
+                                        if (value && containsKeyboardKeyword(value)) {
+                                            child.removeAttribute(attr);
+                                            if (attr === 'title') {
+                                                blockTitleProperty(child);
+                                            }
+                                        }
+                                    });
                                 });
                             }
                         }
                     });
                 }
             });
-            if (needsCleanup) {
-                removeKeyboardTitles();
-            }
+            
+            // 주기적으로 전체 스캔
+            removeKeyboardAttributes();
         });
         
-        // 초기화
+        // 7. 모든 마우스/포커스 이벤트에서 실시간 차단
+        const eventTypes = ['mouseover', 'mouseenter', 'mousemove', 'focus', 'focusin', 'touchstart'];
+        eventTypes.forEach(eventType => {
+            document.addEventListener(eventType, function(e) {
+                if (e.target) {
+                    const target = e.target;
+                    ['title', 'aria-label'].forEach(attr => {
+                        const value = target.getAttribute && target.getAttribute(attr);
+                        if (value && containsKeyboardKeyword(value)) {
+                            target.removeAttribute(attr);
+                            if (attr === 'title') {
+                                blockTitleProperty(target);
+                            }
+                        }
+                    });
+                }
+            }, true); // capture phase에서 실행
+        });
+        
+        // 8. 초기화 함수
         function init() {
-            removeKeyboardTitles();
+            removeKeyboardAttributes();
+            
+            // MutationObserver 시작
             observer.observe(document.documentElement, {
                 childList: true,
                 subtree: true,
                 attributes: true,
-                attributeFilter: ['title']
+                attributeFilter: ['title', 'aria-label']
             });
         }
         
-        // 다양한 시점에서 실행
+        // 9. 즉시 실행 및 다양한 시점에서 재실행
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
@@ -291,28 +740,238 @@ st.markdown("""
         }
         
         window.addEventListener('load', init);
-        setTimeout(init, 50);
-        setTimeout(init, 200);
-        setTimeout(init, 500);
-        setTimeout(init, 1000);
-        setTimeout(init, 2000);
         
-        // 매우 빠른 주기로 체크 (50ms)
-        setInterval(removeKeyboardTitles, 50);
+        // 최적화: 주기적 체크를 1초로 변경 (10ms -> 1000ms)
+        // MutationObserver가 실시간으로 처리하므로 주기적 체크는 보조적 역할만
+        setInterval(removeKeyboardAttributes, 1000);
         
-        // 모든 마우스 이벤트에서 체크
-        ['mouseover', 'mouseenter', 'mousemove'].forEach(eventType => {
-            document.addEventListener(eventType, function(e) {
-                if (e.target) {
-                    const title = e.target.getAttribute && e.target.getAttribute('title');
-                    if (title && title.toLowerCase().includes('keyboard')) {
-                        e.target.removeAttribute('title');
+        // 사이드바 특별 감시 (1초 주기로 변경, 50ms -> 1000ms)
+        function watchSidebar() {
+            const sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (sidebar) {
+                sidebar.querySelectorAll('*').forEach(el => {
+                    ['title', 'aria-label'].forEach(attr => {
+                        const value = el.getAttribute(attr);
+                        if (value && containsKeyboardKeyword(value)) {
+                            el.removeAttribute(attr);
+                            if (attr === 'title') {
+                                blockTitleProperty(el);
+                            }
+                        }
+                    });
+                });
+            }
+        }
+        setInterval(watchSidebar, 1000);
+        
+        // 최적화: requestAnimationFrame 제거
+        // MutationObserver와 주기적 체크로 충분히 처리 가능
+        // requestAnimationFrame은 매 프레임마다 실행되어 성능 저하 유발
+        
+    })();
+    
+    // ========== 테마 적용 ==========
+    (function() {
+        'use strict';
+        const root = document.documentElement;
+        root.classList.remove('light-mode', 'dark-mode');
+        const theme = '{{THEME}}';
+        if (theme === 'dark') {
+            root.classList.add('dark-mode');
+        } else {
+            root.classList.add('light-mode');
+        }
+    })();
+    
+    // ========== 반응형 레이아웃 자동 조정 ==========
+    (function() {
+        'use strict';
+        
+        // 화면 크기 감지 및 조정
+        function adjustLayout() {
+            const width = window.innerWidth;
+            const isMobile = width <= 768;
+            const isTablet = width > 768 && width <= 1024;
+            
+            // 모바일에서 사이드바 자동 접기
+            if (isMobile) {
+                const sidebar = document.querySelector('[data-testid="stSidebar"]');
+                if (sidebar) {
+                    // 사이드바가 열려있으면 접기
+                    const sidebarButton = document.querySelector('[data-testid="stSidebar"] button[aria-label*="close"], [data-testid="stSidebar"] button[aria-label*="열기"]');
+                    if (sidebarButton && sidebar.offsetWidth > 0) {
+                        // 사이드바가 열려있는 상태
+                        // 필요시 자동으로 접을 수 있지만, 사용자 경험을 위해 수동 제어 유지
                     }
                 }
-            }, true);
+            }
+            
+            // 컬럼 레이아웃 자동 조정
+            const columns = document.querySelectorAll('.stColumn');
+            if (isMobile && columns.length > 1) {
+                columns.forEach(col => {
+                    col.style.width = '100%';
+                    col.style.marginBottom = '1rem';
+                });
+            }
+        }
+        
+        // 초기 실행
+        adjustLayout();
+        
+        // 리사이즈 이벤트 리스너 (디바운싱)
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(adjustLayout, 250);
         });
+        
+        // 화면 방향 변경 감지 (모바일)
+        window.addEventListener('orientationchange', function() {
+            setTimeout(adjustLayout, 500);
+        });
+        
+        // 터치 이벤트 최적화
+        if ('ontouchstart' in window) {
+            // 터치 디바이스 감지
+            document.body.classList.add('touch-device');
+            
+            // 더블 탭 줌 방지 (선택적)
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function(event) {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
+        }
     })();
 </script>
+""".replace('{{THEME}}', st.session_state.get('theme', 'light')), unsafe_allow_html=True)
+
+# 테마별 다크 모드 스타일 추가
+st.markdown("""
+<style>
+    /* 다크 모드 전용 스타일 */
+    html.dark-mode {
+        color-scheme: dark;
+    }
+    
+    html.dark-mode body,
+    /* Streamlit 메인 컨테이너 */
+    html.dark-mode [data-testid="stAppViewContainer"] > .main {
+        background-color: #020617 !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .main-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
+    }
+    
+    html.dark-mode .info-box {
+        background: linear-gradient(135deg, #1e293b80 0%, #0f172a80 100%) !important;
+        border-left-color: #38bdf8 !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .metric-card {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .card-section {
+        background: #1e293b !important;
+        border-left-color: #38bdf8 !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .form-container {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.7) !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+    }
+    
+    html.dark-mode [data-testid="stSidebar"] .stMarkdown,
+    html.dark-mode [data-testid="stSidebar"] p,
+    html.dark-mode [data-testid="stSidebar"] div {
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode h1,
+    html.dark-mode h2,
+    html.dark-mode h3,
+    html.dark-mode h4,
+    html.dark-mode h5,
+    html.dark-mode h6,
+    html.dark-mode p,
+    html.dark-mode span,
+    html.dark-mode div {
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .stDataFrame {
+        background-color: #1e293b !important;
+    }
+    
+    html.dark-mode .stDataFrame table {
+        background-color: #1e293b !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .stDataFrame th {
+        background-color: #0f172a !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode .stDataFrame td {
+        border-color: #334155 !important;
+        color: #e5e7eb !important;
+    }
+    
+    html.dark-mode button[data-testid="baseButton-primary"] {
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        border-color: #1d4ed8 !important;
+    }
+    
+    html.dark-mode button[data-testid="baseButton-primary"]:hover {
+        background-color: #1d4ed8 !important;
+    }
+    
+    html.dark-mode button[data-testid="baseButton-secondary"] {
+        background-color: #1e293b !important;
+        color: #e5e7eb !important;
+        border-color: #334155 !important;
+    }
+    
+    html.dark-mode button[data-testid="baseButton-secondary"]:hover {
+        background-color: #334155 !important;
+    }
+    
+    html.dark-mode input,
+    html.dark-mode select,
+    html.dark-mode textarea {
+        background-color: #1e293b !important;
+        color: #e5e7eb !important;
+        border-color: #334155 !important;
+    }
+    
+    html.dark-mode .stSelectbox > div > div > select,
+    html.dark-mode .stTextInput > div > div > input,
+    html.dark-mode .stNumberInput > div > div > input {
+        background-color: #1e293b !important;
+        color: #e5e7eb !important;
+    }
+</style>
 """, unsafe_allow_html=True)
 
 # 타이틀 (개선된 디자인)
@@ -333,6 +992,27 @@ with st.sidebar:
         <div style="font-size: 1.1rem; font-weight: 600; color: white;">{store_name}</div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # 테마 전환 버튼
+    st.markdown("### 🎨 테마 설정")
+    col1, col2 = st.columns(2)
+    current_theme = st.session_state.get("theme", "light")
+    
+    with col1:
+        if st.button("☀️ 화이트", use_container_width=True, 
+                    type="primary" if current_theme == "light" else "secondary",
+                    key="theme_light"):
+            st.session_state.theme = "light"
+            st.rerun()
+    
+    with col2:
+        if st.button("🌙 다크", use_container_width=True,
+                    type="primary" if current_theme == "dark" else "secondary",
+                    key="theme_dark"):
+            st.session_state.theme = "dark"
+            st.rerun()
+    
+    st.markdown("---")
     
     if st.button("🚪 로그아웃", use_container_width=True, type="secondary"):
         logout()
@@ -361,10 +1041,11 @@ menu_categories = {
         ("발주 관리", "🛒"),
     ],
     "비용": [
-        ("메뉴 관리", "🍽️"),
-        ("재료 관리", "🥬"),
-        ("레시피 관리", "📝"),
-        ("원가 분석", "💰"),
+        ("재료 사용량 집계", "📈"),
+        ("메뉴 등록", "🍽️"),
+        ("재료 등록", "🥬"),
+        ("레시피 등록", "📝"),
+        ("원가 파악", "💰"),
     ],
     "재무": [
         ("비용구조", "💳"),
@@ -824,9 +1505,9 @@ elif page == "매출 관리":
         else:
             st.info("저장된 방문자 데이터가 없습니다.")
 
-# 메뉴 관리 페이지
-elif page == "메뉴 관리":
-    render_page_header("메뉴 관리", "🍽️")
+# 메뉴 등록 페이지
+elif page == "메뉴 등록":
+    render_page_header("메뉴 등록", "🍽️")
     
     # 입력 모드 선택 (단일 / 일괄)
     input_mode = st.radio(
@@ -962,9 +1643,9 @@ elif page == "메뉴 관리":
     else:
         st.info("등록된 메뉴가 없습니다.")
 
-# 재료 관리 페이지
-elif page == "재료 관리":
-    render_page_header("재료 관리", "🥬")
+# 재료 등록 페이지
+elif page == "재료 등록":
+    render_page_header("재료 등록", "🥬")
     
     # 재료 입력 폼
     ingredient_name, unit, unit_price = render_ingredient_input()
@@ -1051,9 +1732,9 @@ elif page == "재료 관리":
     else:
         st.info("등록된 재료가 없습니다.")
 
-# 레시피 관리 페이지
-elif page == "레시피 관리":
-    render_page_header("레시피 관리", "📝")
+# 레시피 등록 페이지
+elif page == "레시피 등록":
+    render_page_header("레시피 등록", "📝")
     
     # 메뉴 및 재료 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -1120,9 +1801,9 @@ elif page == "레시피 관리":
     else:
         st.info("등록된 레시피가 없습니다.")
 
-# 원가 분석 페이지
-elif page == "원가 분석":
-    render_page_header("원가 분석", "💰")
+# 원가 파악 페이지
+elif page == "원가 파악":
+    render_page_header("원가 파악", "💰")
     
     # 데이터 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -1213,16 +1894,21 @@ elif page == "판매 관리":
             st.info(f"'{selected_date}' 날짜의 판매 내역이 없습니다.")
     else:
         st.info("저장된 판매 내역이 없습니다.")
-    
-    # 재료 사용량 집계
-    render_section_divider()
-    render_section_header("재료 사용량 집계", "🥬")
-    
+
+# 재료 사용량 집계 페이지
+elif page == "재료 사용량 집계":
+    render_page_header("재료 사용량 집계", "📈")
+
+    # 데이터 로드
+    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
     recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-    
+
+    render_section_divider()
+    render_section_header("재료 사용량 집계", "📈")
+
     if not daily_sales_df.empty and not recipe_df.empty:
         usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
-        
+
         if not usage_df.empty:
             # 날짜 필터
             usage_date_list = sorted(usage_df['날짜'].unique(), reverse=True)
@@ -1231,24 +1917,24 @@ elif page == "판매 관리":
                 options=["전체"] + [str(d.date()) if hasattr(d, 'date') else str(d) for d in usage_date_list],
                 key="usage_date_filter"
             )
-            
+
             display_usage_df = usage_df.copy()
             if selected_usage_date != "전체":
                 display_usage_df = display_usage_df[display_usage_df['날짜'].astype(str).str.startswith(selected_usage_date)]
-            
+
             if not display_usage_df.empty:
                 display_usage_df['날짜'] = pd.to_datetime(display_usage_df['날짜']).dt.strftime('%Y-%m-%d')
-                
+
                 # 재료별 총 사용량 표시
                 st.write("**재료별 사용량**")
                 st.dataframe(display_usage_df, use_container_width=True, hide_index=True)
-                
+
                 # 오늘 사용한 재료 TOP (선택된 날짜가 오늘이거나 전체일 때)
                 if selected_usage_date == "전체" or selected_usage_date == str(pd.Timestamp.now().date()):
                     ingredient_summary = display_usage_df.groupby('재료명')['총사용량'].sum().reset_index()
                     ingredient_summary = ingredient_summary.sort_values('총사용량', ascending=False).head(10)
                     ingredient_summary.columns = ['재료명', '총 사용량']
-                    
+
                     st.write("**🔝 사용량 TOP 10 재료**")
                     st.dataframe(ingredient_summary, use_container_width=True, hide_index=True)
         else:

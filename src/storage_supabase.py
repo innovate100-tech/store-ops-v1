@@ -36,7 +36,16 @@ setup_logger()
 def _check_supabase_for_dev_mode():
     """
     Supabase 클라이언트 반환 (에러 처리)
+    
+    DEV MODE(st.session_state['dev_mode'] == True)에서는
+    Supabase를 사용하지 않으므로 None을 반환하고,
+    호출하는 쪽에서 이를 감지해 로컬/빈 데이터로 처리하게 한다.
     """
+    # DEV MODE에서는 Supabase를 사용하지 않음
+    if st.session_state.get("dev_mode", False):
+        logger.info("DEV MODE: Supabase client is disabled (returning None).")
+        return None
+    
     supabase = get_supabase_client()
     if not supabase:
         raise Exception("Supabase not available")
@@ -47,6 +56,7 @@ def _check_supabase_for_dev_mode():
 # Load Functions (CSV 호환 인터페이스 유지)
 # ============================================
 
+@st.cache_data(ttl=120)  # 2분 캐시 (동적 데이터와 마스터 데이터 모두 고려)
 def load_csv(filename: str, default_columns: Optional[List[str]] = None):
     """
     테이블에서 데이터 로드 (CSV 호환 인터페이스)
@@ -233,6 +243,7 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
 
 
+@st.cache_data(ttl=300)  # 5분 캐시 (마스터 데이터)
 def load_key_menus() -> List[str]:
     """핵심 메뉴 목록 로드 (is_core=True인 메뉴들)"""
     supabase = get_supabase_client()
@@ -946,6 +957,7 @@ def delete_expense_item(expense_id):
         raise
 
 
+@st.cache_data(ttl=60)  # 1분 캐시 (비용구조는 자주 변경될 수 있으므로 짧게)
 def load_expense_structure(year, month):
     """비용구조 데이터 로드 (특정 연도/월)"""
     supabase = _check_supabase_for_dev_mode()
@@ -974,6 +986,7 @@ def load_expense_structure(year, month):
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=60)  # 1분 캐시
 def load_expense_structure_range(year_start, month_start, year_end, month_end):
     """비용구조 데이터 로드 (기간 범위)"""
     supabase = _check_supabase_for_dev_mode()
