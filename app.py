@@ -61,6 +61,7 @@ from src.storage_supabase import (
     load_expense_structure_range,
     copy_expense_structure_from_previous_month
 )
+from src.auth import get_supabase_client, get_current_store_id
 from src.analytics import (
     calculate_correlation,
     merge_sales_visitors,
@@ -1678,21 +1679,140 @@ elif page == "메뉴 등록":
     render_section_divider()
     
     # 저장된 메뉴 표시 및 수정/삭제
-    render_section_header("등록된 메뉴 리스트", "📋")
+    # 제목을 화이트 모드에서도 흰색으로 표시
+    st.markdown("""
+    <div style="margin: 2rem 0 1rem 0;">
+        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            📋 등록된 메뉴 리스트
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     
     if not menu_df.empty:
-        # 화면에는 메뉴명/판매가만 보여주도록 최소 컬럼만 선택
-        base_columns = [col for col in ['메뉴명', '판매가'] if col in menu_df.columns]
-        display_df = menu_df[base_columns].copy()
-        if '판매가' in display_df.columns:
-            display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원")
+        # 순서 정보를 session_state에 저장 (초기화)
+        menu_order_key = "menu_display_order"
+        if menu_order_key not in st.session_state:
+            # 초기 순서 설정 (메뉴명 기준)
+            menu_names = menu_df['메뉴명'].tolist()
+            st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(menu_names)}
         
-        # 수정/삭제 기능
-        st.write("**📝 메뉴 수정/삭제**")
+        # 순서에 따라 정렬
+        menu_df['순서'] = menu_df['메뉴명'].map(st.session_state[menu_order_key])
+        menu_df = menu_df.sort_values('순서').reset_index(drop=True)
+        
+        # 메뉴 번호 매기기
+        menu_df['번호'] = range(1, len(menu_df) + 1)
+        
+        # 체크박스로 여러개 선택 삭제 기능
+        st.markdown("**🗑️ 메뉴 삭제**")
+        selected_indices = []
+        
+        # 각 메뉴에 체크박스 추가
+        for idx, row in menu_df.iterrows():
+            checkbox_key = f"menu_checkbox_{idx}"
+            if st.checkbox(f"{row['번호']}. {row['메뉴명']} ({int(row['판매가']):,}원)", key=checkbox_key):
+                selected_indices.append(idx)
+        
+        # 선택된 메뉴 삭제 버튼
+        if selected_indices:
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="delete_selected_menus"):
+                    errors = []
+                    success_count = 0
+                    
+                    for idx in selected_indices:
+                        menu_name = menu_df.iloc[idx]['메뉴명']
+                        try:
+                            success, message, refs = delete_menu(menu_name)
+                            if success:
+                                success_count += 1
+                                # session_state에서도 제거
+                                if menu_name in st.session_state[menu_order_key]:
+                                    del st.session_state[menu_order_key][menu_name]
+                            else:
+                                errors.append(f"{menu_name}: {message}")
+                        except Exception as e:
+                            errors.append(f"{menu_name}: {e}")
+                    
+                    if errors:
+                        for error in errors:
+                            st.error(error)
+                    
+                    if success_count > 0:
+                        st.success(f"✅ {success_count}개 메뉴가 삭제되었습니다!")
+                        # 순서 재정렬
+                        remaining_menus = list(st.session_state[menu_order_key].keys())
+                        st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
+                        # 캐시 클리어
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+        
+        render_section_divider()
+        
+        # 메뉴 리스트 표시 (번호, 메뉴명, 판매가, 순서 변경 버튼)
+        st.markdown("**📋 메뉴 목록**")
+        
+        for idx, row in menu_df.iterrows():
+            col1, col2, col3, col4, col5 = st.columns([0.5, 3, 2, 1, 1])
+            
+            with col1:
+                st.write(f"**{row['번호']}**")
+            
+            with col2:
+                st.write(f"**{row['메뉴명']}**")
+            
+            with col3:
+                st.write(f"{int(row['판매가']):,}원")
+            
+            with col4:
+                # 위로 이동 버튼
+                if idx > 0:
+                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동"):
+                        # 순서 변경: 현재 항목과 위 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        prev_menu = menu_df.iloc[idx - 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        prev_order = st.session_state[menu_order_key][prev_menu]
+                        st.session_state[menu_order_key][current_menu] = prev_order
+                        st.session_state[menu_order_key][prev_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            with col5:
+                # 아래로 이동 버튼
+                if idx < len(menu_df) - 1:
+                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동"):
+                        # 순서 변경: 현재 항목과 아래 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        next_menu = menu_df.iloc[idx + 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        next_order = st.session_state[menu_order_key][next_menu]
+                        st.session_state[menu_order_key][current_menu] = next_order
+                        st.session_state[menu_order_key][next_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            if idx < len(menu_df) - 1:
+                st.markdown("---")
+        
+        # 수정 기능
+        render_section_divider()
+        st.markdown("**📝 메뉴 수정**")
         menu_list = menu_df['메뉴명'].tolist()
         selected_menu = st.selectbox(
-            "수정/삭제할 메뉴 선택",
+            "수정할 메뉴 선택",
             ["선택하세요"] + menu_list,
             key="menu_edit_select"
         )
@@ -1700,40 +1820,22 @@ elif page == "메뉴 등록":
         if selected_menu != "선택하세요":
             menu_info = menu_df[menu_df['메뉴명'] == selected_menu].iloc[0]
             
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**수정**")
-                new_menu_name = st.text_input("메뉴명", value=menu_info['메뉴명'], key="menu_edit_name")
-                new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info['판매가']), step=1000, key="menu_edit_price")
-                if st.button("✅ 수정", key="menu_edit_btn"):
-                    try:
-                        success, message = update_menu(menu_info['메뉴명'], new_menu_name, new_price)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"수정 중 오류: {e}")
-            
-            with col2:
-                st.write("**삭제**")
-                st.warning(f"⚠️ '{selected_menu}' 메뉴를 삭제하시겠습니까?")
-                if st.button("🗑️ 삭제", key="menu_delete_btn", type="primary"):
-                    try:
-                        success, message, refs = delete_menu(selected_menu)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                            if refs:
-                                st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-        
-        render_section_divider()
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+            new_menu_name = st.text_input("메뉴명", value=menu_info['메뉴명'], key="menu_edit_name")
+            new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info['판매가']), step=1000, key="menu_edit_price")
+            if st.button("✅ 수정", key="menu_edit_btn"):
+                try:
+                    success, message = update_menu(menu_info['메뉴명'], new_menu_name, new_price)
+                    if success:
+                        st.success(message)
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+                    else:
+                        st.error(message)
+                except Exception as e:
+                    st.error(f"수정 중 오류: {e}")
     else:
         st.info("등록된 메뉴가 없습니다.")
 
