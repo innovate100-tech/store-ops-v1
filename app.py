@@ -297,19 +297,20 @@ st.markdown("""
     
     /* ========== Streamlit 버튼 최적화 (모바일) ========== */
     @media (max-width: 768px) {
-        /* 모든 버튼 터치 영역 최소 44px (애플 가이드라인) */
+        /* 기본 버튼: 살짝만 키우고, 너무 크지 않게 */
         button[data-testid="baseButton-secondary"],
         button[data-testid="baseButton-primary"] {
-            min-height: 44px !important;
-            padding: 0.75rem 1rem !important;
-            font-size: 1rem !important;
+            min-height: 40px !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.9rem !important;
         }
         
-        /* 사이드바 버튼 */
+        /* 사이드바 버튼: 더 컴팩트하게 */
         [data-testid="stSidebar"] button {
-            min-height: 44px !important;
-            padding: 0.75rem !important;
-            font-size: 0.95rem !important;
+            min-height: 36px !important;
+            padding: 0.4rem 0.6rem !important;
+            font-size: 0.85rem !important;
+            margin-bottom: 0.35rem !important;
         }
     }
     
@@ -334,20 +335,21 @@ st.markdown("""
     @media (max-width: 768px) {
         /* 화면 전체를 덮지 않도록 폭을 적당히 제한 */
         [data-testid="stSidebar"] {
-            width: 80vw !important;
-            max-width: 320px !important;
+            width: 75vw !important;
+            max-width: 300px !important;
             min-width: auto !important;
         }
         
         [data-testid="stSidebar"] .stButton > button {
             width: 100% !important;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.35rem !important;
         }
         
-        /* 사이드바 카테고리 헤더 */
+        /* 사이드바 카테고리 헤더: 여백 줄이고 글자 조금 작게 */
         [data-testid="stSidebar"] .category-header {
-            font-size: 0.75rem !important;
-            padding: 0.5rem !important;
+            font-size: 0.7rem !important;
+            padding: 0.35rem 0.5rem !important;
+            margin-bottom: 0.1rem !important;
         }
     }
     
