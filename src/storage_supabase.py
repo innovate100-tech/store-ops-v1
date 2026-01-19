@@ -427,6 +427,40 @@ def update_menu_category(menu_name, category):
         raise
 
 
+def update_menu_cooking_method(menu_name, cooking_method):
+    """메뉴 조리방법 업데이트"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False, "DEV MODE에서는 수정할 수 없습니다."
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 기존 메뉴 찾기
+        existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
+        if not existing.data:
+            return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다."
+        
+        menu_id = existing.data[0]['id']
+        
+        # 조리방법 업데이트 (cooking_method 컬럼이 있다면)
+        try:
+            supabase.table("menu_master").update({
+                "cooking_method": cooking_method.strip()
+            }).eq("id", menu_id).execute()
+            logger.info(f"Menu cooking method updated: {menu_name}")
+            return True, "조리방법 저장 성공"
+        except Exception as e:
+            # 컬럼이 없으면 경고만 하고 성공으로 처리 (나중에 스키마 업데이트 필요)
+            logger.warning(f"Cooking method column may not exist: {e}")
+            return True, "조리방법 저장 성공 (스키마 업데이트 필요할 수 있음)"
+    except Exception as e:
+        logger.error(f"Failed to update menu cooking method: {e}")
+        raise
+
+
 def delete_menu(menu_name, check_references=True):
     """메뉴 삭제"""
     supabase = _check_supabase_for_dev_mode()

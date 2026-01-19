@@ -41,6 +41,7 @@ from src.storage_supabase import (
     save_menu,
     update_menu,
     update_menu_category,
+    update_menu_cooking_method,
     delete_menu,
     save_ingredient,
     update_ingredient,
@@ -2179,6 +2180,16 @@ elif page == "레시피 등록":
             if selected_ingredient and quantity > 0:
                 recipe_data.append((selected_ingredient, quantity))
         
+        # 조리방법 입력 필드
+        render_section_divider()
+        st.markdown("**👨‍🍳 조리방법**")
+        cooking_method = st.text_area(
+            "조리방법을 입력하세요 (줄글로 음식 만드는 방법을 적어주세요)",
+            height=150,
+            placeholder="예: 1. 재료를 준비합니다.\n2. 팬에 기름을 두르고 재료를 볶습니다.\n3. 물을 넣고 끓입니다.\n4. 간을 맞춰 완성합니다.",
+            key="cooking_method_input"
+        )
+        
         # 입력 요약 표시
         if recipe_data:
             render_section_divider()
@@ -2197,6 +2208,7 @@ elif page == "레시피 등록":
                     errors = []
                     success_count = 0
                     
+                    # 재료 저장
                     for ingredient_name, quantity in recipe_data:
                         try:
                             save_recipe(selected_menu, ingredient_name, quantity)
@@ -2204,12 +2216,24 @@ elif page == "레시피 등록":
                         except Exception as e:
                             errors.append(f"{ingredient_name}: {e}")
                     
+                    # 조리방법 저장 (입력된 경우)
+                    if cooking_method and cooking_method.strip():
+                        try:
+                            success, message = update_menu_cooking_method(selected_menu, cooking_method)
+                            if not success:
+                                errors.append(f"조리방법 저장 실패: {message}")
+                        except Exception as e:
+                            errors.append(f"조리방법 저장 중 오류: {e}")
+                    
                     if errors:
                         for error in errors:
                             st.error(error)
                     
                     if success_count > 0:
-                        st.success(f"✅ {success_count}개 레시피가 저장되었습니다!")
+                        success_msg = f"✅ {success_count}개 레시피가 저장되었습니다!"
+                        if cooking_method and cooking_method.strip():
+                            success_msg += " (조리방법도 함께 저장되었습니다.)"
+                        st.success(success_msg)
                         st.balloons()
                         # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
                         try:
