@@ -2974,24 +2974,39 @@ elif page == "비용구조":
                 st.markdown("#### ⚠️ 알림")
                 alerts = []
                 
-                if variable_cost_rate > 50:
-                    alerts.append("🔴 변동비율이 50%를 초과했습니다. 원가 관리가 필요합니다.")
-                elif variable_cost_rate > 40:
-                    alerts.append("🟡 변동비율이 40%를 초과했습니다. 주의가 필요합니다.")
-                
-                if fixed_costs > target_sales_input * 0.3:
-                    alerts.append("🔴 고정비가 목표 매출의 30%를 초과했습니다.")
-                
-                if expense_ratio > 90:
-                    alerts.append("🔴 총 비용률이 90%를 초과했습니다. 수익성이 매우 낮습니다.")
-                elif expense_ratio > 80:
-                    alerts.append("🟡 총 비용률이 80%를 초과했습니다. 비용 절감이 필요합니다.")
-                
-                if alerts:
-                    for alert in alerts:
-                        st.warning(alert)
+                # 변동비율 기준 (위험: 50% 이상, 주의: 40-50%, 정상: 40% 미만)
+                if variable_cost_rate >= 50:
+                    alerts.append("🔴 변동비율이 50% 이상입니다. 원가 관리가 시급합니다.")
+                elif variable_cost_rate >= 40:
+                    alerts.append("🟡 변동비율이 40% 이상입니다. 주의가 필요합니다.")
                 else:
-                    st.success("✅ 모든 비용 지표가 정상 범위입니다.")
+                    alerts.append("✅ 변동비율이 정상 범위입니다.")
+                
+                # 고정비 기준 (위험: 목표 매출의 30% 이상, 주의: 20-30%, 정상: 20% 미만)
+                fixed_cost_ratio = (fixed_costs / target_sales_input * 100) if target_sales_input > 0 else 0
+                if fixed_cost_ratio >= 30:
+                    alerts.append("🔴 고정비가 목표 매출의 30% 이상입니다. 고정비 절감이 필요합니다.")
+                elif fixed_cost_ratio >= 20:
+                    alerts.append("🟡 고정비가 목표 매출의 20% 이상입니다. 주의가 필요합니다.")
+                else:
+                    alerts.append("✅ 고정비가 정상 범위입니다.")
+                
+                # 총 비용률 기준 (위험: 90% 이상, 주의: 80-90%, 정상: 80% 미만)
+                if expense_ratio >= 90:
+                    alerts.append("🔴 총 비용률이 90% 이상입니다. 수익성이 매우 낮습니다.")
+                elif expense_ratio >= 80:
+                    alerts.append("🟡 총 비용률이 80% 이상입니다. 비용 절감이 필요합니다.")
+                else:
+                    alerts.append("✅ 총 비용률이 정상 범위입니다.")
+                
+                # 알림 표시
+                for alert in alerts:
+                    if "🔴" in alert:
+                        st.error(alert)
+                    elif "🟡" in alert:
+                        st.warning(alert)
+                    else:
+                        st.success(alert)
             else:
                 st.info("비용 데이터가 없습니다.")
         else:
