@@ -2636,9 +2636,11 @@ elif page == "비용구조":
         # 섹션 헤더와 총액 표시
         col1, col2 = st.columns([3, 1])
         with col1:
+            # 화이트 테마일 때도 비용구조 카테고리 텍스트는 흰색으로 보이도록 색상 분기
+            header_color = "#ffffff" if st.session_state.get("theme", "light") == "light" else "#ffffff"
             st.markdown(f"""
             <div style="margin: 1.5rem 0 0.5rem 0;">
-                <h3 style="color: #2c3e50; font-weight: 600; margin: 0;">
+                <h3 style="color: {header_color}; font-weight: 600; margin: 0;">
                     {info['icon']} {category}
                 </h3>
             </div>
