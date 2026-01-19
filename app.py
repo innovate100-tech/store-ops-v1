@@ -2484,12 +2484,6 @@ elif page == "비용구조":
                         💰 추정 영업이익
                     </div>
                     <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem;">0원</div>
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
-                        <strong>계산 공식:</strong><br>
-                        고정비 ÷ (1 - 변동비율)<br>
-                        = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)<br><br>
-                        <strong>📊 손익분기 매출 vs 목표 매출 비교</strong>
-                    </div>
                 </div>
                 """, unsafe_allow_html=True)
             with col2:
