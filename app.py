@@ -833,67 +833,56 @@ st.markdown("""
                 });
             }
             
-            // 2) 모든 버튼을 검사해서 사이드바 토글 버튼 찾기 (더 강력한 방법)
-            const allButtons = document.querySelectorAll('button');
-            allButtons.forEach(btn => {
-                // 버튼의 textContent, innerHTML, aria-label, title 모두 확인
-                const textContent = (btn.textContent || '').trim().toLowerCase();
-                const innerHTML = (btn.innerHTML || '').toLowerCase();
-                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-                const title = (btn.getAttribute('title') || '').toLowerCase();
+            // 2) 페이지 내 모든 요소를 검사해서 keyboard_double_* 텍스트를 가진 토글 컨트롤 찾기
+            const elements = document.querySelectorAll('*');
+            elements.forEach(el => {
+                const text = (el.textContent || '').trim().toLowerCase();
+                if (!text) return;
                 
-                // 사이드바 토글 버튼인지 확인 (여러 조건으로 판단)
-                const isSidebarToggle = 
-                    (textContent.includes('keyboard') && textContent.includes('double')) ||
-                    (innerHTML.includes('keyboard') && innerHTML.includes('double')) ||
-                    (ariaLabel.includes('sidebar') || ariaLabel.includes('사이드바')) ||
-                    (title.includes('sidebar') || title.includes('사이드바')) ||
-                    (ariaLabel.includes('hide') && ariaLabel.includes('sidebar')) ||
-                    (ariaLabel.includes('show') && ariaLabel.includes('sidebar')) ||
-                    btn.closest('[data-testid="stSidebarHeader"]') !== null;
+                // keyboard_double_* 같은 텍스트가 포함된 요소만 대상으로 함
+                const hasKeyboardDouble =
+                    (text.includes('keyboard') && text.includes('double')) ||
+                    text.includes('keyboard_double');
                 
-                if (isSidebarToggle) {
-                    // 툴팁/접근성 텍스트 제거
-                    btn.removeAttribute('title');
-                    btn.removeAttribute('aria-label');
-                    if (btn.getAttribute('title')) {
-                        blockTitleProperty(btn);
-                    }
-                    
-                    // 인라인 스타일로 강제 적용 (CSS가 안 먹힐 경우 대비)
-                    btn.style.width = '32px';
-                    btn.style.height = '32px';
-                    btn.style.borderRadius = '999px';
-                    btn.style.backgroundColor = '#667eea';
-                    btn.style.border = 'none';
-                    btn.style.boxShadow = '0 0 0 2px rgba(255, 255, 255, 0.5)';
-                    btn.style.display = 'inline-flex';
-                    btn.style.alignItems = 'center';
-                    btn.style.justifyContent = 'center';
-                    btn.style.padding = '0';
-                    btn.style.color = '#ffffff';
-                    btn.style.cursor = 'pointer';
-                    
-                    // 내부 텍스트 숨기기
-                    const spans = btn.querySelectorAll('span');
-                    spans.forEach(span => {
-                        span.style.fontSize = '0';
-                        span.style.lineHeight = '0';
-                        span.style.color = 'transparent';
-                        span.style.opacity = '0';
-                    });
-                    
-                    // 화살표 아이콘 추가 (이미 있으면 건너뛰기)
-                    if (!btn.querySelector('.custom-sidebar-arrow')) {
-                        const arrow = document.createElement('span');
-                        arrow.className = 'custom-sidebar-arrow';
-                        arrow.textContent = '⇔';
-                        arrow.style.fontSize = '18px';
-                        arrow.style.lineHeight = '1';
-                        arrow.style.color = '#ffffff';
-                        arrow.style.display = 'inline-block';
-                        btn.appendChild(arrow);
-                    }
+                if (!hasKeyboardDouble) return;
+                
+                // 실제 클릭 가능한 요소 (button이나 role=button인 상위 요소)를 찾음
+                const clickable = el.closest('button, [role=\"button\"]') || el;
+                
+                // 툴팁/접근성 텍스트 제거
+                clickable.removeAttribute('title');
+                clickable.removeAttribute('aria-label');
+                if (clickable.getAttribute('title')) {
+                    blockTitleProperty(clickable);
+                }
+                
+                // 인라인 스타일로 강제 적용 (열림/닫힘 상태 모두 공통)
+                clickable.style.width = '32px';
+                clickable.style.height = '32px';
+                clickable.style.borderRadius = '999px';
+                clickable.style.backgroundColor = '#667eea';
+                clickable.style.border = 'none';
+                clickable.style.boxShadow = '0 0 0 2px rgba(255, 255, 255, 0.5)';
+                clickable.style.display = 'inline-flex';
+                clickable.style.alignItems = 'center';
+                clickable.style.justifyContent = 'center';
+                clickable.style.padding = '0';
+                clickable.style.color = '#ffffff';
+                clickable.style.cursor = 'pointer';
+                
+                // 기존 텍스트는 전부 숨김
+                el.textContent = '';
+                
+                // 가운데 정렬된 화살표 아이콘 추가 (이미 있으면 건너뜀)
+                if (!clickable.querySelector('.custom-sidebar-arrow')) {
+                    const arrow = document.createElement('span');
+                    arrow.className = 'custom-sidebar-arrow';
+                    arrow.textContent = '⇔';
+                    arrow.style.fontSize = '18px';
+                    arrow.style.lineHeight = '1';
+                    arrow.style.color = '#ffffff';
+                    arrow.style.display = 'inline-block';
+                    clickable.appendChild(arrow);
                 }
             });
         }
