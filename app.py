@@ -103,9 +103,9 @@ st.markdown("""
         font-family: 'Noto Sans KR', sans-serif !important;
     }
     
-    /* Streamlit 내부 아이콘(특히 사이드바 접기/펼치기 버튼)의 폰트는 건드리지 않도록 예외 처리 */
-    [data-testid="stSidebarHeader"] * {
-        font-family: inherit !important;
+    /* Streamlit Material 아이콘(특히 keyboard_double_arrow_* 아이콘)은 전용 폰트 사용 */
+    [data-testid="stIconMaterial"] {
+        font-family: 'Material Icons', 'Material Icons Outlined', 'Material Symbols Outlined', 'Noto Sans KR', sans-serif !important;
     }
     
     /* ========== 반응형 기본 설정 ========== */
@@ -515,77 +515,12 @@ st.markdown("""
         pointer-events: auto !important;
     }
     
-    /* 사이드바 헤더 영역: 버튼은 보이되, 내부 텍스트는 숨기고 커스텀 아이콘/색상 적용 */
+    /* 사이드바 헤더 영역: 토글 버튼을 오른쪽에 배치 */
     [data-testid="stSidebarHeader"] {
         display: flex;
         align-items: center;
         justify-content: flex-end;
         padding: 0.25rem 0.5rem;
-    }
-    
-    /* 사이드바 접기/펼치기 버튼 - CSS로 직접 타겟팅 (더 강력한 방법) */
-    /* 사이드바 헤더 내부 버튼 */
-    [data-testid="stSidebarHeader"] button {
-        width: 32px !important;
-        height: 32px !important;
-        border-radius: 999px !important;
-        background-color: #667eea !important;
-        border: none !important;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0 !important;
-        color: #ffffff !important;
-        cursor: pointer;
-    }
-    
-    /* 사이드바 접혔을 때 화면 왼쪽에 나타나는 버튼 */
-    button[aria-label*="sidebar" i],
-    button[aria-label*="사이드바"],
-    button[title*="sidebar" i],
-    button[title*="사이드바"],
-    button[aria-label*="Show" i],
-    button[aria-label*="Hide" i],
-    button[aria-label*="열기" i],
-    button[aria-label*="닫기" i] {
-        width: 32px !important;
-        height: 32px !important;
-        border-radius: 999px !important;
-        background-color: #667eea !important;
-        border: none !important;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0 !important;
-        color: #ffffff !important;
-        cursor: pointer;
-    }
-    
-    /* 버튼 내부 텍스트 숨기기 (keyboard_double_arrow_left 같은 영어 텍스트) */
-    [data-testid="stSidebarHeader"] button span,
-    button[aria-label*="sidebar" i] span,
-    button[aria-label*="사이드바"] span,
-    button[title*="sidebar" i] span,
-    button[title*="사이드바"] span {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        color: transparent !important;
-        opacity: 0 !important;
-    }
-    
-    /* 대신 화살표 아이콘을 pseudo-element로 추가 */
-    [data-testid="stSidebarHeader"] button::before,
-    button[aria-label*="sidebar" i]::before,
-    button[aria-label*="사이드바"]::before,
-    button[title*="sidebar" i]::before,
-    button[title*="사이드바"]::before {
-        content: '⇔' !important;
-        font-size: 18px !important;
-        line-height: 1 !important;
-        color: #ffffff !important;
-        display: inline-block !important;
     }
     
     /* 브라우저 기본 툴팁 스타일 완전히 제거 */
