@@ -2272,23 +2272,23 @@ elif page == "레시피 등록":
                     with col3:
                         if st.button("💾 저장", key=f"save_recipe_{filter_menu}_{ing_name}"):
                             if new_qty <= 0:
-                                st.error(\"사용량은 0보다 큰 값이어야 합니다.\")
+                                st.error("사용량은 0보다 큰 값이어야 합니다.")
                             else:
                                 try:
                                     # 동일한 메뉴-재료에 대해 qty만 업데이트 (upsert)
                                     save_recipe(filter_menu, ing_name, new_qty)
-                                    st.success(f\"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다.\")
+                                    st.success(f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다.")
                                     try:
                                         load_csv.clear()
                                     except Exception:
                                         pass
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f\"사용량 수정 중 오류: {e}\")
+                                    st.error(f"사용량 수정 중 오류: {e}")
         else:
-            st.info(\"등록된 레시피가 없습니다.\")
+            st.info("등록된 레시피가 없습니다.")
     else:
-        st.info(\"등록된 레시피가 없습니다.\")
+        st.info("등록된 레시피가 없습니다.")
 
 # 원가 파악 페이지
 elif page == "원가 파악":
