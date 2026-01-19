@@ -2766,28 +2766,156 @@ elif page == "실제정산":
                     existing_row = existing_row.iloc[0]
             
             render_section_divider()
-            st.markdown("**💸 해당 월 실제 비용 입력**")
+            st.markdown("**💸 해당 월 실제 비용 입력 (5대 비용 항목별)**")
             
-            # 기본값: 기존 정산 데이터가 있으면 그 값, 없으면 0
-            default_cost = float(existing_row["실제비용"]) if existing_row is not None else 0.0
-            actual_cost = st.number_input(
-                "실제 총 비용 (해당 월 전체 비용 합계)",
-                min_value=0.0,
-                value=default_cost,
-                step=10000.0,
-                format="%.0f",
-                key="actual_total_cost",
-            )
+            # 5대 비용 항목 정의 (모두 절대 금액으로 입력)
+            expense_categories = {
+                '임차료': {'icon': '🏢', 'description': '임차료 관련 모든 비용'},
+                '인건비': {'icon': '👥', 'description': '인건비 관련 모든 비용'},
+                '재료비': {'icon': '🥬', 'description': '재료비 관련 모든 비용'},
+                '공과금': {'icon': '💡', 'description': '공과금 관련 모든 비용'},
+                '부가세&카드수수료': {'icon': '💳', 'description': '부가세 및 카드수수료 관련 모든 비용'}
+            }
+            
+            # 세션 상태에 비용 항목별 세부 데이터 저장
+            if f'actual_expense_items_{selected_year}_{selected_month}' not in st.session_state:
+                st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = {
+                    cat: [] for cat in expense_categories.keys()
+                }
+            
+            expense_items = st.session_state[f'actual_expense_items_{selected_year}_{selected_month}']
+            
+            # 한글 원화 변환 함수
+            def format_korean_currency(amount):
+                """숫자를 한글 원화로 변환"""
+                if amount == 0:
+                    return "0원"
+                eok = amount // 100000000
+                remainder = amount % 100000000
+                man = remainder // 10000
+                remainder = remainder % 10000
+                parts = []
+                if eok > 0:
+                    parts.append(f"{eok}억")
+                if man > 0:
+                    parts.append(f"{man}만")
+                if remainder > 0:
+                    parts.append(f"{remainder:,}".replace(",", ""))
+                if not parts:
+                    return "0원"
+                return "".join(parts) + "원"
+            
+            # 각 카테고리별 입력 섹션
+            category_totals = {}
+            for category, info in expense_categories.items():
+                # 카테고리 헤더
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    header_color = "#ffffff"
+                    st.markdown(f"""
+                    <div style="margin: 1.5rem 0 0.5rem 0;">
+                        <h3 style="color: {header_color}; font-weight: 600; margin: 0;">
+                            {info['icon']} {category}
+                        </h3>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.caption(f"{info['description']}")
+                
+                # 카테고리별 총액 계산
+                category_total = sum(item.get('amount', 0) for item in expense_items[category])
+                category_totals[category] = category_total
+                
+                with col2:
+                    if category_total > 0:
+                        st.markdown(f"""
+                        <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
+                            <strong style="color: #667eea; font-size: 1.1rem;">
+                                총액: {format_korean_currency(int(category_total))}
+                            </strong>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                ({category_total:,.0f}원)
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # 기존 항목 표시
+                if expense_items[category]:
+                    with st.expander(f"📋 입력된 항목 ({len(expense_items[category])}개)", expanded=False):
+                        for idx, item in enumerate(expense_items[category]):
+                            col_a, col_b, col_c = st.columns([4, 3, 1])
+                            with col_a:
+                                st.write(f"**{item.get('item_name', '')}**")
+                            with col_b:
+                                st.write(f"{format_korean_currency(int(item.get('amount', 0)))} ({int(item.get('amount', 0)):,.0f}원)")
+                            with col_c:
+                                if st.button("🗑️", key=f"del_{category}_{idx}_{selected_year}_{selected_month}", help="삭제"):
+                                    expense_items[category].pop(idx)
+                                    st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                                    st.rerun()
+                
+                # 새 항목 추가
+                with st.container():
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns([3, 2, 1])
+                    with col1:
+                        new_item_name = st.text_input(
+                            "항목명",
+                            key=f"new_item_name_{category}_{selected_year}_{selected_month}",
+                            placeholder="예: 월세, 관리비 등"
+                        )
+                    with col2:
+                        new_item_amount = st.number_input(
+                            "금액 (원)",
+                            min_value=0,
+                            value=0,
+                            step=10000,
+                            format="%d",
+                            key=f"new_item_amount_{category}_{selected_year}_{selected_month}"
+                        )
+                    with col3:
+                        st.write("")
+                        st.write("")
+                        if st.button("➕ 추가", key=f"add_{category}_{selected_year}_{selected_month}", use_container_width=True):
+                            if new_item_name.strip():
+                                expense_items[category].append({
+                                    'item_name': new_item_name.strip(),
+                                    'amount': new_item_amount
+                                })
+                                st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                                st.rerun()
+                            else:
+                                st.error("항목명을 입력해주세요.")
+            
+            # 전체 비용 합계 계산
+            total_actual_cost = sum(category_totals.values())
             
             # 이익 및 이익률 계산
             actual_sales = month_total_sales
-            actual_profit = actual_sales - actual_cost
+            actual_profit = actual_sales - total_actual_cost
             profit_margin = (actual_profit / actual_sales * 100) if actual_sales > 0 else 0.0
             
-            with col2:
-                st.metric("실제 총 비용", f"{actual_cost:,.0f}원")
-            with col3:
-                st.metric("실제 이익 / 이익률", f"{actual_profit:,.0f}원", f"{profit_margin:,.1f}%")
+            render_section_divider()
+            
+            # 요약 정보
+            st.markdown("**📊 비용 합계 요약**")
+            summary_col1, summary_col2, summary_col3 = st.columns(3)
+            with summary_col1:
+                st.metric("실제 총 비용", f"{total_actual_cost:,.0f}원")
+            with summary_col2:
+                st.metric("실제 이익", f"{actual_profit:,.0f}원")
+            with summary_col3:
+                st.metric("실제 이익률", f"{profit_margin:,.1f}%")
+            
+            # 카테고리별 비용 요약 테이블
+            cost_summary_data = []
+            for category, total in category_totals.items():
+                cost_summary_data.append({
+                    '비용 항목': category,
+                    '금액': f"{total:,.0f}원",
+                    '비율': f"{(total / total_actual_cost * 100):.1f}%" if total_actual_cost > 0 else "0.0%"
+                })
+            cost_summary_df = pd.DataFrame(cost_summary_data)
+            st.dataframe(cost_summary_df, use_container_width=True, hide_index=True)
             
             render_section_divider()
             
@@ -2802,7 +2930,7 @@ elif page == "실제정산":
                             selected_year,
                             selected_month,
                             actual_sales,
-                            actual_cost,
+                            total_actual_cost,
                             actual_profit,
                             profit_margin,
                         )
