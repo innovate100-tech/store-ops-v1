@@ -2225,35 +2225,41 @@ elif page == "레시피 등록":
     recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
     
     if not recipe_df.empty:
-        # 메뉴 필터
-        render_section_header("레시피 검색", "🔍")
-        filter_menu = st.selectbox(
-            "메뉴 필터",
-            options=["전체"] + menu_list,
-            key="recipe_filter_menu"
-        )
+        # 레시피가 있는 메뉴 목록 추출
+        menus_with_recipes = recipe_df['메뉴명'].unique().tolist()
         
-        display_recipe_df = recipe_df.copy()
-        if filter_menu != "전체":
-            display_recipe_df = display_recipe_df[display_recipe_df['메뉴명'] == filter_menu]
-        
-        if not display_recipe_df.empty:
-            # 재료 정보와 조인하여 단위 표시
-            display_recipe_df = pd.merge(
-                display_recipe_df,
-                ingredient_df[['재료명', '단위']],
-                on='재료명',
-                how='left'
+        if menus_with_recipes:
+            # 메뉴 필터 (레시피가 있는 메뉴만 표시, 전체 옵션 제거)
+            render_section_header("레시피 검색", "🔍")
+            filter_menu = st.selectbox(
+                "메뉴 선택",
+                options=menus_with_recipes,
+                key="recipe_filter_menu",
+                index=0 if menus_with_recipes else None
             )
-            display_recipe_df['사용량'] = display_recipe_df.apply(
-                lambda x: f"{x['사용량']:.2f}{x['단위']}" if pd.notna(x['단위']) else f"{x['사용량']:.2f}",
-                axis=1
-            )
-            display_recipe_df = display_recipe_df[['메뉴명', '재료명', '사용량']]
             
-            st.dataframe(display_recipe_df, use_container_width=True, hide_index=True)
+            # 선택한 메뉴의 레시피만 필터링
+            display_recipe_df = recipe_df[recipe_df['메뉴명'] == filter_menu].copy()
+            
+            if not display_recipe_df.empty:
+                # 재료 정보와 조인하여 단위 표시
+                display_recipe_df = pd.merge(
+                    display_recipe_df,
+                    ingredient_df[['재료명', '단위']],
+                    on='재료명',
+                    how='left'
+                )
+                display_recipe_df['사용량'] = display_recipe_df.apply(
+                    lambda x: f"{x['사용량']:.2f}{x['단위']}" if pd.notna(x['단위']) else f"{x['사용량']:.2f}",
+                    axis=1
+                )
+                display_recipe_df = display_recipe_df[['메뉴명', '재료명', '사용량']]
+                
+                st.dataframe(display_recipe_df, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"'{filter_menu}' 메뉴에 대한 레시피가 없습니다.")
         else:
-            st.info(f"'{filter_menu}' 메뉴에 대한 레시피가 없습니다.")
+            st.info("등록된 레시피가 없습니다.")
     else:
         st.info("등록된 레시피가 없습니다.")
 
