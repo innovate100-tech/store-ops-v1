@@ -1542,6 +1542,18 @@ elif page == "비용구조":
             </div>
             """, unsafe_allow_html=True)
             
+            # 추정 영업이익 계산
+            # 영업이익 = 매출 × (1 - 변동비율) - 고정비
+            variable_rate_decimal = variable_cost_rate / 100
+            
+            # 손익분기 매출의 추정 영업이익 (0원)
+            breakeven_profit = 0
+            
+            # 목표 매출의 추정 영업이익
+            target_profit = 0
+            if target_sales_input > 0:
+                target_profit = (target_sales_input * (1 - variable_rate_decimal)) - fixed_costs
+            
             # 월간 매출 비교
             col1, col2 = st.columns(2)
             with col1:
@@ -1549,6 +1561,10 @@ elif page == "비용구조":
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
                     <div style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
                     <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
+                    <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                        💰 추정 영업이익
+                    </div>
+                    <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem;">0원</div>
                     <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
                         <strong>계산 공식:</strong><br>
                         고정비 ÷ (1 - 변동비율)<br>
@@ -1561,10 +1577,15 @@ elif page == "비용구조":
                     gap = target_sales_input - breakeven_sales
                     gap_percent = (gap / breakeven_sales * 100) if breakeven_sales > 0 else 0
                     gap_color = "#28a745" if gap > 0 else "#dc3545"
+                    profit_color = "#ffd700" if target_profit > 0 else "#ff6b6b"
                     st.markdown(f"""
                     <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
                         <div style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">🎯 목표 월매출</div>
                         <div style="font-size: 1.8rem; font-weight: 700;">{int(target_sales_input):,}원</div>
+                        <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                            💰 추정 영업이익
+                        </div>
+                        <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem; color: {profit_color};">{int(target_profit):,}원</div>
                         <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
                             <strong>차이:</strong> <span style="color: {gap_color};">{gap:+,}원 ({gap_percent:+.1f}%)</span>
                         </div>
