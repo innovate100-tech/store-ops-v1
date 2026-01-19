@@ -467,16 +467,36 @@ elif page == "매출 관리":
         
         render_section_divider()
         
-        # 날짜를 문자열로 변환하여 표시
+        # 실제 입력값만 표시 (기술적 컬럼 제거)
         display_df = sales_df.copy()
+        
+        # 표시할 컬럼만 선택
+        display_columns = []
         if '날짜' in display_df.columns:
-            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-        if '총매출' in display_df.columns:
-            display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원")
+            display_columns.append('날짜')
+        if '매장' in display_df.columns:
+            display_columns.append('매장')
         if '카드매출' in display_df.columns:
-            display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_columns.append('카드매출')
         if '현금매출' in display_df.columns:
-            display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_columns.append('현금매출')
+        if '총매출' in display_df.columns:
+            display_columns.append('총매출')
+        
+        # 필요한 컬럼만 선택
+        if display_columns:
+            display_df = display_df[display_columns]
+            
+            # 날짜를 문자열로 변환
+            if '날짜' in display_df.columns:
+                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+            # 숫자 포맷팅
+            if '총매출' in display_df.columns:
+                display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '카드매출' in display_df.columns:
+                display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '현금매출' in display_df.columns:
+                display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
         
@@ -584,9 +604,23 @@ elif page == "방문자 관리":
         
         render_section_divider()
         
+        # 실제 입력값만 표시 (기술적 컬럼 제거)
         display_df = visitors_df.copy()
+        
+        # 표시할 컬럼만 선택
+        display_columns = []
         if '날짜' in display_df.columns:
-            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+            display_columns.append('날짜')
+        if '방문자수' in display_df.columns:
+            display_columns.append('방문자수')
+        
+        # 필요한 컬럼만 선택
+        if display_columns:
+            display_df = display_df[display_columns]
+            
+            # 날짜를 문자열로 변환
+            if '날짜' in display_df.columns:
+                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
