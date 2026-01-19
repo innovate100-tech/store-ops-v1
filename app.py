@@ -103,6 +103,11 @@ st.markdown("""
         font-family: 'Noto Sans KR', sans-serif !important;
     }
     
+    /* Streamlit 내부 아이콘(특히 사이드바 접기/펼치기 버튼)의 폰트는 건드리지 않도록 예외 처리 */
+    [data-testid="stSidebarHeader"] * {
+        font-family: inherit !important;
+    }
+    
     /* ========== 반응형 기본 설정 ========== */
     :root {
         --mobile-breakpoint: 768px;
@@ -510,12 +515,41 @@ st.markdown("""
         pointer-events: auto !important;
     }
     
-    /* 사이드바 헤더 영역 완전히 차단 */
-    [data-testid="stSidebarHeader"],
-    [data-testid="stSidebarHeader"] *,
-    [data-testid="stSidebar"] button,
-    [data-testid="stSidebar"] span {
-        /* 툴팁 표시 방지 */
+    /* 사이드바 헤더 영역: 버튼은 보이되, 내부 텍스트는 숨기고 커스텀 아이콘/색상 적용 */
+    [data-testid="stSidebarHeader"] {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* 사이드바 접기/펼치기 버튼 스타일 */
+    [data-testid="stSidebarHeader"] button {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background-color: #667eea !important;  /* 보이는 색 */
+        border: none !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 !important;
+    }
+    
+    /* 버튼 안에 있는 영문 텍스트(예: keyboard_double_arrow_left)를 숨김 */
+    [data-testid="stSidebarHeader"] button span {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
+    }
+    
+    /* 대신 화살표 아이콘을 pseudo-element 로 그림 */
+    [data-testid="stSidebarHeader"] button::before {
+        content: '⇔';
+        font-size: 18px;
+        color: #ffffff;
     }
     
     /* 브라우저 기본 툴팁 스타일 완전히 제거 */
