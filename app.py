@@ -184,85 +184,99 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     
-    /* 사이드바 토글 버튼 툴팁 완전히 숨기기 */
-    button[title*="keyboard"],
-    button[title*="Keyboard"],
-    button[title*="keyboard_double"],
-    button[title*="KeyboardDouble"],
-    [data-testid="stSidebar"] button[title],
-    [data-testid="stSidebar"] button[title]:hover,
-    [data-testid="stSidebar"] button[title]:focus,
-    .material-icons[title*="keyboard"],
-    .material-icons[title*="Keyboard"] {
-        pointer-events: auto !important;
-    }
-    
-    /* 모든 툴팁 숨기기 */
-    [title*="keyboard"],
-    [title*="Keyboard"] {
+    /* 모든 툴팁 완전히 숨기기 - 브라우저 기본 툴팁 차단 */
+    *[title*="keyboard"],
+    *[title*="Keyboard"],
+    button[title],
+    [data-testid="stSidebar"] button,
+    [data-testid="stSidebar"] button * {
         position: relative;
     }
     
-    /* 툴팁 표시 방지 */
-    [title*="keyboard"]:hover::after,
-    [title*="Keyboard"]:hover::after,
-    [title*="keyboard"]:hover::before,
-    [title*="Keyboard"]:hover::before {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        content: none !important;
+    /* 툴팁 표시를 완전히 차단 */
+    *[title*="keyboard"]:hover,
+    *[title*="Keyboard"]:hover,
+    button[title*="keyboard"]:hover,
+    button[title*="Keyboard"]:hover {
+        pointer-events: auto !important;
     }
 </style>
 <script>
-    // 사이드바 토글 버튼의 툴팁 완전히 제거
-    function removeAllTooltips() {
-        // 모든 요소에서 keyboard 관련 title 속성 제거
-        const allElements = document.querySelectorAll('*');
-        allElements.forEach(element => {
-            if (element.title) {
-                const title = element.title.toLowerCase();
-                if (title.includes('keyboard') || title.includes('keyboard_double')) {
-                    element.removeAttribute('title');
-                    // title 속성이 다시 추가되는 것을 방지
-                    Object.defineProperty(element, 'title', {
-                        value: '',
-                        writable: false,
-                        configurable: true
-                    });
-                }
+    // 툴팁을 완전히 제거하는 강력한 함수
+    function forceRemoveTooltips() {
+        // 1. 모든 요소에서 keyboard 관련 title 제거
+        document.querySelectorAll('*').forEach(el => {
+            if (el.title && el.title.toLowerCase().includes('keyboard')) {
+                el.removeAttribute('title');
             }
         });
         
-        // 버튼 요소에 대해 더 강력하게 처리
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(button => {
-            if (button.title) {
-                const title = button.title.toLowerCase();
-                if (title.includes('keyboard') || title.includes('keyboard_double')) {
-                    button.removeAttribute('title');
-                    // title 속성 재설정 방지
-                    Object.defineProperty(button, 'title', {
-                        value: '',
-                        writable: false,
+        // 2. 모든 버튼에서 keyboard 관련 title 제거
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.title && btn.title.toLowerCase().includes('keyboard')) {
+                btn.removeAttribute('title');
+                // title 속성 재설정 방지
+                try {
+                    Object.defineProperty(btn, 'title', {
+                        get: () => '',
+                        set: () => {},
                         configurable: true
                     });
-                }
+                } catch(e) {}
             }
         });
+        
+        // 3. Material Icons 요소 처리
+        document.querySelectorAll('.material-icons, [class*="material-icons"]').forEach(icon => {
+            if (icon.title && icon.title.toLowerCase().includes('keyboard')) {
+                icon.removeAttribute('title');
+            }
+        });
+        
+        // 4. Streamlit 사이드바 토글 버튼 직접 찾기
+        const sidebarToggle = document.querySelector('[data-testid="stSidebar"] button, button[aria-label*="sidebar"], button[aria-label*="Sidebar"]');
+        if (sidebarToggle && sidebarToggle.title) {
+            sidebarToggle.removeAttribute('title');
+        }
     }
     
-    // MutationObserver로 DOM 변경 감지
+    // 즉시 실행
+    forceRemoveTooltips();
+    
+    // MutationObserver로 실시간 감지 및 제거
     const observer = new MutationObserver(function(mutations) {
-        removeAllTooltips();
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+                const target = mutation.target;
+                if (target.title && target.title.toLowerCase().includes('keyboard')) {
+                    target.removeAttribute('title');
+                }
+            }
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) { // Element node
+                        if (node.title && node.title.toLowerCase().includes('keyboard')) {
+                            node.removeAttribute('title');
+                        }
+                        // 자식 요소도 체크
+                        node.querySelectorAll && node.querySelectorAll('*').forEach(child => {
+                            if (child.title && child.title.toLowerCase().includes('keyboard')) {
+                                child.removeAttribute('title');
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        forceRemoveTooltips();
     });
     
-    // 페이지 로드 시 실행
-    function initTooltipRemoval() {
-        removeAllTooltips();
+    // 초기화 함수
+    function init() {
+        forceRemoveTooltips();
         
-        // DOM 변경 감지 시작
-        observer.observe(document.body, {
+        // DOM 전체 감시
+        observer.observe(document.documentElement, {
             childList: true,
             subtree: true,
             attributes: true,
@@ -270,17 +284,29 @@ st.markdown("""
         });
     }
     
+    // 다양한 시점에서 실행
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTooltipRemoval);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        initTooltipRemoval();
+        init();
     }
     
-    // Streamlit이 완전히 로드된 후에도 실행
-    window.addEventListener('load', initTooltipRemoval);
+    window.addEventListener('load', init);
     
-    // 주기적으로도 체크 (백업)
-    setInterval(removeAllTooltips, 300);
+    // Streamlit이 완전히 로드될 때까지 대기
+    setTimeout(init, 100);
+    setTimeout(init, 500);
+    setTimeout(init, 1000);
+    
+    // 매우 빠른 주기로 체크 (100ms)
+    setInterval(forceRemoveTooltips, 100);
+    
+    // 마우스 이벤트에서도 체크
+    document.addEventListener('mouseover', function(e) {
+        if (e.target && e.target.title && e.target.title.toLowerCase().includes('keyboard')) {
+            e.target.removeAttribute('title');
+        }
+    }, true);
 </script>
 """, unsafe_allow_html=True)
 
