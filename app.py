@@ -342,8 +342,8 @@ st.markdown("""
         
         [data-testid="stSidebar"] .stButton > button {
             width: 100% !important;
-            /* 버튼 간 간격을 약 15px 수준으로 */
-            margin-bottom: 15px !important;
+            /* 버튼 간 간격을 약 5px 수준으로 (기존의 1/3) */
+            margin-bottom: 5px !important;
         }
         
         /* 사이드바 카테고리 헤더: 아주 타이트하게 */
