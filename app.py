@@ -356,15 +356,9 @@ st.markdown("""
     
     /* ========== 컬럼 레이아웃 최적화 ========== */
     @media (max-width: 768px) {
-        /* 3개 이상의 컬럼은 모바일에서 1개로 */
+        /* 3개 이상의 컬럼은 모바일에서 1개로 쌓기 (2개 컬럼은 기본 1:1 비율 유지) */
         .stColumn:has(+ .stColumn + .stColumn) {
             width: 100% !important;
-        }
-        
-        /* 2개 컬럼도 모바일에서는 스택 */
-        .stColumn:has(+ .stColumn) {
-            width: 100% !important;
-            margin-bottom: 1rem;
         }
     }
     
