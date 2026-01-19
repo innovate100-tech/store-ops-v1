@@ -2355,29 +2355,94 @@ elif page == "레시피 등록":
             display_recipe_df = recipe_df[recipe_df['메뉴명'] == filter_menu].copy()
             
             if not display_recipe_df.empty:
-                # 재료 정보와 조인하여 단위 표시
+                # 재료 정보와 조인하여 단위 및 단가 표시
                 display_recipe_df = pd.merge(
                     display_recipe_df,
-                    ingredient_df[['재료명', '단위']],
+                    ingredient_df[['재료명', '단위', '단가']],
                     on='재료명',
                     how='left'
                 )
                 
+                # 원가 계산 (이 메뉴의 원가)
+                menu_cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+                menu_cost_info = menu_cost_df[menu_cost_df['메뉴명'] == filter_menu]
+                
+                # 메뉴 정보 가져오기 (판매가, 조리방법)
+                menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
+                menu_price = int(menu_info.iloc[0]['판매가']) if not menu_info.empty else 0
+                
+                # 조리방법 가져오기 (menu_master에서)
+                cooking_method_text = ""
+                try:
+                    from src.auth import get_supabase_client, get_current_store_id
+                    supabase = get_supabase_client()
+                    store_id = get_current_store_id()
+                    if supabase and store_id:
+                        menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
+                        if menu_result.data and menu_result.data[0].get('cooking_method'):
+                            cooking_method_text = menu_result.data[0]['cooking_method']
+                except Exception:
+                    pass
+                
+                # 원가 정보
+                cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
+                cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
+                
                 # 요리책 스타일 카드 레이아웃
                 st.markdown(f"""
-                <div style="border-radius: 12px; padding: 1.5rem; margin: 1rem 0 2rem 0;
+                <div style="border-radius: 16px; padding: 2rem; margin: 1rem 0 2rem 0;
                             background: linear-gradient(135deg, #1f2937 0%, #111827 60%, #020617 100%);
-                            box-shadow: 0 8px 20px rgba(0,0,0,0.35); border: 1px solid rgba(148,163,184,0.4);">
-                    <h3 style="margin: 0 0 1rem 0; color: #ffffff; font-weight: 700; font-size: 1.4rem;">
-                        🍽️ {filter_menu}
-                    </h3>
-                    <p style="margin: 0 0 1.2rem 0; color: #e5e7eb; font-size: 0.95rem;">
-                        이 메뉴를 구성하는 재료와 1인분 기준 사용량을 책처럼 한 눈에 확인하고, 바로 수정·삭제할 수 있습니다.
-                    </p>
+                            box-shadow: 0 12px 30px rgba(0,0,0,0.4); border: 2px solid rgba(148,163,184,0.3);">
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <h2 style="margin: 0 0 0.5rem 0; color: #ffffff; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
+                            🍽️ {filter_menu}
+                        </h2>
+                        <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; flex-wrap: wrap;">
+                            <div style="background: rgba(59, 130, 246, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.5);">
+                                <div style="color: #93c5fd; font-size: 0.85rem; margin-bottom: 0.3rem;">판매가</div>
+                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
+                            </div>
+                            <div style="background: rgba(239, 68, 68, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.5);">
+                                <div style="color: #fca5a5; font-size: 0.85rem; margin-bottom: 0.3rem;">원가</div>
+                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
+                            </div>
+                            <div style="background: rgba(234, 179, 8, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(234, 179, 8, 0.5);">
+                                <div style="color: #fde047; font-size: 0.85rem; margin-bottom: 0.3rem;">원가율</div>
+                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
+                # 구성 재료 및 사용량 (엑셀처럼 깔끔하게)
                 st.markdown("**📋 구성 재료 및 사용량**")
+                
+                # 엑셀 스타일 테이블 데이터 준비
+                table_data = []
+                for idx, row in display_recipe_df.iterrows():
+                    ing_name = row['재료명']
+                    unit = row['단위'] if pd.notna(row['단위']) else ""
+                    current_qty = float(row['사용량'])
+                    unit_price = float(row['단가']) if pd.notna(row['단가']) else 0
+                    ingredient_cost = current_qty * unit_price
+                    
+                    table_data.append({
+                        '재료명': ing_name,
+                        '기준단위': unit,
+                        '사용량': f"{current_qty:.2f}",
+                        '1단위 단가': f"{unit_price:,.1f}원",
+                        '재료비': f"{ingredient_cost:,.1f}원"
+                    })
+                
+                # 엑셀 스타일 테이블 표시
+                ingredients_table_df = pd.DataFrame(table_data)
+                st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
+                
+                render_section_divider()
+                
+                # 각 재료별 사용량 수정/삭제 UI
+                st.markdown("**✏️ 재료 사용량 수정 및 삭제**")
                 
                 # 테이블 헤더
                 header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
@@ -2451,6 +2516,24 @@ elif page == "레시피 등록":
                                     st.error(msg)
                             except Exception as e:
                                 st.error(f"레시피 삭제 중 오류: {e}")
+                    
+                    if idx < len(display_recipe_df) - 1:
+                        st.markdown("---")
+                
+                # 조리방법 표시
+                render_section_divider()
+                st.markdown("**👨‍🍳 조리방법**")
+                if cooking_method_text:
+                    st.markdown(f"""
+                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
+                                border-left: 4px solid #667eea; margin: 1rem 0;">
+                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
+                            {cooking_method_text.replace(chr(10), '<br>')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
                     
                     if idx < len(display_recipe_df) - 1:
                         st.markdown("---")
