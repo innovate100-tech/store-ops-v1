@@ -514,12 +514,12 @@ elif page == "매출 관리":
     if category == "💰 매출":
         # 저장된 매출 표시 및 삭제
         render_section_header("저장된 매출 내역", "📋")
-    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-    
-    if not sales_df.empty:
-        # 삭제 기능
-        st.write("**🗑️ 매출 데이터 삭제**")
-        col1, col2, col3 = st.columns(3)
+        sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+        
+        if not sales_df.empty:
+            # 삭제 기능
+            st.write("**🗑️ 매출 데이터 삭제**")
+            col1, col2, col3 = st.columns(3)
         with col1:
             delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
         with col2:
@@ -545,47 +545,47 @@ elif page == "매출 관리":
                         st.error(message)
                 except Exception as e:
                     st.error(f"삭제 중 오류: {e}")
-        
-        render_section_divider()
-        
-        # 실제 입력값만 표시 (기술적 컬럼 제거)
-        display_df = sales_df.copy()
-        
-        # 표시할 컬럼만 선택
-        display_columns = []
-        if '날짜' in display_df.columns:
-            display_columns.append('날짜')
-        if '매장' in display_df.columns:
-            display_columns.append('매장')
-        if '카드매출' in display_df.columns:
-            display_columns.append('카드매출')
-        if '현금매출' in display_df.columns:
-            display_columns.append('현금매출')
-        if '총매출' in display_df.columns:
-            display_columns.append('총매출')
-        
-        # 필요한 컬럼만 선택
-        if display_columns:
-            display_df = display_df[display_columns]
             
-            # 날짜를 문자열로 변환
+            render_section_divider()
+            
+            # 실제 입력값만 표시 (기술적 컬럼 제거)
+            display_df = sales_df.copy()
+            
+            # 표시할 컬럼만 선택
+            display_columns = []
             if '날짜' in display_df.columns:
-                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-            # 숫자 포맷팅
-            if '총매출' in display_df.columns:
-                display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_columns.append('날짜')
+            if '매장' in display_df.columns:
+                display_columns.append('매장')
             if '카드매출' in display_df.columns:
-                display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_columns.append('카드매출')
             if '현금매출' in display_df.columns:
-                display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-        # 차트 표시
-        render_section_header("날짜별 매출 추이", "📈")
-        render_sales_chart(sales_df)
-    else:
-        st.info("저장된 매출 데이터가 없습니다.")
+                display_columns.append('현금매출')
+            if '총매출' in display_df.columns:
+                display_columns.append('총매출')
+            
+            # 필요한 컬럼만 선택
+            if display_columns:
+                display_df = display_df[display_columns]
+                
+                # 날짜를 문자열로 변환
+                if '날짜' in display_df.columns:
+                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+                # 숫자 포맷팅
+                if '총매출' in display_df.columns:
+                    display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                if '카드매출' in display_df.columns:
+                    display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                if '현금매출' in display_df.columns:
+                    display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            # 차트 표시
+            render_section_header("날짜별 매출 추이", "📈")
+            render_sales_chart(sales_df)
+        else:
+            st.info("저장된 매출 데이터가 없습니다.")
     
     else:
         # 저장된 방문자 표시 및 삭제
