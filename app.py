@@ -1705,21 +1705,119 @@ elif page == "메뉴 등록":
         # 메뉴 번호 매기기
         menu_df['번호'] = range(1, len(menu_df) + 1)
         
-        # 체크박스로 여러개 선택 삭제 기능
-        st.markdown("**🗑️ 메뉴 삭제**")
+        # 메뉴 리스트 표시 (체크박스, 번호, 메뉴명, 판매가, 순서 변경 버튼, 삭제 버튼)
+        st.markdown("**📋 메뉴 목록**")
+        
+        # 선택된 메뉴 인덱스 수집
         selected_indices = []
         
-        # 각 메뉴에 체크박스 추가
-        for idx, row in menu_df.iterrows():
-            checkbox_key = f"menu_checkbox_{idx}"
-            if st.checkbox(f"{row['번호']}. {row['메뉴명']} ({int(row['판매가']):,}원)", key=checkbox_key):
-                selected_indices.append(idx)
+        # 헤더 행
+        header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7 = st.columns([0.3, 0.5, 3, 2, 1, 1, 1])
+        with header_col1:
+            st.write("**선택**")
+        with header_col2:
+            st.write("**번호**")
+        with header_col3:
+            st.write("**메뉴명**")
+        with header_col4:
+            st.write("**판매가**")
+        with header_col5:
+            st.write("**위로**")
+        with header_col6:
+            st.write("**아래로**")
+        with header_col7:
+            st.write("**삭제**")
         
-        # 선택된 메뉴 삭제 버튼
+        st.markdown("---")
+        
+        # 각 메뉴 행
+        for idx, row in menu_df.iterrows():
+            col1, col2, col3, col4, col5, col6, col7 = st.columns([0.3, 0.5, 3, 2, 1, 1, 1])
+            
+            with col1:
+                checkbox_key = f"menu_checkbox_{idx}"
+                if st.checkbox("", key=checkbox_key, label_visibility="collapsed"):
+                    selected_indices.append(idx)
+            
+            with col2:
+                st.write(f"**{row['번호']}**")
+            
+            with col3:
+                st.write(f"**{row['메뉴명']}**")
+            
+            with col4:
+                st.write(f"{int(row['판매가']):,}원")
+            
+            with col5:
+                # 위로 이동 버튼
+                if idx > 0:
+                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 위 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        prev_menu = menu_df.iloc[idx - 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        prev_order = st.session_state[menu_order_key][prev_menu]
+                        st.session_state[menu_order_key][current_menu] = prev_order
+                        st.session_state[menu_order_key][prev_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            with col6:
+                # 아래로 이동 버튼
+                if idx < len(menu_df) - 1:
+                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 아래 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        next_menu = menu_df.iloc[idx + 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        next_order = st.session_state[menu_order_key][next_menu]
+                        st.session_state[menu_order_key][current_menu] = next_order
+                        st.session_state[menu_order_key][next_menu] = current_order
+                        try:
+                            load_csv.clear()
+                        except:
+                            pass
+                        st.rerun()
+            
+            with col7:
+                # 개별 삭제 버튼
+                if st.button("🗑️", key=f"delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
+                    menu_name = row['메뉴명']
+                    try:
+                        success, message, refs = delete_menu(menu_name)
+                        if success:
+                            st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
+                            # session_state에서도 제거
+                            if menu_name in st.session_state[menu_order_key]:
+                                del st.session_state[menu_order_key][menu_name]
+                            # 순서 재정렬
+                            remaining_menus = list(st.session_state[menu_order_key].keys())
+                            st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
+                            # 캐시 클리어
+                            try:
+                                load_csv.clear()
+                            except:
+                                pass
+                            st.rerun()
+                        else:
+                            st.error(message)
+                            if refs:
+                                st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
+                    except Exception as e:
+                        st.error(f"삭제 중 오류: {e}")
+            
+            if idx < len(menu_df) - 1:
+                st.markdown("---")
+        
+        # 선택된 메뉴 일괄 삭제 버튼
         if selected_indices:
+            st.markdown("---")
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="delete_selected_menus"):
+                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="delete_selected_menus", use_container_width=True):
                     errors = []
                     success_count = 0
                     
@@ -1754,58 +1852,6 @@ elif page == "메뉴 등록":
                         st.rerun()
         
         render_section_divider()
-        
-        # 메뉴 리스트 표시 (번호, 메뉴명, 판매가, 순서 변경 버튼)
-        st.markdown("**📋 메뉴 목록**")
-        
-        for idx, row in menu_df.iterrows():
-            col1, col2, col3, col4, col5 = st.columns([0.5, 3, 2, 1, 1])
-            
-            with col1:
-                st.write(f"**{row['번호']}**")
-            
-            with col2:
-                st.write(f"**{row['메뉴명']}**")
-            
-            with col3:
-                st.write(f"{int(row['판매가']):,}원")
-            
-            with col4:
-                # 위로 이동 버튼
-                if idx > 0:
-                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동"):
-                        # 순서 변경: 현재 항목과 위 항목의 순서 교환
-                        current_menu = row['메뉴명']
-                        prev_menu = menu_df.iloc[idx - 1]['메뉴명']
-                        current_order = st.session_state[menu_order_key][current_menu]
-                        prev_order = st.session_state[menu_order_key][prev_menu]
-                        st.session_state[menu_order_key][current_menu] = prev_order
-                        st.session_state[menu_order_key][prev_menu] = current_order
-                        try:
-                            load_csv.clear()
-                        except:
-                            pass
-                        st.rerun()
-            
-            with col5:
-                # 아래로 이동 버튼
-                if idx < len(menu_df) - 1:
-                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동"):
-                        # 순서 변경: 현재 항목과 아래 항목의 순서 교환
-                        current_menu = row['메뉴명']
-                        next_menu = menu_df.iloc[idx + 1]['메뉴명']
-                        current_order = st.session_state[menu_order_key][current_menu]
-                        next_order = st.session_state[menu_order_key][next_menu]
-                        st.session_state[menu_order_key][current_menu] = next_order
-                        st.session_state[menu_order_key][next_menu] = current_order
-                        try:
-                            load_csv.clear()
-                        except:
-                            pass
-                        st.rerun()
-            
-            if idx < len(menu_df) - 1:
-                st.markdown("---")
         
         # 수정 기능
         render_section_divider()
