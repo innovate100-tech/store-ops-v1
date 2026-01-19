@@ -1995,9 +1995,24 @@ elif page == "재료 등록":
                 st.error("단가는 0보다 큰 값이어야 합니다.")
             else:
                 try:
-                    success, message = save_ingredient(ingredient_name, unit, unit_price)
+                    # 단위 자동 변환: kg → g, L → ml
+                    final_unit = unit
+                    final_unit_price = unit_price
+                    
+                    if unit == "kg":
+                        # kg을 g로 변환: 1kg = 1000g, 단가는 1000으로 나눔
+                        final_unit = "g"
+                        final_unit_price = unit_price / 1000.0
+                        st.info(f"💡 단위가 자동 변환되었습니다: {unit} → {final_unit} (단가: {unit_price:,.2f}원/{unit} → {final_unit_price:,.4f}원/{final_unit})")
+                    elif unit == "L":
+                        # L을 ml로 변환: 1L = 1000ml, 단가는 1000으로 나눔
+                        final_unit = "ml"
+                        final_unit_price = unit_price / 1000.0
+                        st.info(f"💡 단위가 자동 변환되었습니다: {unit} → {final_unit} (단가: {unit_price:,.2f}원/{unit} → {final_unit_price:,.4f}원/{final_unit})")
+                    
+                    success, message = save_ingredient(ingredient_name, final_unit, final_unit_price)
                     if success:
-                        st.success(f"재료가 저장되었습니다! ({ingredient_name}, {unit_price:,.2f}원/{unit})")
+                        st.success(f"재료가 저장되었습니다! ({ingredient_name}, {final_unit_price:,.4f}원/{final_unit})")
                         # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
                         try:
                             load_csv.clear()
@@ -2028,11 +2043,18 @@ elif page == "재료 등록":
         base_columns = [col for col in ['재료명', '단위', '단가'] if col in ingredient_df.columns]
         display_df = ingredient_df[base_columns].copy()
         
-        # 단가 표시 포맷팅
-        display_df['단가'] = display_df.apply(
-            lambda x: f"{x['단가']:,.2f}원/{x['단위']}",
-            axis=1
-        )
+        # 단가 표시 포맷팅 (g, ml의 경우 소수점 4자리까지 표시)
+        def format_price(row):
+            unit = row['단위']
+            price = row['단가']
+            if unit in ['g', 'ml']:
+                # g, ml는 소수점이 많을 수 있으므로 4자리까지 표시
+                return f"{price:,.4f}원/{unit}"
+            else:
+                # 다른 단위는 2자리까지 표시
+                return f"{price:,.2f}원/{unit}"
+        
+        display_df['단가'] = display_df.apply(format_price, axis=1)
         
         # 수정/삭제 기능
         st.write("**📝 재료 수정/삭제**")
