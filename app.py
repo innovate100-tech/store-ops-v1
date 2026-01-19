@@ -2914,21 +2914,19 @@ elif page == "실제정산":
                         
                         with col_b:
                             if info['type'] == 'rate':
-                                # 비율 입력
+                                # 비율 입력 (세션 상태 직접 조작 없이 item 값 기반)
                                 edit_amount_key = f"edit_amount_{category}_{idx}_{selected_year}_{selected_month}"
-                                if edit_amount_key not in st.session_state:
-                                    st.session_state[edit_amount_key] = float(item.get('amount', 0))
-                                
                                 edited_rate = st.number_input(
                                     "매출 대비 비율 (%)",
                                     min_value=0.0,
                                     max_value=100.0,
-                                    value=st.session_state[edit_amount_key],
+                                    value=float(item.get('amount', 0)),
                                     step=0.1,
                                     format="%.2f",
-                                    key=edit_amount_key
+                                    key=edit_amount_key,
                                 )
                                 
+                                # 변경된 값 저장
                                 if edited_rate != item.get('amount'):
                                     item['amount'] = edited_rate
                                     st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
@@ -2937,20 +2935,18 @@ elif page == "실제정산":
                                 calculated_amount = (month_total_sales * edited_rate / 100) if month_total_sales > 0 else 0
                                 st.caption(f"→ {calculated_amount:,.0f}원")
                             else:
-                                # 절대 금액 입력
+                                # 절대 금액 입력 (세션 상태 직접 조작 없이 item 값 기반)
                                 edit_amount_key = f"edit_amount_{category}_{idx}_{selected_year}_{selected_month}"
-                                if edit_amount_key not in st.session_state:
-                                    st.session_state[edit_amount_key] = int(item.get('amount', 0))
-                                
                                 edited_amount = st.number_input(
                                     "금액 (원)",
                                     min_value=0,
-                                    value=st.session_state[edit_amount_key],
+                                    value=int(item.get('amount', 0)),
                                     step=10000,
                                     format="%d",
-                                    key=edit_amount_key
+                                    key=edit_amount_key,
                                 )
                                 
+                                # 변경된 값 저장
                                 if edited_amount != item.get('amount'):
                                     item['amount'] = edited_amount
                                     st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
