@@ -2123,133 +2123,100 @@ elif page == "레시피 등록":
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
     
-    # 입력 모드 선택 (단일 / 일괄)
-    input_mode = st.radio(
-        "입력 모드",
-        ["단일 입력", "일괄 입력 (여러 재료)"],
-        horizontal=True,
-        key="recipe_input_mode"
-    )
-    
     render_section_divider()
     
-    if input_mode == "단일 입력":
-        # 단일 입력 폼
-        recipe_result = render_recipe_input(menu_list, ingredient_list)
+    # 일괄 입력 전용 폼
+    st.subheader("📝 레시피 일괄 등록")
+    st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다. (최대 30개 재료)")
+    
+    if not menu_list:
+        st.warning("먼저 메뉴를 등록해주세요.")
+    elif not ingredient_list:
+        st.warning("먼저 재료를 등록해주세요.")
+    else:
+        # 메뉴 선택
+        selected_menu = st.selectbox(
+            "메뉴 선택",
+            options=menu_list,
+            key="batch_recipe_menu"
+        )
         
-        if recipe_result[0] is not None:
-            menu_name, ingredient_name, quantity = recipe_result
+        # 등록할 재료 개수 선택 (최대 30개)
+        ingredient_count = st.number_input(
+            "등록할 재료 개수",
+            min_value=1,
+            max_value=30,
+            value=10,
+            step=1,
+            key="batch_recipe_count"
+        )
+        
+        st.markdown("---")
+        st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
+        
+        # 각 재료별 입력 필드
+        recipe_data = []
+        for i in range(ingredient_count):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                ingredient_key = f"batch_recipe_ingredient_{i}"
+                selected_ingredient = st.selectbox(
+                    f"재료 {i+1}",
+                    options=ingredient_list,
+                    key=ingredient_key
+                )
+            with col2:
+                quantity_key = f"batch_recipe_quantity_{i}"
+                quantity = st.number_input(
+                    f"사용량 {i+1}",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.1,
+                    format="%.2f",
+                    key=quantity_key
+                )
             
+            if selected_ingredient and quantity > 0:
+                recipe_data.append((selected_ingredient, quantity))
+        
+        # 입력 요약 표시
+        if recipe_data:
+            render_section_divider()
+            st.write("**📊 입력 요약**")
+            summary_df = pd.DataFrame(
+                [(ing, f"{qty:.2f}") for ing, qty in recipe_data],
+                columns=['재료명', '사용량']
+            )
+            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            st.markdown(f"**총 {len(recipe_data)}개 재료**")
+            
+            # 일괄 저장 버튼
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button("💾 저장", type="primary", use_container_width=True):
-                    if quantity <= 0:
-                        st.error("사용량은 0보다 큰 값이어야 합니다.")
-                    else:
+                if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                    errors = []
+                    success_count = 0
+                    
+                    for ingredient_name, quantity in recipe_data:
                         try:
-                            save_recipe(menu_name, ingredient_name, quantity)
-                            st.success(f"레시피가 저장되었습니다! ({menu_name} - {ingredient_name}: {quantity})")
-                            # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
-                            try:
-                                load_csv.clear()
-                            except Exception:
-                                pass
-                            st.rerun()
+                            save_recipe(selected_menu, ingredient_name, quantity)
+                            success_count += 1
                         except Exception as e:
-                            st.error(f"저장 중 오류가 발생했습니다: {e}")
-    else:
-        # 일괄 입력 폼
-        st.subheader("📝 레시피 일괄 등록")
-        st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다.")
-        
-        if not menu_list:
-            st.warning("먼저 메뉴를 등록해주세요.")
-        elif not ingredient_list:
-            st.warning("먼저 재료를 등록해주세요.")
-        else:
-            # 메뉴 선택
-            selected_menu = st.selectbox(
-                "메뉴 선택",
-                options=menu_list,
-                key="batch_recipe_menu"
-            )
-            
-            # 등록할 재료 개수 선택
-            ingredient_count = st.number_input(
-                "등록할 재료 개수",
-                min_value=1,
-                max_value=20,
-                value=5,
-                step=1,
-                key="batch_recipe_count"
-            )
-            
-            st.markdown("---")
-            st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
-            
-            # 각 재료별 입력 필드
-            recipe_data = []
-            for i in range(ingredient_count):
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    ingredient_key = f"batch_recipe_ingredient_{i}"
-                    selected_ingredient = st.selectbox(
-                        f"재료 {i+1}",
-                        options=ingredient_list,
-                        key=ingredient_key
-                    )
-                with col2:
-                    quantity_key = f"batch_recipe_quantity_{i}"
-                    quantity = st.number_input(
-                        f"사용량 {i+1}",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        format="%.2f",
-                        key=quantity_key
-                    )
-                
-                if selected_ingredient and quantity > 0:
-                    recipe_data.append((selected_ingredient, quantity))
-            
-            # 입력 요약 표시
-            if recipe_data:
-                render_section_divider()
-                st.write("**📊 입력 요약**")
-                summary_df = pd.DataFrame(
-                    [(ing, f"{qty:.2f}") for ing, qty in recipe_data],
-                    columns=['재료명', '사용량']
-                )
-                st.dataframe(summary_df, use_container_width=True, hide_index=True)
-                st.markdown(f"**총 {len(recipe_data)}개 재료**")
-                
-                # 일괄 저장 버튼
-                col1, col2 = st.columns([1, 4])
-                with col1:
-                    if st.button("💾 일괄 저장", type="primary", use_container_width=True):
-                        errors = []
-                        success_count = 0
-                        
-                        for ingredient_name, quantity in recipe_data:
-                            try:
-                                save_recipe(selected_menu, ingredient_name, quantity)
-                                success_count += 1
-                            except Exception as e:
-                                errors.append(f"{ingredient_name}: {e}")
-                        
-                        if errors:
-                            for error in errors:
-                                st.error(error)
-                        
-                        if success_count > 0:
-                            st.success(f"✅ {success_count}개 레시피가 저장되었습니다!")
-                            st.balloons()
-                            # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
-                            try:
-                                load_csv.clear()
-                            except Exception:
-                                pass
-                            st.rerun()
+                            errors.append(f"{ingredient_name}: {e}")
+                    
+                    if errors:
+                        for error in errors:
+                            st.error(error)
+                    
+                    if success_count > 0:
+                        st.success(f"✅ {success_count}개 레시피가 저장되었습니다!")
+                        st.balloons()
+                        # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
+                        try:
+                            load_csv.clear()
+                        except Exception:
+                            pass
+                        st.rerun()
     
     render_section_divider()
     
