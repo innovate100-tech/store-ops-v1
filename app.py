@@ -1610,6 +1610,9 @@ elif page == "메뉴 등록":
         # 일괄 입력 폼
         menu_data = render_menu_batch_input()
         
+        # 입력할 메뉴 개수 가져오기
+        menu_count = st.session_state.get("batch_menu_count", 5)
+        
         if menu_data:
             render_section_divider()
             
@@ -1623,13 +1626,31 @@ elif page == "메뉴 등록":
             
             st.markdown(f"**총 {len(menu_data)}개 메뉴**")
             
+            # 버튼 클릭 시 현재 입력값을 직접 읽어오기
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                save_button_clicked = st.button("💾 일괄 저장", type="primary", use_container_width=True)
+            
+            if save_button_clicked:
+                # 버튼 클릭 시 현재 입력된 모든 값 읽기
+                current_menu_data = []
+                for i in range(menu_count):
+                    menu_name_key = f"batch_menu_name_{i}"
+                    price_key = f"batch_menu_price_{i}"
+                    
+                    menu_name = st.session_state.get(menu_name_key, "")
+                    price = st.session_state.get(price_key, 0)
+                    
+                    if menu_name and menu_name.strip() and price > 0:
+                        current_menu_data.append((menu_name.strip(), price))
+                
+                if not current_menu_data:
+                    st.error("⚠️ 저장할 메뉴가 없습니다. 메뉴명과 판매가를 모두 입력해주세요.")
+                else:
                     errors = []
                     success_count = 0
                     
-                    for menu_name, price in menu_data:
+                    for menu_name, price in current_menu_data:
                         try:
                             success, message = save_menu(menu_name, price)
                             if success:
@@ -1646,6 +1667,12 @@ elif page == "메뉴 등록":
                     if success_count > 0:
                         st.success(f"✅ {success_count}개 메뉴가 저장되었습니다!")
                         st.balloons()
+                        # 입력 필드 초기화
+                        for i in range(menu_count):
+                            if f"batch_menu_name_{i}" in st.session_state:
+                                del st.session_state[f"batch_menu_name_{i}"]
+                            if f"batch_menu_price_{i}" in st.session_state:
+                                st.session_state[f"batch_menu_price_{i}"] = 0
                         st.rerun()
     
     render_section_divider()
