@@ -1553,7 +1553,7 @@ elif page == "비용구조":
         
         # 기존 항목 표시 - expander 제목 간소화 (중첩 방지)
         if category in existing_items and existing_items[category]:
-            with st.expander(f"기존 항목 보기 ({len(existing_items[category])}개)", expanded=False):
+            with st.expander(f"기존 항목 보기 ({len(existing_items[category])}개)", expanded=True):
                 for item in existing_items[category]:
                     col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
                     with col1:
@@ -1604,6 +1604,9 @@ elif page == "비용구조":
                         if new_item_name and new_item_name.strip() and new_amount > 0:
                             try:
                                 save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
+                                # 입력 필드 초기화
+                                st.session_state[f"new_item_name_{category}"] = ""
+                                st.session_state[f"new_amount_{category}"] = 0
                                 st.success(f"{category} 항목이 추가되었습니다!")
                                 st.rerun()
                             except Exception as e:
@@ -1641,6 +1644,9 @@ elif page == "비용구조":
                             try:
                                 # 변동비는 비율(%)을 amount에 저장
                                 save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
+                                # 입력 필드 초기화
+                                st.session_state[f"new_item_name_{category}"] = ""
+                                st.session_state[f"new_rate_{category}"] = 0.0
                                 st.success(f"{category} 항목이 추가되었습니다!")
                                 st.rerun()
                             except Exception as e:
