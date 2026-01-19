@@ -221,16 +221,24 @@ menu_categories = {
     ]
 }
 
-# 모든 메뉴 항목 추출 (순서 유지)
-all_menu_items = []
-all_menu_options = []
-
 # 선택된 페이지 확인
 if 'current_page' not in st.session_state:
     st.session_state.current_page = "점장 마감"
 
-# 카테고리별로 헤더와 메뉴 항목 수집
+# 모든 메뉴 항목 추출 (순서 유지)
+all_menu_items = []
+all_menu_options = []
+
 for category_name, items in menu_categories.items():
+    for menu_name, icon in items:
+        all_menu_items.append((menu_name, icon))
+        all_menu_options.append(f"{icon} {menu_name}")
+
+# 카테고리별로 헤더와 라디오 버튼 표시
+selected_page = st.session_state.current_page
+
+# 모든 카테고리의 선택값 확인
+for category_idx, (category_name, items) in enumerate(menu_categories.items()):
     # 카테고리 헤더
     st.sidebar.markdown(f"""
     <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
@@ -240,35 +248,33 @@ for category_name, items in menu_categories.items():
     </div>
     """, unsafe_allow_html=True)
     
-    # 카테고리 내 메뉴 항목들 추가
-    for menu_name, icon in items:
-        all_menu_items.append((menu_name, icon))
-        all_menu_options.append(f"{icon} {menu_name}")
+    # 카테고리 내 메뉴 항목들
+    category_options = [f"{icon} {name}" for name, icon in items]
+    category_menu_names = [name for name, icon in items]
+    
+    # 현재 선택된 메뉴가 이 카테고리에 있는지 확인
+    if selected_page in category_menu_names:
+        category_index = category_menu_names.index(selected_page)
+    else:
+        category_index = 0
+    
+    # 각 카테고리별로 라디오 버튼 생성
+    category_selected = st.sidebar.radio(
+        "",
+        options=category_options,
+        label_visibility="collapsed",
+        index=category_index,
+        key=f"category_radio_{category_idx}"
+    )
+    
+    # 선택된 값 확인 및 업데이트
+    category_selected_name = category_selected.split(" ", 1)[1] if " " in category_selected else category_selected
+    if category_selected_name in category_menu_names and category_selected_name != selected_page:
+        selected_page = category_selected_name
+        st.session_state.current_page = category_selected_name
 
-# 모든 메뉴를 하나의 라디오 버튼으로 선택 (카테고리별로 표시됨)
-menu_options_plain = [name for name, icon in all_menu_items]
-
-try:
-    default_index = menu_options_plain.index(st.session_state.current_page)
-except (ValueError, AttributeError):
-    default_index = 0
-
-selected_menu_with_icon = st.sidebar.radio(
-    "메뉴를 선택하세요",
-    options=all_menu_options,
-    label_visibility="collapsed",
-    index=default_index,
-    key="main_menu_radio"
-)
-
-# 아이콘 제거하여 페이지명만 추출
-selected_menu_text = selected_menu_with_icon.split(" ", 1)[1] if " " in selected_menu_with_icon else selected_menu_with_icon
-
-# 페이지가 변경되었으면 상태 업데이트
-if selected_menu_text != st.session_state.get('current_page'):
-    st.session_state.current_page = selected_menu_text
-
-page = selected_menu_text
+# 최종 선택된 페이지 업데이트
+page = st.session_state.current_page
 
 # 점장 마감 페이지
 if page == "점장 마감":
