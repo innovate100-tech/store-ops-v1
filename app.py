@@ -103,9 +103,26 @@ st.markdown("""
         font-family: 'Noto Sans KR', sans-serif !important;
     }
     
-    /* Streamlit Material 아이콘(특히 keyboard_double_arrow_* 아이콘)은 전용 폰트 사용 */
+    /* Streamlit Material 아이콘(특히 keyboard_double_arrow_* 아이콘)을
+       텍스트가 아닌 '보라색 동그란 아이콘 버튼'처럼 보이게 만들기 */
     [data-testid="stIconMaterial"] {
-        font-family: 'Material Icons', 'Material Icons Outlined', 'Material Symbols Outlined', 'Noto Sans KR', sans-serif !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background-color: #667eea;
+        color: #ffffff;
+        font-size: 0; /* 내부 영어 텍스트는 안 보이게 */
+    }
+    
+    [data-testid="stIconMaterial"]::before {
+        content: '⇔';
+        font-size: 16px;
+        line-height: 1;
+        color: #ffffff;
+        display: inline-block;
     }
     
     /* ========== 반응형 기본 설정 ========== */
