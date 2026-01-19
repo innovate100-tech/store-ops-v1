@@ -1428,14 +1428,12 @@ elif page == "비용구조":
             variable_cost_rate = variable_df['amount'].sum()
     
     # 손익분기점 계산: 고정비 / (1 - 변동비율)
-    if variable_cost_rate >= 100:
-        breakeven_sales = None
-    else:
+    # 조건: 고정비 > 0 AND 변동비율 > 0 AND 변동비율 < 100
+    breakeven_sales = None
+    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
         variable_rate_decimal = variable_cost_rate / 100
-        if variable_rate_decimal >= 1:
-            breakeven_sales = None
-        else:
-            breakeven_sales = fixed_costs / (1 - variable_rate_decimal) if (1 - variable_rate_decimal) > 0 else None
+        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
+            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
     
     # 손익분기점 상단 공지 표시
     if breakeven_sales is not None and breakeven_sales > 0:
@@ -1450,7 +1448,8 @@ elif page == "비용구조":
         st.markdown(f"""
         <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
             <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
-            <div style="font-size: 0.9rem; color: #666;">비용 구조를 입력하면 자동으로 계산됩니다.</div>
+            <div style="font-size: 0.9rem; color: #666;">고정비와 변동비율을 모두 입력해야 손익분기 매출이 계산됩니다.</div>
+            <div style="font-size: 0.85rem; color: #888; margin-top: 0.3rem;">고정비: 임차료, 인건비, 공과금 / 변동비: 재료비, 부가세&카드수수료</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1487,7 +1486,7 @@ elif page == "비용구조":
         
         # 기존 항목 표시
         if category in existing_items and existing_items[category]:
-            with st.expander(f"기존 {category} 항목 ({len(existing_items[category])}개)", expanded=False):
+            with st.expander(f"📋 기존 입력된 {category} 항목 ({len(existing_items[category])}개)", expanded=False):
                 for item in existing_items[category]:
                     col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
                     with col1:
