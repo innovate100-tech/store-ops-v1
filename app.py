@@ -441,7 +441,7 @@ elif page == "매출 관리":
                         st.rerun()
     
     # ========== 방문자 입력 섹션 ==========
-    else:  # category == "👥 방문자"
+    else:  # category == 방문자
         # 입력 모드 선택 (단일 / 일괄)
         input_mode = st.radio(
             "입력 모드",
@@ -587,7 +587,7 @@ elif page == "매출 관리":
     else:
         st.info("저장된 매출 데이터가 없습니다.")
     
-    else:  # category == "👥 방문자"
+    else:  # category == 방문자
         # 저장된 방문자 표시 및 삭제
         render_section_header("저장된 방문자 내역", "📋")
         visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
