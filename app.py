@@ -223,13 +223,13 @@ menu_categories = {
 
 # 모든 메뉴 항목 추출 (순서 유지)
 all_menu_items = []
-for category, items in menu_categories.items():
-    all_menu_items.extend(items)
+all_menu_options = []
 
-# 사이드바에 카테고리별로 표시
-menu_options = []
-current_index = 0
+# 선택된 페이지 확인
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "점장 마감"
 
+# 카테고리별로 헤더와 메뉴 항목 수집
 for category_name, items in menu_categories.items():
     # 카테고리 헤더
     st.sidebar.markdown(f"""
@@ -242,32 +242,31 @@ for category_name, items in menu_categories.items():
     
     # 카테고리 내 메뉴 항목들 추가
     for menu_name, icon in items:
-        menu_options.append(f"{icon} {menu_name}")
+        all_menu_items.append((menu_name, icon))
+        all_menu_options.append(f"{icon} {menu_name}")
 
-# 선택된 페이지 확인
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "점장 마감"
-
-# 모든 메뉴를 하나의 라디오 버튼으로 선택
+# 모든 메뉴를 하나의 라디오 버튼으로 선택 (카테고리별로 표시됨)
 menu_options_plain = [name for name, icon in all_menu_items]
 
 try:
     default_index = menu_options_plain.index(st.session_state.current_page)
-except ValueError:
+except (ValueError, AttributeError):
     default_index = 0
 
 selected_menu_with_icon = st.sidebar.radio(
     "메뉴를 선택하세요",
-    options=menu_options,
+    options=all_menu_options,
     label_visibility="collapsed",
-    index=default_index
+    index=default_index,
+    key="main_menu_radio"
 )
 
 # 아이콘 제거하여 페이지명만 추출
 selected_menu_text = selected_menu_with_icon.split(" ", 1)[1] if " " in selected_menu_with_icon else selected_menu_with_icon
-st.session_state.current_page = selected_menu_text
 
-page = selected_menu_text
+# 페이지가 변경되었으면 상태 업데이트
+if selected_menu_text != st.session_state.get('current_page'):
+    st.session_state.current_page = selected_menu_text
 
 page = selected_menu_text
 
