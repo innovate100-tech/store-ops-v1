@@ -312,6 +312,11 @@ st.markdown("""
             font-size: 0.8rem !important;
             margin-bottom: 0.25rem !important;
         }
+        
+        /* 모바일에서 비용구조 페이지의 기존 항목 수정/삭제/저장 버튼들은 숨겨서 스크롤을 줄임 */
+        .expense-existing-items ~ div button {
+            display: none !important;
+        }
     }
     
     /* ========== 카드 스타일 섹션 (반응형) ========== */
@@ -2664,7 +2669,7 @@ elif page == "비용구조":
         # 기존 항목 표시 - Expander 제거하고 직접 표시 (중첩 문제 해결)
         if category in existing_items and existing_items[category]:
             st.markdown(f"""
-            <div style="margin: 1rem 0 0.5rem 0; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
+            <div class="expense-existing-items" style="margin: 1rem 0 0.5rem 0; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
                 <strong style="color: #667eea;">📋 기존 입력된 항목 ({len(existing_items[category])}개)</strong>
             </div>
             """, unsafe_allow_html=True)
