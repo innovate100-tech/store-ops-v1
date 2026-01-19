@@ -3034,41 +3034,39 @@ elif page == "매출구조":
     current_year = datetime.now().year
     current_month = datetime.now().month
     
-    # 기간 선택 (비용구조와 동일한 기준)
-    col1, col2 = st.columns(2)
-    with col1:
-        selected_year = st.number_input(
-            "연도",
-            min_value=2020,
-            max_value=2100,
-            value=current_year,
-            key="revenue_structure_year"
-        )
-    with col2:
-        selected_month = st.number_input(
-            "월",
-            min_value=1,
-            max_value=12,
-            value=current_month,
-            key="revenue_structure_month"
-        )
-    
-    render_section_divider()
+    # 비용구조 페이지에서 사용한 연/월을 우선 사용하고, 없으면 현재 연/월 사용
+    selected_year = int(st.session_state.get("expense_year", current_year))
+    selected_month = int(st.session_state.get("expense_month", current_month))
     
     # 비용구조에서 고정비/변동비율과 목표매출 불러오기
     expense_df = load_expense_structure(selected_year, selected_month)
     
     fixed_costs = 0
     variable_cost_rate = 0.0  # % 단위
+
+    # 5대 비용(임차료, 인건비, 재료비, 공과금, 부가세&카드수수료)을 위한 세부 항목
+    fixed_by_category = {
+        '임차료': 0,
+        '인건비': 0,
+        '공과금': 0,
+    }
+    variable_rate_by_category = {
+        '재료비': 0.0,
+        '부가세&카드수수료': 0.0,
+    }
     
     if not expense_df.empty:
         fixed_categories = ['임차료', '인건비', '공과금']
         fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+        for cat in fixed_categories:
+            fixed_by_category[cat] = expense_df[expense_df['category'] == cat]['amount'].sum()
         
         variable_categories = ['재료비', '부가세&카드수수료']
         variable_df = expense_df[expense_df['category'].isin(variable_categories)]
         if not variable_df.empty:
             variable_cost_rate = variable_df['amount'].sum()
+            for cat in variable_categories:
+                variable_rate_by_category[cat] = variable_df[variable_df['category'] == cat]['amount'].sum()
     
     # 목표 매출 로드
     targets_df = load_csv('targets.csv', default_columns=[
@@ -3116,7 +3114,16 @@ elif page == "매출구조":
             if sales <= 0:
                 continue
             
-            total_cost = sales * variable_rate_decimal + fixed_costs
+            # 5대 비용 세부 계산
+            rent_cost = fixed_by_category.get('임차료', 0)
+            labor_cost = fixed_by_category.get('인건비', 0)
+            utility_cost = fixed_by_category.get('공과금', 0)
+            material_rate = variable_rate_by_category.get('재료비', 0.0) / 100
+            fee_rate = variable_rate_by_category.get('부가세&카드수수료', 0.0) / 100
+            material_cost = sales * material_rate
+            fee_cost = sales * fee_rate
+
+            total_cost = rent_cost + labor_cost + utility_cost + material_cost + fee_cost
             profit = sales - total_cost
             
             tile_col = cols[idx % 3]
@@ -3126,9 +3133,16 @@ elif page == "매출구조":
                     <div style="font-size: 0.9rem; margin-bottom: 0.4rem; opacity: 0.9;">{label}</div>
                     <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem;">매출: {int(sales):,}원</div>
                     <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem;">
-                        비용 합계
+                        비용 합계 및 세부내역
                     </div>
-                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem;">{int(total_cost):,}원</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem;">총 비용: {int(total_cost):,}원</div>
+                    <div style="font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.4;">
+                        임차료(고정비): {int(rent_cost):,}원<br>
+                        인건비(고정비): {int(labor_cost):,}원<br>
+                        공과금(고정비): {int(utility_cost):,}원<br>
+                        재료비(변동비): {int(material_cost):,}원<br>
+                        부가세·카드수수료(변동비): {int(fee_cost):,}원
+                    </div>
                     <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem;">
                         추정 영업이익
                     </div>
