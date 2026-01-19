@@ -2220,8 +2220,7 @@ elif page == "레시피 등록":
     
     render_section_divider()
     
-    # 저장된 레시피 표시
-    render_section_header("등록된 레시피", "📋")
+    # 레시피 검색 및 수정 (등록된 레시피 헤더 제거, 메뉴별 편집 UI만 제공)
     recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
     
     if not recipe_df.empty:
@@ -2229,8 +2228,8 @@ elif page == "레시피 등록":
         menus_with_recipes = recipe_df['메뉴명'].unique().tolist()
         
         if menus_with_recipes:
-            # 메뉴 필터 (레시피가 있는 메뉴만 표시, 전체 옵션 제거)
-            render_section_header("레시피 검색", "🔍")
+            # 메뉴 필터 (레시피가 있는 메뉴만 표시)
+            render_section_header("레시피 검색 및 수정", "🔍")
             filter_menu = st.selectbox(
                 "메뉴 선택",
                 options=menus_with_recipes,
@@ -2249,19 +2248,47 @@ elif page == "레시피 등록":
                     on='재료명',
                     how='left'
                 )
-                display_recipe_df['사용량'] = display_recipe_df.apply(
-                    lambda x: f"{x['사용량']:.2f}{x['단위']}" if pd.notna(x['단위']) else f"{x['사용량']:.2f}",
-                    axis=1
-                )
-                display_recipe_df = display_recipe_df[['메뉴명', '재료명', '사용량']]
                 
-                st.dataframe(display_recipe_df, use_container_width=True, hide_index=True)
-            else:
-                st.info(f"'{filter_menu}' 메뉴에 대한 레시피가 없습니다.")
+                st.markdown("**📋 재료별 사용량 수정**")
+                
+                # 각 재료별 사용량 수정 UI
+                for idx, row in display_recipe_df.iterrows():
+                    ing_name = row['재료명']
+                    unit = row['단위'] if pd.notna(row['단위']) else ""
+                    current_qty = float(row['사용량'])
+                    
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    with col1:
+                        st.write(f"**{ing_name}** ({unit})")
+                    with col2:
+                        new_qty = st.number_input(
+                            f"사용량 - {ing_name}",
+                            min_value=0.0,
+                            value=current_qty,
+                            step=0.1,
+                            format=\"%.2f\",
+                            key=f\"edit_recipe_qty_{filter_menu}_{ing_name}\"
+                        )
+                    with col3:
+                        if st.button(\"💾 저장\", key=f\"save_recipe_{filter_menu}_{ing_name}\"):
+                            if new_qty <= 0:
+                                st.error(\"사용량은 0보다 큰 값이어야 합니다.\")
+                            else:
+                                try:
+                                    # 동일한 메뉴-재료에 대해 qty만 업데이트 (upsert)
+                                    save_recipe(filter_menu, ing_name, new_qty)
+                                    st.success(f\"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다.\")
+                                    try:
+                                        load_csv.clear()
+                                    except Exception:
+                                        pass
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f\"사용량 수정 중 오류: {e}\")
         else:
-            st.info("등록된 레시피가 없습니다.")
+            st.info(\"등록된 레시피가 없습니다.\")
     else:
-        st.info("등록된 레시피가 없습니다.")
+        st.info(\"등록된 레시피가 없습니다.\")
 
 # 원가 파악 페이지
 elif page == "원가 파악":
