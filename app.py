@@ -199,35 +199,75 @@ with st.sidebar:
         except Exception as e:
             st.error(f"백업 중 오류: {e}")
 
-# 사이드바 네비게이션 - 모든 메뉴를 펼쳐서 표시
-st.sidebar.markdown("""
-<div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem;">
-    <h2 style="color: white; margin: 0; font-size: 1.5rem;">📋 메뉴</h2>
-</div>
-""", unsafe_allow_html=True)
-st.sidebar.markdown('<hr style="border: 1px solid rgba(255,255,255,0.2); margin: 1rem 0;">', unsafe_allow_html=True)
+# 사이드바 네비게이션 - 카테고리별로 구분
+# 메뉴 항목들을 카테고리별로 정의
+menu_categories = {
+    "매출": [
+        ("점장 마감", "📋"),
+        ("매출 관리", "📊"),
+        ("판매 관리", "📦"),
+        ("발주 관리", "🛒"),
+    ],
+    "비용": [
+        ("메뉴 관리", "🍽️"),
+        ("재료 관리", "🥬"),
+        ("레시피 관리", "📝"),
+        ("원가 분석", "💰"),
+    ],
+    "기타": [
+        ("주간 리포트", "📄"),
+        ("통합 대시보드", "📊"),
+        ("사장 설계", "👔")
+    ]
+}
 
-# 메뉴 항목들
-menu_items = [
-    ("점장 마감", "📋"),
-    ("매출 관리", "📊"),
-    ("메뉴 관리", "🍽️"),
-    ("재료 관리", "🥬"),
-    ("레시피 관리", "📝"),
-    ("원가 분석", "💰"),
-    ("판매 관리", "📦"),
-    ("발주 관리", "🛒"),
-    ("주간 리포트", "📄"),
-    ("통합 대시보드", "📊"),
-    ("사장 설계", "👔")
-]
+# 모든 메뉴 항목 추출 (순서 유지)
+all_menu_items = []
+for category, items in menu_categories.items():
+    all_menu_items.extend(items)
 
-# 라디오 버튼으로 메뉴 선택 (모두 펼쳐서 보임)
-selected_menu_text = st.sidebar.radio(
+# 사이드바에 카테고리별로 표시
+menu_options = []
+current_index = 0
+
+for category_name, items in menu_categories.items():
+    # 카테고리 헤더
+    st.sidebar.markdown(f"""
+    <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+            {category_name}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 카테고리 내 메뉴 항목들 추가
+    for menu_name, icon in items:
+        menu_options.append(f"{icon} {menu_name}")
+
+# 선택된 페이지 확인
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = "점장 마감"
+
+# 모든 메뉴를 하나의 라디오 버튼으로 선택
+menu_options_plain = [name for name, icon in all_menu_items]
+
+try:
+    default_index = menu_options_plain.index(st.session_state.current_page)
+except ValueError:
+    default_index = 0
+
+selected_menu_with_icon = st.sidebar.radio(
     "메뉴를 선택하세요",
-    options=[item[0] for item in menu_items],
-    label_visibility="collapsed"
+    options=menu_options,
+    label_visibility="collapsed",
+    index=default_index
 )
+
+# 아이콘 제거하여 페이지명만 추출
+selected_menu_text = selected_menu_with_icon.split(" ", 1)[1] if " " in selected_menu_with_icon else selected_menu_with_icon
+st.session_state.current_page = selected_menu_text
+
+page = selected_menu_text
 
 page = selected_menu_text
 
