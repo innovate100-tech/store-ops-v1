@@ -523,12 +523,13 @@ st.markdown("""
         padding: 0.25rem 0.5rem;
     }
     
-    /* 사이드바 접기/펼치기 버튼 공통 스타일 (열림/닫힘 상태 모두 적용하기 위해 클래스 사용) */
-    .custom-sidebar-toggle-button {
+    /* 사이드바 접기/펼치기 버튼 - CSS로 직접 타겟팅 (더 강력한 방법) */
+    /* 사이드바 헤더 내부 버튼 */
+    [data-testid="stSidebarHeader"] button {
         width: 32px !important;
         height: 32px !important;
         border-radius: 999px !important;
-        background-color: #667eea !important;  /* 보이는 색 */
+        background-color: #667eea !important;
         border: none !important;
         box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
         display: inline-flex !important;
@@ -539,10 +540,52 @@ st.markdown("""
         cursor: pointer;
     }
     
-    .custom-sidebar-toggle-button .custom-sidebar-toggle-icon {
-        font-size: 18px;
-        line-height: 1;
-        color: #ffffff;
+    /* 사이드바 접혔을 때 화면 왼쪽에 나타나는 버튼 */
+    button[aria-label*="sidebar" i],
+    button[aria-label*="사이드바"],
+    button[title*="sidebar" i],
+    button[title*="사이드바"],
+    button[aria-label*="Show" i],
+    button[aria-label*="Hide" i],
+    button[aria-label*="열기" i],
+    button[aria-label*="닫기" i] {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 999px !important;
+        background-color: #667eea !important;
+        border: none !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        color: #ffffff !important;
+        cursor: pointer;
+    }
+    
+    /* 버튼 내부 텍스트 숨기기 (keyboard_double_arrow_left 같은 영어 텍스트) */
+    [data-testid="stSidebarHeader"] button span,
+    button[aria-label*="sidebar" i] span,
+    button[aria-label*="사이드바"] span,
+    button[title*="sidebar" i] span,
+    button[title*="사이드바"] span {
+        font-size: 0 !important;
+        line-height: 0 !important;
+        color: transparent !important;
+        opacity: 0 !important;
+    }
+    
+    /* 대신 화살표 아이콘을 pseudo-element로 추가 */
+    [data-testid="stSidebarHeader"] button::before,
+    button[aria-label*="sidebar" i]::before,
+    button[aria-label*="사이드바"]::before,
+    button[title*="sidebar" i]::before,
+    button[title*="사이드바"]::before {
+        content: '⇔' !important;
+        font-size: 18px !important;
+        line-height: 1 !important;
+        color: #ffffff !important;
+        display: inline-block !important;
     }
     
     /* 브라우저 기본 툴팁 스타일 완전히 제거 */
@@ -774,6 +817,7 @@ st.markdown("""
         
         // 사이드바 특별 감시 (1초 주기로 변경, 50ms -> 1000ms)
         function watchSidebar() {
+            // 1) 사이드바 내부 요소들의 툴팁 제거
             const sidebar = document.querySelector('[data-testid="stSidebar"]');
             if (sidebar) {
                 sidebar.querySelectorAll('*').forEach(el => {
@@ -789,25 +833,66 @@ st.markdown("""
                 });
             }
             
-            // 1) keyboard_double_* 같은 텍스트를 가진 버튼을 모두 찾아서 공통 스타일/아이콘 적용
+            // 2) 모든 버튼을 검사해서 사이드바 토글 버튼 찾기 (더 강력한 방법)
             const allButtons = document.querySelectorAll('button');
             allButtons.forEach(btn => {
-                const text = (btn.textContent || '').trim().toLowerCase();
+                // 버튼의 textContent, innerHTML, aria-label, title 모두 확인
+                const textContent = (btn.textContent || '').trim().toLowerCase();
+                const innerHTML = (btn.innerHTML || '').toLowerCase();
+                const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+                const title = (btn.getAttribute('title') || '').toLowerCase();
                 
-                // keyboard_double_* 텍스트를 가진 버튼이면 커스텀 토글 버튼으로 변환
-                if (text.includes('keyboard') && text.includes('double')) {
+                // 사이드바 토글 버튼인지 확인 (여러 조건으로 판단)
+                const isSidebarToggle = 
+                    (textContent.includes('keyboard') && textContent.includes('double')) ||
+                    (innerHTML.includes('keyboard') && innerHTML.includes('double')) ||
+                    (ariaLabel.includes('sidebar') || ariaLabel.includes('사이드바')) ||
+                    (title.includes('sidebar') || title.includes('사이드바')) ||
+                    (ariaLabel.includes('hide') && ariaLabel.includes('sidebar')) ||
+                    (ariaLabel.includes('show') && ariaLabel.includes('sidebar')) ||
+                    btn.closest('[data-testid="stSidebarHeader"]') !== null;
+                
+                if (isSidebarToggle) {
                     // 툴팁/접근성 텍스트 제거
                     btn.removeAttribute('title');
                     btn.removeAttribute('aria-label');
-                    
-                    // 클래스 부여로 공통 스타일 적용
-                    if (!btn.classList.contains('custom-sidebar-toggle-button')) {
-                        btn.classList.add('custom-sidebar-toggle-button');
+                    if (btn.getAttribute('title')) {
+                        blockTitleProperty(btn);
                     }
                     
-                    // 내부 텍스트를 커스텀 아이콘으로 교체 (영어가 보이지 않도록)
-                    if (!btn.querySelector('.custom-sidebar-toggle-icon')) {
-                        btn.innerHTML = '<span class="custom-sidebar-toggle-icon">⇔</span>';
+                    // 인라인 스타일로 강제 적용 (CSS가 안 먹힐 경우 대비)
+                    btn.style.width = '32px';
+                    btn.style.height = '32px';
+                    btn.style.borderRadius = '999px';
+                    btn.style.backgroundColor = '#667eea';
+                    btn.style.border = 'none';
+                    btn.style.boxShadow = '0 0 0 2px rgba(255, 255, 255, 0.5)';
+                    btn.style.display = 'inline-flex';
+                    btn.style.alignItems = 'center';
+                    btn.style.justifyContent = 'center';
+                    btn.style.padding = '0';
+                    btn.style.color = '#ffffff';
+                    btn.style.cursor = 'pointer';
+                    
+                    // 내부 텍스트 숨기기
+                    const spans = btn.querySelectorAll('span');
+                    spans.forEach(span => {
+                        span.style.fontSize = '0';
+                        span.style.lineHeight = '0';
+                        span.style.color = 'transparent';
+                        span.style.opacity = '0';
+                    });
+                    
+                    // 화살표 아이콘 추가 (이미 있으면 건너뛰기)
+                    if (!btn.querySelector('.custom-sidebar-arrow')) {
+                        const arrow = document.createElement('span');
+                        arrow.className = 'custom-sidebar-arrow';
+                        arrow.textContent = '⇔';
+                        arrow.style.fontSize = '18px';
+                        arrow.style.lineHeight = '1';
+                        arrow.style.color = '#ffffff';
+                        arrow.style.display = 'inline-block';
+                        btn.appendChild(arrow);
                     }
                 }
             });
