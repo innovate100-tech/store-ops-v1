@@ -2668,8 +2668,8 @@ elif page == "비용구조":
         
         # 기존 항목 표시 - Expander 제거하고 직접 표시 (중첩 문제 해결)
         if category in existing_items and existing_items[category]:
-            # 기존 항목은 기본적으로 접어두고 필요할 때만 펼치도록 처리 (모바일 스크롤 최소화)
-            with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=False):
+            # 기존 항목은 기본적으로 펼쳐 두고, 필요시 사용자가 접을 수 있게 처리
+            with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=True):
                 for item in existing_items[category]:
                     # 수정 모드 체크
                     edit_key = f"edit_{category}_{item['id']}"
