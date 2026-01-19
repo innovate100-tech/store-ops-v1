@@ -2012,11 +2012,22 @@ elif page == "재료 등록":
     render_section_divider()
     
     # 저장된 재료 표시 및 수정/삭제
-    render_section_header("등록된 재료 리스트", "📋")
+    # 제목을 화이트 모드에서도 흰색으로 표시
+    st.markdown("""
+    <div style="margin: 2rem 0 1rem 0;">
+        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            📋 등록된 재료 리스트
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
     
     if not ingredient_df.empty:
-        display_df = ingredient_df.copy()
+        # 필요한 컬럼만 선택 (재료명, 단위, 단가)
+        base_columns = [col for col in ['재료명', '단위', '단가'] if col in ingredient_df.columns]
+        display_df = ingredient_df[base_columns].copy()
+        
         # 단가 표시 포맷팅
         display_df['단가'] = display_df.apply(
             lambda x: f"{x['단가']:,.2f}원/{x['단위']}",
