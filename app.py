@@ -333,16 +333,17 @@ st.markdown("""
     
     /* ========== 사이드바 최적화 (모바일) ========== */
     @media (max-width: 768px) {
-        /* 폭을 더 줄여서 콘텐츠 공간 확보 */
+        /* 폭을 화면의 50%로 고정 (비율 연동) */
         [data-testid="stSidebar"] {
-            width: 70vw !important;
-            max-width: 260px !important;
+            width: 50vw !important;
+            max-width: 50vw !important;
             min-width: auto !important;
         }
         
         [data-testid="stSidebar"] .stButton > button {
             width: 100% !important;
-            margin-bottom: 0.25rem !important;
+            /* 버튼 간 간격을 약 15px 수준으로 */
+            margin-bottom: 15px !important;
         }
         
         /* 사이드바 카테고리 헤더: 아주 타이트하게 */
