@@ -184,62 +184,103 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     
-    /* 사이드바 토글 버튼 툴팁 숨기기 */
+    /* 사이드바 토글 버튼 툴팁 완전히 숨기기 */
+    button[title*="keyboard"],
+    button[title*="Keyboard"],
     button[title*="keyboard_double"],
     button[title*="KeyboardDouble"],
     [data-testid="stSidebar"] button[title],
-    [data-testid="stSidebar"] button::after,
-    [data-testid="stSidebar"] button::before {
-        pointer-events: none;
+    [data-testid="stSidebar"] button[title]:hover,
+    [data-testid="stSidebar"] button[title]:focus,
+    .material-icons[title*="keyboard"],
+    .material-icons[title*="Keyboard"] {
+        pointer-events: auto !important;
     }
     
-    /* Material Icons 툴팁 숨기기 */
-    .material-icons[title],
-    button .material-icons[title] {
-        pointer-events: none;
+    /* 모든 툴팁 숨기기 */
+    [title*="keyboard"],
+    [title*="Keyboard"] {
+        position: relative;
     }
     
-    /* 모든 툴팁 숨기기 (사이드바 토글 버튼) */
-    [data-testid="stSidebar"] [title*="keyboard"] {
-        pointer-events: none;
-    }
-    
-    /* 사이드바 토글 버튼의 title 속성 제거 효과 */
-    [data-testid="stSidebar"] button:hover::after,
-    [data-testid="stSidebar"] button:hover::before {
+    /* 툴팁 표시 방지 */
+    [title*="keyboard"]:hover::after,
+    [title*="Keyboard"]:hover::after,
+    [title*="keyboard"]:hover::before,
+    [title*="Keyboard"]:hover::before {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
         content: none !important;
     }
 </style>
 <script>
-    // 사이드바 토글 버튼의 툴팁 제거
-    function removeSidebarToggleTooltip() {
-        // 모든 버튼에서 keyboard_double이 포함된 title 속성 제거
-        const buttons = document.querySelectorAll('button[title*="keyboard"], button[title*="Keyboard"]');
-        buttons.forEach(button => {
-            if (button.title && (button.title.includes('keyboard') || button.title.includes('Keyboard'))) {
-                button.removeAttribute('title');
+    // 사이드바 토글 버튼의 툴팁 완전히 제거
+    function removeAllTooltips() {
+        // 모든 요소에서 keyboard 관련 title 속성 제거
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(element => {
+            if (element.title) {
+                const title = element.title.toLowerCase();
+                if (title.includes('keyboard') || title.includes('keyboard_double')) {
+                    element.removeAttribute('title');
+                    // title 속성이 다시 추가되는 것을 방지
+                    Object.defineProperty(element, 'title', {
+                        value: '',
+                        writable: false,
+                        configurable: true
+                    });
+                }
             }
         });
         
-        // Material Icons의 title 속성도 제거
-        const icons = document.querySelectorAll('.material-icons[title*="keyboard"], .material-icons[title*="Keyboard"]');
-        icons.forEach(icon => {
-            if (icon.title && (icon.title.includes('keyboard') || icon.title.includes('Keyboard'))) {
-                icon.removeAttribute('title');
+        // 버튼 요소에 대해 더 강력하게 처리
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+            if (button.title) {
+                const title = button.title.toLowerCase();
+                if (title.includes('keyboard') || title.includes('keyboard_double')) {
+                    button.removeAttribute('title');
+                    // title 속성 재설정 방지
+                    Object.defineProperty(button, 'title', {
+                        value: '',
+                        writable: false,
+                        configurable: true
+                    });
+                }
             }
         });
     }
     
+    // MutationObserver로 DOM 변경 감지
+    const observer = new MutationObserver(function(mutations) {
+        removeAllTooltips();
+    });
+    
     // 페이지 로드 시 실행
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', removeSidebarToggleTooltip);
-    } else {
-        removeSidebarToggleTooltip();
+    function initTooltipRemoval() {
+        removeAllTooltips();
+        
+        // DOM 변경 감지 시작
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['title']
+        });
     }
     
-    // Streamlit이 동적으로 요소를 추가할 수 있으므로 주기적으로 체크
-    setInterval(removeSidebarToggleTooltip, 500);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTooltipRemoval);
+    } else {
+        initTooltipRemoval();
+    }
+    
+    // Streamlit이 완전히 로드된 후에도 실행
+    window.addEventListener('load', initTooltipRemoval);
+    
+    // 주기적으로도 체크 (백업)
+    setInterval(removeAllTooltips, 300);
 </script>
 """, unsafe_allow_html=True)
 
