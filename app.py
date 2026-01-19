@@ -3312,65 +3312,133 @@ elif page == "판매 관리":
     if daily_sales_df.empty or menu_df.empty or recipe_df.empty or ingredient_df.empty:
         st.info("ABC 분석을 위해서는 메뉴, 레시피, 재료, 일일 판매 데이터가 모두 필요합니다.")
     else:
-        # 메뉴별 총 판매수량 집계
-        sales_summary = (
-            daily_sales_df.groupby('메뉴명')['판매수량']
-            .sum()
-            .reset_index()
-        )
-        sales_summary.columns = ['메뉴명', '판매수량']
+        # 날짜를 datetime으로 변환
+        daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
         
-        # 메뉴 마스터와 조인하여 판매가 가져오기
-        summary_df = pd.merge(
-            sales_summary,
-            menu_df[['메뉴명', '판매가']],
-            on='메뉴명',
-            how='left',
-        )
+        # 사용 가능한 날짜 범위
+        min_date = daily_sales_df['날짜'].min().date()
+        max_date = daily_sales_df['날짜'].max().date()
         
-        # 매출 금액 계산
-        summary_df['매출'] = summary_df['판매수량'] * summary_df['판매가']
+        # 기간 선택 필터
+        st.markdown("**📅 분석 기간 선택**")
+        col1, col2 = st.columns(2)
+        with col1:
+            analysis_start_date = st.date_input(
+                "시작일",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="sales_analysis_start_date"
+            )
+        with col2:
+            analysis_end_date = st.date_input(
+                "종료일",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="sales_analysis_end_date"
+            )
         
-        # 원가 정보 계산
-        cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
-        summary_df = pd.merge(
-            summary_df,
-            cost_df[['메뉴명', '원가']],
-            on='메뉴명',
-            how='left',
-        )
-        
-        # 총 판매 원가
-        summary_df['총판매원가'] = summary_df['판매수량'] * summary_df['원가']
-        
-        # 매출 기준 비율 및 누적 비율
-        total_revenue = summary_df['매출'].sum()
-        if total_revenue <= 0:
-            st.info("매출 데이터가 충분하지 않아 ABC 분석을 할 수 없습니다.")
+        # 기간 유효성 검사
+        if analysis_start_date > analysis_end_date:
+            st.error("⚠️ 시작일은 종료일보다 이전이어야 합니다.")
         else:
-            summary_df = summary_df.sort_values('매출', ascending=False)
-            summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
-            summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
+            # 기간 필터링
+            filtered_sales_df = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= analysis_start_date) & 
+                (daily_sales_df['날짜'].dt.date <= analysis_end_date)
+            ].copy()
             
-            # 표시용 데이터프레임 구성
-            display_df = summary_df.copy()
-            display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-            display_df['매출'] = display_df['매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-            display_df['원가'] = display_df['원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-            display_df['총판매원가'] = display_df['총판매원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-            
-            display_df = display_df[[
-                '메뉴명',
-                '판매가',
-                '판매수량',
-                '매출',
-                '비율(%)',
-                '누계 비율(%)',
-                '원가',
-                '총판매원가',
-            ]]
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            if filtered_sales_df.empty:
+                st.info(f"선택한 기간({analysis_start_date.strftime('%Y년 %m월 %d일')} ~ {analysis_end_date.strftime('%Y년 %m월 %d일')})에 해당하는 판매 데이터가 없습니다.")
+            else:
+                # 기간 표시
+                st.markdown(f"**📊 분석 기간: {analysis_start_date.strftime('%Y년 %m월 %d일')} ~ {analysis_end_date.strftime('%Y년 %m월 %d일')}**")
+                
+                # 메뉴별 총 판매수량 집계
+                sales_summary = (
+                    filtered_sales_df.groupby('메뉴명')['판매수량']
+                    .sum()
+                    .reset_index()
+                )
+                sales_summary.columns = ['메뉴명', '판매수량']
+                
+                # 메뉴 마스터와 조인하여 판매가 가져오기
+                summary_df = pd.merge(
+                    sales_summary,
+                    menu_df[['메뉴명', '판매가']],
+                    on='메뉴명',
+                    how='left',
+                )
+                
+                # 매출 금액 계산
+                summary_df['매출'] = summary_df['판매수량'] * summary_df['판매가']
+                
+                # 원가 정보 계산
+                cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+                summary_df = pd.merge(
+                    summary_df,
+                    cost_df[['메뉴명', '원가']],
+                    on='메뉴명',
+                    how='left',
+                )
+                summary_df['원가'] = summary_df['원가'].fillna(0)
+                
+                # 총 판매 원가
+                summary_df['총판매원가'] = summary_df['판매수량'] * summary_df['원가']
+                
+                # 매출 기준 비율 및 누적 비율
+                total_revenue = summary_df['매출'].sum()
+                total_cost = summary_df['총판매원가'].sum()
+                
+                if total_revenue <= 0:
+                    st.info("매출 데이터가 충분하지 않아 ABC 분석을 할 수 없습니다.")
+                else:
+                    # 총합계 정보 표시
+                    render_section_divider()
+                    st.markdown("**💰 기간 내 총합계 정보**")
+                    
+                    cost_ratio = (total_cost / total_revenue * 100) if total_revenue > 0 else 0.0
+                    profit = total_revenue - total_cost
+                    profit_ratio = (profit / total_revenue * 100) if total_revenue > 0 else 0.0
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("총 매출", f"{total_revenue:,.0f}원")
+                    with col2:
+                        st.metric("총 원가", f"{total_cost:,.0f}원")
+                    with col3:
+                        st.metric("원가율", f"{cost_ratio:.1f}%")
+                    with col4:
+                        st.metric("이익 / 이익률", f"{profit:,.0f}원", f"{profit_ratio:.1f}%")
+                    
+                    render_section_divider()
+                    
+                    # ABC 분석 테이블
+                    summary_df = summary_df.sort_values('매출', ascending=False)
+                    summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
+                    summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
+                    
+                    # 표시용 데이터프레임 구성
+                    display_df = summary_df.copy()
+                    display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    display_df['매출'] = display_df['매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    display_df['원가'] = display_df['원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    display_df['총판매원가'] = display_df['총판매원가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    
+                    display_df = display_df[[
+                        '메뉴명',
+                        '판매가',
+                        '판매수량',
+                        '매출',
+                        '비율(%)',
+                        '누계 비율(%)',
+                        '원가',
+                        '총판매원가',
+                    ]]
+                    
+                    st.markdown("**📋 메뉴별 상세 분석**")
+                    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # 재료 사용량 집계 페이지
 elif page == "재료 사용량 집계":
