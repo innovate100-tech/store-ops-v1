@@ -523,32 +523,25 @@ st.markdown("""
         padding: 0.25rem 0.5rem;
     }
     
-    /* 사이드바 접기/펼치기 버튼 스타일 */
-    [data-testid="stSidebarHeader"] button {
-        position: relative;
-        width: 32px;
-        height: 32px;
-        border-radius: 999px;
+    /* 사이드바 접기/펼치기 버튼 공통 스타일 (열림/닫힘 상태 모두 적용하기 위해 클래스 사용) */
+    .custom-sidebar-toggle-button {
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 999px !important;
         background-color: #667eea !important;  /* 보이는 색 */
         border: none !important;
-        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         padding: 0 !important;
+        color: #ffffff !important;
+        cursor: pointer;
     }
     
-    /* 버튼 안에 있는 영문 텍스트(예: keyboard_double_arrow_left)를 숨김 */
-    [data-testid="stSidebarHeader"] button span {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        color: transparent !important;
-    }
-    
-    /* 대신 화살표 아이콘을 pseudo-element 로 그림 */
-    [data-testid="stSidebarHeader"] button::before {
-        content: '⇔';
+    .custom-sidebar-toggle-button .custom-sidebar-toggle-icon {
         font-size: 18px;
+        line-height: 1;
         color: #ffffff;
     }
     
@@ -796,25 +789,27 @@ st.markdown("""
                 });
             }
             
-            // 사이드바 열기/닫기 토글 버튼 색상 및 툴팁 제거
-            const sidebarToggleButtons = document.querySelectorAll(
-                'button[aria-label*="sidebar" i], ' +
-                'button[aria-label*="사이드바"], ' +
-                'button[title*="sidebar" i], ' +
-                'button[title*="사이드바"]'
-            );
-            
-            sidebarToggleButtons.forEach(btn => {
-                // hover 시 뜨는 영어/한글 툴팁 제거
-                btn.removeAttribute('title');
-                btn.removeAttribute('aria-label');
+            // 1) keyboard_double_* 같은 텍스트를 가진 버튼을 모두 찾아서 공통 스타일/아이콘 적용
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                const text = (btn.textContent || '').trim().toLowerCase();
                 
-                // 버튼이 명확하게 보이도록 스타일 적용
-                btn.style.backgroundColor = '#667eea';
-                btn.style.color = '#ffffff';
-                btn.style.borderRadius = '999px';
-                btn.style.border = 'none';
-                btn.style.boxShadow = '0 0 0 2px rgba(255, 255, 255, 0.6)';
+                // keyboard_double_* 텍스트를 가진 버튼이면 커스텀 토글 버튼으로 변환
+                if (text.includes('keyboard') && text.includes('double')) {
+                    // 툴팁/접근성 텍스트 제거
+                    btn.removeAttribute('title');
+                    btn.removeAttribute('aria-label');
+                    
+                    // 클래스 부여로 공통 스타일 적용
+                    if (!btn.classList.contains('custom-sidebar-toggle-button')) {
+                        btn.classList.add('custom-sidebar-toggle-button');
+                    }
+                    
+                    // 내부 텍스트를 커스텀 아이콘으로 교체 (영어가 보이지 않도록)
+                    if (!btn.querySelector('.custom-sidebar-toggle-icon')) {
+                        btn.innerHTML = '<span class="custom-sidebar-toggle-icon">⇔</span>';
+                    }
+                }
             });
         }
         setInterval(watchSidebar, 1000);
