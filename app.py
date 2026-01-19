@@ -2249,42 +2249,79 @@ elif page == "레시피 등록":
                     how='left'
                 )
                 
-                st.markdown("**📋 재료별 사용량 수정**")
-                
-                # 각 재료별 사용량 수정 UI
+                # 요리책 스타일 카드 레이아웃
+                st.markdown(f"""
+                <div style="border-radius: 12px; padding: 1.5rem; margin: 1rem 0 2rem 0;
+                            background: linear-gradient(135deg, #1f2937 0%, #111827 60%, #020617 100%);
+                            box-shadow: 0 8px 20px rgba(0,0,0,0.35); border: 1px solid rgba(148,163,184,0.4);">
+                    <h3 style="margin: 0 0 1rem 0; color: #ffffff; font-weight: 700; font-size: 1.4rem;">
+                        🍽️ {filter_menu}
+                    </h3>
+                    <p style="margin: 0 0 1.2rem 0; color: #e5e7eb; font-size: 0.95rem;">
+                        이 메뉴를 구성하는 재료와 1인분 기준 사용량을 책처럼 한 눈에 확인하고, 바로 수정·삭제할 수 있습니다.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                st.markdown("**📋 구성 재료 및 사용량**")
+
+                # 각 재료별 사용량 수정/삭제 UI
                 for idx, row in display_recipe_df.iterrows():
                     ing_name = row['재료명']
                     unit = row['단위'] if pd.notna(row['단위']) else ""
                     current_qty = float(row['사용량'])
-                    
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1:
-                        st.write(f"**{ing_name}** ({unit})")
-                    with col2:
-                        new_qty = st.number_input(
-                            f"사용량 - {ing_name}",
-                            min_value=0.0,
-                            value=current_qty,
-                            step=0.1,
-                            format="%.2f",
-                            key=f"edit_recipe_qty_{filter_menu}_{ing_name}"
-                        )
-                    with col3:
-                        if st.button("💾 저장", key=f"save_recipe_{filter_menu}_{ing_name}"):
-                            if new_qty <= 0:
-                                st.error("사용량은 0보다 큰 값이어야 합니다.")
-                            else:
-                                try:
-                                    # 동일한 메뉴-재료에 대해 qty만 업데이트 (upsert)
-                                    save_recipe(filter_menu, ing_name, new_qty)
-                                    st.success(f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다.")
+
+                    row_container = st.container()
+                    with row_container:
+                        col1, col2, col3, col4 = st.columns([3, 3, 2, 1.2])
+
+                        with col1:
+                            st.markdown(
+                                f"<div style='font-weight:600; color:#e5e7eb;'>{ing_name}</div>"
+                                f"<div style='font-size:0.85rem; color:#9ca3af;'>{unit}</div>",
+                                unsafe_allow_html=True,
+                            )
+                        with col2:
+                            new_qty = st.number_input(
+                                "사용량",
+                                min_value=0.0,
+                                value=current_qty,
+                                step=0.1,
+                                format="%.2f",
+                                key=f"edit_recipe_qty_{filter_menu}_{ing_name}",
+                            )
+                        with col3:
+                            if st.button("💾 수정", key=f"save_recipe_{filter_menu}_{ing_name}"):
+                                if new_qty <= 0:
+                                    st.error("사용량은 0보다 큰 값이어야 합니다.")
+                                else:
                                     try:
-                                        load_csv.clear()
-                                    except Exception:
-                                        pass
-                                    st.rerun()
+                                        save_recipe(filter_menu, ing_name, new_qty)
+                                        st.success(
+                                            f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
+                                        )
+                                        try:
+                                            load_csv.clear()
+                                        except Exception:
+                                            pass
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"사용량 수정 중 오류: {e}")
+                        with col4:
+                            if st.button("🗑️ 삭제", key=f"delete_recipe_{filter_menu}_{ing_name}"):
+                                try:
+                                    success, msg = delete_recipe(filter_menu, ing_name)
+                                    if success:
+                                        st.success(f"'{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
+                                        try:
+                                            load_csv.clear()
+                                        except Exception:
+                                            pass
+                                        st.rerun()
+                                    else:
+                                        st.error(msg)
                                 except Exception as e:
-                                    st.error(f"사용량 수정 중 오류: {e}")
+                                    st.error(f"레시피 삭제 중 오류: {e}")
         else:
             st.info("등록된 레시피가 없습니다.")
     else:
