@@ -1751,34 +1751,37 @@ elif page == "메뉴 등록":
         
         st.markdown("---")
         
-        # 카테고리별 배경색 CSS 스타일 정의
+        # 카테고리별 배경색 CSS 스타일 정의 (더 진하고 넓게)
         st.markdown("""
         <style>
         .menu-row-wrapper {
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            border-radius: 4px;
-            border-left: 4px solid;
+            padding: 1rem 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            border-left: 6px solid;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
         }
         .menu-row-대표메뉴 {
-            background-color: #1e3a8a20;
-            border-left-color: #1e3a8a;
+            background-color: #1e3a8a80;
+            border-left-color: #1e40af;
         }
         .menu-row-주력메뉴 {
-            background-color: #16653420;
-            border-left-color: #166534;
+            background-color: #16653480;
+            border-left-color: #15803d;
         }
         .menu-row-유인메뉴 {
-            background-color: #ea580c20;
-            border-left-color: #ea580c;
+            background-color: #ea580c80;
+            border-left-color: #f97316;
         }
         .menu-row-보조메뉴 {
-            background-color: #6b728020;
-            border-left-color: #6b7280;
+            background-color: #6b728080;
+            border-left-color: #9ca3af;
         }
         .menu-row-기타메뉴 {
-            background-color: #3b82f620;
-            border-left-color: #3b82f6;
+            background-color: #3b82f680;
+            border-left-color: #60a5fa;
         }
         </style>
         """, unsafe_allow_html=True)
