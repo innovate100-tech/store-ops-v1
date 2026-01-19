@@ -2266,11 +2266,11 @@ elif page == "레시피 등록":
                             min_value=0.0,
                             value=current_qty,
                             step=0.1,
-                            format=\"%.2f\",
-                            key=f\"edit_recipe_qty_{filter_menu}_{ing_name}\"
+                            format="%.2f",
+                            key=f"edit_recipe_qty_{filter_menu}_{ing_name}"
                         )
                     with col3:
-                        if st.button(\"💾 저장\", key=f\"save_recipe_{filter_menu}_{ing_name}\"):
+                        if st.button("💾 저장", key=f"save_recipe_{filter_menu}_{ing_name}"):
                             if new_qty <= 0:
                                 st.error(\"사용량은 0보다 큰 값이어야 합니다.\")
                             else:
