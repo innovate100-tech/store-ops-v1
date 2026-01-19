@@ -2768,22 +2768,50 @@ elif page == "실제정산":
             render_section_divider()
             st.markdown("**💸 해당 월 실제 비용 입력 (5대 비용 항목별)**")
             
-            # 5대 비용 항목 정의 (모두 절대 금액으로 입력)
+            # 5대 비용 항목 정의
             expense_categories = {
-                '임차료': {'icon': '🏢', 'description': '임차료 관련 모든 비용'},
-                '인건비': {'icon': '👥', 'description': '인건비 관련 모든 비용'},
-                '재료비': {'icon': '🥬', 'description': '재료비 관련 모든 비용'},
-                '공과금': {'icon': '💡', 'description': '공과금 관련 모든 비용'},
-                '부가세&카드수수료': {'icon': '💳', 'description': '부가세 및 카드수수료 관련 모든 비용'}
+                '임차료': {'icon': '🏢', 'description': '임차료', 'type': 'fixed', 'fixed_items': ['임차료']},
+                '인건비': {'icon': '👥', 'description': '인건비 관련 모든 비용', 'type': 'variable'},
+                '재료비': {'icon': '🥬', 'description': '재료비 관련 모든 비용', 'type': 'variable'},
+                '공과금': {'icon': '💡', 'description': '공과금 관련 모든 비용', 'type': 'variable'},
+                '부가세&카드수수료': {'icon': '💳', 'description': '부가세 및 카드수수료 (매출 대비 비율)', 'type': 'rate', 'fixed_items': ['부가세', '카드수수료']}
             }
             
-            # 세션 상태에 비용 항목별 세부 데이터 저장
+            # 세션 상태에 비용 항목별 세부 데이터 저장 및 고정 항목 초기화
             if f'actual_expense_items_{selected_year}_{selected_month}' not in st.session_state:
-                st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = {
-                    cat: [] for cat in expense_categories.keys()
-                }
-            
-            expense_items = st.session_state[f'actual_expense_items_{selected_year}_{selected_month}']
+                expense_items = {cat: [] for cat in expense_categories.keys()}
+                
+                # 고정 항목 초기화
+                # 임차료: 임차료 1개 항목
+                if '임차료' in expense_items:
+                    expense_items['임차료'] = [{'item_name': '임차료', 'amount': 0}]
+                
+                # 부가세&카드수수료: 부가세, 카드수수료 2개 항목 (비율로 저장)
+                if '부가세&카드수수료' in expense_items:
+                    expense_items['부가세&카드수수료'] = [
+                        {'item_name': '부가세', 'amount': 0.0},  # 비율(%)
+                        {'item_name': '카드수수료', 'amount': 0.0}  # 비율(%)
+                    ]
+                
+                st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+            else:
+                expense_items = st.session_state[f'actual_expense_items_{selected_year}_{selected_month}']
+                
+                # 고정 항목이 없으면 초기화
+                if '임차료' in expense_items and not expense_items['임차료']:
+                    expense_items['임차료'] = [{'item_name': '임차료', 'amount': 0}]
+                
+                if '부가세&카드수수료' in expense_items:
+                    fixed_items = ['부가세', '카드수수료']
+                    existing_names = [item.get('item_name') for item in expense_items['부가세&카드수수료']]
+                    for fixed_name in fixed_items:
+                        if fixed_name not in existing_names:
+                            expense_items['부가세&카드수수료'].append({'item_name': fixed_name, 'amount': 0.0})
+                    # 순서 정렬
+                    expense_items['부가세&카드수수료'] = sorted(
+                        expense_items['부가세&카드수수료'],
+                        key=lambda x: fixed_items.index(x['item_name']) if x['item_name'] in fixed_items else 999
+                    )
             
             # 한글 원화 변환 함수
             def format_korean_currency(amount):
@@ -2822,69 +2850,152 @@ elif page == "실제정산":
                     st.caption(f"{info['description']}")
                 
                 # 카테고리별 총액 계산
-                category_total = sum(item.get('amount', 0) for item in expense_items[category])
+                if info['type'] == 'rate':
+                    # 부가세&카드수수료: 비율 합계를 금액으로 변환
+                    total_rate = sum(item.get('amount', 0) for item in expense_items[category])
+                    category_total = (month_total_sales * total_rate / 100) if month_total_sales > 0 else 0
+                else:
+                    # 절대 금액
+                    category_total = sum(item.get('amount', 0) for item in expense_items[category])
+                
                 category_totals[category] = category_total
                 
                 with col2:
                     if category_total > 0:
-                        st.markdown(f"""
-                        <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
-                            <strong style="color: #667eea; font-size: 1.1rem;">
-                                총액: {format_korean_currency(int(category_total))}
-                            </strong>
-                            <div style="font-size: 0.85rem; color: #666;">
-                                ({category_total:,.0f}원)
+                        if info['type'] == 'rate':
+                            total_rate = sum(item.get('amount', 0) for item in expense_items[category])
+                            st.markdown(f"""
+                            <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
+                                <strong style="color: #667eea; font-size: 1.1rem;">
+                                    총 비율: {total_rate:.2f}%
+                                </strong>
+                                <div style="font-size: 0.85rem; color: #666;">
+                                    ({category_total:,.0f}원)
+                                </div>
                             </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
+                                <strong style="color: #667eea; font-size: 1.1rem;">
+                                    총액: {format_korean_currency(int(category_total))}
+                                </strong>
+                                <div style="font-size: 0.85rem; color: #666;">
+                                    ({category_total:,.0f}원)
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
                 
-                # 기존 항목 표시
+                # 고정 항목인지 확인
+                is_fixed = 'fixed_items' in info
+                
+                # 항목 표시 및 수정
                 if expense_items[category]:
-                    with st.expander(f"📋 입력된 항목 ({len(expense_items[category])}개)", expanded=False):
-                        for idx, item in enumerate(expense_items[category]):
-                            col_a, col_b, col_c = st.columns([4, 3, 1])
-                            with col_a:
+                    for idx, item in enumerate(expense_items[category]):
+                        col_a, col_b, col_c = st.columns([3, 2, 1])
+                        with col_a:
+                            if is_fixed:
+                                # 고정 항목: 항목명 표시만
                                 st.write(f"**{item.get('item_name', '')}**")
-                            with col_b:
-                                st.write(f"{format_korean_currency(int(item.get('amount', 0)))} ({int(item.get('amount', 0)):,.0f}원)")
-                            with col_c:
+                            else:
+                                # 수정 가능한 항목명
+                                edit_key = f"edit_name_{category}_{idx}_{selected_year}_{selected_month}"
+                                if edit_key not in st.session_state:
+                                    st.session_state[edit_key] = item.get('item_name', '')
+                                edited_name = st.text_input(
+                                    "항목명",
+                                    value=st.session_state[edit_key],
+                                    key=edit_key,
+                                    label_visibility="visible" if not is_fixed else "collapsed"
+                                )
+                                if edited_name != item.get('item_name'):
+                                    item['item_name'] = edited_name
+                                    st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                        
+                        with col_b:
+                            if info['type'] == 'rate':
+                                # 비율 입력
+                                edit_amount_key = f"edit_amount_{category}_{idx}_{selected_year}_{selected_month}"
+                                if edit_amount_key not in st.session_state:
+                                    st.session_state[edit_amount_key] = float(item.get('amount', 0))
+                                
+                                edited_rate = st.number_input(
+                                    "매출 대비 비율 (%)",
+                                    min_value=0.0,
+                                    max_value=100.0,
+                                    value=st.session_state[edit_amount_key],
+                                    step=0.1,
+                                    format="%.2f",
+                                    key=edit_amount_key
+                                )
+                                
+                                if edited_rate != item.get('amount'):
+                                    item['amount'] = edited_rate
+                                    st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                                
+                                # 계산된 금액 표시
+                                calculated_amount = (month_total_sales * edited_rate / 100) if month_total_sales > 0 else 0
+                                st.caption(f"→ {calculated_amount:,.0f}원")
+                            else:
+                                # 절대 금액 입력
+                                edit_amount_key = f"edit_amount_{category}_{idx}_{selected_year}_{selected_month}"
+                                if edit_amount_key not in st.session_state:
+                                    st.session_state[edit_amount_key] = int(item.get('amount', 0))
+                                
+                                edited_amount = st.number_input(
+                                    "금액 (원)",
+                                    min_value=0,
+                                    value=st.session_state[edit_amount_key],
+                                    step=10000,
+                                    format="%d",
+                                    key=edit_amount_key
+                                )
+                                
+                                if edited_amount != item.get('amount'):
+                                    item['amount'] = edited_amount
+                                    st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                        
+                        with col_c:
+                            # 고정 항목이 아닌 경우에만 삭제 버튼 표시
+                            if not is_fixed:
                                 if st.button("🗑️", key=f"del_{category}_{idx}_{selected_year}_{selected_month}", help="삭제"):
                                     expense_items[category].pop(idx)
                                     st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
                                     st.rerun()
                 
-                # 새 항목 추가
-                with st.container():
-                    st.markdown("---")
-                    col1, col2, col3 = st.columns([3, 2, 1])
-                    with col1:
-                        new_item_name = st.text_input(
-                            "항목명",
-                            key=f"new_item_name_{category}_{selected_year}_{selected_month}",
-                            placeholder="예: 월세, 관리비 등"
-                        )
-                    with col2:
-                        new_item_amount = st.number_input(
-                            "금액 (원)",
-                            min_value=0,
-                            value=0,
-                            step=10000,
-                            format="%d",
-                            key=f"new_item_amount_{category}_{selected_year}_{selected_month}"
-                        )
-                    with col3:
-                        st.write("")
-                        st.write("")
-                        if st.button("➕ 추가", key=f"add_{category}_{selected_year}_{selected_month}", use_container_width=True):
-                            if new_item_name.strip():
-                                expense_items[category].append({
-                                    'item_name': new_item_name.strip(),
-                                    'amount': new_item_amount
-                                })
-                                st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
-                                st.rerun()
-                            else:
-                                st.error("항목명을 입력해주세요.")
+                # 고정 항목이 아닌 경우에만 새 항목 추가
+                if not is_fixed:
+                    with st.container():
+                        st.markdown("---")
+                        col1, col2, col3 = st.columns([3, 2, 1])
+                        with col1:
+                            new_item_name = st.text_input(
+                                "항목명",
+                                key=f"new_item_name_{category}_{selected_year}_{selected_month}",
+                                placeholder="예: 월세, 관리비 등"
+                            )
+                        with col2:
+                            new_item_amount = st.number_input(
+                                "금액 (원)",
+                                min_value=0,
+                                value=0,
+                                step=10000,
+                                format="%d",
+                                key=f"new_item_amount_{category}_{selected_year}_{selected_month}"
+                            )
+                        with col3:
+                            st.write("")
+                            st.write("")
+                            if st.button("➕ 추가", key=f"add_{category}_{selected_year}_{selected_month}", use_container_width=True):
+                                if new_item_name.strip():
+                                    expense_items[category].append({
+                                        'item_name': new_item_name.strip(),
+                                        'amount': new_item_amount
+                                    })
+                                    st.session_state[f'actual_expense_items_{selected_year}_{selected_month}'] = expense_items
+                                    st.rerun()
+                                else:
+                                    st.error("항목명을 입력해주세요.")
             
             # 전체 비용 합계 계산
             total_actual_cost = sum(category_totals.values())
