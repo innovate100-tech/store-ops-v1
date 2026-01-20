@@ -2789,9 +2789,9 @@ elif page == "메뉴 등록":
                         else:
                             st.error(message)
                     except Exception as e:
-                    # Phase 3: 에러 메시지 표준화
-                    error_msg = handle_data_error("메뉴 수정", e)
-                    st.error(error_msg)
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 수정", e)
+                        st.error(error_msg)
     else:
         st.info("등록된 메뉴가 없습니다.")
 
