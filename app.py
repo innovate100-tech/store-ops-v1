@@ -1316,15 +1316,17 @@ with st.sidebar:
             ("매출구조", "📈"),
             ("실제정산", "🧾"),
         ],
-        "기타": [
+        "📊 핵심 대시보드": [
+            ("핵심 대시보드", "📊"),
+        ],
+        "📄 리포트": [
             ("주간 리포트", "📄"),
-            ("통합 대시보드", "📊"),
         ]
     }
     
     # 선택된 페이지 확인
     if 'current_page' not in st.session_state:
-        st.session_state.current_page = "점장 마감"
+        st.session_state.current_page = "핵심 대시보드"
     
     # 모든 메뉴 항목 추출 (순서 유지)
     all_menu_items = []
@@ -4108,40 +4110,135 @@ elif page == "주간 리포트":
         else:
             st.info("생성된 리포트가 없습니다.")
 
-# 통합 대시보드 페이지
-elif page == "통합 대시보드":
-    st.header("📊 통합 대시보드")
+# 핵심 대시보드 페이지
+elif page == "핵심 대시보드":
+    render_page_header("핵심 대시보드", "📊")
     
-    # 데이터 로드
+    from datetime import datetime, timedelta
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    # ========== 1. 오늘 뭐하지? (핵심 한눈에 보기) ==========
+    render_section_header("오늘 뭐하지?", "🎯")
+    
+    # 발주 필요 재료 확인
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+    
+    if not ingredient_df.empty and not inventory_df.empty:
+        # 재료 사용량 계산
+        usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+        
+        # 발주 추천 계산
+        order_recommendation = calculate_order_recommendation(
+            ingredient_df, inventory_df, usage_df, days_for_avg=7, forecast_days=3
+        )
+        
+        if not order_recommendation.empty:
+            st.warning(f"🚨 발주 필요 재료: {len(order_recommendation)}개")
+            display_order = order_recommendation.head(5).copy()
+            display_order['예상금액'] = display_order['예상금액'].apply(lambda x: f"{int(x):,}원")
+            st.dataframe(
+                display_order[['재료명', '단위', '발주필요량', '예상금액']],
+                use_container_width=True,
+                hide_index=True
+            )
+            if len(order_recommendation) > 5:
+                st.caption(f"외 {len(order_recommendation) - 5}개 재료 더 있음 (발주 관리 페이지에서 전체 확인)")
+        else:
+            st.success("✅ 발주 필요 재료 없음")
+    
+    # 원가율 경고 메뉴 확인
+    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    if not menu_df.empty and not recipe_df.empty and not ingredient_df.empty:
+        cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+        if not cost_df.empty:
+            high_cost_menus = cost_df[cost_df['원가율'] >= 35].sort_values('원가율', ascending=False)
+            if not high_cost_menus.empty:
+                st.warning(f"⚠️ 원가율 경고 메뉴: {len(high_cost_menus)}개 (35% 이상)")
+                display_cost = high_cost_menus.head(5).copy()
+                display_cost['판매가'] = display_cost['판매가'].apply(lambda x: f"{int(x):,}원")
+                display_cost['원가'] = display_cost['원가'].apply(lambda x: f"{int(x):,}원")
+                display_cost['원가율'] = display_cost['원가율'].apply(lambda x: f"{x:.1f}%")
+                st.dataframe(
+                    display_cost[['메뉴명', '판매가', '원가', '원가율']],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                if len(high_cost_menus) > 5:
+                    st.caption(f"외 {len(high_cost_menus) - 5}개 메뉴 더 있음 (원가 파악 페이지에서 전체 확인)")
+            else:
+                st.success("✅ 원가율 경고 메뉴 없음")
+    
+    render_section_divider()
+    
+    # ========== 2. 오늘 매장은? ==========
+    render_section_header("오늘 매장은?", "🏪")
+    
+    # 오늘 목표매출 vs 어제 매출
     sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-    
-    # 조인된 데이터 표시
-    render_section_header("매출 & 방문자 통합 데이터", "📋")
-    merged_df = merge_sales_visitors(sales_df, visitors_df)
-    
-    if not merged_df.empty:
-        display_df = merged_df.copy()
-        if '날짜' in display_df.columns:
-            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-        if '총매출' in display_df.columns:
-            display_df['총매출'] = display_df['총매출'].apply(
-                lambda x: f"{int(x):,}원" if pd.notna(x) else "-"
-            )
-        if '방문자수' in display_df.columns:
-            display_df['방문자수'] = display_df['방문자수'].apply(
-                lambda x: f"{int(x):,}명" if pd.notna(x) else "-"
-            )
+    if not sales_df.empty:
+        sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
+        today_sales = sales_df[sales_df['날짜'].dt.date == today]['총매출'].sum()
+        yesterday_sales = sales_df[sales_df['날짜'].dt.date == yesterday]['총매출'].sum()
         
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-        # 상관계수 계산 및 표시
-        render_section_divider()
-        render_section_header("매출-방문자 상관관계 분석", "📈")
-        correlation = calculate_correlation(sales_df, visitors_df)
-        render_correlation_info(correlation)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("오늘 매출", f"{today_sales:,.0f}원" if today_sales > 0 else "0원")
+        with col2:
+            diff = today_sales - yesterday_sales
+            diff_pct = (diff / yesterday_sales * 100) if yesterday_sales > 0 else 0
+            st.metric("어제 대비", f"{diff:+,.0f}원", f"{diff_pct:+.1f}%")
+    
+    # 오늘 근무직원 (임시 - 추후 직원 연락망 기능 추가 시 연결)
+    st.info("👥 오늘 근무직원: 직원 연락망 기능 준비 중")
+    
+    # 발주필요 (위에서 계산한 것 요약)
+    if not order_recommendation.empty:
+        total_order_amount = order_recommendation['예상금액'].sum()
+        st.metric("발주 예상 금액", f"{total_order_amount:,.0f}원")
+    
+    render_section_divider()
+    
+    # ========== 3. 게시판 ==========
+    render_section_header("게시판", "📌")
+    
+    # 게시판 데이터 (임시 - 추후 DB 연결)
+    if 'board_posts' not in st.session_state:
+        st.session_state.board_posts = []
+    
+    # 게시글 작성
+    with st.expander("✏️ 새 게시글 작성", expanded=False):
+        post_title = st.text_input("제목", key="board_title")
+        post_content = st.text_area("내용", key="board_content", height=150)
+        if st.button("작성", key="board_submit"):
+            if post_title and post_content:
+                new_post = {
+                    'id': len(st.session_state.board_posts) + 1,
+                    'title': post_title,
+                    'content': post_content,
+                    'author': get_current_store_name(),
+                    'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                }
+                st.session_state.board_posts.insert(0, new_post)
+                st.success("게시글이 작성되었습니다!")
+                st.rerun()
+    
+    # 게시글 목록
+    if st.session_state.board_posts:
+        for post in st.session_state.board_posts:
+            with st.container():
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid #667eea;">
+                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">{post['title']}</div>
+                    <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">{post['content']}</div>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{post['author']} • {post['date']}</div>
+                </div>
+                """, unsafe_allow_html=True)
     else:
-        st.info("통합할 데이터가 없습니다. 매출과 방문자 데이터를 먼저 입력해주세요.")
+        st.info("게시글이 없습니다. 첫 게시글을 작성해보세요!")
 
 # 비용구조 페이지
 elif page == "비용구조":
