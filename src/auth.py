@@ -175,10 +175,20 @@ def apply_dev_mode_session():
     DEV MODE 세션 설정
     로컬 개발 시 로그인 없이 앱을 사용하기 위한 더미 세션 값 설정
     
+    ⚠️ 프로덕션 환경에서는 자동으로 비활성화됩니다.
+    
     Returns:
         bool: DEV MODE 활성화 여부
     """
     try:
+        # 프로덕션 환경 체크
+        import os
+        # Streamlit Cloud 환경 변수 체크
+        if os.getenv('STREAMLIT_SERVER_ENVIRONMENT') == 'production':
+            logger.info("프로덕션 환경 감지: DEV MODE 비활성화")
+            return False
+        
+        # 로컬 환경에서만 DEV MODE 허용
         dev_mode = st.secrets.get("app", {}).get("dev_mode", False)
         
         if dev_mode:

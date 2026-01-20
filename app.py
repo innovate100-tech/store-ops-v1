@@ -2659,8 +2659,9 @@ elif page == "메뉴 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (카테고리 변경): {e}")
                             st.success(f"✅ 카테고리가 '{new_category}'로 변경되었습니다.")
                         else:
                             st.error(message)
@@ -2705,8 +2706,9 @@ elif page == "메뉴 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 삭제): {e}")
                             # session_state에서도 제거
                             if menu_name in st.session_state[menu_order_key]:
                                 del st.session_state[menu_order_key][menu_name]
@@ -2760,8 +2762,9 @@ elif page == "메뉴 등록":
                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 일괄 저장): {e}")
                         # 순서 재정렬
                         remaining_menus = list(st.session_state[menu_order_key].keys())
                         st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
@@ -2864,8 +2867,9 @@ elif page == "재료 등록":
                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (재료 저장): {e}")
                         st.success(f"✅ 재료가 저장되었습니다! ({ingredient_name}, {unit_display})")
                         # 입력 필드 초기화 (session_state로)
                         if 'ingredient_name' in st.session_state:
@@ -3069,8 +3073,9 @@ elif page == "재료 등록":
                                     # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                     try:
                                         st.cache_data.clear()
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"캐시 클리어 실패 (재료 수정): {e}")
                                     st.success(f"✅ {message}")
                                 else:
                                     st.error(message)
@@ -3098,8 +3103,9 @@ elif page == "재료 등록":
                                     # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                     try:
                                         st.cache_data.clear()
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"캐시 클리어 실패 (재료 삭제): {e}")
                                     st.success(f"✅ {message}")
                                 else:
                                     st.error(message)
@@ -3444,8 +3450,9 @@ elif page == "레시피 등록":
                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 저장): {e}")
                         st.success(success_msg)
                         st.balloons()
     
@@ -3499,8 +3506,9 @@ elif page == "레시피 등록":
                         menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
                         if menu_result.data and menu_result.data[0].get('cooking_method'):
                             cooking_method_text = menu_result.data[0]['cooking_method']
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"조리방법 조회 실패: {e}")
                 
                 # 원가 정보
                 # Phase 1: 안전한 DataFrame 접근
@@ -3658,8 +3666,9 @@ elif page == "레시피 등록":
                                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                         try:
                                             st.cache_data.clear()
-                                        except Exception:
-                                            pass
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 수정): {e}")
                                         st.success(
                                             f"✅ '{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
                                         )
@@ -3673,8 +3682,9 @@ elif page == "레시피 등록":
                                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                         try:
                                             st.cache_data.clear()
-                                        except Exception:
-                                            pass
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 삭제): {e}")
                                         st.success(f"✅ '{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
                                     else:
                                         st.error(msg)
@@ -4241,8 +4251,9 @@ elif page == "실제정산":
                             )
                             try:
                                 load_csv.clear()
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (실제 정산 저장): {e}")
                             st.rerun()
                     except Exception as e:
                         # Phase 3: 에러 메시지 표준화
@@ -5360,7 +5371,7 @@ elif page == "통합 대시보드":
             (targets_df_dashboard['월'] == current_month)
         ]
         if not target_row_dashboard.empty:
-            target_sales_dashboard = float(target_row_dashboard.iloc[0].get('목표매출', 0))
+            target_sales_dashboard = float(safe_get_value(target_row_dashboard, '목표매출', 0))
         
         if not merged_df_dashboard.empty:
             # 1. 이번달 요약
@@ -5795,12 +5806,13 @@ elif page == "통합 대시보드":
                                         menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
                                         if menu_result.data and menu_result.data[0].get('cooking_method'):
                                             cooking_method_text = menu_result.data[0]['cooking_method']
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    import logging
+                                    logging.getLogger(__name__).warning(f"조리방법 조회 실패 (대시보드): {e}")
                                 
                                 # 원가 정보
-                                cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
-                                cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
+                                cost = int(safe_get_value(menu_cost_info, '원가', 0)) if not menu_cost_info.empty else 0
+                                cost_rate = float(safe_get_value(menu_cost_info, '원가율', 0)) if not menu_cost_info.empty else 0
                                 
                                 # 메뉴 정보 카드
                                 col1, col2, col3 = st.columns(3)
@@ -6363,8 +6375,9 @@ elif page == "목표 비용구조" or page == "비용구조":
                                         # 캐시된 비용구조 데이터를 무효화하여 즉시 반영되도록 처리
                                         try:
                                             load_expense_structure.clear()
-                                        except Exception:
-                                            pass
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (비용구조 수정): {e}")
                                         st.session_state[edit_key] = False
                                         st.success("수정되었습니다!")
                                         st.rerun()
@@ -6401,8 +6414,9 @@ elif page == "목표 비용구조" or page == "비용구조":
                                     delete_expense_item(item['id'])
                                     try:
                                         load_expense_structure.clear()
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"캐시 클리어 실패 (비용구조 삭제): {e}")
                                     st.success("삭제되었습니다!")
                                     st.rerun()
                                 except Exception as e:
@@ -6453,8 +6467,9 @@ elif page == "목표 비용구조" or page == "비용구조":
                                     save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount)
                                     try:
                                         load_expense_structure.clear()
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"캐시 클리어 실패 (비용구조 고정비 저장): {e}")
                                     # 입력 필드 초기화를 위해 카운터 증가
                                     st.session_state[reset_key] += 1
                                     st.success(f"{category} 항목이 추가되었습니다!")
@@ -6524,8 +6539,9 @@ elif page == "목표 비용구조" or page == "비용구조":
                                     save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate)
                                     try:
                                         load_expense_structure.clear()
-                                    except Exception:
-                                        pass
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"캐시 클리어 실패 (비용구조 변동비 저장): {e}")
                                     # 입력 필드 초기화를 위해 카운터 증가
                                     st.session_state[reset_key] += 1
                                     st.success(f"{category} 항목이 추가되었습니다!")

@@ -1109,11 +1109,11 @@ def save_key_menus(menu_list):
 def save_daily_close(date, store_name, card_sales, cash_sales, total_sales, 
                      visitors, sales_items, issues, memo):
     """
-    일일 마감 데이터 통합 저장
+    일일 마감 데이터 통합 저장 (트랜잭션 처리)
     
-    Phase 2: 트랜잭션 처리 개선
+    Phase 3: SQL 함수 기반 트랜잭션 처리
     - 여러 테이블 저장 작업의 원자성 보장
-    - 실패 시 롤백 시도
+    - 실패 시 자동 롤백
     """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
@@ -1123,47 +1123,40 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
     if not store_id:
         raise Exception("No store_id found")
     
-    # Phase 2: 트랜잭션 처리 - 저장된 데이터 추적 (롤백용)
-    saved_operations = []
     date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
     
     try:
-        # sales_items를 JSON으로 변환
-        sales_items_json = json.dumps(sales_items, ensure_ascii=False)
+        # sales_items를 JSONB 형식으로 변환
+        sales_items_json = None
+        if sales_items:
+            # sales_items가 [(menu_name, qty), ...] 형식인 경우 JSONB 배열로 변환
+            sales_items_array = [
+                {"menu_name": menu_name, "quantity": int(qty)}
+                for menu_name, qty in sales_items
+            ]
+            sales_items_json = json.dumps(sales_items_array, ensure_ascii=False)
         
-        # 1. daily_close 저장 (단일 소스로 모든 마감 데이터 저장)
-        supabase.table("daily_close").upsert({
-            "store_id": store_id,
-            "date": date_str,
-            "card_sales": float(card_sales),
-            "cash_sales": float(cash_sales),
-            "total_sales": float(total_sales),
-            "visitors": int(visitors),
-            "out_of_stock": bool(issues.get('품절', False)),
-            "complaint": bool(issues.get('컴플레인', False)),
-            "group_customer": bool(issues.get('단체손님', False)),
-            "staff_issue": bool(issues.get('직원이슈', False)),
-            "memo": str(memo) if memo else None,
-            "sales_items": sales_items_json
-        }, on_conflict="store_id,date").execute()
-        saved_operations.append(('daily_close', date_str))
+        # 트랜잭션 함수 호출 (원자적 저장)
+        supabase.rpc('save_daily_close_transaction', {
+            'p_date': date_str,
+            'p_store_id': str(store_id),
+            'p_card_sales': float(card_sales),
+            'p_cash_sales': float(cash_sales),
+            'p_total_sales': float(total_sales),
+            'p_visitors': int(visitors),
+            'p_out_of_stock': bool(issues.get('품절', False)),
+            'p_complaint': bool(issues.get('컴플레인', False)),
+            'p_group_customer': bool(issues.get('단체손님', False)),
+            'p_staff_issue': bool(issues.get('직원이슈', False)),
+            'p_memo': str(memo) if memo else None,
+            'p_sales_items': sales_items_json
+        }).execute()
         
-        # 2. 호환성을 위해 기존 테이블에도 저장 (하지만 daily_close가 단일 소스)
-        # 주의: 이는 레거시 코드 호환성을 위한 것이며, 
-        # 새로운 코드는 daily_close 테이블을 직접 조회하는 것을 권장합니다.
-        if total_sales > 0:
-            save_sales(date, store_name, card_sales, cash_sales, total_sales)
-            saved_operations.append(('sales', date_str))
-        if visitors > 0:
-            save_visitor(date, visitors)
-            saved_operations.append(('visitor', date_str))
-        for menu_name, quantity in sales_items:
-            if quantity > 0:
-                save_daily_sales_item(date, menu_name, quantity)
-                saved_operations.append(('daily_sales_item', (date_str, menu_name)))
+        logger.info(f"Daily close saved (transactional): {date_str}")
         
         # ========== 재고 자동 차감 기능 ==========
         # 판매된 메뉴의 레시피를 기반으로 재료 사용량 계산 후 재고 차감
+        # 주의: 재고 차감은 트랜잭션 외부에서 실행 (마감 저장과 독립적)
         if sales_items:
             try:
                 # 레시피 데이터 로드
@@ -1220,19 +1213,10 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
                 # 재고 차감 실패해도 마감 저장은 성공으로 처리 (경고만 로깅)
                 logger.warning(f"재고 자동 차감 중 오류 발생 (마감은 저장됨): {e}")
         
-        logger.info(f"Daily close saved: {date_str}")
         return True
     except Exception as e:
         logger.error(f"Failed to save daily close: {e}")
-        # Phase 2: 트랜잭션 처리 - 실패 시 롤백 시도
-        logger.warning(f"Attempting rollback for daily close operations: {saved_operations}")
-        try:
-            # daily_close 삭제 (가장 최근 저장)
-            if ('daily_close', date_str) in saved_operations:
-                supabase.table("daily_close").delete().eq("store_id", store_id).eq("date", date_str).execute()
-                logger.info(f"Rolled back daily_close for {date_str}")
-        except Exception as rollback_error:
-            logger.error(f"Failed to rollback daily close: {rollback_error}")
+        # 트랜잭션 함수가 실패하면 자동 롤백됨
         raise
 
 
