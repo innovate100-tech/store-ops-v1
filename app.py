@@ -4794,10 +4794,10 @@ elif page == "발주 관리":
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         if not inventory_df.empty:
-            # 재료 정보와 조인하여 단위 표시
+            # 재료 정보와 조인 (단가 포함)
             display_inventory_df = pd.merge(
                 inventory_df,
-                ingredient_df[['재료명', '단위', '발주단위', '변환비율']],
+                ingredient_df[['재료명', '단위', '단가', '발주단위', '변환비율']],
                 on='재료명',
                 how='left'
             )
@@ -4805,36 +4805,50 @@ elif page == "발주 관리":
             # 발주 단위가 없으면 기본 단위 사용
             display_inventory_df['발주단위'] = display_inventory_df['발주단위'].fillna(display_inventory_df['단위'])
             display_inventory_df['변환비율'] = display_inventory_df['변환비율'].fillna(1.0)
+            display_inventory_df['단가'] = display_inventory_df['단가'].fillna(0)
+            
+            # 재료사용단가 포맷팅
+            display_inventory_df['재료사용단가'] = display_inventory_df.apply(
+                lambda row: f"{row['단가']:,.1f}원/{row['단위']}",
+                axis=1
+            )
+            
+            # 발주단위단가 계산 (기본 단가 × 변환비율)
+            display_inventory_df['발주단위단가'] = display_inventory_df.apply(
+                lambda row: f"{(row['단가'] * row['변환비율']):,.1f}원/{row['발주단위']}",
+                axis=1
+            )
             
             # 현재고와 안전재고를 발주 단위로 변환하여 표시
             display_inventory_df['현재고_발주단위'] = display_inventory_df['현재고'] / display_inventory_df['변환비율']
             display_inventory_df['안전재고_발주단위'] = display_inventory_df['안전재고'] / display_inventory_df['변환비율']
             
-            # 단위 표시 컬럼 생성 (기본 단위와 발주 단위 모두 표시)
-            def format_unit_display(row):
-                if pd.isna(row['발주단위']) or row['발주단위'] == row['단위']:
-                    return row['단위']
-                else:
-                    return f"{row['단위']} / 발주: {row['발주단위']}"
-            
-            display_inventory_df['단위표시'] = display_inventory_df.apply(format_unit_display, axis=1)
-            
-            # 표시용 컬럼 포맷팅
-            display_inventory_df['현재고_표시'] = display_inventory_df.apply(
+            # 현재고 표시 (발주 단위로)
+            display_inventory_df['현재고'] = display_inventory_df.apply(
                 lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
                 axis=1
             )
-            display_inventory_df['안전재고_표시'] = display_inventory_df.apply(
+            
+            # 기준 안전재고 표시 (발주 단위로)
+            display_inventory_df['기준 안전재고'] = display_inventory_df.apply(
                 lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
                 axis=1
             )
             
-            # 표시할 컬럼 선택
-            display_cols = ['재료명', '단위표시', '현재고_표시', '안전재고_표시']
+            # 차이(+/-) 계산 및 표시
+            display_inventory_df['차이'] = display_inventory_df.apply(
+                lambda row: row['현재고_발주단위'] - row['안전재고_발주단위'],
+                axis=1
+            )
+            display_inventory_df['차이(+/-)'] = display_inventory_df.apply(
+                lambda row: f"{row['차이']:+,.2f} {row['발주단위']}",
+                axis=1
+            )
+            
+            # 표시할 컬럼 선택: 재료명, 재료사용단위, 재료사용단가, 발주단위, 발주단위단가, 현재고, 기준 안전재고, 차이(+/-)
+            display_cols = ['재료명', '단위', '재료사용단가', '발주단위', '발주단위단가', '현재고', '기준 안전재고', '차이(+/-)']
             display_cols_renamed = {
-                '단위표시': '단위',
-                '현재고_표시': '현재고',
-                '안전재고_표시': '안전재고'
+                '단위': '재료사용단위'
             }
             
             # id 컬럼 제외하고 표시
