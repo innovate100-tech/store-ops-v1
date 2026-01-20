@@ -5954,6 +5954,11 @@ elif page == "발주 관리":
                 if st.button("💾 매핑 저장", type="primary", key="save_mapping"):
                     try:
                         save_ingredient_supplier(mapping_ingredient, mapping_supplier, mapping_price, is_default)
+                        # 캐시 초기화 후 목록 즉시 반영
+                        try:
+                            st.cache_data.clear()
+                        except Exception:
+                            pass
                         st.success(f"✅ 매핑이 저장되었습니다! ({mapping_ingredient} → {mapping_supplier})")
                         st.rerun()
                     except Exception as e:
@@ -6017,6 +6022,11 @@ elif page == "발주 관리":
                         try:
                             mapping_to_delete = ingredient_suppliers_df.iloc[mapping_to_delete_idx]
                             delete_ingredient_supplier(mapping_to_delete['재료명'], mapping_to_delete['공급업체명'])
+                            # 캐시 초기화 후 목록 즉시 반영
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             st.success(f"✅ 매핑이 삭제되었습니다!")
                             st.rerun()
                         except Exception as e:
