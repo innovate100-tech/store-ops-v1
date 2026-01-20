@@ -5853,7 +5853,7 @@ elif page == "발주 관리":
             st.session_state.supplier_data_refresh = False
         
         # 캐시 클리어 후 최신 데이터 로드
-        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고')
+        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
         
         # 삭제된 공급업체가 있으면 목록에서 즉시 제외 (실시간 반영)
         deleted_supplier = st.session_state.get('just_deleted_supplier', None)
