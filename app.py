@@ -2435,6 +2435,12 @@ elif page == "메뉴 등록":
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     
     if not menu_df.empty:
+        # 간단 검색 필터 (메뉴명 부분 일치)
+        search_keyword = st.text_input("메뉴 검색 (메뉴명 일부 입력)", key="menu_search")
+        if search_keyword:
+            menu_df = menu_df[menu_df['메뉴명'].astype(str).str.contains(search_keyword, case=False, na=False)]
+    
+    if not menu_df.empty:
         # 카테고리 컬럼이 없으면 추가 (기본값: '기타메뉴')
         if 'category' not in menu_df.columns:
             menu_df['category'] = '기타메뉴'
@@ -2799,6 +2805,12 @@ elif page == "재료 등록":
     """, unsafe_allow_html=True)
     
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
+    
+    if not ingredient_df.empty:
+        # 간단 검색 필터 (재료명 부분 일치)
+        ing_search = st.text_input("재료 검색 (재료명 일부 입력)", key="ingredient_search")
+        if ing_search:
+            ingredient_df = ingredient_df[ingredient_df['재료명'].astype(str).str.contains(ing_search, case=False, na=False)]
     
     if not ingredient_df.empty:
         # 발주 단위 정보 처리
@@ -5613,6 +5625,14 @@ elif page == "발주 관리":
         
         # 공급업체 목록
         suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
+        
+        if not suppliers_df.empty:
+            # 공급업체명 검색 필터
+            supplier_search = st.text_input("공급업체 검색 (이름 일부 입력)", key="supplier_search")
+            if supplier_search:
+                suppliers_df = suppliers_df[
+                    suppliers_df['공급업체명'].astype(str).str.contains(supplier_search, case=False, na=False)
+                ]
         
         if not suppliers_df.empty:
             st.write("**📋 등록된 공급업체**")
