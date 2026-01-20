@@ -131,67 +131,11 @@ def render_safety_stock_tab(ingredient_df: pd.DataFrame, load_csv_func):
 
 def render_inventory_status_tab(ingredient_df: pd.DataFrame, load_csv_func):
     """현재 재고 현황 탭 렌더링"""
-    render_section_header("현재 재고 현황", "📦")
+    render_section_header("현재고 수정", "✏️")
+    st.caption("안전재고는 1번 탭에서 관리합니다.")
     
     # 탭 진입 시 최신 재고 데이터 로드
     tab2_inventory_df = load_csv_func('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
-    
-    if not ingredient_df.empty:
-        # 전체 재료 기준으로 조인해서 재고가 없는 재료도 모두 표시
-        display_inventory_df = merge_ingredient_with_inventory(ingredient_df, tab2_inventory_df)
-        
-        # 발주단위단가 계산
-        display_inventory_df['발주단위단가_숫자'] = display_inventory_df['단가'] * display_inventory_df['변환비율']
-        
-        # 재료사용단가 포맷팅
-        display_inventory_df['재료사용단가'] = display_inventory_df.apply(
-            lambda row: format_price_with_unit(row['단가'], row['단위']), axis=1
-        )
-        display_inventory_df['발주단위단가'] = display_inventory_df.apply(
-            lambda row: format_price_with_unit(row['발주단위단가_숫자'], row['발주단위']), axis=1
-        )
-        
-        # 현재고와 안전재고를 발주 단위로 변환
-        display_inventory_df['현재고_발주단위'] = display_inventory_df.apply(
-            lambda row: convert_to_order_unit(row['현재고'], row['변환비율']), axis=1
-        )
-        display_inventory_df['안전재고_발주단위'] = display_inventory_df.apply(
-            lambda row: convert_to_order_unit(row['안전재고'], row['변환비율']), axis=1
-        )
-        
-        # 현재고/안전재고/차이 표시
-        display_inventory_df['현재고표시'] = display_inventory_df.apply(
-            lambda row: format_quantity_with_unit(row['현재고_발주단위'], row['발주단위']), axis=1
-        )
-        display_inventory_df['안전재고표시'] = display_inventory_df.apply(
-            lambda row: format_quantity_with_unit(row['안전재고_발주단위'], row['발주단위']), axis=1
-        )
-        display_inventory_df['차이'] = display_inventory_df['현재고_발주단위'] - display_inventory_df['안전재고_발주단위']
-        display_inventory_df['차이(+/-)'] = display_inventory_df.apply(
-            lambda row: f"{row['차이']:+,.2f} {row['발주단위']}", axis=1
-        )
-        
-        # 표 표시
-        view_cols = [
-            '재료명', '단위', '재료사용단가',
-            '발주단위', '발주단위단가',
-            '현재고표시', '안전재고표시', '차이(+/-)'
-        ]
-        rename_map = {
-            '단위': '재료사용단위',
-            '현재고표시': '현재고',
-            '안전재고표시': '기준 안전재고',
-        }
-        st.dataframe(
-            display_inventory_df[view_cols].rename(columns=rename_map),
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.info("먼저 재료를 등록해주세요.")
-    
-    render_section_divider()
-    render_section_header("현재고 수정 (안전재고는 1번 탭에서 관리)", "✏️")
     
     if not ingredient_df.empty:
         # 전체 재료 기준으로 현재고/안전재고를 한 번에 수정
@@ -229,7 +173,7 @@ def render_inventory_status_tab(ingredient_df: pd.DataFrame, load_csv_func):
             edit_df_page = edit_df
         
         # 헤더
-        h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 1])
+        h1, h2, h3, h4, h5, h6, h7, h8, h9 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 2, 1])
         h1.markdown("**재료명**")
         h2.markdown("**사용단위**")
         h3.markdown("**발주단위**")
@@ -237,10 +181,11 @@ def render_inventory_status_tab(ingredient_df: pd.DataFrame, load_csv_func):
         h5.markdown("**발주단가**")
         h6.markdown("**기준 안전재고 (발주단위)**")
         h7.markdown("**현재고 입력 (발주단위)**")
-        h8.markdown("**저장**")
+        h8.markdown("**수정 후 현재고**")
+        h9.markdown("**저장**")
         
         for idx, row in edit_df_page.iterrows():
-            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 1])
+            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 2, 1])
             with col1:
                 st.write(f"**{row['재료명']}**")
             with col2:
@@ -265,6 +210,9 @@ def render_inventory_status_tab(ingredient_df: pd.DataFrame, load_csv_func):
                     key=f"edit_current_order_{row['재료명']}"
                 )
             with col8:
+                # 수정 후 현재고 표시 (입력값을 발주단위로 표시)
+                st.write(format_quantity_with_unit(new_current_order, row['발주단위']))
+            with col9:
                 if st.button("저장", key=f"edit_inventory_save_{row['재료명']}", use_container_width=True):
                     try:
                         # 발주단위를 기본단위로 변환해서 저장
@@ -284,12 +232,13 @@ def render_inventory_status_tab(ingredient_df: pd.DataFrame, load_csv_func):
                         st.success(
                             f"✅ '{row['재료명']}'의 현재고가 "
                             f"{format_quantity_with_unit(new_current_order, row['발주단위'])} "
-                            f"(기본단위 기준 {format_quantity_with_unit(new_current_base, row['단위'])})로 수정되었습니다. "
-                            f"(안전재고는 변경되지 않았습니다.)"
+                            f"(기본단위 기준 {format_quantity_with_unit(new_current_base, row['단위'])})로 수정되었습니다."
                         )
                     except Exception as e:
                         error_msg = handle_data_error("재고 수정", e)
                         st.error(error_msg)
+    else:
+        st.info("먼저 재료를 등록해주세요.")
 
 
 def render_order_recommendation_tab(ingredient_df: pd.DataFrame, inventory_df: pd.DataFrame, load_csv_func):
