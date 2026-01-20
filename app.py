@@ -5638,23 +5638,24 @@ elif page == "발주 관리":
         from src.storage_supabase import save_supplier, delete_supplier, save_ingredient_supplier, delete_ingredient_supplier
         
         # 공급업체 등록
-        # 입력 필드 초기화를 위한 키 카운터 (성공 후 증가시켜 위젯이 자동으로 초기화되도록)
-        if 'supplier_form_key_counter' not in st.session_state:
-            st.session_state.supplier_form_key_counter = 0
-        
-        # 성공 후 입력 필드 초기화 플래그 확인
-        should_reset_form = st.session_state.get('supplier_form_reset', False)
-        if should_reset_form:
-            st.session_state.supplier_form_key_counter += 1
-            st.session_state.supplier_form_reset = False
-        
         # 성공/삭제 메시지 표시
         if 'supplier_success_message' in st.session_state and st.session_state.supplier_success_message:
             st.success(st.session_state.supplier_success_message)
             # 메시지 표시 후 삭제 (한 번만 표시)
             del st.session_state.supplier_success_message
         
-        with st.expander("➕ 공급업체 등록", expanded=True if should_reset_form else False):
+        # 입력 필드 초기화 (등록 성공 후에만)
+        if st.session_state.get('supplier_form_reset', False):
+            # 입력 필드 초기화를 위해 key를 변경
+            if 'supplier_form_key_counter' not in st.session_state:
+                st.session_state.supplier_form_key_counter = 0
+            st.session_state.supplier_form_key_counter += 1
+            st.session_state.supplier_form_reset = False
+        
+        if 'supplier_form_key_counter' not in st.session_state:
+            st.session_state.supplier_form_key_counter = 0
+        
+        with st.expander("➕ 공급업체 등록", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
                 supplier_name = st.text_input("공급업체명 *", key=f"new_supplier_name_{st.session_state.supplier_form_key_counter}")
@@ -5681,7 +5682,6 @@ elif page == "발주 관리":
                         # 입력 필드 초기화 플래그 설정 (다음 렌더링 시 key 변경으로 자동 초기화)
                         st.session_state.supplier_form_reset = True
                         # Streamlit의 자동 rerun 활용 (탭 상태 유지)
-                        # 성공 메시지와 함께 입력 필드가 자동으로 초기화됨
                     except Exception as e:
                         st.error(f"등록 중 오류가 발생했습니다: {e}")
                 else:
@@ -5703,6 +5703,13 @@ elif page == "발주 관리":
         # 캐시 클리어 후 최신 데이터 로드
         suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
         
+        # 삭제된 공급업체가 있으면 목록에서 즉시 제외 (실시간 반영)
+        deleted_supplier = st.session_state.get('just_deleted_supplier', None)
+        if deleted_supplier and not suppliers_df.empty and deleted_supplier in suppliers_df['공급업체명'].values:
+            suppliers_df = suppliers_df[suppliers_df['공급업체명'] != deleted_supplier].copy()
+            # 플래그 삭제 (한 번만 적용)
+            del st.session_state.just_deleted_supplier
+        
         if not suppliers_df.empty:
             # 공급업체명 검색 필터
             supplier_search = st.text_input("공급업체 검색 (이름 일부 입력)", key="supplier_search")
@@ -5713,13 +5720,6 @@ elif page == "발주 관리":
         
         if not suppliers_df.empty:
             st.write("**📋 등록된 공급업체**")
-
-            # 삭제된 공급업체가 있으면 목록에서 즉시 제외 (실시간 반영)
-            deleted_supplier = st.session_state.get('just_deleted_supplier', None)
-            if deleted_supplier and deleted_supplier in suppliers_df['공급업체명'].values:
-                suppliers_df = suppliers_df[suppliers_df['공급업체명'] != deleted_supplier].copy()
-                # 플래그 삭제 (한 번만 적용)
-                del st.session_state.just_deleted_supplier
 
             # 재료-공급업체 매핑을 이용해 업체별 취급 품목 목록 생성
             ingredient_suppliers_all = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명'])
@@ -5786,17 +5786,6 @@ elif page == "발주 관리":
                         load_csv.clear()
                     except Exception:
                         pass
-
-                    # 삭제 후 즉시 최신 데이터 다시 로드 (등록과 동일한 패턴)
-                    suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
-                    
-                    # 검색 필터 적용 (있는 경우)
-                    if st.session_state.get('supplier_search'):
-                        suppliers_df = suppliers_df[
-                            suppliers_df['공급업체명'].astype(str).str.contains(
-                                st.session_state.supplier_search, case=False, na=False
-                            )
-                        ]
 
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
                     # 성공 메시지를 session_state에 저장
