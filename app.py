@@ -2823,31 +2823,30 @@ elif page == "재료 등록":
         ingredient_df['발주단위'] = ingredient_df['발주단위'].fillna(ingredient_df['단위'])
         ingredient_df['변환비율'] = ingredient_df['변환비율'].fillna(1.0)
         
-        # 필요한 컬럼만 선택 (재료명, 단위, 발주단위, 단가)
-        base_columns = [col for col in ['재료명', '단위', '발주단위', '변환비율', '단가'] if col in ingredient_df.columns]
-        display_df = ingredient_df[base_columns].copy()
+        # 표시용 DataFrame 생성
+        display_df = ingredient_df[['재료명', '단위', '발주단위', '단가', '변환비율']].copy()
         
-        # 단위 표시 컬럼 생성 (기본 단위와 발주 단위 모두 표시)
-        def format_unit_display(row):
-            if pd.isna(row.get('발주단위')) or row.get('발주단위') == row['단위']:
-                return row['단위']
-            else:
-                return f"{row['단위']} / 발주: {row['발주단위']}"
+        # 1단위단가 (기본 단위 기준) - 소수점 1자리까지
+        display_df['1단위단가'] = display_df['단가'].apply(lambda x: f"{x:,.1f}원/{display_df.loc[display_df['단가'] == x, '단위'].iloc[0]}")
         
-        display_df['단위표시'] = display_df.apply(format_unit_display, axis=1)
+        # 발주단위단가 계산 (기본 단가 × 변환비율)
+        display_df['발주단위단가'] = (display_df['단가'] * display_df['변환비율']).apply(
+            lambda x: f"{x:,.1f}원/{display_df.loc[(display_df['단가'] * display_df['변환비율']) == x, '발주단위'].iloc[0]}"
+        )
         
-        # 단가 표시 포맷팅 (단가는 소수점 1자리까지 표시)
-        def format_price(row):
-            unit = row['단위']
-            price = row['단가']
-            # 모든 단위를 소수점 1자리까지 통일
-            return f"{price:,.1f}원/{unit}"
+        # 단가 컬럼은 1단위단가로 대체
+        display_df['1단위단가'] = display_df.apply(
+            lambda row: f"{row['단가']:,.1f}원/{row['단위']}",
+            axis=1
+        )
+        display_df['발주단위단가'] = display_df.apply(
+            lambda row: f"{(row['단가'] * row['변환비율']):,.1f}원/{row['발주단위']}",
+            axis=1
+        )
         
-        display_df['단가'] = display_df.apply(format_price, axis=1)
-        
-        # 표시할 컬럼 선택
-        display_cols = ['재료명', '단위표시', '단가']
-        display_df = display_df[display_cols].rename(columns={'단위표시': '단위'})
+        # 표시할 컬럼 선택: 재료명, 단위, 발주단위, 1단위단가, 발주단위단가
+        display_cols = ['재료명', '단위', '발주단위', '1단위단가', '발주단위단가']
+        display_df = display_df[display_cols]
         
         # 수정/삭제 기능
         st.write("**📝 재료 수정/삭제**")
