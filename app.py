@@ -5108,14 +5108,48 @@ elif page == "발주 관리":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # 품절 위험 상세 정보 (예상 소진일 포함)
+            # 품절 위험 상세 정보 (예상 소진일 + 단위 표시 포함)
             if low_stock_items:
                 with st.expander(f"🚨 품절 위험 재료 상세 ({len(low_stock_items)}개)", expanded=True):
                     urgent_df = pd.DataFrame(low_stock_items)
-                    urgent_df['현재고'] = urgent_df['현재고'].apply(lambda x: f"{x:,.2f}")
-                    urgent_df['안전재고'] = urgent_df['안전재고'].apply(lambda x: f"{x:,.2f}")
-                    urgent_df['부족량'] = urgent_df['부족량'].apply(lambda x: f"{x:,.2f}")
-                    
+
+                    # 재료 단위/발주단위 정보 조인
+                    if not ingredient_df.empty:
+                        urgent_df = pd.merge(
+                            urgent_df,
+                            ingredient_df[['재료명', '단위', '발주단위', '변환비율']] if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns
+                            else ingredient_df[['재료명', '단위']],
+                            on='재료명',
+                            how='left'
+                        )
+                    if '발주단위' not in urgent_df.columns:
+                        urgent_df['발주단위'] = urgent_df.get('단위', '')
+
+                    # 수량을 발주단위 기준으로 변환
+                    if '변환비율' in urgent_df.columns:
+                        urgent_df['변환비율'] = urgent_df['변환비율'].fillna(1.0)
+                        urgent_df['현재고_발주단위'] = urgent_df['현재고'] / urgent_df['변환비율']
+                        urgent_df['안전재고_발주단위'] = urgent_df['안전재고'] / urgent_df['변환비율']
+                        urgent_df['부족량_발주단위'] = urgent_df['부족량'] / urgent_df['변환비율']
+                    else:
+                        urgent_df['현재고_발주단위'] = urgent_df['현재고']
+                        urgent_df['안전재고_발주단위'] = urgent_df['안전재고']
+                        urgent_df['부족량_발주단위'] = urgent_df['부족량']
+
+                    # 표시용 컬럼 포맷팅 (숫자 + 단위)
+                    urgent_df['현재고'] = urgent_df.apply(
+                        lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
+                        axis=1
+                    )
+                    urgent_df['안전재고'] = urgent_df.apply(
+                        lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
+                        axis=1
+                    )
+                    urgent_df['부족량'] = urgent_df.apply(
+                        lambda row: f"{row['부족량_발주단위']:,.2f} {row['발주단위']}",
+                        axis=1
+                    )
+
                     # 예상 소진일 표시
                     if '예상소진일' in urgent_df.columns:
                         def format_depletion_days(days):
@@ -5131,8 +5165,12 @@ elif page == "발주 관리":
                                 return f"🟢 {int(days)}일 후"
                         
                         urgent_df['예상소진일'] = urgent_df['예상소진일'].apply(format_depletion_days)
-                    
-                    st.dataframe(urgent_df, use_container_width=True, hide_index=True)
+
+                    # 표시할 컬럼만 선택
+                    display_cols = ['재료명', '단위', '발주단위', '현재고', '안전재고', '부족량']
+                    if '예상소진일' in urgent_df.columns:
+                        display_cols.append('예상소진일')
+                    st.dataframe(urgent_df[display_cols], use_container_width=True, hide_index=True)
             
             # 발주 미완료 재료 리마인더
             if overdue_count > 0 and isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty:
@@ -5228,11 +5266,27 @@ elif page == "발주 관리":
                         else:
                             display_order_df['공급업체'] = "미지정"
                         
-                        display_order_df['현재고'] = display_order_df['현재고'].apply(lambda x: f"{x:,.2f}")
-                        display_order_df['안전재고'] = display_order_df['안전재고'].apply(lambda x: f"{x:,.2f}")
-                        display_order_df['최근평균사용량'] = display_order_df['최근평균사용량'].apply(lambda x: f"{x:,.2f}")
-                        display_order_df['예상소요량'] = display_order_df['예상소요량'].apply(lambda x: f"{x:,.2f}")
-                        display_order_df['발주필요량_표시'] = display_order_df['발주필요량_발주단위'].apply(lambda x: f"{x:,.2f}")
+                        # 수량 관련 컬럼에 단위 붙여서 표시
+                        display_order_df['현재고_표시'] = display_order_df.apply(
+                            lambda row: f"{row['현재고']:,.2f} {row['단위']}",
+                            axis=1
+                        )
+                        display_order_df['안전재고_표시'] = display_order_df.apply(
+                            lambda row: f"{row['안전재고']:,.2f} {row['단위']}",
+                            axis=1
+                        )
+                        display_order_df['최근평균사용량_표시'] = display_order_df.apply(
+                            lambda row: f"{row['최근평균사용량']:,.2f} {row['단위']}",
+                            axis=1
+                        )
+                        display_order_df['예상소요량_표시'] = display_order_df.apply(
+                            lambda row: f"{row['예상소요량']:,.2f} {row['단위']}",
+                            axis=1
+                        )
+                        display_order_df['발주필요량_표시'] = display_order_df.apply(
+                            lambda row: f"{row['발주필요량_발주단위']:,.2f} {row['발주단위']}",
+                            axis=1
+                        )
                         display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
                         
                         # 발주 단위 표시 (기본 단위와 발주 단위 모두 표시)
@@ -5241,10 +5295,28 @@ elif page == "발주 관리":
                             axis=1
                         )
                         
-                        st.dataframe(display_order_df[['재료명', '단위표시', '공급업체', '발주필요량_표시', '예상금액']].rename(columns={
-                            '단위표시': '단위',
-                            '발주필요량_표시': '발주필요량'
-                        }), use_container_width=True, hide_index=True)
+                        st.dataframe(
+                            display_order_df[[
+                                '재료명',
+                                '단위표시',
+                                '공급업체',
+                                '현재고_표시',
+                                '안전재고_표시',
+                                '최근평균사용량_표시',
+                                '예상소요량_표시',
+                                '발주필요량_표시',
+                                '예상금액'
+                            ]].rename(columns={
+                                '단위표시': '단위',
+                                '현재고_표시': '현재고',
+                                '안전재고_표시': '안전재고',
+                                '최근평균사용량_표시': '최근평균사용량',
+                                '예상소요량_표시': '예상소요량',
+                                '발주필요량_표시': '발주필요량'
+                            }),
+                            use_container_width=True,
+                            hide_index=True
+                        )
                         
                         # 총 예상 금액
                         total_amount = order_df['예상금액'].sum()
