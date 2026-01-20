@@ -5856,6 +5856,11 @@ elif page == "발주 관리":
                 if supplier_name:
                     try:
                         save_supplier(supplier_name, phone, email, delivery_days, min_order_amount, delivery_fee, notes)
+                        # Supabase 캐시 초기화 후 즉시 목록 반영
+                        try:
+                            st.cache_data.clear()
+                        except Exception:
+                            pass
                         st.success(f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!")
                         st.rerun()
                     except Exception as e:
