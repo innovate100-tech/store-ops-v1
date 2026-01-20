@@ -5523,8 +5523,12 @@ elif page == "발주 관리":
                             ingredient_name = row['재료명']
                             
                             # 화면에서 사용하는 발주 기준 데이터 우선 사용
-                            row_display = display_order_df[display_order_df['재료명'] == ingredient_name].iloc[0]
-                            supplier_name = row_display['공급업체']
+                            row_display_df = display_order_df[display_order_df['재료명'] == ingredient_name]
+                            if row_display_df.empty:
+                                # 매칭되는 발주 기준 데이터가 없으면 해당 재료는 스킵 (에러 방지)
+                                continue
+                            row_display = row_display_df.iloc[0]
+                            supplier_name = row_display.get('공급업체', row.get('공급업체', '미지정'))
                             
                             # 발주 단위로 변환된 수량 / 단위
                             if '발주필요량_발주단위' in display_order_df.columns:
@@ -5538,7 +5542,7 @@ elif page == "발주 관리":
                             quantity = row['발주필요량']
                             
                             # 금액도 공급업체 단가를 반영한 화면 계산값 사용
-                            amount = float(row_display.get('예상금액_숫자', row['예상금액']))
+                            amount = float(row_display.get('예상금액_숫자', row.get('예상금액', 0)) or 0)
                             
                             # 체크박스와 정보를 함께 표시
                             col_check, col_info = st.columns([0.3, 9.7])
@@ -5589,7 +5593,11 @@ elif page == "발주 관리":
                                 # 공급업체 미지정 재료 확인
                                 missing_suppliers = []
                                 for ingredient_name in selected_items:
-                                    supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                    row_display_df = display_order_df[display_order_df['재료명'] == ingredient_name]
+                                    if row_display_df.empty:
+                                        # 매칭 데이터 없으면 해당 항목은 스킵 (추후 CSV/캐시 문제 방지)
+                                        continue
+                                    supplier_name = row_display_df['공급업체'].iloc[0] if '공급업체' in row_display_df.columns else "미지정"
                                     if supplier_name == "미지정":
                                         missing_suppliers.append(ingredient_name)
                                 
@@ -5603,7 +5611,12 @@ elif page == "발주 관리":
                                         
                                         for ingredient_name in selected_items:
                                             # 화면에 보이는 발주 기준 데이터를 우선 사용
-                                            row_display = display_order_df[display_order_df['재료명'] == ingredient_name].iloc[0]
+                                            row_display_df = display_order_df[display_order_df['재료명'] == ingredient_name]
+                                            if row_display_df.empty:
+                                                # 매칭 데이터 없으면 해당 재료는 건너뛰고, 실패 목록에 추가
+                                                failed_items.append(f"{ingredient_name} (발주 기준 데이터 없음)")
+                                                continue
+                                            row_display = row_display_df.iloc[0]
                                             supplier_name = row_display['공급업체']
                                             
                                             # 발주필요량(발주단위)을 소수 둘째 자리까지 사용
