@@ -1240,83 +1240,6 @@ with st.sidebar:
             st.rerun()
     
     st.markdown("---")
-    
-    if st.button("🚪 로그아웃", use_container_width=True, type="secondary"):
-        logout()
-        st.rerun()
-    
-    st.markdown("---")
-    
-    # 백업 기능
-    if st.button("💾 데이터 백업 생성", use_container_width=True):
-        try:
-            success, message = create_backup()
-            if success:
-                st.success(f"백업이 생성되었습니다!\n{message}")
-            else:
-                st.error(f"백업 생성 실패: {message}")
-        except Exception as e:
-            st.error(f"백업 중 오류: {e}")
-    
-    # 데이터 진단 기능
-    render_section_divider()
-    st.markdown("**🔍 데이터 진단**")
-    
-    if st.button("🔍 데이터 연결 상태 확인", use_container_width=True):
-        try:
-            from src.auth import get_supabase_client, get_current_store_id
-            
-            # Supabase 클라이언트 확인
-            supabase = get_supabase_client()
-            if not supabase:
-                st.error("❌ Supabase 클라이언트를 생성할 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
-            else:
-                st.success("✅ Supabase 클라이언트 연결 성공")
-            
-            # store_id 확인
-            store_id = get_current_store_id()
-            if not store_id:
-                st.error("❌ store_id를 찾을 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
-            else:
-                st.success(f"✅ store_id: {store_id}")
-            
-            # 실제 데이터 확인
-            if supabase and store_id:
-                try:
-                    # 메뉴 데이터 확인
-                    menu_result = supabase.table("menu_master").select("id,name,price").eq("store_id", store_id).execute()
-                    menu_count = len(menu_result.data) if menu_result.data else 0
-                    st.info(f"📊 메뉴 데이터: {menu_count}개")
-                    if menu_count > 0:
-                        st.json(menu_result.data[:3])  # 처음 3개만 표시
-                    
-                    # 재료 데이터 확인
-                    ing_result = supabase.table("ingredients").select("id,name,unit,unit_cost").eq("store_id", store_id).execute()
-                    ing_count = len(ing_result.data) if ing_result.data else 0
-                    st.info(f"📊 재료 데이터: {ing_count}개")
-                    if ing_count > 0:
-                        st.json(ing_result.data[:3])  # 처음 3개만 표시
-                    
-                    if menu_count == 0 and ing_count == 0:
-                        st.warning("⚠️ 데이터가 없습니다. Supabase 테이블에서 직접 확인해주세요.")
-                    else:
-                        st.success("✅ 데이터가 존재합니다. 캐시를 클리어하고 새로고침해주세요.")
-                        
-                except Exception as e:
-                    st.error(f"데이터 조회 중 오류: {e}")
-                    st.exception(e)
-        except Exception as e:
-            st.error(f"진단 중 오류: {e}")
-            st.exception(e)
-    
-    # 캐시 클리어 버튼
-    if st.button("🔄 모든 캐시 클리어", use_container_width=True):
-        try:
-            load_csv.clear()
-            st.success("✅ 캐시가 클리어되었습니다. 페이지를 새로고침해주세요.")
-            st.rerun()
-        except Exception as e:
-            st.error(f"캐시 클리어 중 오류: {e}")
 
 # 사이드바 네비게이션 - 카테고리별로 구분
 # 메뉴 항목들을 카테고리별로 정의
@@ -1386,6 +1309,81 @@ for category_name, items in menu_categories.items():
         ):
             st.session_state.current_page = menu_name
             st.rerun()
+
+    # 사이드바 하단: 유틸리티 기능들
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**🔧 유틸리티**")
+    
+    if st.sidebar.button("🚪 로그아웃", use_container_width=True, type="secondary"):
+        logout()
+        st.rerun()
+    
+    if st.sidebar.button("💾 데이터 백업 생성", use_container_width=True):
+        try:
+            success, message = create_backup()
+            if success:
+                st.success(f"백업이 생성되었습니다!\n{message}")
+            else:
+                st.error(f"백업 생성 실패: {message}")
+        except Exception as e:
+            st.error(f"백업 중 오류: {e}")
+    
+    st.sidebar.markdown("**🔍 데이터 진단**")
+    
+    if st.sidebar.button("🔍 데이터 연결 상태 확인", use_container_width=True):
+        try:
+            from src.auth import get_supabase_client, get_current_store_id
+            
+            # Supabase 클라이언트 확인
+            supabase = get_supabase_client()
+            if not supabase:
+                st.error("❌ Supabase 클라이언트를 생성할 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
+            else:
+                st.success("✅ Supabase 클라이언트 연결 성공")
+            
+            # store_id 확인
+            store_id = get_current_store_id()
+            if not store_id:
+                st.error("❌ store_id를 찾을 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
+            else:
+                st.success(f"✅ store_id: {store_id}")
+            
+            # 실제 데이터 확인
+            if supabase and store_id:
+                try:
+                    # 메뉴 데이터 확인
+                    menu_result = supabase.table("menu_master").select("id,name,price").eq("store_id", store_id).execute()
+                    menu_count = len(menu_result.data) if menu_result.data else 0
+                    st.info(f"📊 메뉴 데이터: {menu_count}개")
+                    if menu_count > 0:
+                        st.json(menu_result.data[:3])  # 처음 3개만 표시
+                    
+                    # 재료 데이터 확인
+                    ing_result = supabase.table("ingredients").select("id,name,unit,unit_cost").eq("store_id", store_id).execute()
+                    ing_count = len(ing_result.data) if ing_result.data else 0
+                    st.info(f"📊 재료 데이터: {ing_count}개")
+                    if ing_count > 0:
+                        st.json(ing_result.data[:3])  # 처음 3개만 표시
+                    
+                    if menu_count == 0 and ing_count == 0:
+                        st.warning("⚠️ 데이터가 없습니다. Supabase 테이블에서 직접 확인해주세요.")
+                    else:
+                        st.success("✅ 데이터가 존재합니다. 캐시를 클리어하고 새로고침해주세요.")
+                        
+                except Exception as e:
+                    st.error(f"데이터 조회 중 오류: {e}")
+                    st.exception(e)
+        except Exception as e:
+            st.error(f"진단 중 오류: {e}")
+            st.exception(e)
+    
+    if st.sidebar.button("🔄 모든 캐시 클리어", use_container_width=True):
+        try:
+            load_csv.clear()
+            st.success("✅ 캐시가 클리어되었습니다. 페이지를 새로고침해주세요.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"캐시 클리어 중 오류: {e}")
 
 page = st.session_state.current_page
 
