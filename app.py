@@ -4812,6 +4812,9 @@ elif page == "발주 관리":
     with tab1:
         render_section_header("안전재고 등록", "🛡️")
         
+        # 탭 진입 시 최신 재고 데이터 로드
+        tab1_inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+        
         if ingredient_df.empty:
             st.info("먼저 재료를 등록해주세요.")
         else:
@@ -4820,7 +4823,7 @@ elif page == "발주 관리":
             # 재료 목록과 기존 안전재고를 조인 (발주단위/변환비율 포함)
             safety_df = pd.merge(
                 ingredient_df[['재료명', '단위', '단가', '발주단위', '변환비율']],
-                inventory_df[['재료명', '안전재고']] if not inventory_df.empty else pd.DataFrame(columns=['재료명', '안전재고']),
+                tab1_inventory_df[['재료명', '안전재고']] if not tab1_inventory_df.empty else pd.DataFrame(columns=['재료명', '안전재고']),
                 on='재료명',
                 how='left'
             )
@@ -4872,8 +4875,8 @@ elif page == "발주 관리":
                     if st.button("저장", key=f"safety_save_{row['재료명']}", use_container_width=True):
                         try:
                             # 기존 현재고는 그대로 두고, 안전재고만 수정 (기본단위 기준으로 저장)
-                            if not inventory_df.empty and row['재료명'] in inventory_df['재료명'].values:
-                                cur_row = inventory_df[inventory_df['재료명'] == row['재료명']].iloc[0]
+                            if not tab1_inventory_df.empty and row['재료명'] in tab1_inventory_df['재료명'].values:
+                                cur_row = tab1_inventory_df[tab1_inventory_df['재료명'] == row['재료명']].iloc[0]
                                 current_stock_base = float(cur_row.get('현재고', 0) or 0)
                             else:
                                 current_stock_base = 0.0
@@ -4881,9 +4884,9 @@ elif page == "발주 관리":
                             new_safety_base = float(new_safety_order) * float(row['변환비율'] or 1.0)
                             
                             save_inventory(row['재료명'], current_stock_base, new_safety_base)
-                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            # inventory.csv 캐시 클리어하여 다음 로드 시 최신 데이터 반영
                             try:
-                                st.cache_data.clear()
+                                load_csv.clear()
                             except Exception:
                                 pass
                             st.success(
@@ -4898,11 +4901,14 @@ elif page == "발주 관리":
     with tab2:
         render_section_header("현재 재고 현황", "📦")
         
+        # 탭 진입 시 최신 재고 데이터 로드
+        tab2_inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+        
         if not ingredient_df.empty:
             # 전체 재료 기준으로 조인해서 재고가 없는 재료도 모두 표시 (현재고/안전재고는 0으로 처리)
             display_inventory_df = pd.merge(
                 ingredient_df[['재료명', '단위', '단가', '발주단위', '변환비율']],
-                inventory_df[['재료명', '현재고', '안전재고']] if not inventory_df.empty else pd.DataFrame(columns=['재료명', '현재고', '안전재고']),
+                tab2_inventory_df[['재료명', '현재고', '안전재고']] if not tab2_inventory_df.empty else pd.DataFrame(columns=['재료명', '현재고', '안전재고']),
                 on='재료명',
                 how='left'
             )
@@ -4971,7 +4977,7 @@ elif page == "발주 관리":
             # 전체 재료 기준으로 현재고/안전재고를 한 번에 수정 (발주단위 기준 입력)
             edit_df = pd.merge(
                 ingredient_df[['재료명', '단위', '단가', '발주단위', '변환비율']],
-                inventory_df[['재료명', '현재고', '안전재고']] if not inventory_df.empty else pd.DataFrame(columns=['재료명', '현재고', '안전재고']),
+                tab2_inventory_df[['재료명', '현재고', '안전재고']] if not tab2_inventory_df.empty else pd.DataFrame(columns=['재료명', '현재고', '안전재고']),
                 on='재료명',
                 how='left'
             )
@@ -5033,9 +5039,9 @@ elif page == "발주 관리":
                             new_safety_base = float(row['안전재고'] or 0.0)
                             
                             save_inventory(row['재료명'], new_current_base, new_safety_base)
-                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            # inventory.csv 캐시 클리어하여 다음 로드 시 최신 데이터 반영
                             try:
-                                st.cache_data.clear()
+                                load_csv.clear()
                             except Exception:
                                 pass
                             st.success(
@@ -5050,6 +5056,9 @@ elif page == "발주 관리":
     # ========== 탭 3: 발주 추천 ==========
     with tab3:
         render_section_header("발주 추천", "🛒")
+        
+        # 탭 진입 시 최신 재고 데이터 로드
+        tab3_inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         # ========== Phase 4: 고급 알림 및 경고 ==========
         from datetime import datetime, timedelta
@@ -5071,9 +5080,9 @@ elif page == "발주 관리":
         if not daily_sales_df.empty and not recipe_df.empty:
             usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
         
-        if not inventory_df.empty:
+        if not tab3_inventory_df.empty:
             # 현재고 < 안전재고인 재료 찾기 (예상 소진일 계산 포함)
-            for idx, row in inventory_df.iterrows():
+            for idx, row in tab3_inventory_df.iterrows():
                 ingredient_name = row['재료명']
                 current_stock = row.get('현재고', 0)
                 safety_stock = row.get('안전재고', 0)
@@ -5105,7 +5114,7 @@ elif page == "발주 관리":
                     turnover_info = calculate_inventory_turnover(
                         ingredient_name,
                         usage_df,
-                        inventory_df,
+                        tab3_inventory_df,
                         days_period=30
                     )
                     
@@ -5260,7 +5269,7 @@ elif page == "발주 관리":
             
             render_section_divider()
         
-        if not inventory_df.empty:
+        if not tab3_inventory_df.empty:
             # 재료 사용량 계산을 위한 데이터 로드
             daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
             recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
@@ -5280,7 +5289,7 @@ elif page == "발주 관리":
                     # 발주 추천 계산
                     order_df = calculate_order_recommendation(
                         ingredient_df,
-                        inventory_df,
+                        tab3_inventory_df,
                         usage_df,
                         days_for_avg=int(days_for_avg),
                         forecast_days=int(forecast_days)
