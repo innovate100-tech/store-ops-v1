@@ -1523,7 +1523,7 @@ if page == "점장 마감":
                     st.balloons()  # 항상 풍선 애니메이션 표시
                     st.info("💡 **마감 수정 방법**: 같은 날짜로 다시 마감을 입력하시면 기존 데이터가 자동으로 업데이트됩니다.")
                     
-                    # 오늘 요약 카드 표시
+                    # 오늘 요약 카드 표시 (rerun 없이 현재 세션에서만 표시)
                     st.markdown("---")
                     st.markdown("### 📊 오늘 요약")
                     
@@ -1583,8 +1583,6 @@ if page == "점장 마감":
                                         <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{quantity}개</div>
                                     </div>
                                     """, unsafe_allow_html=True)
-                    
-                    st.rerun()
                     
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
