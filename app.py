@@ -251,8 +251,15 @@ st.markdown("""
         z-index: 2;
     }
     
+    .led-text {
+        position: relative;
+        height: 1.5rem;
+        overflow: hidden;
+        z-index: 2;
+    }
+    
     .led-text::before {
-        content: '하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  ';
+        content: '하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  하루 1분 입력이면, 모든 데이터 분석이 한방에!  •  두희야 현식아 잘 입력하자!  •  ';
         position: absolute;
         white-space: nowrap;
         color: #33ff33;
@@ -260,7 +267,7 @@ st.markdown("""
         font-size: 1.2rem;
         letter-spacing: 2px;
         text-shadow: none;
-        animation: ledBlink 1.5s ease-in-out infinite, ledScroll 15s linear infinite;
+        animation: ledBlink 1.5s ease-in-out infinite, ledScroll 8s linear infinite;
         line-height: 1.5rem;
         background: none !important;
         -webkit-background-clip: initial !important;
@@ -275,10 +282,10 @@ st.markdown("""
     
     @keyframes ledScroll {
         0% {
-            left: 0;
+            transform: translateX(0);
         }
         100% {
-            left: -33.33%;
+            transform: translateX(-25%);
         }
     }
     
