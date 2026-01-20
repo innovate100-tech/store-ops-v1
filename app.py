@@ -5639,6 +5639,8 @@ elif page == "발주 관리":
                                                 with st.expander("실패한 항목 상세", expanded=False):
                                                     for item in failed_items:
                                                         st.error(item)
+                                            # 새로 생성된 발주가 알림/발주 이력/입고 예정에 즉시 반영되도록 캐시 초기화
+                                            st.cache_data.clear()
                                             st.rerun()
                                         else:
                                             st.error("발주 생성에 실패했습니다. 모든 항목을 확인해주세요.")
