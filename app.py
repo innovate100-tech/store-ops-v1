@@ -187,9 +187,16 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
+        width: 100%;
+    }
+    
+    .main-header h1 .text-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+        animation: marquee 20s linear infinite;
     }
     
     .main-header h1 .text-gradient {
@@ -214,6 +221,20 @@ st.markdown("""
             0 0 20px rgba(100, 150, 255, 0.3);
         filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
         flex-shrink: 0;
+    }
+    
+    @keyframes marquee {
+        0% {
+            transform: translateX(100%);
+        }
+        100% {
+            transform: translateX(-100%);
+        }
+    }
+    
+    /* 텍스트가 짧으면 애니메이션 중지 */
+    .main-header h1:hover .text-wrapper {
+        animation-play-state: paused;
     }
     
     @keyframes gradientShift {
@@ -1129,7 +1150,12 @@ if st.session_state.get("theme", "light") == "dark":
 # 타이틀 (개선된 디자인)
 st.markdown("""
 <div class="main-header">
-    <h1><span class="emoji">😎</span> <span class="text-gradient">Restaurant Decision Intelligence System (RDIS)</span></h1>
+    <h1>
+        <div class="text-wrapper">
+            <span class="emoji">😎</span>
+            <span class="text-gradient">Restaurant Decision Intelligence System (RDIS)</span>
+        </div>
+    </h1>
 </div>
 """, unsafe_allow_html=True)
 
