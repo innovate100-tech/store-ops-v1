@@ -1038,6 +1038,64 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
             if quantity > 0:
                 save_daily_sales_item(date, menu_name, quantity)
         
+        # ========== 재고 자동 차감 기능 ==========
+        # 판매된 메뉴의 레시피를 기반으로 재료 사용량 계산 후 재고 차감
+        if sales_items:
+            try:
+                # 레시피 데이터 로드
+                recipe_result = supabase.table("recipes").select("menu_id,ingredient_id,qty").eq("store_id", store_id).execute()
+                
+                if recipe_result.data:
+                    # 메뉴명 -> 메뉴 ID 매핑
+                    menu_result = supabase.table("menu_master").select("id,name").eq("store_id", store_id).execute()
+                    menu_map = {m['name']: m['id'] for m in menu_result.data}
+                    
+                    # 재료 ID -> 재료명 매핑
+                    ingredient_result = supabase.table("ingredients").select("id,name").eq("store_id", store_id).execute()
+                    ingredient_map = {i['id']: i['name'] for i in ingredient_result.data}
+                    
+                    # 재료별 사용량 계산
+                    ingredient_usage = {}  # {ingredient_id: total_usage}
+                    
+                    for menu_name, sales_qty in sales_items:
+                        if sales_qty > 0 and menu_name in menu_map:
+                            menu_id = menu_map[menu_name]
+                            
+                            # 해당 메뉴의 레시피 찾기
+                            menu_recipes = [r for r in recipe_result.data if r['menu_id'] == menu_id]
+                            
+                            for recipe in menu_recipes:
+                                ingredient_id = recipe['ingredient_id']
+                                recipe_qty = float(recipe['qty'])
+                                
+                                # 재료 사용량 = 판매수량 × 레시피 사용량
+                                usage = sales_qty * recipe_qty
+                                
+                                if ingredient_id in ingredient_usage:
+                                    ingredient_usage[ingredient_id] += usage
+                                else:
+                                    ingredient_usage[ingredient_id] = usage
+                    
+                    # 재고 차감
+                    for ingredient_id, usage_amount in ingredient_usage.items():
+                        # 현재 재고 조회
+                        inventory_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                        
+                        if inventory_result.data:
+                            current_stock = float(inventory_result.data[0]['on_hand'])
+                            new_stock = max(0, current_stock - usage_amount)  # 음수 방지
+                            
+                            # 재고 업데이트
+                            supabase.table("inventory").update({
+                                "on_hand": new_stock
+                            }).eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                            
+                            ingredient_name = ingredient_map.get(ingredient_id, f"ID:{ingredient_id}")
+                            logger.info(f"Inventory updated: {ingredient_name} - {current_stock:.2f} → {new_stock:.2f} (사용량: {usage_amount:.2f})")
+            except Exception as e:
+                # 재고 차감 실패해도 마감 저장은 성공으로 처리 (경고만 로깅)
+                logger.warning(f"재고 자동 차감 중 오류 발생 (마감은 저장됨): {e}")
+        
         logger.info(f"Daily close saved: {date_str}")
         return True
     except Exception as e:
