@@ -5835,29 +5835,6 @@ elif page == "발주 관리":
         render_section_header("발주 분석 대시보드", "📊")
         st.info("📊 발주 분석 대시보드는 현재 일시적으로 비활성화되었습니다.\n안정성 개선 이후에 다시 제공할 예정입니다.")
                 
-                with col2:
-                    st.markdown("**발주 금액**")
-                    display_monthly_amount = monthly_stats[['년월', '발주금액']].copy()
-                    display_monthly_amount['발주금액'] = display_monthly_amount['발주금액'].apply(lambda x: f"{int(x):,}원")
-                    display_monthly_amount.columns = ['년월', '발주 금액']
-                    st.dataframe(display_monthly_amount, use_container_width=True, hide_index=True)
-                
-                # 공급업체별 발주 비중
-                if '공급업체명' in orders_df.columns and '총금액' in orders_df.columns:
-                    st.markdown("#### 공급업체별 발주 비중")
-                    supplier_stats = orders_df.groupby('공급업체명').agg({
-                        'id': 'count',
-                        '총금액': 'sum'
-                    }).reset_index()
-                    supplier_stats.columns = ['공급업체명', '발주횟수', '발주금액']
-                    supplier_stats = supplier_stats.sort_values('발주금액', ascending=False)
-                    
-                    total_amount = supplier_stats['발주금액'].sum()
-                    supplier_stats['비중'] = (supplier_stats['발주금액'] / total_amount * 100).apply(lambda x: f"{x:.1f}%")
-                    supplier_stats['발주금액'] = supplier_stats['발주금액'].apply(lambda x: f"{int(x):,}원")
-                    
-                    st.dataframe(supplier_stats, use_container_width=True, hide_index=True)
-                
                 # 재료별 발주 빈도
                 if '재료명' in orders_df.columns:
                     st.markdown("#### 재료별 발주 빈도")
