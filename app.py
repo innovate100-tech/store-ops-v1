@@ -5349,9 +5349,18 @@ elif page == "발주 관리":
                         render_section_divider()
                         render_section_header("💡 스마트 발주 최적화", "⚡")
                         
-                        # 최적화 계산
+                        # 스마트 최적화는 화면에 보이는 값(발주필요량_발주단위, 발주단위단가, 예상금액)을 기준으로 계산
+                        order_df_for_opt = pd.DataFrame({
+                            '재료명': display_order_df['재료명'],
+                            # optimize_order_by_supplier는 '발주필요량', '단가', '예상금액' 컬럼을 기대
+                            '발주필요량': display_order_df['발주필요량_발주단위'],
+                            '단가': display_order_df['발주단위단가_숫자'],
+                            '예상금액': display_order_df['예상금액_숫자'],
+                        })
+                        
+                        # 최적화 계산 (발주단위 기준 수량/단가/금액 사용)
                         optimization_result = optimize_order_by_supplier(
-                            order_df,
+                            order_df_for_opt,
                             suppliers_df,
                             ingredient_suppliers_df
                         )
@@ -5568,21 +5577,23 @@ elif page == "발주 관리":
                                         failed_items = []
                                         
                                         for ingredient_name in selected_items:
-                                            item_row = order_df[order_df['재료명'] == ingredient_name].iloc[0]
-                                            supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                            # 화면에 보이는 발주 기준 데이터를 우선 사용
+                                            row_display = display_order_df[display_order_df['재료명'] == ingredient_name].iloc[0]
+                                            supplier_name = row_display['공급업체']
                                             
-                                            # 공급업체별 단가 가져오기
-                                            supplier_price = item_row['단가']
-                                            if not ingredient_suppliers_df.empty:
-                                                supplier_row = ingredient_suppliers_df[
-                                                    (ingredient_suppliers_df['재료명'] == ingredient_name) & 
-                                                    (ingredient_suppliers_df['공급업체명'] == supplier_name)
-                                                ]
-                                                if not supplier_row.empty:
-                                                    supplier_price = supplier_row.iloc[0]['단가']
+                                            # 발주필요량(발주단위)을 소수 둘째 자리까지 사용
+                                            order_qty_order_unit = float(row_display['발주필요량_발주단위'])
+                                            conversion = float(row_display.get('변환비율', 1.0) or 1.0)
                                             
-                                            quantity = item_row['발주필요량']
-                                            total_amount_item = quantity * supplier_price
+                                            # DB에는 기본단위 기준 수량과 단가를 저장
+                                            quantity = order_qty_order_unit * conversion  # 기본단위 수량
+                                            
+                                            # 기본단위 단가 (재료 마스터/매핑에 저장된 단가)
+                                            # display_order_df['단가']는 기본단위 단가, 발주단위단가_숫자는 발주단위 기준 단가
+                                            supplier_price = float(row_display['단가'])
+                                            
+                                            # 예상금액은 화면에서 계산한 값 사용
+                                            total_amount_item = float(row_display['예상금액_숫자'])
                                             
                                             # 입고 예정일 계산 (배송일 정보 활용)
                                             expected_delivery_date = None
@@ -5632,7 +5643,29 @@ elif page == "발주 관리":
                         render_section_divider()
                         render_section_header("발주 리스트 다운로드", "📥")
                         
-                        csv_data = order_df.to_csv(index=False, encoding='utf-8-sig')
+                        # CSV도 화면에 보이는 발주 기준 단위/단가/금액을 기준으로 생성
+                        export_df = display_order_df[[
+                            '재료명',
+                            '단위표시',
+                            '공급업체',
+                            '현재고_표시',
+                            '안전재고_표시',
+                            '최근평균사용량_표시',
+                            '예상소요량_표시',
+                            '발주필요량_표시',
+                            '발주단위단가_표시',
+                            '예상금액'
+                        ]].rename(columns={
+                            '단위표시': '단위',
+                            '현재고_표시': '현재고',
+                            '안전재고_표시': '안전재고',
+                            '최근평균사용량_표시': '최근평균사용량',
+                            '예상소요량_표시': '예상소요량',
+                            '발주필요량_표시': '발주필요량',
+                            '발주단위단가_표시': '발주단가'
+                        })
+
+                        csv_data = export_df.to_csv(index=False, encoding='utf-8-sig')
                         st.download_button(
                             label="📥 발주 리스트 다운로드 (CSV)",
                             data=csv_data,
