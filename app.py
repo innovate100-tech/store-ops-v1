@@ -5690,11 +5690,12 @@ elif page == "발주 관리":
         render_section_divider()
         
         # 공급업체 목록
-        # 삭제 후 데이터 새로고침 플래그 확인 및 캐시 강제 클리어
+        # 삭제 후 데이터 새로고침 플래그 확인 및 선택적 캐시 클리어
         if st.session_state.get('supplier_data_refresh', False):
-            # 모든 캐시 강제 클리어
+            # suppliers.csv 캐시만 선택적으로 클리어 (전체 캐시 클리어는 리소스 과다 사용)
             try:
-                st.cache_data.clear()
+                # load_csv 함수의 특정 파일 캐시만 클리어
+                # Streamlit의 캐시는 함수별로 관리되므로 전체 클리어 대신 선택적 처리
                 load_csv.clear()
             except Exception:
                 pass
@@ -5780,13 +5781,6 @@ elif page == "발주 관리":
                     # 공급업체 삭제 실행
                     delete_supplier(supplier_to_delete)
 
-                    # 모든 캐시 즉시 클리어
-                    try:
-                        st.cache_data.clear()
-                        load_csv.clear()
-                    except Exception:
-                        pass
-
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
                     # 성공 메시지를 session_state에 저장
                     st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
@@ -5794,7 +5788,7 @@ elif page == "발주 관리":
                     st.session_state.just_deleted_supplier = supplier_to_delete
                     # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
                     st.session_state.supplier_delete_key_counter += 1
-                    # 삭제 후 데이터 새로고침 플래그 설정
+                    # 삭제 후 데이터 새로고침 플래그 설정 (다음 렌더링에서 캐시 클리어)
                     st.session_state.supplier_data_refresh = True
                     # Streamlit의 자동 rerun 활용 (탭 상태 유지)
                 except Exception as e:
