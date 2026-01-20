@@ -971,10 +971,10 @@ def render_manager_closing_input(menu_list):
     
     st.markdown("---")
     
-    # 3) 방문자
-    st.markdown("### 3️⃣ 방문자")
+    # 3) 네이버 스마트플레이스 방문자
+    st.markdown("### 3️⃣ 네이버 스마트플레이스 방문자")
     visitors = st.number_input(
-        "👥 네이버 방문자 수",
+        "👥 네이버 스마트플레이스 방문자 수",
         min_value=0,
         value=0,
         step=1,
