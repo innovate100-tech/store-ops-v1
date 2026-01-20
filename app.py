@@ -97,7 +97,14 @@ from src.ui import (
     render_manager_closing_input
 )
 from src.reporting import generate_weekly_report
-from src.ui_helpers import render_page_header, render_section_header, render_section_divider
+from src.ui_helpers import (
+    render_page_header, 
+    render_section_header, 
+    render_section_divider,
+    safe_get_first_row,
+    safe_get_value,
+    safe_get_row_by_condition
+)
 
 # 커스텀 CSS 적용 (반응형 최적화 포함)
 st.markdown("""
@@ -1631,8 +1638,10 @@ elif page == "매출 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (매출 저장): {cache_error}")
                             st.success(f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
                         except Exception as e:
                             st.error(f"저장 중 오류가 발생했습니다: {e}")
@@ -1683,8 +1692,10 @@ elif page == "매출 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (매출 일괄 저장): {cache_error}")
                             st.success(f"✅ {success_count}일의 매출이 저장되었습니다!")
                             st.balloons()
     
@@ -1715,8 +1726,10 @@ elif page == "매출 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (방문자 저장): {cache_error}")
                             st.success(f"✅ 네이버 스마트플레이스 방문자수가 저장되었습니다! ({date}, {visitors}명)")
                         except Exception as e:
                             st.error(f"저장 중 오류가 발생했습니다: {e}")
@@ -1759,8 +1772,10 @@ elif page == "매출 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (방문자 일괄 저장): {cache_error}")
                             st.success(f"✅ {success_count}일의 네이버 스마트플레이스 방문자수가 저장되었습니다!")
                             st.balloons()
 
@@ -1800,8 +1815,12 @@ elif page == "매출 관리":
         (targets_df['연도'] == current_year) & 
         (targets_df['월'] == current_month)
     ]
-    if not target_row.empty:
-        target_sales = float(target_row.iloc[0].get('목표매출', 0))
+    # Phase 1: 안전한 DataFrame 접근
+    target_sales = safe_get_value(target_row, '목표매출', 0.0)
+    if target_sales is None:
+        target_sales = 0.0
+    else:
+        target_sales = float(target_sales)
     
     # 이번달 데이터 필터링 및 기본 변수 계산 (전역 사용)
     month_data = merged_df[
@@ -2101,8 +2120,9 @@ elif page == "매출 관리":
         if len(month_data) >= 2:
             recent_days = month_data.sort_values('날짜').tail(2)
             if len(recent_days) == 2:
-                prev_sales = recent_days.iloc[0]['총매출'] if '총매출' in recent_days.columns else 0
-                curr_sales = recent_days.iloc[1]['총매출'] if '총매출' in recent_days.columns else 0
+                # Phase 1: 안전한 DataFrame 접근
+                prev_sales = safe_get_value(recent_days.iloc[[0]], '총매출', 0) if len(recent_days) > 0 else 0
+                curr_sales = safe_get_value(recent_days.iloc[[1]], '총매출', 0) if len(recent_days) > 1 else 0
                 if prev_sales > 0:
                     drop_pct = ((curr_sales - prev_sales) / prev_sales * 100)
                     if drop_pct < -20:
@@ -2364,8 +2384,10 @@ elif page == "메뉴 등록":
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
-                            except Exception:
-                                pass
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 저장): {cache_error}")
                             st.success(f"✅ 메뉴가 저장되었습니다! ({menu_name}, {price:,}원)")
                             # 입력 필드 초기화 (session_state로)
                             if 'menu_name' in st.session_state:
@@ -2439,8 +2461,10 @@ elif page == "메뉴 등록":
                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
-                        except Exception:
-                            pass
+                        except Exception as cache_error:
+                            # Phase 1: 예외 처리 개선 - 로깅 추가
+                            import logging
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 일괄 저장): {cache_error}")
                         st.success(f"✅ {success_count}개 메뉴가 저장되었습니다!")
                         st.balloons()
                         # 입력 필드 초기화 (session_state로)
@@ -2730,13 +2754,17 @@ elif page == "메뉴 등록":
         )
         
         if selected_menu != "선택하세요":
-            menu_info = menu_df[menu_df['메뉴명'] == selected_menu].iloc[0]
+            # Phase 1: 안전한 DataFrame 접근
+            menu_info = safe_get_row_by_condition(menu_df, menu_df['메뉴명'] == selected_menu)
             
-            new_menu_name = st.text_input("메뉴명", value=menu_info['메뉴명'], key="menu_edit_name")
-            new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info['판매가']), step=1000, key="menu_edit_price")
-            if st.button("✅ 수정", key="menu_edit_btn"):
-                try:
-                    success, message = update_menu(menu_info['메뉴명'], new_menu_name, new_price)
+            if menu_info is None:
+                st.error(f"메뉴 '{selected_menu}'를 찾을 수 없습니다.")
+            else:
+                new_menu_name = st.text_input("메뉴명", value=menu_info.get('메뉴명', ''), key="menu_edit_name")
+                new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info.get('판매가', 0)), step=1000, key="menu_edit_price")
+                if st.button("✅ 수정", key="menu_edit_btn"):
+                    try:
+                        success, message = update_menu(menu_info.get('메뉴명', ''), new_menu_name, new_price)
                     if success:
                         # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
@@ -2909,7 +2937,12 @@ elif page == "재료 등록":
         # 각 재료별로 수정/삭제 버튼이 있는 표 생성
         for idx, row in display_df.iterrows():
             ingredient_name = row['재료명']
-            ingredient_info = ingredient_df[ingredient_df['재료명'] == ingredient_name].iloc[0]
+            # Phase 1: 안전한 DataFrame 접근
+            ingredient_info = safe_get_row_by_condition(ingredient_df, ingredient_df['재료명'] == ingredient_name)
+            
+            if ingredient_info is None:
+                st.warning(f"재료 '{ingredient_name}' 정보를 찾을 수 없습니다. 건너뜁니다.")
+                continue
             
             # 행 표시
             col_name, col_unit, col_order_unit, col_price1, col_price2, col_actions = st.columns([2, 1, 2, 1.5, 1.5, 1.5])
@@ -3222,8 +3255,9 @@ elif page == "레시피 등록":
                         for ing in filtered_ingredients:
                             ing_row = ingredient_df[ingredient_df['재료명'] == ing]
                             if not ing_row.empty:
-                                unit = ing_row.iloc[0].get('단위', '')
-                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                # Phase 1: 안전한 DataFrame 접근
+                                unit = safe_get_value(ing_row, '단위', '')
+                                order_unit = safe_get_value(ing_row, '발주단위', unit)
                                 if order_unit != unit:
                                     ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
                                 else:
@@ -3254,7 +3288,8 @@ elif page == "레시피 등록":
                         if '발주단위' in ingredient_df.columns:
                             ing_row = ingredient_df[ingredient_df['재료명'] == selected_ingredient]
                             if not ing_row.empty:
-                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                # Phase 1: 안전한 DataFrame 접근
+                                order_unit = safe_get_value(ing_row, '발주단위', unit)
                                 if order_unit != unit:
                                     unit_display = f"{unit} / 발주: {order_unit}"
                                 else:
@@ -3415,7 +3450,8 @@ elif page == "레시피 등록":
                 
                 # 메뉴 정보 가져오기 (판매가, 조리방법)
                 menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
-                menu_price = int(menu_info.iloc[0]['판매가']) if not menu_info.empty else 0
+                # Phase 1: 안전한 DataFrame 접근
+                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
                 
                 # 조리방법 가져오기 (menu_master에서)
                 cooking_method_text = ""
@@ -3431,8 +3467,9 @@ elif page == "레시피 등록":
                     pass
                 
                 # 원가 정보
-                cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
-                cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
+                # Phase 1: 안전한 DataFrame 접근
+                cost = int(safe_get_value(menu_cost_info, '원가', 0)) if not menu_cost_info.empty else 0
+                cost_rate = float(safe_get_value(menu_cost_info, '원가율', 0)) if not menu_cost_info.empty else 0
                 
                 # 요리책 스타일 카드 레이아웃
                 st.markdown(f"""
@@ -3731,8 +3768,11 @@ elif page == "실제정산":
                     (actual_df["연도"] == selected_year)
                     & (actual_df["월"] == selected_month)
                 ]
+                # Phase 1: 안전한 DataFrame 접근
                 if not existing_row.empty:
-                    existing_row = existing_row.iloc[0]
+                    existing_row = safe_get_first_row(existing_row)
+                    if existing_row is None:
+                        existing_row = pd.Series()
             
             render_section_divider()
             st.markdown("**💸 해당 월 실제 비용 입력 (5대 비용 항목별)**")
@@ -5877,8 +5917,9 @@ elif page == "발주 관리":
                         for ing in ingredient_list:
                             ing_row = ingredient_df[ingredient_df['재료명'] == ing]
                             if not ing_row.empty:
-                                unit = ing_row.iloc[0].get('단위', '')
-                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                # Phase 1: 안전한 DataFrame 접근
+                                unit = safe_get_value(ing_row, '단위', '')
+                                order_unit = safe_get_value(ing_row, '발주단위', unit)
                                 if order_unit != unit:
                                     ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
                                 else:
@@ -6163,8 +6204,8 @@ elif page == "통합 대시보드":
     target_sales = 0
     if not targets_df.empty:
         target_row = targets_df[(targets_df['연도'] == current_year) & (targets_df['월'] == current_month)]
-        if not target_row.empty:
-            target_sales = float(target_row.iloc[0].get('목표매출', 0))
+        # Phase 1: 안전한 DataFrame 접근
+        target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
     
     # 평일/주말 비율 (기본값: 70/30)
     weekday_ratio = 70.0
@@ -6873,7 +6914,8 @@ elif page == "통합 대시보드":
                                 
                                 # 메뉴 정보 가져오기
                                 menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
-                                menu_price = int(menu_info.iloc[0]['판매가']) if not menu_info.empty else 0
+                                # Phase 1: 안전한 DataFrame 접근
+                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
                                 
                                 # 조리방법 가져오기 (menu_master에서)
                                 cooking_method_text = ""
@@ -7058,8 +7100,8 @@ elif page == "목표 비용구조" or page == "비용구조":
     target_sales = 0
     if not targets_df.empty:
         target_row = targets_df[(targets_df['연도'] == selected_year) & (targets_df['월'] == selected_month)]
-        if not target_row.empty:
-            target_sales = float(target_row.iloc[0].get('목표매출', 0))
+        # Phase 1: 안전한 DataFrame 접근
+        target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
     
     # 손익분기점 상단 공지 표시
     if breakeven_sales is not None and breakeven_sales > 0:
@@ -7820,8 +7862,8 @@ elif page == "목표 매출구조" or page == "매출구조":
     target_sales = 0
     if not targets_df.empty:
         target_row = targets_df[(targets_df['연도'] == selected_year) & (targets_df['월'] == selected_month)]
-        if not target_row.empty:
-            target_sales = float(target_row.iloc[0].get('목표매출', 0))
+        # Phase 1: 안전한 DataFrame 접근
+        target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
     
     # 기본 검증
     variable_rate_decimal = variable_cost_rate / 100 if variable_cost_rate > 0 else 0

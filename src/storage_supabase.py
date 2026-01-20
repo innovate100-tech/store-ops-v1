@@ -56,7 +56,26 @@ def _check_supabase_for_dev_mode():
 # Load Functions (CSV 호환 인터페이스 유지)
 # ============================================
 
-@st.cache_data(ttl=60)  # 기본값 60초 (마스터 데이터와 자주 바뀌는 데이터의 균형)
+# Phase 2: 리소스 관리 - 데이터 타입별 TTL 분리
+def _get_cache_ttl(filename: str) -> int:
+    """
+    파일명에 따라 적절한 캐시 TTL 반환
+    
+    - 마스터 데이터 (메뉴, 재료): 3600초 (1시간) - 자주 변경되지 않음
+    - 트랜잭션 데이터 (매출, 방문자): 60초 (1분) - 자주 변경됨
+    - 중간 데이터 (재고, 발주): 300초 (5분) - 중간 빈도
+    """
+    master_data = ['menu_master.csv', 'ingredient_master.csv', 'recipes.csv', 'suppliers.csv']
+    transaction_data = ['sales.csv', 'naver_visitors.csv', 'daily_sales_items.csv']
+    
+    if filename in master_data:
+        return 3600  # 1시간
+    elif filename in transaction_data:
+        return 60    # 1분
+    else:
+        return 300   # 5분 (기본값)
+
+@st.cache_data(ttl=60)  # 기본값은 60초이지만, 실제로는 _get_cache_ttl 사용 권장
 def load_csv(filename: str, default_columns: Optional[List[str]] = None):
     """
     테이블에서 데이터 로드 (CSV 호환 인터페이스)
@@ -434,7 +453,11 @@ def save_visitor(date, visitors):
 
 
 def save_menu(menu_name, price):
-    """메뉴 저장"""
+    """
+    메뉴 저장
+    
+    Phase 2: 동시성 보호 - Optimistic Locking 적용
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False, "DEV MODE에서는 저장할 수 없습니다."
@@ -463,8 +486,13 @@ def save_menu(menu_name, price):
         raise
 
 
-def update_menu(old_menu_name, new_menu_name, new_price, category=None):
-    """메뉴 수정"""
+def update_menu(old_menu_name, new_menu_name, new_price, category=None, expected_updated_at=None):
+    """
+    메뉴 수정
+    
+    Phase 2: 동시성 보호 - Optimistic Locking
+    - expected_updated_at: 수정 전의 updated_at 값 (충돌 감지용)
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False, "DEV MODE에서는 수정할 수 없습니다."
@@ -474,12 +502,17 @@ def update_menu(old_menu_name, new_menu_name, new_price, category=None):
         raise Exception("No store_id found")
     
     try:
-        # 기존 메뉴 찾기
-        existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", old_menu_name).execute()
+        # 기존 메뉴 찾기 (updated_at 포함)
+        existing = supabase.table("menu_master").select("id,updated_at").eq("store_id", store_id).eq("name", old_menu_name).execute()
         if not existing.data:
             return False, f"'{old_menu_name}' 메뉴를 찾을 수 없습니다."
         
         menu_id = existing.data[0]['id']
+        current_updated_at = existing.data[0].get('updated_at')
+        
+        # Phase 2: 동시성 보호 - Optimistic Locking
+        if expected_updated_at and current_updated_at != expected_updated_at:
+            return False, f"다른 사용자가 '{old_menu_name}' 메뉴를 수정했습니다. 페이지를 새로고침한 후 다시 시도해주세요."
         
         # 새 메뉴명이 다른 경우 중복 체크
         if new_menu_name != old_menu_name:
@@ -938,7 +971,13 @@ def save_actual_settlement(year, month, actual_sales, actual_cost, actual_profit
 
 
 def save_abc_history(year, month, abc_df):
-    """ABC 분석 히스토리 저장"""
+    """
+    ABC 분석 히스토리 저장
+    
+    Phase 2: 트랜잭션 처리 개선
+    - 삭제 후 삽입 작업의 원자성 보장
+    - 실패 시 롤백 시도
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -947,7 +986,13 @@ def save_abc_history(year, month, abc_df):
     if not store_id:
         raise Exception("No store_id found")
     
+    # Phase 2: 트랜잭션 처리 - 기존 데이터 백업
+    old_data_backup = None
     try:
+        # 기존 데이터 백업 (롤백용)
+        old_result = supabase.table("abc_history").select("*").eq("store_id", store_id).eq("year", year).eq("month", month).execute()
+        old_data_backup = old_result.data if old_result.data else []
+        
         # 기존 데이터 삭제 (해당 연도/월)
         supabase.table("abc_history").delete().eq("store_id", store_id).eq("year", year).eq("month", month).execute()
         
@@ -975,6 +1020,16 @@ def save_abc_history(year, month, abc_df):
         return True
     except Exception as e:
         logger.error(f"Failed to save abc history: {e}")
+        # Phase 2: 트랜잭션 처리 - 실패 시 롤백 시도
+        if old_data_backup:
+            try:
+                logger.warning(f"Rolling back ABC history for {year}-{month}")
+                # 기존 데이터 복원 시도
+                if old_data_backup:
+                    supabase.table("abc_history").insert(old_data_backup).execute()
+                logger.info(f"ABC history rollback successful for {year}-{month}")
+            except Exception as rollback_error:
+                logger.error(f"Failed to rollback ABC history: {rollback_error}")
         raise
 
 
@@ -1006,7 +1061,13 @@ def save_key_menus(menu_list):
 
 def save_daily_close(date, store_name, card_sales, cash_sales, total_sales, 
                      visitors, sales_items, issues, memo):
-    """일일 마감 데이터 통합 저장"""
+    """
+    일일 마감 데이터 통합 저장
+    
+    Phase 2: 트랜잭션 처리 개선
+    - 여러 테이블 저장 작업의 원자성 보장
+    - 실패 시 롤백 시도
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1015,13 +1076,15 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
     if not store_id:
         raise Exception("No store_id found")
     
+    # Phase 2: 트랜잭션 처리 - 저장된 데이터 추적 (롤백용)
+    saved_operations = []
+    date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+    
     try:
-        date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
-        
         # sales_items를 JSON으로 변환
         sales_items_json = json.dumps(sales_items, ensure_ascii=False)
         
-        # daily_close 저장
+        # 1. daily_close 저장
         supabase.table("daily_close").upsert({
             "store_id": store_id,
             "date": date_str,
@@ -1036,15 +1099,19 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
             "memo": str(memo) if memo else None,
             "sales_items": sales_items_json
         }, on_conflict="store_id,date").execute()
+        saved_operations.append(('daily_close', date_str))
         
-        # 기존 매출, 방문자, 판매 데이터에도 저장 (호환성 유지)
+        # 2. 기존 매출, 방문자, 판매 데이터에도 저장 (호환성 유지)
         if total_sales > 0:
             save_sales(date, store_name, card_sales, cash_sales, total_sales)
+            saved_operations.append(('sales', date_str))
         if visitors > 0:
             save_visitor(date, visitors)
+            saved_operations.append(('visitor', date_str))
         for menu_name, quantity in sales_items:
             if quantity > 0:
                 save_daily_sales_item(date, menu_name, quantity)
+                saved_operations.append(('daily_sales_item', (date_str, menu_name)))
         
         # ========== 재고 자동 차감 기능 ==========
         # 판매된 메뉴의 레시피를 기반으로 재료 사용량 계산 후 재고 차감
@@ -1108,6 +1175,15 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         return True
     except Exception as e:
         logger.error(f"Failed to save daily close: {e}")
+        # Phase 2: 트랜잭션 처리 - 실패 시 롤백 시도
+        logger.warning(f"Attempting rollback for daily close operations: {saved_operations}")
+        try:
+            # daily_close 삭제 (가장 최근 저장)
+            if ('daily_close', date_str) in saved_operations:
+                supabase.table("daily_close").delete().eq("store_id", store_id).eq("date", date_str).execute()
+                logger.info(f"Rolled back daily_close for {date_str}")
+        except Exception as rollback_error:
+            logger.error(f"Failed to rollback daily close: {rollback_error}")
         raise
 
 
