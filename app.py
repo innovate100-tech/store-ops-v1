@@ -4786,7 +4786,187 @@ elif page == "주간 리포트":
 elif page == "통합 대시보드":
     render_page_header("통합 대시보드", "📊")
     
-    # 페이지 내용은 추후 구현 예정
+    from datetime import datetime
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    
+    # ========== 손익분기 매출 vs 목표 매출 비교 ==========
+    expense_df = load_expense_structure(current_year, current_month)
+    
+    # 고정비 계산 (임차료, 인건비, 공과금)
+    fixed_costs = 0
+    if not expense_df.empty:
+        fixed_categories = ['임차료', '인건비', '공과금']
+        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    
+    # 변동비율 계산 (재료비, 부가세&카드수수료)
+    variable_cost_rate = 0.0
+    if not expense_df.empty:
+        variable_categories = ['재료비', '부가세&카드수수료']
+        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+        if not variable_df.empty:
+            variable_cost_rate = variable_df['amount'].sum()
+    
+    # 손익분기점 계산
+    breakeven_sales = None
+    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
+        variable_rate_decimal = variable_cost_rate / 100
+        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
+            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
+    
+    # 목표 매출 로드
+    targets_df = load_csv('targets.csv', default_columns=[
+        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+        '목표임대료율', '목표기타비용율', '목표순이익률'
+    ])
+    
+    target_sales = 0
+    if not targets_df.empty:
+        target_row = targets_df[(targets_df['연도'] == current_year) & (targets_df['월'] == current_month)]
+        if not target_row.empty:
+            target_sales = float(target_row.iloc[0].get('목표매출', 0))
+    
+    # 평일/주말 비율 (기본값: 70/30)
+    weekday_ratio = 70.0
+    weekend_ratio = 30.0
+    
+    if breakeven_sales is not None and breakeven_sales > 0:
+        # 일일 손익분기 매출 계산
+        weekday_daily_breakeven = (breakeven_sales * weekday_ratio / 100) / 22
+        weekend_daily_breakeven = (breakeven_sales * weekend_ratio / 100) / 8
+        
+        # 일일 목표 매출 계산
+        weekday_daily_target = 0
+        weekend_daily_target = 0
+        if target_sales > 0:
+            weekday_daily_target = (target_sales * weekday_ratio / 100) / 22
+            weekend_daily_target = (target_sales * weekend_ratio / 100) / 8
+        
+        # 일일 고정비 계산
+        weekday_monthly_fixed = fixed_costs * (22 / 30)
+        weekend_monthly_fixed = fixed_costs * (8 / 30)
+        weekday_daily_fixed = weekday_monthly_fixed / 22
+        weekend_daily_fixed = weekend_monthly_fixed / 8
+        
+        # 변동비율 소수점 변환
+        variable_rate_decimal = variable_cost_rate / 100
+        
+        # 일일 영업이익 계산
+        weekday_daily_breakeven_profit = 0
+        weekend_daily_breakeven_profit = 0
+        
+        weekday_daily_target_profit = 0
+        weekend_daily_target_profit = 0
+        if target_sales > 0:
+            weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
+            weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
+        
+        # 추정 영업이익 계산
+        breakeven_profit = 0
+        target_profit = 0
+        if target_sales > 0:
+            target_profit = (target_sales * (1 - variable_rate_decimal)) - fixed_costs
+        
+        # 손익분기 매출 vs 목표 매출 비교 섹션
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📊 손익분기 매출 vs 목표 매출 비교
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if breakeven_sales:
+            st.markdown(f"""
+            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <span style="color: #ffffff; font-size: 0.9rem;">
+                    계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 월간 매출 비교
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+                <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
+                <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
+                <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                    💰 추정 영업이익
+                </div>
+                <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem;">0원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            if target_sales > 0:
+                profit_color = "#ffd700" if target_profit > 0 else "#ff6b6b"
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+                    <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">🎯 목표 월매출</div>
+                    <div style="font-size: 1.8rem; font-weight: 700;">{int(target_sales):,}원</div>
+                    <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                        💰 추정 영업이익
+                    </div>
+                    <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem; color: {profit_color};">{int(target_profit):,}원</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 8px; text-align: center; margin-top: 0.5rem; border: 2px dashed rgba(255,255,255,0.3);">
+                    <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #ffffff;">🎯 목표 월매출</div>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">목표 비용구조 페이지에서 목표 매출을 설정하세요</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        render_section_divider()
+        
+        # 일일 매출 비교 섹션
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📅 일일 매출 비교
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            weekday_profit_color = "#ffd700" if weekday_daily_target_profit > 0 else "#ff6b6b" if weekday_daily_target_profit < 0 else "white"
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
+                <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">📅 평일 일일 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
+                {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 1.275rem; margin-top: 0.9rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
+                    💰 일일 영업이익
+                </div>
+                <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
+                {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekday_profit_color};">목표시 영업이익: {int(weekday_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
+                    (월매출 × {weekday_ratio:.1f}% ÷ 22일)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            weekend_profit_color = "#ffd700" if weekend_daily_target_profit > 0 else "#ff6b6b" if weekend_daily_target_profit < 0 else "white"
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
+                <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">🎉 주말 일일 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
+                {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 1.275rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
+                    💰 일일 영업이익
+                </div>
+                <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
+                {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekend_profit_color};">목표시 영업이익: {int(weekend_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
+                    (월매출 × {weekend_ratio:.1f}% ÷ 8일)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
 # 목표 비용구조 페이지 (비용구조와 동일)
 elif page == "목표 비용구조" or page == "비용구조":
