@@ -5638,32 +5638,44 @@ elif page == "발주 관리":
         from src.storage_supabase import save_supplier, delete_supplier, save_ingredient_supplier, delete_ingredient_supplier
         
         # 공급업체 등록
+        # 입력 필드 초기화를 위한 키 카운터 (성공 후 증가시켜 위젯이 자동으로 초기화되도록)
+        if 'supplier_form_key_counter' not in st.session_state:
+            st.session_state.supplier_form_key_counter = 0
+        
+        # 성공 메시지 표시 (rerun 후에도 유지)
+        if 'supplier_success_message' in st.session_state and st.session_state.supplier_success_message:
+            st.success(st.session_state.supplier_success_message)
+            # 메시지 표시 후 삭제 (한 번만 표시)
+            del st.session_state.supplier_success_message
+        
         with st.expander("➕ 공급업체 등록", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
-                supplier_name = st.text_input("공급업체명 *", key="new_supplier_name")
-                phone = st.text_input("전화번호", key="new_supplier_phone")
-                email = st.text_input("이메일", key="new_supplier_email")
+                supplier_name = st.text_input("공급업체명 *", key=f"new_supplier_name_{st.session_state.supplier_form_key_counter}")
+                phone = st.text_input("전화번호", key=f"new_supplier_phone_{st.session_state.supplier_form_key_counter}")
+                email = st.text_input("이메일", key=f"new_supplier_email_{st.session_state.supplier_form_key_counter}")
             with col2:
-                delivery_days = st.text_input("배송일 (일수)", key="new_supplier_delivery_days", help="예: 2 (2일 소요)")
-                min_order_amount = st.number_input("최소 주문금액 (원)", min_value=0, value=0, key="new_supplier_min_order")
-                delivery_fee = st.number_input("배송비 (원)", min_value=0, value=0, key="new_supplier_delivery_fee")
+                delivery_days = st.text_input("배송일 (일수)", key=f"new_supplier_delivery_days_{st.session_state.supplier_form_key_counter}", help="예: 2 (2일 소요)")
+                min_order_amount = st.number_input("최소 주문금액 (원)", min_value=0, value=0, key=f"new_supplier_min_order_{st.session_state.supplier_form_key_counter}")
+                delivery_fee = st.number_input("배송비 (원)", min_value=0, value=0, key=f"new_supplier_delivery_fee_{st.session_state.supplier_form_key_counter}")
             
-            notes = st.text_area("비고", key="new_supplier_notes")
+            notes = st.text_area("비고", key=f"new_supplier_notes_{st.session_state.supplier_form_key_counter}")
             
-            if st.button("💾 공급업체 등록", type="primary", key="save_supplier"):
+            if st.button("💾 공급업체 등록", type="primary", key=f"save_supplier_{st.session_state.supplier_form_key_counter}"):
                 if supplier_name:
                     try:
                         save_supplier(supplier_name, phone, email, delivery_days, min_order_amount, delivery_fee, notes)
-                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        # 캐시 클리어
                         try:
                             st.cache_data.clear()
                         except Exception:
                             pass
-                        st.success(f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!")
-                        # 입력 필드 초기화 (session_state로)
-                        if 'new_supplier_name' in st.session_state:
-                            st.session_state.new_supplier_name = ""
+                        # 성공 메시지를 session_state에 저장 (rerun 후에도 표시되도록)
+                        st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!"
+                        # 키 카운터 증가로 입력 필드 자동 초기화 (다음 렌더링 시 새 키로 위젯 생성)
+                        st.session_state.supplier_form_key_counter += 1
+                        # 성공 후 rerun하여 입력 필드가 초기화된 상태로 표시
+                        st.rerun()
                     except Exception as e:
                         st.error(f"등록 중 오류가 발생했습니다: {e}")
                 else:
