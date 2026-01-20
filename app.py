@@ -5122,81 +5122,7 @@ elif page == "발주 관리":
         expected_count = len(expected_deliveries) if isinstance(expected_deliveries, pd.DataFrame) and not expected_deliveries.empty else 0
         overdue_count = len(overdue_orders) if isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty else (len(overdue_orders) if isinstance(overdue_orders, list) else 0)
         
-        if low_stock_items or pending_orders_count > 0 or expected_count > 0 or overdue_count > 0 or low_turnover_items:
-            st.markdown("### 🔔 알림")
-            alert_col1, alert_col2, alert_col3, alert_col4 = st.columns(4)
-            
-            with alert_col1:
-                if low_stock_items:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">🚨 품절 위험</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">{len(low_stock_items)}개</div>
-                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">재료 부족</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 0.9rem; opacity: 0.7;">품절 위험 없음</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with alert_col2:
-                if pending_orders_count > 0:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📋 발주 예정</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">{pending_orders_count}건</div>
-                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">처리 대기</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 0.9rem; opacity: 0.7;">발주 예정 없음</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with alert_col3:
-                if expected_count > 0:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 입고 예정</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">{expected_count}건</div>
-                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">오늘/내일 입고</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 0.9rem; opacity: 0.7;">입고 예정 없음</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with alert_col4:
-                if overdue_count > 0:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">⏰ 발주 지연</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">{overdue_count}건</div>
-                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">3일 이상 미완료</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                elif low_turnover_items:
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📊 과다재고</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">{len(low_turnover_items)}개</div>
-                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">회전율 낮음</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                        <div style="font-size: 0.9rem; opacity: 0.7;">추가 알림 없음</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # 알림 섹션 상단의 요약 타일(4개 박스)는 UI 단순화를 위해 제거
             
             # 품절 위험 상세 정보 (예상 소진일 + 단위 표시 포함)
             if low_stock_items:
@@ -5785,161 +5711,64 @@ elif page == "발주 관리":
     with tab4:
         render_section_header("진행 현황", "📋")
         
-        from src.storage_supabase import update_order_status
-        from datetime import datetime, timedelta
+        from datetime import datetime
         
         # 발주 이력 로드
-        orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
-        
-        # 입고 예정일 알림
-        if not orders_df.empty and '입고예정일' in orders_df.columns:
-            today = datetime.now().date()
-            tomorrow = today + timedelta(days=1)
-            
-            # 입고 예정일이 오늘 또는 내일인 발주
-            orders_df['입고예정일'] = pd.to_datetime(orders_df['입고예정일'], errors='coerce')
-            expected_today = orders_df[
-                (orders_df['상태'].isin(['예정', '완료'])) & 
-                (pd.to_datetime(orders_df['입고예정일']).dt.date == today)
-            ]
-            expected_tomorrow = orders_df[
-                (orders_df['상태'].isin(['예정', '완료'])) & 
-                (pd.to_datetime(orders_df['입고예정일']).dt.date == tomorrow)
-            ]
-            
-            if not expected_today.empty or not expected_tomorrow.empty:
-                st.markdown("### 🔔 입고 예정 알림")
-                alert_col1, alert_col2 = st.columns(2)
-                
-                with alert_col1:
-                    if not expected_today.empty:
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 오늘 입고 예정</div>
-                            <div style="font-size: 1.5rem; font-weight: 700;">{len(expected_today)}건</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        with st.expander("오늘 입고 예정 상세", expanded=False):
-                            display_today = expected_today[['재료명', '공급업체명', '수량', '입고예정일']].copy()
-                            if '입고예정일' in display_today.columns:
-                                display_today['입고예정일'] = pd.to_datetime(display_today['입고예정일']).dt.strftime('%Y-%m-%d')
-                            if '수량' in display_today.columns:
-                                display_today['수량'] = display_today['수량'].apply(lambda x: f"{x:,.2f}")
-                            st.dataframe(display_today, use_container_width=True, hide_index=True)
-                
-                with alert_col2:
-                    if not expected_tomorrow.empty:
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
-                            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 내일 입고 예정</div>
-                            <div style="font-size: 1.5rem; font-weight: 700;">{len(expected_tomorrow)}건</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        with st.expander("내일 입고 예정 상세", expanded=False):
-                            display_tomorrow = expected_tomorrow[['재료명', '공급업체명', '수량', '입고예정일']].copy()
-                            if '입고예정일' in display_tomorrow.columns:
-                                display_tomorrow['입고예정일'] = pd.to_datetime(display_tomorrow['입고예정일']).dt.strftime('%Y-%m-%d')
-                            if '수량' in display_tomorrow.columns:
-                                display_tomorrow['수량'] = display_tomorrow['수량'].apply(lambda x: f"{x:,.2f}")
-                            st.dataframe(display_tomorrow, use_container_width=True, hide_index=True)
-                
-                render_section_divider()
+        orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액'])
         
         if not orders_df.empty:
-            # 상태 필터
-            status_filter = st.selectbox(
-                "상태 필터",
-                options=["전체", "예정", "완료", "입고완료", "취소"],
-                key="order_status_filter"
+            # 재료 정보와 조인하여 단위/발주단위/변환비율 확보
+            orders_display = pd.merge(
+                orders_df,
+                ingredient_df[['재료명', '단위', '발주단위', '변환비율']] if not ingredient_df.empty else pd.DataFrame(columns=['재료명', '단위', '발주단위', '변환비율']),
+                on='재료명',
+                how='left'
             )
+            orders_display['발주단위'] = orders_display['발주단위'].fillna(orders_display['단위'])
+            orders_display['변환비율'] = orders_display['변환비율'].fillna(1.0)
             
-            # 필터링
-            if status_filter != "전체":
-                filtered_orders = orders_df[orders_df['상태'] == status_filter].copy()
+            # 발주일 정리
+            if '발주일' in orders_display.columns:
+                orders_display['발주일'] = pd.to_datetime(orders_display['발주일'], errors='coerce')
             else:
-                filtered_orders = orders_df.copy()
+                orders_display['발주일'] = pd.NaT
             
-            # 정렬 (최신순)
-            if '발주일' in filtered_orders.columns:
-                filtered_orders = filtered_orders.sort_values('발주일', ascending=False)
+            # 발주 수량/단가를 발주단위 기준으로 변환
+            orders_display['수량_발주단위'] = orders_display['수량'] / orders_display['변환비율']
+            orders_display['발주단위단가'] = orders_display['단가'] * orders_display['변환비율']
             
-            # 표시용 포맷팅
-            display_orders = filtered_orders.copy()
-            if '발주일' in display_orders.columns:
-                display_orders['발주일'] = pd.to_datetime(display_orders['발주일']).dt.strftime('%Y-%m-%d')
-            if '입고예정일' in display_orders.columns:
-                display_orders['입고예정일'] = pd.to_datetime(display_orders['입고예정일']).dt.strftime('%Y-%m-%d')
-            if '입고일' in display_orders.columns:
-                display_orders['입고일'] = pd.to_datetime(display_orders['입고일']).dt.strftime('%Y-%m-%d')
-            if '수량' in display_orders.columns:
-                display_orders['수량'] = display_orders['수량'].apply(lambda x: f"{x:,.2f}")
-            if '단가' in display_orders.columns:
-                display_orders['단가'] = display_orders['단가'].apply(lambda x: f"{int(x):,}원")
-            if '총금액' in display_orders.columns:
-                display_orders['총금액'] = display_orders['총금액'].apply(lambda x: f"{int(x):,}원")
+            # 날짜별 그룹핑 (최근 날짜가 위로)
+            orders_display = orders_display.sort_values('발주일', ascending=False)
+            grouped = orders_display.groupby(orders_display['발주일'].dt.date.fillna(pd.to_datetime("1970-01-01").date()))
             
-            # 표시할 컬럼만 선택해서 id, store_id 등 시스템 컬럼 숨김
-            preferred_cols = [
-                '재료명', '공급업체명', '발주일', '수량', '단가',
-                '총금액', '상태', '입고예정일', '입고일', '비고'
-            ]
-            display_cols = [col for col in preferred_cols if col in display_orders.columns]
-            st.dataframe(display_orders[display_cols], use_container_width=True, hide_index=True)
-            
-            # 발주 상태 업데이트
-            render_section_divider()
-            render_section_header("발주 상태 관리", "🔄")
-            
-            if not filtered_orders.empty:
-                # 발주 선택
-                order_options = []
-                order_ids = []
-                for idx, row in filtered_orders.iterrows():
-                    order_date_str = pd.to_datetime(row['발주일']).strftime('%Y-%m-%d') if pd.notna(row.get('발주일')) else "날짜없음"
-                    order_options.append(f"{row['재료명']} - {row['공급업체명']} ({order_date_str})")
-                    # id 컬럼이 있으면 사용, 없으면 index 사용
-                    order_ids.append(row.get('id', idx))
+            for order_date, group in grouped:
+                date_str = "발주일 미지정" if pd.isna(order_date) else datetime.combine(order_date, datetime.min.time()).strftime("%Y-%m-%d")
+                total_amount = group['총금액'].fillna(0).sum()
                 
-                if order_options:
-                    selected_order_idx = st.selectbox("발주 선택", options=range(len(order_options)), format_func=lambda x: order_options[x], key="select_order")
-                    
-                    if selected_order_idx is not None and selected_order_idx < len(filtered_orders):
-                        selected_order = filtered_orders.iloc[selected_order_idx]
-                        current_status = selected_order.get('상태', '예정')
-                        
-                        st.info(f"**현재 상태**: {current_status}")
-                        
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            new_status = st.selectbox(
-                                "새 상태",
-                                options=["예정", "완료", "입고완료", "취소"],
-                                index=["예정", "완료", "입고완료", "취소"].index(current_status) if current_status in ["예정", "완료", "입고완료", "취소"] else 0,
-                                key="new_order_status"
-                            )
-                        
-                        with col2:
-                            if new_status == "입고완료":
-                                delivery_date = st.date_input("입고일", value=datetime.now().date(), key="delivery_date")
-                            else:
-                                delivery_date = None
-                        
-                        if st.button("🔄 상태 업데이트", type="primary", key="update_order_status"):
-                            try:
-                                order_id = order_ids[selected_order_idx]
-                                update_order_status(order_id, new_status, delivery_date)
-                                st.success(f"✅ 발주 상태가 '{new_status}'로 업데이트되었습니다!")
-                                # 상태 변경이 알림/진행 현황/재고에 즉시 반영되도록 캐시 초기화
-                                try:
-                                    st.cache_data.clear()
-                                except Exception:
-                                    pass
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"상태 업데이트 중 오류가 발생했습니다: {e}")
+                st.markdown(f"""
+                <div style="background: rgba(15,23,42,0.9); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid rgba(148,163,184,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <div style="font-size: 1rem; font-weight: 600; color: #e5e7eb;">📅 발주일: {date_str}</div>
+                        <div style="font-size: 0.95rem; color: #93c5fd;">총 발주 금액: {int(total_amount):,}원</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                display_cols = ['재료명', '공급업체명', '단위', '발주단위', '수량_발주단위', '발주단위단가', '총금액']
+                disp = group[display_cols].copy()
+                disp.rename(columns={
+                    '단위': '사용단위',
+                    '수량_발주단위': '수량(발주단위)',
+                    '발주단위단가': '발주단가(발주단위)',
+                }, inplace=True)
+                
+                disp['수량(발주단위)'] = disp['수량(발주단위)'].apply(lambda x: f"{x:,.2f}")
+                disp['발주단가(발주단위)'] = disp['발주단가(발주단위)'].apply(lambda x: f"{int(x):,}원")
+                disp['총금액'] = disp['총금액'].apply(lambda x: f"{int(x):,}원")
+                
+                st.dataframe(disp, use_container_width=True, hide_index=True)
         else:
-            st.info("등록된 발주 이력이 없습니다.")
+            st.info("아직 생성된 발주 이력이 없습니다. 발주 추천 탭에서 발주를 생성해 주세요.")
     
     # ========== 탭 5: 공급업체 ==========
     with tab5:
