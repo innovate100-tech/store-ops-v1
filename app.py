@@ -1298,27 +1298,34 @@ with st.sidebar:
     # 사이드바 네비게이션 - 카테고리별로 구분
     # 메뉴 항목들을 카테고리별로 정의
     menu_categories = {
-        "매출": [
+        "⚡ 핵심 기능 (매일)": [
             ("점장 마감", "📋"),
+            ("발주 관리", "🛒"),
+            ("통합 대시보드", "📊"),
+        ],
+        "💰 매출 & 비용 (주 2-3회)": [
             ("매출 관리", "📊"),
             ("판매 관리", "📦"),
-            ("발주 관리", "🛒"),
-        ],
-        "비용": [
             ("재료 사용량 집계", "📈"),
-            ("메뉴 등록", "🍽️"),
-            ("재료 등록", "🥬"),
-            ("레시피 등록", "📝"),
             ("원가 파악", "💰"),
         ],
-        "재무": [
+        "📈 재무 분석 (월 1-2회)": [
             ("비용구조", "💳"),
             ("매출구조", "📈"),
             ("실제정산", "🧾"),
         ],
-        "기타": [
+        "⚙️ 설정 (변경 시)": [
+            ("메뉴 등록", "🍽️"),
+            ("재료 등록", "🥬"),
+            ("레시피 등록", "📝"),
+        ],
+        "📄 리포트 (주간/월간)": [
             ("주간 리포트", "📄"),
-            ("통합 대시보드", "📊"),
+        ],
+        "👥 파트너 (필요시)": [
+            ("직원 연락망", "👤"),
+            ("협력사 연락망", "🤝"),
+            ("게시판", "📌"),
         ]
     }
     
@@ -4108,135 +4115,40 @@ elif page == "주간 리포트":
         else:
             st.info("생성된 리포트가 없습니다.")
 
-# 핵심 대시보드 페이지
-elif page == "핵심 대시보드":
-    render_page_header("핵심 대시보드", "📊")
+# 통합 대시보드 페이지
+elif page == "통합 대시보드":
+    st.header("📊 통합 대시보드")
     
-    from datetime import datetime, timedelta
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
-    
-    # ========== 1. 오늘 뭐하지? (핵심 한눈에 보기) ==========
-    render_section_header("오늘 뭐하지?", "🎯")
-    
-    # 발주 필요 재료 확인
-    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
-    inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
-    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-    
-    if not ingredient_df.empty and not inventory_df.empty:
-        # 재료 사용량 계산
-        usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
-        
-        # 발주 추천 계산
-        order_recommendation = calculate_order_recommendation(
-            ingredient_df, inventory_df, usage_df, days_for_avg=7, forecast_days=3
-        )
-        
-        if not order_recommendation.empty:
-            st.warning(f"🚨 발주 필요 재료: {len(order_recommendation)}개")
-            display_order = order_recommendation.head(5).copy()
-            display_order['예상금액'] = display_order['예상금액'].apply(lambda x: f"{int(x):,}원")
-            st.dataframe(
-                display_order[['재료명', '단위', '발주필요량', '예상금액']],
-                use_container_width=True,
-                hide_index=True
-            )
-            if len(order_recommendation) > 5:
-                st.caption(f"외 {len(order_recommendation) - 5}개 재료 더 있음 (발주 관리 페이지에서 전체 확인)")
-        else:
-            st.success("✅ 발주 필요 재료 없음")
-    
-    # 원가율 경고 메뉴 확인
-    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-    if not menu_df.empty and not recipe_df.empty and not ingredient_df.empty:
-        cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
-        if not cost_df.empty:
-            high_cost_menus = cost_df[cost_df['원가율'] >= 35].sort_values('원가율', ascending=False)
-            if not high_cost_menus.empty:
-                st.warning(f"⚠️ 원가율 경고 메뉴: {len(high_cost_menus)}개 (35% 이상)")
-                display_cost = high_cost_menus.head(5).copy()
-                display_cost['판매가'] = display_cost['판매가'].apply(lambda x: f"{int(x):,}원")
-                display_cost['원가'] = display_cost['원가'].apply(lambda x: f"{int(x):,}원")
-                display_cost['원가율'] = display_cost['원가율'].apply(lambda x: f"{x:.1f}%")
-                st.dataframe(
-                    display_cost[['메뉴명', '판매가', '원가', '원가율']],
-                    use_container_width=True,
-                    hide_index=True
-                )
-                if len(high_cost_menus) > 5:
-                    st.caption(f"외 {len(high_cost_menus) - 5}개 메뉴 더 있음 (원가 파악 페이지에서 전체 확인)")
-            else:
-                st.success("✅ 원가율 경고 메뉴 없음")
-    
-    render_section_divider()
-    
-    # ========== 2. 오늘 매장은? ==========
-    render_section_header("오늘 매장은?", "🏪")
-    
-    # 오늘 목표매출 vs 어제 매출
+    # 데이터 로드
     sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-    if not sales_df.empty:
-        sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
-        today_sales = sales_df[sales_df['날짜'].dt.date == today]['총매출'].sum()
-        yesterday_sales = sales_df[sales_df['날짜'].dt.date == yesterday]['총매출'].sum()
+    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+    
+    # 조인된 데이터 표시
+    render_section_header("매출 & 방문자 통합 데이터", "📋")
+    merged_df = merge_sales_visitors(sales_df, visitors_df)
+    
+    if not merged_df.empty:
+        display_df = merged_df.copy()
+        if '날짜' in display_df.columns:
+            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+        if '총매출' in display_df.columns:
+            display_df['총매출'] = display_df['총매출'].apply(
+                lambda x: f"{int(x):,}원" if pd.notna(x) else "-"
+            )
+        if '방문자수' in display_df.columns:
+            display_df['방문자수'] = display_df['방문자수'].apply(
+                lambda x: f"{int(x):,}명" if pd.notna(x) else "-"
+            )
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("오늘 매출", f"{today_sales:,.0f}원" if today_sales > 0 else "0원")
-        with col2:
-            diff = today_sales - yesterday_sales
-            diff_pct = (diff / yesterday_sales * 100) if yesterday_sales > 0 else 0
-            st.metric("어제 대비", f"{diff:+,.0f}원", f"{diff_pct:+.1f}%")
-    
-    # 오늘 근무직원 (임시 - 추후 직원 연락망 기능 추가 시 연결)
-    st.info("👥 오늘 근무직원: 직원 연락망 기능 준비 중")
-    
-    # 발주필요 (위에서 계산한 것 요약)
-    if not order_recommendation.empty:
-        total_order_amount = order_recommendation['예상금액'].sum()
-        st.metric("발주 예상 금액", f"{total_order_amount:,.0f}원")
-    
-    render_section_divider()
-    
-    # ========== 3. 게시판 ==========
-    render_section_header("게시판", "📌")
-    
-    # 게시판 데이터 (임시 - 추후 DB 연결)
-    if 'board_posts' not in st.session_state:
-        st.session_state.board_posts = []
-    
-    # 게시글 작성
-    with st.expander("✏️ 새 게시글 작성", expanded=False):
-        post_title = st.text_input("제목", key="board_title")
-        post_content = st.text_area("내용", key="board_content", height=150)
-        if st.button("작성", key="board_submit"):
-            if post_title and post_content:
-                new_post = {
-                    'id': len(st.session_state.board_posts) + 1,
-                    'title': post_title,
-                    'content': post_content,
-                    'author': get_current_store_name(),
-                    'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
-                }
-                st.session_state.board_posts.insert(0, new_post)
-                st.success("게시글이 작성되었습니다!")
-                st.rerun()
-    
-    # 게시글 목록
-    if st.session_state.board_posts:
-        for post in st.session_state.board_posts:
-            with st.container():
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid #667eea;">
-                    <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">{post['title']}</div>
-                    <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">{post['content']}</div>
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{post['author']} • {post['date']}</div>
-                </div>
-                """, unsafe_allow_html=True)
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # 상관계수 계산 및 표시
+        render_section_divider()
+        render_section_header("매출-방문자 상관관계 분석", "📈")
+        correlation = calculate_correlation(sales_df, visitors_df)
+        render_correlation_info(correlation)
     else:
-        st.info("게시글이 없습니다. 첫 게시글을 작성해보세요!")
+        st.info("통합할 데이터가 없습니다. 매출과 방문자 데이터를 먼저 입력해주세요.")
 
 # 비용구조 페이지
 elif page == "비용구조":
@@ -5168,3 +5080,166 @@ elif page == "매출구조":
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+
+# 직원 연락망 페이지
+elif page == "직원 연락망":
+    render_page_header("직원 연락망", "👤")
+    
+    # 직원 데이터 (임시 - 추후 DB 연결)
+    if 'employees' not in st.session_state:
+        st.session_state.employees = []
+    
+    # 직원 추가
+    with st.expander("➕ 직원 추가", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            emp_name = st.text_input("이름", key="emp_name")
+        with col2:
+            emp_role = st.text_input("역할", key="emp_role", placeholder="예: 주방장, 서버 등")
+        with col3:
+            emp_phone = st.text_input("연락처", key="emp_phone", placeholder="010-0000-0000")
+        
+        col4, col5 = st.columns(2)
+        with col4:
+            emp_worktime = st.text_input("근무시간", key="emp_worktime", placeholder="예: 평일 09:00-18:00")
+        with col5:
+            st.write("")
+            st.write("")
+            if st.button("추가", key="emp_add", type="primary"):
+                if emp_name and emp_phone:
+                    new_emp = {
+                        'id': len(st.session_state.employees) + 1,
+                        'name': emp_name,
+                        'role': emp_role,
+                        'phone': emp_phone,
+                        'worktime': emp_worktime,
+                    }
+                    st.session_state.employees.append(new_emp)
+                    st.success(f"{emp_name} 직원이 추가되었습니다!")
+                    st.rerun()
+                else:
+                    st.error("이름과 연락처는 필수입니다.")
+    
+    # 직원 목록
+    if st.session_state.employees:
+        st.markdown("**👥 직원 목록**")
+        for idx, emp in enumerate(st.session_state.employees):
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+            with col1:
+                st.write(f"**{emp['name']}**")
+                if emp['role']:
+                    st.caption(f"역할: {emp['role']}")
+            with col2:
+                st.write(f"📞 {emp['phone']}")
+            with col3:
+                if emp['worktime']:
+                    st.caption(f"⏰ {emp['worktime']}")
+            with col4:
+                if st.button("🗑️", key=f"del_emp_{idx}", help="삭제"):
+                    st.session_state.employees.pop(idx)
+                    st.rerun()
+            st.markdown("---")
+    else:
+        st.info("등록된 직원이 없습니다. 직원을 추가해주세요.")
+
+# 협력사 연락망 페이지
+elif page == "협력사 연락망":
+    render_page_header("협력사 연락망", "🤝")
+    
+    # 협력사 데이터 (임시 - 추후 DB 연결)
+    if 'partners' not in st.session_state:
+        st.session_state.partners = []
+    
+    # 협력사 추가
+    with st.expander("➕ 협력사 추가", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            partner_name = st.text_input("업체명", key="partner_name")
+            partner_contact = st.text_input("담당자", key="partner_contact")
+        with col2:
+            partner_phone = st.text_input("연락처", key="partner_phone", placeholder="010-0000-0000")
+            partner_type = st.selectbox("유형", ["재료 공급", "배달", "기타"], key="partner_type")
+        
+        partner_memo = st.text_area("메모", key="partner_memo", placeholder="거래 내역, 특이사항 등")
+        
+        if st.button("추가", key="partner_add", type="primary"):
+            if partner_name and partner_phone:
+                new_partner = {
+                    'id': len(st.session_state.partners) + 1,
+                    'name': partner_name,
+                    'contact': partner_contact,
+                    'phone': partner_phone,
+                    'type': partner_type,
+                    'memo': partner_memo,
+                }
+                st.session_state.partners.append(new_partner)
+                st.success(f"{partner_name} 협력사가 추가되었습니다!")
+                st.rerun()
+            else:
+                st.error("업체명과 연락처는 필수입니다.")
+    
+    # 협력사 목록
+    if st.session_state.partners:
+        st.markdown("**🤝 협력사 목록**")
+        for idx, partner in enumerate(st.session_state.partners):
+            col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+            with col1:
+                st.write(f"**{partner['name']}**")
+                if partner['contact']:
+                    st.caption(f"담당자: {partner['contact']}")
+            with col2:
+                st.write(f"📞 {partner['phone']}")
+                st.caption(f"유형: {partner['type']}")
+            with col3:
+                if partner['memo']:
+                    st.caption(f"📝 {partner['memo']}")
+            with col4:
+                if st.button("🗑️", key=f"del_partner_{idx}", help="삭제"):
+                    st.session_state.partners.pop(idx)
+                    st.rerun()
+            st.markdown("---")
+    else:
+        st.info("등록된 협력사가 없습니다. 협력사를 추가해주세요.")
+
+# 게시판 페이지
+elif page == "게시판":
+    render_page_header("게시판", "📌")
+    
+    # 게시판 데이터 (임시 - 추후 DB 연결)
+    if 'board_posts' not in st.session_state:
+        st.session_state.board_posts = []
+    
+    # 게시글 작성
+    with st.expander("✏️ 새 게시글 작성", expanded=False):
+        post_title = st.text_input("제목", key="board_title")
+        post_content = st.text_area("내용", key="board_content", height=200)
+        if st.button("작성", key="board_submit", type="primary"):
+            if post_title and post_content:
+                from datetime import datetime
+                new_post = {
+                    'id': len(st.session_state.board_posts) + 1,
+                    'title': post_title,
+                    'content': post_content,
+                    'author': get_current_store_name(),
+                    'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                }
+                st.session_state.board_posts.insert(0, new_post)
+                st.success("게시글이 작성되었습니다!")
+                st.rerun()
+            else:
+                st.error("제목과 내용을 모두 입력해주세요.")
+    
+    # 게시글 목록
+    if st.session_state.board_posts:
+        st.markdown("**📌 게시글 목록**")
+        for post in st.session_state.board_posts:
+            with st.container():
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border-left: 3px solid #667eea;">
+                    <div style="font-weight: 600; font-size: 1.2rem; margin-bottom: 0.5rem; color: #ffffff;">{post['title']}</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.95rem; margin-bottom: 0.8rem; line-height: 1.6; white-space: pre-wrap;">{post['content']}</div>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">👤 {post['author']} • 📅 {post['date']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("게시글이 없습니다. 첫 게시글을 작성해보세요!")
