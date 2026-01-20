@@ -5902,8 +5902,23 @@ elif page == "발주 관리":
             supplier_to_delete = st.selectbox("삭제할 공급업체", options=suppliers_df['공급업체명'].tolist(), key="delete_supplier_select")
             if st.button("🗑️ 공급업체 삭제", key="delete_supplier"):
                 try:
+                    # 삭제 전에 매핑된 품목 수 확인 (경고용)
+                    mapped_count = 0
+                    if not ingredient_suppliers_all.empty:
+                        mapped_count = int(
+                            (ingredient_suppliers_all['공급업체명'] == supplier_to_delete).sum()
+                        )
+
                     delete_supplier(supplier_to_delete)
-                    st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!")
+
+                    # 캐시 초기화 후 즉시 반영
+                    try:
+                        st.cache_data.clear()
+                    except Exception:
+                        pass
+
+                    warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
+                    st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}")
                     st.rerun()
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
