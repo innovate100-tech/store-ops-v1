@@ -1751,10 +1751,10 @@ elif page == "매출 등록":
 elif page == "매출 관리":
     render_page_header("매출 관리", "📊")
     
-    # 카테고리 선택 (매출 / 방문자)
+    # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
     category = st.radio(
         "카테고리",
-        ["💰 매출", "👥 방문자"],
+        ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
         horizontal=True,
         key="sales_analysis_category"
     )
@@ -1845,13 +1845,13 @@ elif page == "매출 관리":
             st.info("저장된 매출 데이터가 없습니다.")
     
     else:
-        # 저장된 방문자 표시 및 삭제
-        render_section_header("저장된 방문자 내역", "📋")
+        # 저장된 네이버 스마트플레이스 방문자 표시 및 삭제
+        render_section_header("저장된 네이버 스마트플레이스 방문자 내역", "📋")
         visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
         
         if not visitors_df.empty:
             # 삭제 기능
-            st.write("**🗑️ 방문자 데이터 삭제**")
+            st.write("**🗑️ 네이버 스마트플레이스 방문자 데이터 삭제**")
             col1, col2 = st.columns([2, 1])
             with col1:
                 delete_date = st.date_input("삭제할 날짜", key="visitor_delete_date")
@@ -1891,7 +1891,7 @@ elif page == "매출 관리":
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         else:
-            st.info("저장된 방문자 데이터가 없습니다.")
+            st.info("저장된 네이버 스마트플레이스 방문자 데이터가 없습니다.")
 
 # 메뉴 등록 페이지
 elif page == "메뉴 등록":
