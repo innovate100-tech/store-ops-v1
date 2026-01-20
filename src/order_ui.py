@@ -14,7 +14,8 @@ from src.ui_helpers import (
     format_price_with_unit,
     convert_to_order_unit,
     convert_to_base_unit,
-    merge_ingredient_with_inventory
+    merge_ingredient_with_inventory,
+    safe_get_value
 )
 from src.storage_supabase import load_csv, save_inventory
 
@@ -540,7 +541,6 @@ def render_supplier_management_tab(ingredient_df: pd.DataFrame, load_csv_func):
                     for ing in ingredient_list:
                         ing_row = ingredient_df[ingredient_df['재료명'] == ing]
                         if not ing_row.empty:
-                            from src.ui_helpers import safe_get_value
                             unit = safe_get_value(ing_row, '단위', '')
                             order_unit = safe_get_value(ing_row, '발주단위', unit)
                             if order_unit != unit:

@@ -280,8 +280,10 @@ def merge_ingredient_with_inventory(ingredient_df: pd.DataFrame, inventory_df: p
     )
     
     # 기본값 처리
-    if '발주단위' in result.columns:
-        result['발주단위'] = result['발주단위'].fillna(result.get('단위', ''))
+    if '발주단위' in result.columns and '단위' in result.columns:
+        result['발주단위'] = result['발주단위'].fillna(result['단위'])
+    elif '발주단위' in result.columns:
+        result['발주단위'] = result['발주단위'].fillna('')
     if '변환비율' in result.columns:
         result['변환비율'] = result['변환비율'].fillna(1.0)
     if '단가' in result.columns:
