@@ -4007,7 +4007,7 @@ elif page == "판매 관리":
                 value=min_date,
                 min_value=min_date,
                 max_value=max_date,
-                key="sales_analysis_start_date"
+                key="sales_mgmt_start_date"
             )
         with col2:
             analysis_end_date = st.date_input(
@@ -4015,7 +4015,7 @@ elif page == "판매 관리":
                 value=max_date,
                 min_value=min_date,
                 max_value=max_date,
-                key="sales_analysis_end_date"
+                key="sales_mgmt_end_date"
             )
         
         # 기간 유효성 검사
