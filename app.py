@@ -4821,13 +4821,12 @@ elif page == "발주 관리":
                     st.write(f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}")
                 with col6:
                     new_safety_order = st.number_input(
-                        "",
+                        f"발주단위: {row['발주단위']}",
                         min_value=0.0,
                         value=current_safety_order,
                         step=1.0,
                         format="%.2f",
                         key=f"safety_stock_order_{row['재료명']}",
-                        help=f"발주단위: {row['발주단위']}"
                     )
                 with col7:
                     if st.button("저장", key=f"safety_save_{row['재료명']}", use_container_width=True):
