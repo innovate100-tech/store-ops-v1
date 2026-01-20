@@ -212,15 +212,14 @@ st.markdown("""
         filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
     }
     
-    /* 전광판 스타일 */
+    /* 전광판 스타일 (독립 박스) */
     .led-board {
         position: relative;
-        z-index: 1;
         background: #000000;
         border: 3px solid #333333;
         border-radius: 8px;
         padding: 1rem 1.5rem;
-        margin-top: 1rem;
+        margin-bottom: 2rem;
         overflow: hidden;
         box-shadow: 
             inset 0 0 20px rgba(255, 0, 0, 0.3),
@@ -242,35 +241,30 @@ st.markdown("""
             transparent 4px
         );
         pointer-events: none;
+        z-index: 1;
     }
     
     .led-text {
-        color: #ff3333;
-        font-weight: 700;
-        font-size: 1.2rem;
-        letter-spacing: 2px;
-        white-space: nowrap;
-        text-shadow: 
-            0 0 10px #ff0000,
-            0 0 20px #ff0000,
-            0 0 30px #ff0000;
-        animation: ledBlink 1.5s ease-in-out infinite;
-        overflow: hidden;
         position: relative;
-        display: block;
-        width: 100%;
+        height: 1.5rem;
+        overflow: hidden;
+        z-index: 2;
     }
     
     .led-text::before {
         content: '하루 1분 입력으로 매장의 모든 데이트를 분석하자!';
         position: absolute;
         white-space: nowrap;
-        animation: ledScroll 15s linear infinite;
         color: #ff3333;
+        font-weight: 700;
+        font-size: 1.2rem;
+        letter-spacing: 2px;
         text-shadow: 
             0 0 10px #ff0000,
             0 0 20px #ff0000,
             0 0 30px #ff0000;
+        animation: ledBlink 1.5s ease-in-out infinite, ledScroll 15s linear infinite;
+        line-height: 1.5rem;
     }
     
     @keyframes ledBlink {
@@ -1204,9 +1198,9 @@ st.markdown("""
         <span class="emoji">😎</span>
         <span class="text-gradient">외식경영 의사결정 시스템 (운영 OS)</span>
     </h1>
-    <div class="led-board">
-        <div class="led-text"></div>
-    </div>
+</div>
+<div class="led-board">
+    <div class="led-text"></div>
 </div>
 """, unsafe_allow_html=True)
 
