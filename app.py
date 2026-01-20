@@ -1753,159 +1753,159 @@ elif page == "매출 관리":
     
     # ========== 저장된 데이터 표시 및 분석 ==========
     # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
-        st.markdown("""
-        <div style="margin: 2rem 0 1rem 0;">
-            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-                📋 저장된 매출 내역
-            </h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 데이터 로드
-        sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-        visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-        
-        # 매출과 방문자 데이터 통합
-        merged_df = merge_sales_visitors(sales_df, visitors_df)
-        
-        if not merged_df.empty:
-            # 삭제 기능
-            st.write("**🗑️ 매출 데이터 삭제**")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
-            with col2:
-                if not sales_df.empty:
-                    delete_store_list = sales_df['매장'].unique().tolist()
-                    delete_store = st.selectbox(
-                        "매장 선택 (전체 삭제 시 '전체' 선택)",
-                        ["전체"] + delete_store_list,
-                        key="sales_delete_store"
-                    )
-                else:
-                    delete_store = "전체"
-            with col3:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ 삭제", key="sales_delete_btn", type="primary"):
-                    try:
-                        if delete_store == "전체":
-                            success, message = delete_sales(delete_date, None)
-                        else:
-                            success, message = delete_sales(delete_date, delete_store)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-            
-            render_section_divider()
-            
-            # 통합 데이터 표시 (입력값만 표시)
-            display_df = merged_df.copy()
-            
-            # 표시할 컬럼만 선택 (기술적 컬럼 제외)
-            display_columns = []
-            if '날짜' in display_df.columns:
-                display_columns.append('날짜')
-            if '매장' in display_df.columns:
-                display_columns.append('매장')
-            if '카드매출' in display_df.columns:
-                display_columns.append('카드매출')
-            if '현금매출' in display_df.columns:
-                display_columns.append('현금매출')
-            if '총매출' in display_df.columns:
-                display_columns.append('총매출')
-            if '방문자수' in display_df.columns:
-                display_columns.append('방문자수')
-            
-            # 필요한 컬럼만 선택
-            if display_columns:
-                display_df = display_df[display_columns]
-                
-                # 날짜를 문자열로 변환
-                if '날짜' in display_df.columns:
-                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-                
-                # 숫자 포맷팅
-                if '총매출' in display_df.columns:
-                    display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '카드매출' in display_df.columns:
-                    display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '현금매출' in display_df.columns:
-                    display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '방문자수' in display_df.columns:
-                    display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            # 차트 표시: 이번달 날짜별 매출과 방문자 사이의 연관성
-            render_section_header("이번달 날짜별 매출과 방문자 사이의 연관성", "📈")
-            
-            # 현재 이번달 월 데이터만 필터링
-            from datetime import datetime
-            current_year = datetime.now().year
-            current_month = datetime.now().month
-            
-            chart_df = merged_df.copy()
-            if '날짜' in chart_df.columns:
-                chart_df['날짜'] = pd.to_datetime(chart_df['날짜'])
-                # 이번달 데이터만 필터링 (현재 년도의 현재 월)
-                chart_df = chart_df[
-                    (chart_df['날짜'].dt.year == current_year) & 
-                    (chart_df['날짜'].dt.month == current_month)
-                ].sort_values('날짜')
-            
-            if not chart_df.empty and '총매출' in chart_df.columns and '방문자수' in chart_df.columns:
-                import matplotlib.pyplot as plt
-                import matplotlib.font_manager as fm
-                
-                # 한글 폰트 설정
-                plt.rcParams['font.family'] = 'Malgun Gothic'
-                plt.rcParams['axes.unicode_minus'] = False
-                
-                fig, ax1 = plt.subplots(figsize=(12, 6))
-                
-                # 매출 차트 (왼쪽 Y축)
-                color1 = '#667eea'
-                ax1.set_xlabel('날짜', fontsize=12)
-                ax1.set_ylabel('일일 매출 (원)', color=color1, fontsize=12)
-                line1 = ax1.plot(chart_df['날짜'], chart_df['총매출'], 
-                                marker='o', linewidth=2, markersize=6, 
-                                color=color1, label='일일 매출')
-                ax1.tick_params(axis='y', labelcolor=color1)
-                ax1.grid(True, alpha=0.3)
-                
-                # 방문자 차트 (오른쪽 Y축)
-                ax2 = ax1.twinx()
-                color2 = '#f093fb'
-                ax2.set_ylabel('일일 방문자수 (명)', color=color2, fontsize=12)
-                line2 = ax2.plot(chart_df['날짜'], chart_df['방문자수'], 
-                                marker='s', linewidth=2, markersize=6, 
-                                color=color2, label='일일 방문자수')
-                ax2.tick_params(axis='y', labelcolor=color2)
-                
-                # 제목
-                ax1.set_title('이번달 날짜별 매출과 방문자 사이의 연관성', fontsize=14, fontweight='bold', pad=20)
-                
-                # 범례
-                lines = line1 + line2
-                labels = [l.get_label() for l in lines]
-                ax1.legend(lines, labels, loc='upper left')
-                
-                # 날짜 포맷팅
-                plt.xticks(rotation=45)
-                plt.tight_layout()
-                
-                st.pyplot(fig)
-            elif not chart_df.empty:
-                st.info("이번달 매출 또는 방문자 데이터가 없습니다.")
+    st.markdown("""
+    <div style="margin: 2rem 0 1rem 0;">
+        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            📋 저장된 매출 내역
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 데이터 로드
+    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+    
+    # 매출과 방문자 데이터 통합
+    merged_df = merge_sales_visitors(sales_df, visitors_df)
+    
+    if not merged_df.empty:
+        # 삭제 기능
+        st.write("**🗑️ 매출 데이터 삭제**")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
+        with col2:
+            if not sales_df.empty:
+                delete_store_list = sales_df['매장'].unique().tolist()
+                delete_store = st.selectbox(
+                    "매장 선택 (전체 삭제 시 '전체' 선택)",
+                    ["전체"] + delete_store_list,
+                    key="sales_delete_store"
+                )
             else:
-                st.info("이번달 데이터가 없습니다.")
+                delete_store = "전체"
+        with col3:
+            st.write("")
+            st.write("")
+            if st.button("🗑️ 삭제", key="sales_delete_btn", type="primary"):
+                try:
+                    if delete_store == "전체":
+                        success, message = delete_sales(delete_date, None)
+                    else:
+                        success, message = delete_sales(delete_date, delete_store)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+                except Exception as e:
+                    st.error(f"삭제 중 오류: {e}")
+        
+        render_section_divider()
+        
+        # 통합 데이터 표시 (입력값만 표시)
+        display_df = merged_df.copy()
+        
+        # 표시할 컬럼만 선택 (기술적 컬럼 제외)
+        display_columns = []
+        if '날짜' in display_df.columns:
+            display_columns.append('날짜')
+        if '매장' in display_df.columns:
+            display_columns.append('매장')
+        if '카드매출' in display_df.columns:
+            display_columns.append('카드매출')
+        if '현금매출' in display_df.columns:
+            display_columns.append('현금매출')
+        if '총매출' in display_df.columns:
+            display_columns.append('총매출')
+        if '방문자수' in display_df.columns:
+            display_columns.append('방문자수')
+        
+        # 필요한 컬럼만 선택
+        if display_columns:
+            display_df = display_df[display_columns]
+            
+            # 날짜를 문자열로 변환
+            if '날짜' in display_df.columns:
+                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+            
+            # 숫자 포맷팅
+            if '총매출' in display_df.columns:
+                display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '카드매출' in display_df.columns:
+                display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '현금매출' in display_df.columns:
+                display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '방문자수' in display_df.columns:
+                display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # 차트 표시: 이번달 날짜별 매출과 방문자 사이의 연관성
+        render_section_header("이번달 날짜별 매출과 방문자 사이의 연관성", "📈")
+        
+        # 현재 이번달 월 데이터만 필터링
+        from datetime import datetime
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+        
+        chart_df = merged_df.copy()
+        if '날짜' in chart_df.columns:
+            chart_df['날짜'] = pd.to_datetime(chart_df['날짜'])
+            # 이번달 데이터만 필터링 (현재 년도의 현재 월)
+            chart_df = chart_df[
+                (chart_df['날짜'].dt.year == current_year) & 
+                (chart_df['날짜'].dt.month == current_month)
+            ].sort_values('날짜')
+        
+        if not chart_df.empty and '총매출' in chart_df.columns and '방문자수' in chart_df.columns:
+            import matplotlib.pyplot as plt
+            import matplotlib.font_manager as fm
+            
+            # 한글 폰트 설정
+            plt.rcParams['font.family'] = 'Malgun Gothic'
+            plt.rcParams['axes.unicode_minus'] = False
+            
+            fig, ax1 = plt.subplots(figsize=(12, 6))
+            
+            # 매출 차트 (왼쪽 Y축)
+            color1 = '#667eea'
+            ax1.set_xlabel('날짜', fontsize=12)
+            ax1.set_ylabel('일일 매출 (원)', color=color1, fontsize=12)
+            line1 = ax1.plot(chart_df['날짜'], chart_df['총매출'], 
+                            marker='o', linewidth=2, markersize=6, 
+                            color=color1, label='일일 매출')
+            ax1.tick_params(axis='y', labelcolor=color1)
+            ax1.grid(True, alpha=0.3)
+            
+            # 방문자 차트 (오른쪽 Y축)
+            ax2 = ax1.twinx()
+            color2 = '#f093fb'
+            ax2.set_ylabel('일일 방문자수 (명)', color=color2, fontsize=12)
+            line2 = ax2.plot(chart_df['날짜'], chart_df['방문자수'], 
+                            marker='s', linewidth=2, markersize=6, 
+                            color=color2, label='일일 방문자수')
+            ax2.tick_params(axis='y', labelcolor=color2)
+            
+            # 제목
+            ax1.set_title('이번달 날짜별 매출과 방문자 사이의 연관성', fontsize=14, fontweight='bold', pad=20)
+            
+            # 범례
+            lines = line1 + line2
+            labels = [l.get_label() for l in lines]
+            ax1.legend(lines, labels, loc='upper left')
+            
+            # 날짜 포맷팅
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            
+            st.pyplot(fig)
+        elif not chart_df.empty:
+            st.info("이번달 매출 또는 방문자 데이터가 없습니다.")
         else:
-            st.info("저장된 매출 데이터가 없습니다.")
+            st.info("이번달 데이터가 없습니다.")
+    else:
+        st.info("저장된 매출 데이터가 없습니다.")
 
 # 메뉴 등록 페이지
 elif page == "메뉴 등록":
