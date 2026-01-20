@@ -5714,6 +5714,13 @@ elif page == "발주 관리":
         if not suppliers_df.empty:
             st.write("**📋 등록된 공급업체**")
 
+            # 삭제된 공급업체가 있으면 목록에서 즉시 제외 (실시간 반영)
+            deleted_supplier = st.session_state.get('just_deleted_supplier', None)
+            if deleted_supplier and deleted_supplier in suppliers_df['공급업체명'].values:
+                suppliers_df = suppliers_df[suppliers_df['공급업체명'] != deleted_supplier].copy()
+                # 플래그 삭제 (한 번만 적용)
+                del st.session_state.just_deleted_supplier
+
             # 재료-공급업체 매핑을 이용해 업체별 취급 품목 목록 생성
             ingredient_suppliers_all = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명'])
             supplier_items_map = {}
@@ -5746,13 +5753,8 @@ elif page == "발주 관리":
             if 'supplier_delete_key_counter' not in st.session_state:
                 st.session_state.supplier_delete_key_counter = 0
             
-            # 삭제된 공급업체가 있으면 목록에서 제외
-            supplier_options = suppliers_df['공급업체명'].tolist()
-            deleted_name = st.session_state.get('deleted_supplier_name', None)
-            if deleted_name and deleted_name in supplier_options:
-                supplier_options.remove(deleted_name)
-                # 삭제된 이름 제거 후 플래그 삭제
-                del st.session_state.deleted_supplier_name
+            # selectbox 옵션 (최신 suppliers_df 사용)
+            supplier_options = suppliers_df['공급업체명'].tolist() if not suppliers_df.empty else []
             
             # 옵션이 비어있으면 기본값 없음
             default_index = None
@@ -5778,22 +5780,33 @@ elif page == "발주 관리":
                     # 공급업체 삭제 실행
                     delete_supplier(supplier_to_delete)
 
-                    # 모든 캐시 즉시 클리어 (삭제 전에 클리어하면 삭제가 반영되지 않을 수 있음)
+                    # 모든 캐시 즉시 클리어
                     try:
                         st.cache_data.clear()
                         load_csv.clear()
                     except Exception:
                         pass
 
+                    # 삭제 후 즉시 최신 데이터 다시 로드 (등록과 동일한 패턴)
+                    suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
+                    
+                    # 검색 필터 적용 (있는 경우)
+                    if st.session_state.get('supplier_search'):
+                        suppliers_df = suppliers_df[
+                            suppliers_df['공급업체명'].astype(str).str.contains(
+                                st.session_state.supplier_search, case=False, na=False
+                            )
+                        ]
+
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
                     # 성공 메시지를 session_state에 저장
                     st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
+                    # 삭제된 공급업체명 저장 (즉시 목록에서 제외하기 위해)
+                    st.session_state.just_deleted_supplier = supplier_to_delete
                     # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
                     st.session_state.supplier_delete_key_counter += 1
-                    # 삭제 후 데이터 새로고침 플래그 설정 (다음 렌더링에서 캐시 클리어 후 데이터 다시 로드)
+                    # 삭제 후 데이터 새로고침 플래그 설정
                     st.session_state.supplier_data_refresh = True
-                    # 삭제된 공급업체명 저장 (다음 렌더링에서 selectbox 기본값 설정용)
-                    st.session_state.deleted_supplier_name = supplier_to_delete
                     # Streamlit의 자동 rerun 활용 (탭 상태 유지)
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
