@@ -265,6 +265,10 @@ st.markdown("""
             0 0 30px #ff0000;
         animation: ledBlink 1.5s ease-in-out infinite, ledScroll 15s linear infinite;
         line-height: 1.5rem;
+        background: none !important;
+        -webkit-background-clip: initial !important;
+        -webkit-text-fill-color: #ff3333 !important;
+        background-clip: initial !important;
     }
     
     @keyframes ledBlink {
