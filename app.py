@@ -1751,24 +1751,424 @@ elif page == "매출 등록":
 elif page == "매출 관리":
     render_page_header("매출 관리", "📊")
     
-    # ========== 저장된 데이터 표시 및 분석 ==========
-    # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
-    st.markdown("""
-    <div style="margin: 2rem 0 1rem 0;">
-        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-            📋 저장된 매출 내역
-        </h3>
-    </div>
-    """, unsafe_allow_html=True)
+    from datetime import datetime, timedelta
+    from calendar import monthrange
     
     # 데이터 로드
     sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
     visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+    targets_df = load_csv('targets.csv', default_columns=[
+        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+        '목표임대료율', '목표기타비용율', '목표순이익률'
+    ])
     
     # 매출과 방문자 데이터 통합
     merged_df = merge_sales_visitors(sales_df, visitors_df)
     
+    # 날짜 컬럼을 datetime으로 변환
+    if not merged_df.empty and '날짜' in merged_df.columns:
+        merged_df['날짜'] = pd.to_datetime(merged_df['날짜'])
+    if not sales_df.empty and '날짜' in sales_df.columns:
+        sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
+    if not visitors_df.empty and '날짜' in visitors_df.columns:
+        visitors_df['날짜'] = pd.to_datetime(visitors_df['날짜'])
+    
+    current_year = datetime.now().year
+    current_month = datetime.now().month
+    today = datetime.now().date()
+    
+    # 목표 매출 확인 (전역 사용)
+    target_sales = 0
+    target_row = targets_df[
+        (targets_df['연도'] == current_year) & 
+        (targets_df['월'] == current_month)
+    ]
+    if not target_row.empty:
+        target_sales = float(target_row.iloc[0].get('목표매출', 0))
+    
+    # 이번달 데이터 필터링 및 기본 변수 계산 (전역 사용)
+    month_data = merged_df[
+        (merged_df['날짜'].dt.year == current_year) & 
+        (merged_df['날짜'].dt.month == current_month)
+    ].copy() if not merged_df.empty else pd.DataFrame()
+    
+    month_total_sales = month_data['총매출'].sum() if not month_data.empty and '총매출' in month_data.columns else 0
+    month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
+    
     if not merged_df.empty:
+        # ========== 1. 핵심 요약 지표 (KPI 카드) ==========
+        render_section_header("이번달 요약", "📊")
+        
+        if not month_data.empty:
+            month_avg_daily_sales = month_total_sales / len(month_data) if len(month_data) > 0 else 0
+            month_avg_daily_visitors = month_total_visitors / len(month_data) if len(month_data) > 0 else 0
+            avg_customer_value = month_total_sales / month_total_visitors if month_total_visitors > 0 else 0
+            
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric("이번달 누적 매출", f"{month_total_sales:,.0f}원")
+            with col2:
+                st.metric("평균 일일 매출", f"{month_avg_daily_sales:,.0f}원")
+            with col3:
+                st.metric("이번달 총 방문자", f"{int(month_total_visitors):,}명")
+            with col4:
+                st.metric("평균 객단가", f"{avg_customer_value:,.0f}원")
+            with col5:
+                # 목표 달성률 계산
+                target_achievement = (month_total_sales / target_sales * 100) if target_sales > 0 else None
+                if target_achievement is not None:
+                    st.metric("목표 달성률", f"{target_achievement:.1f}%", 
+                            f"{target_achievement - 100:.1f}%p" if target_achievement != 100 else "0%p")
+                else:
+                    st.metric("목표 달성률", "-", help="목표 매출이 설정되지 않았습니다")
+        
+        render_section_divider()
+        
+        # ========== 2. 기간별 비교 분석 ==========
+        render_section_header("기간별 비교 분석", "📈")
+        
+        # 전월 데이터
+        if current_month == 1:
+            prev_month = 12
+            prev_year = current_year - 1
+        else:
+            prev_month = current_month - 1
+            prev_year = current_year
+        
+        prev_month_data = merged_df[
+            (merged_df['날짜'].dt.year == prev_year) & 
+            (merged_df['날짜'].dt.month == prev_month)
+        ].copy()
+        
+        # 작년 동월 데이터
+        last_year_month_data = merged_df[
+            (merged_df['날짜'].dt.year == current_year - 1) & 
+            (merged_df['날짜'].dt.month == current_month)
+        ].copy()
+        
+        # 주간 비교 (이번 주 vs 지난 주)
+        week_start = today - timedelta(days=today.weekday())
+        last_week_start = week_start - timedelta(days=7)
+        last_week_end = week_start - timedelta(days=1)
+        
+        this_week_data = merged_df[
+            (merged_df['날짜'].dt.date >= week_start) & 
+            (merged_df['날짜'].dt.date <= today)
+        ].copy()
+        
+        last_week_data = merged_df[
+            (merged_df['날짜'].dt.date >= last_week_start) & 
+            (merged_df['날짜'].dt.date <= last_week_end)
+        ].copy()
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.write("**전월 대비**")
+            if not prev_month_data.empty and not month_data.empty:
+                prev_sales = prev_month_data['총매출'].sum() if '총매출' in prev_month_data.columns else 0
+                prev_visitors = prev_month_data['방문자수'].sum() if '방문자수' in prev_month_data.columns else 0
+                
+                sales_change = month_total_sales - prev_sales
+                sales_change_pct = (sales_change / prev_sales * 100) if prev_sales > 0 else 0
+                visitors_change = month_total_visitors - prev_visitors
+                visitors_change_pct = (visitors_change / prev_visitors * 100) if prev_visitors > 0 else 0
+                
+                st.metric("매출", f"{month_total_sales:,.0f}원", f"{sales_change:+,.0f}원 ({sales_change_pct:+.1f}%)")
+                st.metric("방문자", f"{int(month_total_visitors):,}명", f"{visitors_change:+,.0f}명 ({visitors_change_pct:+.1f}%)")
+            else:
+                st.info("전월 데이터 없음")
+        
+        with col2:
+            st.write("**작년 동월 대비**")
+            if not last_year_month_data.empty and not month_data.empty:
+                last_year_sales = last_year_month_data['총매출'].sum() if '총매출' in last_year_month_data.columns else 0
+                last_year_visitors = last_year_month_data['방문자수'].sum() if '방문자수' in last_year_month_data.columns else 0
+                
+                sales_change = month_total_sales - last_year_sales
+                sales_change_pct = (sales_change / last_year_sales * 100) if last_year_sales > 0 else 0
+                visitors_change = month_total_visitors - last_year_visitors
+                visitors_change_pct = (visitors_change / last_year_visitors * 100) if last_year_visitors > 0 else 0
+                
+                st.metric("매출", f"{month_total_sales:,.0f}원", f"{sales_change:+,.0f}원 ({sales_change_pct:+.1f}%)")
+                st.metric("방문자", f"{int(month_total_visitors):,}명", f"{visitors_change:+,.0f}명 ({visitors_change_pct:+.1f}%)")
+            else:
+                st.info("작년 동월 데이터 없음")
+        
+        with col3:
+            st.write("**주간 비교 (이번 주 vs 지난 주)**")
+            if not this_week_data.empty and not last_week_data.empty:
+                this_week_sales = this_week_data['총매출'].sum() if '총매출' in this_week_data.columns else 0
+                last_week_sales = last_week_data['총매출'].sum() if '총매출' in last_week_data.columns else 0
+                this_week_visitors = this_week_data['방문자수'].sum() if '방문자수' in this_week_data.columns else 0
+                last_week_visitors = last_week_data['방문자수'].sum() if '방문자수' in last_week_data.columns else 0
+                
+                sales_change = this_week_sales - last_week_sales
+                sales_change_pct = (sales_change / last_week_sales * 100) if last_week_sales > 0 else 0
+                visitors_change = this_week_visitors - last_week_visitors
+                visitors_change_pct = (visitors_change / last_week_visitors * 100) if last_week_visitors > 0 else 0
+                
+                st.metric("매출", f"{this_week_sales:,.0f}원", f"{sales_change:+,.0f}원 ({sales_change_pct:+.1f}%)")
+                st.metric("방문자", f"{int(this_week_visitors):,}명", f"{visitors_change:+,.0f}명 ({visitors_change_pct:+.1f}%)")
+            else:
+                st.info("주간 데이터 부족")
+        
+        render_section_divider()
+        
+        # ========== 3. 요일별 분석 ==========
+        render_section_header("요일별 패턴 분석", "📅")
+        
+        if not month_data.empty:
+            month_data['요일'] = month_data['날짜'].dt.day_name()
+            day_names_kr = {
+                'Monday': '월요일', 'Tuesday': '화요일', 'Wednesday': '수요일',
+                'Thursday': '목요일', 'Friday': '금요일', 'Saturday': '토요일', 'Sunday': '일요일'
+            }
+            month_data['요일한글'] = month_data['요일'].map(day_names_kr)
+            
+            day_analysis = month_data.groupby('요일한글').agg({
+                '총매출': ['mean', 'sum', 'count'],
+                '방문자수': ['mean', 'sum']
+            }).reset_index()
+            day_analysis.columns = ['요일', '평균매출', '총매출', '일수', '평균방문자', '총방문자']
+            day_analysis['객단가'] = day_analysis['평균매출'] / day_analysis['평균방문자']
+            day_analysis = day_analysis.sort_values('평균매출', ascending=False)
+            
+            # 요일 순서 정렬
+            day_order = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일']
+            day_analysis['요일순서'] = day_analysis['요일'].map({day: i for i, day in enumerate(day_order)})
+            day_analysis = day_analysis.sort_values('요일순서')
+            
+            display_day = day_analysis.copy()
+            display_day['평균매출'] = display_day['평균매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_day['총매출'] = display_day['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_day['평균방문자'] = display_day['평균방문자'].apply(lambda x: f"{int(x):,.1f}명" if pd.notna(x) else "-")
+            display_day['객단가'] = display_day['객단가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            
+            st.dataframe(
+                display_day[['요일', '일수', '평균매출', '총매출', '평균방문자', '객단가']],
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            # 가장 좋은/나쁜 요일
+            best_day = day_analysis.loc[day_analysis['평균매출'].idxmax()]
+            worst_day = day_analysis.loc[day_analysis['평균매출'].idxmin()]
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.success(f"✅ **최고 요일**: {best_day['요일']} (평균 {int(best_day['평균매출']):,}원)")
+            with col2:
+                st.warning(f"⚠️ **최저 요일**: {worst_day['요일']} (평균 {int(worst_day['평균매출']):,}원)")
+        
+        render_section_divider()
+        
+        # 목표 관련 변수 초기화 (전역 사용)
+        days_in_month = monthrange(current_year, current_month)[1]
+        current_day = today.day if today.year == current_year and today.month == current_month else days_in_month
+        remaining_days = days_in_month - current_day
+        
+        # 예상 매출 및 달성률 계산 (목표가 있는 경우)
+        daily_actual = month_total_sales / current_day if current_day > 0 else 0
+        forecast_sales = month_total_sales + (daily_actual * remaining_days) if current_day > 0 else 0
+        forecast_achievement = (forecast_sales / target_sales * 100) if not target_row.empty and target_sales > 0 else None
+        
+        # ========== 4. 목표 대비 실적 ==========
+        if not target_row.empty:
+            render_section_header("목표 달성 현황", "🎯")
+            
+            daily_target = target_sales / days_in_month if days_in_month > 0 else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("목표 매출", f"{target_sales:,.0f}원")
+            with col2:
+                st.metric("현재 누적 매출", f"{month_total_sales:,.0f}원", 
+                        f"{month_total_sales - target_sales:+,.0f}원")
+            with col3:
+                st.metric("일평균 목표", f"{daily_target:,.0f}원")
+            with col4:
+                st.metric("일평균 실적", f"{daily_actual:,.0f}원", 
+                        f"{daily_actual - daily_target:+,.0f}원")
+            
+            # 예상 매출 및 달성 가능성
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("예상 월 매출", f"{forecast_sales:,.0f}원")
+            with col2:
+                achievement_status = "✅ 달성 가능" if forecast_achievement >= 100 else "⚠️ 달성 위험"
+                st.metric("예상 달성률", f"{forecast_achievement:.1f}%", achievement_status)
+            
+            # 남은 일수 기준 필요 일평균
+            if remaining_days > 0:
+                required_daily = (target_sales - month_total_sales) / remaining_days
+                if required_daily > 0:
+                    st.info(f"📌 목표 달성을 위해 남은 {remaining_days}일 동안 일평균 **{required_daily:,.0f}원**이 필요합니다.")
+            
+            render_section_divider()
+        
+        # ========== 5. 트렌드 분석 ==========
+        render_section_header("매출 트렌드", "📊")
+        
+        # 최근 7일 vs 최근 30일
+        recent_7_days = merged_df[merged_df['날짜'].dt.date >= (today - timedelta(days=7))].copy()
+        recent_30_days = merged_df[merged_df['날짜'].dt.date >= (today - timedelta(days=30))].copy()
+        
+        if not recent_7_days.empty and not recent_30_days.empty:
+            avg_7d = recent_7_days['총매출'].mean() if '총매출' in recent_7_days.columns else 0
+            avg_30d = recent_30_days['총매출'].mean() if '총매출' in recent_30_days.columns else 0
+            trend_change = avg_7d - avg_30d
+            trend_pct = (trend_change / avg_30d * 100) if avg_30d > 0 else 0
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("최근 7일 평균", f"{avg_7d:,.0f}원")
+            with col2:
+                st.metric("최근 30일 평균", f"{avg_30d:,.0f}원")
+            with col3:
+                trend_status = "📈 상승" if trend_change > 0 else "📉 하락" if trend_change < 0 else "➡️ 유지"
+                st.metric("트렌드", f"{trend_pct:+.1f}%", trend_status)
+        
+        render_section_divider()
+        
+        # ========== 6. 경고/알림 ==========
+        render_section_header("알림 및 경고", "⚠️")
+        
+        alerts = []
+        
+        # 목표 대비 저조한 날짜
+        if not target_row.empty and not month_data.empty:
+            daily_target = target_sales / days_in_month if days_in_month > 0 else 0
+            low_days = month_data[month_data['총매출'] < daily_target * 0.8] if '총매출' in month_data.columns else pd.DataFrame()
+            if not low_days.empty:
+                low_days_count = len(low_days)
+                alerts.append(f"🔴 목표 대비 저조한 날짜: {low_days_count}일 (목표의 80% 미만)")
+        
+        # 전일 대비 급락
+        if len(month_data) >= 2:
+            recent_days = month_data.sort_values('날짜').tail(2)
+            if len(recent_days) == 2:
+                prev_sales = recent_days.iloc[0]['총매출'] if '총매출' in recent_days.columns else 0
+                curr_sales = recent_days.iloc[1]['총매출'] if '총매출' in recent_days.columns else 0
+                if prev_sales > 0:
+                    drop_pct = ((curr_sales - prev_sales) / prev_sales * 100)
+                    if drop_pct < -20:
+                        alerts.append(f"🔴 전일 대비 급락: {drop_pct:.1f}% 감소")
+        
+        # 연속 저조일
+        if not month_data.empty and '총매출' in month_data.columns:
+            month_data_sorted = month_data.sort_values('날짜')
+            daily_target = target_sales / days_in_month if not target_row.empty and days_in_month > 0 else month_data_sorted['총매출'].mean() * 0.8
+            low_days_series = month_data_sorted['총매출'] < daily_target
+            consecutive_low = 0
+            max_consecutive = 0
+            for is_low in low_days_series:
+                if is_low:
+                    consecutive_low += 1
+                    max_consecutive = max(max_consecutive, consecutive_low)
+                else:
+                    consecutive_low = 0
+            if max_consecutive >= 3:
+                alerts.append(f"🟡 연속 저조일: {max_consecutive}일 연속 목표 미달")
+        
+        # 월말 목표 달성 위험
+        if not target_row.empty and forecast_achievement is not None:
+            if forecast_achievement < 90 and remaining_days <= 7:
+                alerts.append(f"🔴 월말 목표 달성 위험: 현재 달성률 {target_achievement:.1f}%, 예상 달성률 {forecast_achievement:.1f}%")
+        
+        if alerts:
+            for alert in alerts:
+                if "🔴" in alert:
+                    st.error(alert)
+                elif "🟡" in alert:
+                    st.warning(alert)
+                else:
+                    st.info(alert)
+        else:
+            st.success("✅ 특별한 알림이 없습니다. 매출이 정상적으로 진행되고 있습니다.")
+        
+        render_section_divider()
+        
+        # ========== 7. 월별 요약 테이블 ==========
+        render_section_header("월별 요약 (최근 6개월)", "📋")
+        
+        # 최근 6개월 데이터
+        six_months_ago = today - timedelta(days=180)
+        recent_6m_data = merged_df[merged_df['날짜'].dt.date >= six_months_ago].copy()
+        
+        if not recent_6m_data.empty:
+            recent_6m_data['연도'] = recent_6m_data['날짜'].dt.year
+            recent_6m_data['월'] = recent_6m_data['날짜'].dt.month
+            
+            monthly_summary = recent_6m_data.groupby(['연도', '월']).agg({
+                '총매출': ['sum', 'mean', 'count'],
+                '방문자수': ['sum', 'mean']
+            }).reset_index()
+            monthly_summary.columns = ['연도', '월', '월총매출', '일평균매출', '영업일수', '월총방문자', '일평균방문자']
+            monthly_summary['월별객단가'] = monthly_summary['월총매출'] / monthly_summary['월총방문자']
+            monthly_summary = monthly_summary.sort_values(['연도', '월'], ascending=[False, False])
+            
+            # 성장률 계산
+            monthly_summary['전월대비'] = monthly_summary['월총매출'].pct_change() * 100
+            
+            display_monthly = monthly_summary.head(6).copy()
+            display_monthly['월'] = display_monthly['월'].apply(lambda x: f"{int(x)}월")
+            display_monthly['월총매출'] = display_monthly['월총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_monthly['일평균매출'] = display_monthly['일평균매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_monthly['월총방문자'] = display_monthly['월총방문자'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+            display_monthly['월별객단가'] = display_monthly['월별객단가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            display_monthly['전월대비'] = display_monthly['전월대비'].apply(lambda x: f"{x:+.1f}%" if pd.notna(x) else "-")
+            
+            st.dataframe(
+                display_monthly[['연도', '월', '영업일수', '월총매출', '일평균매출', '월총방문자', '월별객단가', '전월대비']],
+                use_container_width=True,
+                hide_index=True
+            )
+        
+        render_section_divider()
+        
+        # ========== 8. 예측/예상 ==========
+        render_section_header("예상 매출 및 목표 달성 가능성", "🔮")
+        
+        if not month_data.empty:
+            # 현재 추세 기반 예상 (위에서 이미 계산된 forecast_sales 사용)
+            if current_day > 0:
+                
+                # 필요 일평균 (목표가 있는 경우만)
+                if not target_row.empty and target_sales > 0:
+                    required_daily = (target_sales - month_total_sales) / remaining_days if remaining_days > 0 and target_sales > month_total_sales else 0
+                else:
+                    required_daily = 0
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("이번달 예상 총 매출", f"{forecast_sales:,.0f}원")
+                with col2:
+                    if forecast_achievement is not None:
+                        st.metric("예상 목표 달성률", f"{forecast_achievement:.1f}%")
+                    else:
+                        st.info("목표 매출 미설정")
+                with col3:
+                    if required_daily > 0:
+                        st.warning(f"필요 일평균: {required_daily:,.0f}원")
+                    elif not target_row.empty:
+                        st.success("목표 달성 가능")
+                    else:
+                        st.info("목표 미설정")
+        
+        render_section_divider()
+        
+        # ========== 저장된 매출 내역 ==========
+        # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📋 저장된 매출 내역
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if not merged_df.empty:
         # 통합 데이터 표시 (입력값만 표시)
         display_df = merged_df.copy()
         
@@ -1807,22 +2207,11 @@ elif page == "매출 관리":
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # 차트 표시: 이달 일일 매출과 방문자 사이의 연관성
+        # ========== 이달 일일 매출과 방문자 사이의 연관성 ==========
         render_section_header("이달 일일 매출과 방문자 사이의 연관성", "📈")
         
-        # 현재 이번달 월 데이터만 필터링
-        from datetime import datetime
-        current_year = datetime.now().year
-        current_month = datetime.now().month
-        
-        chart_df = merged_df.copy()
-        if '날짜' in chart_df.columns:
-            chart_df['날짜'] = pd.to_datetime(chart_df['날짜'])
-            # 이번달 데이터만 필터링 (현재 년도의 현재 월)
-            chart_df = chart_df[
-                (chart_df['날짜'].dt.year == current_year) & 
-                (chart_df['날짜'].dt.month == current_month)
-            ].sort_values('날짜')
+        # 이번달 데이터 사용 (위에서 이미 필터링됨)
+        chart_df = month_data.copy() if not month_data.empty else pd.DataFrame()
         
         if not chart_df.empty and '총매출' in chart_df.columns and '방문자수' in chart_df.columns:
             # 연관성 지표 계산
