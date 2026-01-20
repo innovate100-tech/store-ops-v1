@@ -5124,14 +5124,14 @@ elif page == "통합 대시보드":
         else:
             menu_list_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 판매 데이터 없음</div>"
         
-        st.markdown(f"""
+        st.markdown("""
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
                     padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     margin-bottom: 1rem; cursor: pointer;" onclick="window.location='?page=판매 관리'">
             <div style="color: white; font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">
                 🏆 인기 메뉴 TOP 3
             </div>
-            {menu_list_html}
+            """ + menu_list_html + """
         </div>
         """, unsafe_allow_html=True)
     
@@ -5150,14 +5150,14 @@ elif page == "통합 대시보드":
         else:
             abc_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>데이터 없음</div>"
         
-        st.markdown(f"""
+        st.markdown("""
         <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); 
                     padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     margin-bottom: 1rem; cursor: pointer;" onclick="window.location='?page=판매 관리'">
             <div style="color: white; font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">
                 📊 ABC 등급 분포
             </div>
-            {abc_html}
+            """ + abc_html + """
         </div>
         """, unsafe_allow_html=True)
     
@@ -5263,14 +5263,14 @@ elif page == "통합 대시보드":
             warning_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>경고 메뉴 없음 ✅</div>"
         
         tile_color = "#f87171" if high_cost_menus else "#4ade80"
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, {tile_color} 0%, {tile_color}dd 100%); 
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, """ + tile_color + """ 0%, """ + tile_color + """dd 100%); 
                     padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     margin-bottom: 1rem; cursor: pointer;" onclick="window.location='?page=원가 파악'">
             <div style="color: white; font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">
                 ⚠️ 원가율 경고 (35% 이상)
             </div>
-            {warning_html}
+            """ + warning_html + """
         </div>
         """, unsafe_allow_html=True)
     
@@ -5289,20 +5289,20 @@ elif page == "통합 대시보드":
         else:
             ingredient_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 사용 데이터 없음</div>"
         
-        st.markdown(f"""
+        st.markdown("""
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
                     padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     margin-bottom: 1rem; cursor: pointer;" onclick="window.location='?page=재료 사용량 집계'">
             <div style="color: white; font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">
                 📦 재료 사용 단가 TOP 3
             </div>
-            {ingredient_html}
+            """ + ingredient_html + """
         </div>
         """, unsafe_allow_html=True)
     
     with col3:
         # 발주 필요 재료 타일
-        total_order_amount = sum([item['예상금액'] for item in order_needed])
+        total_order_amount = sum([item['예상금액'] for item in order_needed]) if order_needed else 0
         order_html = ""
         if order_needed:
             order_html = f"""
@@ -5317,14 +5317,14 @@ elif page == "통합 대시보드":
             order_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>발주 필요 없음 ✅</div>"
         
         tile_color = "#f87171" if order_needed else "#4ade80"
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, {tile_color} 0%, {tile_color}dd 100%); 
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, """ + tile_color + """ 0%, """ + tile_color + """dd 100%); 
                     padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                     margin-bottom: 1rem; cursor: pointer;" onclick="window.location='?page=발주 관리'">
             <div style="color: white; font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">
                 🛒 발주 필요 재료
             </div>
-            {order_html}
+            """ + order_html + """
         </div>
         """, unsafe_allow_html=True)
     
