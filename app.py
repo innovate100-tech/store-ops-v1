@@ -5071,6 +5071,173 @@ elif page == "통합 대시보드":
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+        
+        render_section_divider()
+        
+        # ========== 판매 ABC 분석 ==========
+        from datetime import timedelta
+        
+        # 판매 데이터 로드
+        menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+        ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+        
+        if not daily_sales_df.empty and not menu_df.empty:
+            # 날짜 변환
+            daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
+            
+            # 이번 달 데이터 필터링
+            start_of_month = datetime(current_year, current_month, 1).date()
+            days_in_month = (datetime(current_year, current_month + 1, 1) - timedelta(days=1)).day if current_month < 12 else 31
+            end_of_month = datetime(current_year, current_month, days_in_month).date()
+            
+            filtered_sales_df = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= start_of_month) & 
+                (daily_sales_df['날짜'].dt.date <= end_of_month)
+            ].copy()
+            
+            if not filtered_sales_df.empty:
+                # 메뉴별 총 판매수량 집계
+                sales_summary = (
+                    filtered_sales_df.groupby('메뉴명')['판매수량']
+                    .sum()
+                    .reset_index()
+                )
+                sales_summary.columns = ['메뉴명', '판매수량']
+                
+                # 메뉴 마스터와 조인하여 판매가 가져오기
+                summary_df = pd.merge(
+                    sales_summary,
+                    menu_df[['메뉴명', '판매가']],
+                    on='메뉴명',
+                    how='left',
+                )
+                
+                # 매출 금액 계산
+                summary_df['매출'] = summary_df['판매수량'] * summary_df['판매가']
+                
+                # 원가 정보 계산
+                if not recipe_df.empty and not ingredient_df.empty:
+                    cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+                    summary_df = pd.merge(
+                        summary_df,
+                        cost_df[['메뉴명', '원가']],
+                        on='메뉴명',
+                        how='left',
+                    )
+                    summary_df['원가'] = summary_df['원가'].fillna(0)
+                    summary_df['총판매원가'] = summary_df['판매수량'] * summary_df['원가']
+                    summary_df['이익'] = summary_df['매출'] - summary_df['총판매원가']
+                    summary_df['이익률'] = (summary_df['이익'] / summary_df['매출'] * 100).round(2)
+                    summary_df['원가율'] = (summary_df['원가'] / summary_df['판매가'] * 100).round(2)
+                else:
+                    summary_df['원가'] = 0
+                    summary_df['총판매원가'] = 0
+                    summary_df['이익'] = summary_df['매출']
+                    summary_df['이익률'] = 0
+                    summary_df['원가율'] = 0
+                
+                # 총 매출 계산
+                total_revenue = summary_df['매출'].sum()
+                
+                if total_revenue > 0:
+                    st.markdown("""
+                    <div style="margin: 2rem 0 1rem 0;">
+                        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                            📊 판매 ABC 분석
+                        </h3>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # ABC 분석
+                    summary_df = summary_df.sort_values('매출', ascending=False)
+                    summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
+                    summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
+                    
+                    # ABC 등급 부여
+                    def assign_abc_grade(cumulative_ratio):
+                        if cumulative_ratio <= 70:
+                            return 'A'
+                        elif cumulative_ratio <= 90:
+                            return 'B'
+                        else:
+                            return 'C'
+                    
+                    summary_df['ABC 등급'] = summary_df['누계 비율(%)'].apply(assign_abc_grade)
+                    
+                    # ABC 등급별 통계
+                    abc_stats = summary_df.groupby('ABC 등급').agg({
+                        '메뉴명': 'count',
+                        '매출': 'sum',
+                        '판매수량': 'sum'
+                    }).reset_index()
+                    abc_stats.columns = ['ABC 등급', '메뉴 수', '총 매출', '총 판매수량']
+                    abc_stats['매출 비율(%)'] = (abc_stats['총 매출'] / total_revenue * 100).round(2)
+                    
+                    # ABC 등급별 통계 카드
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        a_count = abc_stats[abc_stats['ABC 등급'] == 'A']['메뉴 수'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'A'].empty else 0
+                        a_revenue = abc_stats[abc_stats['ABC 등급'] == 'A']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'A'].empty else 0
+                        a_ratio = abc_stats[abc_stats['ABC 등급'] == 'A']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'A'].empty else 0
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🟢 A등급</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(a_count)}개 메뉴</div>
+                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(a_revenue):,}원</div>
+                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {a_ratio:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col2:
+                        b_count = abc_stats[abc_stats['ABC 등급'] == 'B']['메뉴 수'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'B'].empty else 0
+                        b_revenue = abc_stats[abc_stats['ABC 등급'] == 'B']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'B'].empty else 0
+                        b_ratio = abc_stats[abc_stats['ABC 등급'] == 'B']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'B'].empty else 0
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🟡 B등급</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(b_count)}개 메뉴</div>
+                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(b_revenue):,}원</div>
+                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {b_ratio:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col3:
+                        c_count = abc_stats[abc_stats['ABC 등급'] == 'C']['메뉴 수'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'C'].empty else 0
+                        c_revenue = abc_stats[abc_stats['ABC 등급'] == 'C']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'C'].empty else 0
+                        c_ratio = abc_stats[abc_stats['ABC 등급'] == 'C']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'C'].empty else 0
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🔴 C등급</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(c_count)}개 메뉴</div>
+                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(c_revenue):,}원</div>
+                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {c_ratio:.1f}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # TOP 10 메뉴 표시
+                    st.markdown("""
+                    <div style="margin: 2rem 0 1rem 0;">
+                        <h4 style="color: #ffffff; font-weight: 600; margin: 0;">
+                            🏆 ABC 분석 TOP 10 메뉴
+                        </h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    top10_df = summary_df.head(10).copy()
+                    top10_df.insert(0, '순위', range(1, len(top10_df) + 1))
+                    
+                    # 표시용 포맷팅
+                    display_top10 = top10_df.copy()
+                    display_top10['판매수량'] = display_top10['판매수량'].apply(lambda x: f"{int(x):,}개")
+                    display_top10['매출'] = display_top10['매출'].apply(lambda x: f"{int(x):,}원")
+                    display_top10['비율(%)'] = display_top10['비율(%)'].apply(lambda x: f"{x:.2f}%")
+                    display_top10['누계 비율(%)'] = display_top10['누계 비율(%)'].apply(lambda x: f"{x:.2f}%")
+                    
+                    st.dataframe(
+                        display_top10[['순위', '메뉴명', '판매수량', '매출', '비율(%)', '누계 비율(%)', 'ABC 등급']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
