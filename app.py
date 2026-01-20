@@ -137,18 +137,19 @@ st.markdown("""
         --tablet-breakpoint: 1024px;
     }
     
-    /* ========== 메인 헤더 (반응형) ========== */
+    /* ========== 메인 헤더 (반응형) - 블랙 테마 ========== */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background: linear-gradient(135deg, #000000 0%, #1a1a2e 30%, #16213e 60%, #0f3460 100%);
         background-size: 200% 200%;
         animation: gradientShift 8s ease infinite;
         padding: 2.5rem;
         border-radius: 16px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(100, 150, 255, 0.2);
         position: relative;
         overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     .main-header::before {
@@ -158,16 +159,38 @@ st.markdown("""
         left: -50%;
         width: 200%;
         height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(100, 150, 255, 0.1) 30%, transparent 70%);
         animation: rotate 20s linear infinite;
+    }
+    
+    .main-header::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(100, 150, 255, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+        animation: sparkle 4s ease-in-out infinite alternate;
+        pointer-events: none;
     }
     
     .main-header h1 {
         position: relative;
         z-index: 1;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        text-shadow: 
+            0 0 10px rgba(255, 255, 255, 0.3),
+            0 0 20px rgba(100, 150, 255, 0.3),
+            2px 2px 8px rgba(0, 0, 0, 0.5);
         font-weight: 700;
         letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
     @keyframes gradientShift {
@@ -179,6 +202,11 @@ st.markdown("""
     @keyframes rotate {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes sparkle {
+        0% { opacity: 0.5; }
+        100% { opacity: 1; }
     }
     
     @media (max-width: 768px) {
