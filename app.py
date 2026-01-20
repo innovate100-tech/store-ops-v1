@@ -325,6 +325,113 @@ st.markdown("""
         padding: 0 !important;
     }
     
+    /* ========== 현재 매장 타일 박스 (멋진 스타일) ========== */
+    .store-tile {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 200% 200%;
+        animation: storeGradientShift 6s ease infinite;
+        padding: 1.5rem;
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        box-shadow: 
+            0 8px 32px rgba(102, 126, 234, 0.4),
+            0 0 40px rgba(118, 75, 162, 0.3),
+            inset 0 0 20px rgba(255, 255, 255, 0.1);
+        position: relative;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .store-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 
+            0 12px 40px rgba(102, 126, 234, 0.5),
+            0 0 60px rgba(118, 75, 162, 0.4),
+            inset 0 0 30px rgba(255, 255, 255, 0.15);
+    }
+    
+    .store-tile::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(102, 126, 234, 0.15) 30%, transparent 70%);
+        animation: storeRotate 15s linear infinite;
+    }
+    
+    .store-tile::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(240, 147, 251, 0.15) 0%, transparent 50%);
+        animation: storeSparkle 3s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+    
+    .store-tile-label {
+        position: relative;
+        z-index: 1;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        letter-spacing: 0.5px;
+    }
+    
+    .store-tile-name {
+        position: relative;
+        z-index: 1;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #ffffff;
+        text-shadow: 
+            0 2px 8px rgba(0, 0, 0, 0.3),
+            0 0 20px rgba(255, 255, 255, 0.3);
+        letter-spacing: 0.5px;
+    }
+    
+    @keyframes storeGradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes storeRotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes storeSparkle {
+        0% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+    
+    @media (max-width: 768px) {
+        .store-tile {
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        
+        .store-tile-label {
+            font-size: 0.8rem;
+        }
+        
+        .store-tile-name {
+            font-size: 1.1rem;
+        }
+    }
+    
     /* ========== 정보 박스 (반응형) ========== */
     .info-box {
         background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
@@ -1214,9 +1321,9 @@ with st.sidebar:
     store_name = get_current_store_name()
     
     st.markdown(f"""
-    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-        <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">🏪 현재 매장</div>
-        <div style="font-size: 1.1rem; font-weight: 600; color: white;">{store_name}</div>
+    <div class="store-tile">
+        <div class="store-tile-label">🏪 현재 매장</div>
+        <div class="store-tile-name">{store_name}</div>
     </div>
     """, unsafe_allow_html=True)
     
