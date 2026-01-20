@@ -1769,40 +1769,6 @@ elif page == "매출 관리":
     merged_df = merge_sales_visitors(sales_df, visitors_df)
     
     if not merged_df.empty:
-        # 삭제 기능
-        st.write("**🗑️ 매출 데이터 삭제**")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
-        with col2:
-            if not sales_df.empty:
-                delete_store_list = sales_df['매장'].unique().tolist()
-                delete_store = st.selectbox(
-                    "매장 선택 (전체 삭제 시 '전체' 선택)",
-                    ["전체"] + delete_store_list,
-                    key="sales_delete_store"
-                )
-            else:
-                delete_store = "전체"
-        with col3:
-            st.write("")
-            st.write("")
-            if st.button("🗑️ 삭제", key="sales_delete_btn", type="primary"):
-                try:
-                    if delete_store == "전체":
-                        success, message = delete_sales(delete_date, None)
-                    else:
-                        success, message = delete_sales(delete_date, delete_store)
-                    if success:
-                        st.success(message)
-                        st.rerun()
-                    else:
-                        st.error(message)
-                except Exception as e:
-                    st.error(f"삭제 중 오류: {e}")
-        
-        render_section_divider()
-        
         # 통합 데이터 표시 (입력값만 표시)
         display_df = merged_df.copy()
         
