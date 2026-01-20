@@ -1763,7 +1763,7 @@ elif page == "매출 관리":
     
     # ========== 저장된 데이터 표시 및 분석 ==========
     if category == "💰 매출":
-        # 저장된 매출 표시 및 삭제
+        # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
         st.markdown("""
         <div style="margin: 2rem 0 1rem 0;">
             <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
@@ -1771,21 +1771,30 @@ elif page == "매출 관리":
             </h3>
         </div>
         """, unsafe_allow_html=True)
-        sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
         
-        if not sales_df.empty:
+        # 데이터 로드
+        sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+        visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+        
+        # 매출과 방문자 데이터 통합
+        merged_df = merge_sales_visitors(sales_df, visitors_df)
+        
+        if not merged_df.empty:
             # 삭제 기능
             st.write("**🗑️ 매출 데이터 삭제**")
             col1, col2, col3 = st.columns(3)
             with col1:
                 delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
             with col2:
-                delete_store_list = sales_df['매장'].unique().tolist()
-                delete_store = st.selectbox(
-                    "매장 선택 (전체 삭제 시 '전체' 선택)",
-                    ["전체"] + delete_store_list,
-                    key="sales_delete_store"
-                )
+                if not sales_df.empty:
+                    delete_store_list = sales_df['매장'].unique().tolist()
+                    delete_store = st.selectbox(
+                        "매장 선택 (전체 삭제 시 '전체' 선택)",
+                        ["전체"] + delete_store_list,
+                        key="sales_delete_store"
+                    )
+                else:
+                    delete_store = "전체"
             with col3:
                 st.write("")
                 st.write("")
@@ -1805,36 +1814,22 @@ elif page == "매출 관리":
             
             render_section_divider()
             
-            # 실제 입력값만 표시 (기술적 컬럼 제거)
-            display_df = sales_df.copy()
+            # 통합 데이터 표시
+            display_df = merged_df.copy()
             
-            # 표시할 컬럼만 선택
-            display_columns = []
+            # 날짜를 문자열로 변환
             if '날짜' in display_df.columns:
-                display_columns.append('날짜')
-            if '매장' in display_df.columns:
-                display_columns.append('매장')
-            if '카드매출' in display_df.columns:
-                display_columns.append('카드매출')
-            if '현금매출' in display_df.columns:
-                display_columns.append('현금매출')
-            if '총매출' in display_df.columns:
-                display_columns.append('총매출')
+                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
             
-            # 필요한 컬럼만 선택
-            if display_columns:
-                display_df = display_df[display_columns]
-                
-                # 날짜를 문자열로 변환
-                if '날짜' in display_df.columns:
-                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-                # 숫자 포맷팅
-                if '총매출' in display_df.columns:
-                    display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '카드매출' in display_df.columns:
-                    display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '현금매출' in display_df.columns:
-                    display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            # 숫자 포맷팅
+            if '총매출' in display_df.columns:
+                display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '카드매출' in display_df.columns:
+                display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '현금매출' in display_df.columns:
+                display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+            if '방문자수' in display_df.columns:
+                display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
             
