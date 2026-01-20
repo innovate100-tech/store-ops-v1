@@ -2826,21 +2826,33 @@ elif page == "재료 등록":
         # 표시용 DataFrame 생성
         display_df = ingredient_df[['재료명', '단위', '발주단위', '단가', '변환비율']].copy()
         
+        # 원본 발주단위 저장 (발주단위단가 계산용)
+        display_df['원본발주단위'] = display_df['발주단위']
+        
+        # 발주단위 컬럼 포맷팅 (발주단위 + 변환 정보)
+        def format_order_unit(row):
+            order_unit = row['발주단위']
+            base_unit = row['단위']
+            conversion_rate = row['변환비율']
+            
+            if pd.isna(order_unit) or order_unit == base_unit or conversion_rate == 1.0:
+                # 발주단위가 기본단위와 같거나 변환비율이 1이면 단위만 표시
+                return order_unit if not pd.isna(order_unit) else base_unit
+            else:
+                # 1 발주단위 = 변환비율 기본단위 형식으로 표시
+                return f"{order_unit} (1{order_unit} = {conversion_rate:,.0f}{base_unit})"
+        
+        display_df['발주단위'] = display_df.apply(format_order_unit, axis=1)
+        
         # 1단위단가 (기본 단위 기준) - 소수점 1자리까지
-        display_df['1단위단가'] = display_df['단가'].apply(lambda x: f"{x:,.1f}원/{display_df.loc[display_df['단가'] == x, '단위'].iloc[0]}")
-        
-        # 발주단위단가 계산 (기본 단가 × 변환비율)
-        display_df['발주단위단가'] = (display_df['단가'] * display_df['변환비율']).apply(
-            lambda x: f"{x:,.1f}원/{display_df.loc[(display_df['단가'] * display_df['변환비율']) == x, '발주단위'].iloc[0]}"
-        )
-        
-        # 단가 컬럼은 1단위단가로 대체
         display_df['1단위단가'] = display_df.apply(
             lambda row: f"{row['단가']:,.1f}원/{row['단위']}",
             axis=1
         )
+        
+        # 발주단위단가 계산 (기본 단가 × 변환비율)
         display_df['발주단위단가'] = display_df.apply(
-            lambda row: f"{(row['단가'] * row['변환비율']):,.1f}원/{row['발주단위']}",
+            lambda row: f"{(row['단가'] * row['변환비율']):,.1f}원/{row['원본발주단위']}",
             axis=1
         )
         
