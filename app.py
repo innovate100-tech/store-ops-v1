@@ -4611,7 +4611,13 @@ elif page == "발주 관리":
         render_section_divider()
         
         # 저장된 재고 정보 표시
-        render_section_header("재고 현황", "📦")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📦 재고 현황
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         if not inventory_df.empty:
@@ -4623,7 +4629,9 @@ elif page == "발주 관리":
                 how='left'
             )
             
-            st.dataframe(display_inventory_df, use_container_width=True, hide_index=True)
+            # id 컬럼 제외하고 표시
+            display_cols = [col for col in display_inventory_df.columns if col not in ['id', 'store_id', 'ingredient_id', 'created_at', 'updated_at']]
+            st.dataframe(display_inventory_df[display_cols], use_container_width=True, hide_index=True)
         else:
             st.info("등록된 재고 정보가 없습니다.")
     
