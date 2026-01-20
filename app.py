@@ -1240,77 +1240,77 @@ with st.sidebar:
             st.rerun()
     
     st.markdown("---")
-
-# 사이드바 네비게이션 - 카테고리별로 구분
-# 메뉴 항목들을 카테고리별로 정의
-menu_categories = {
-    "매출": [
-        ("점장 마감", "📋"),
-        ("매출 관리", "📊"),
-        ("판매 관리", "📦"),
-        ("발주 관리", "🛒"),
-    ],
-    "비용": [
-        ("재료 사용량 집계", "📈"),
-        ("메뉴 등록", "🍽️"),
-        ("재료 등록", "🥬"),
-        ("레시피 등록", "📝"),
-        ("원가 파악", "💰"),
-    ],
-    "재무": [
-        ("비용구조", "💳"),
-        ("매출구조", "📈"),
-        ("실제정산", "🧾"),
-    ],
-    "기타": [
-        ("주간 리포트", "📄"),
-        ("통합 대시보드", "📊"),
-    ]
-}
-
-# 선택된 페이지 확인
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = "점장 마감"
-
-# 모든 메뉴 항목 추출 (순서 유지)
-all_menu_items = []
-all_menu_options = []
-
-for category_name, items in menu_categories.items():
-    for menu_name, icon in items:
-        all_menu_items.append((menu_name, icon))
-        all_menu_options.append(f"{icon} {menu_name}")
-
-# 카테고리별로 헤더와 메뉴를 함께 표시
-# 각 카테고리의 메뉴를 버튼으로 표시하여 카테고리별 구분이 명확하게 보이도록 함
-selected_menu_text = st.session_state.current_page
-
-for category_name, items in menu_categories.items():
-    # 카테고리 헤더
-    st.sidebar.markdown(f"""
-    <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
-            {category_name}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
     
-    # 카테고리 내 각 메뉴를 버튼으로 표시
-    for menu_name, icon in items:
-        # 현재 선택된 메뉴인지 확인
-        is_selected = (selected_menu_text == menu_name)
-        button_type = "primary" if is_selected else "secondary"
+    # 사이드바 네비게이션 - 카테고리별로 구분
+    # 메뉴 항목들을 카테고리별로 정의
+    menu_categories = {
+        "매출": [
+            ("점장 마감", "📋"),
+            ("매출 관리", "📊"),
+            ("판매 관리", "📦"),
+            ("발주 관리", "🛒"),
+        ],
+        "비용": [
+            ("재료 사용량 집계", "📈"),
+            ("메뉴 등록", "🍽️"),
+            ("재료 등록", "🥬"),
+            ("레시피 등록", "📝"),
+            ("원가 파악", "💰"),
+        ],
+        "재무": [
+            ("비용구조", "💳"),
+            ("매출구조", "📈"),
+            ("실제정산", "🧾"),
+        ],
+        "기타": [
+            ("주간 리포트", "📄"),
+            ("통합 대시보드", "📊"),
+        ]
+    }
+    
+    # 선택된 페이지 확인
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "점장 마감"
+    
+    # 모든 메뉴 항목 추출 (순서 유지)
+    all_menu_items = []
+    all_menu_options = []
+    
+    for category_name, items in menu_categories.items():
+        for menu_name, icon in items:
+            all_menu_items.append((menu_name, icon))
+            all_menu_options.append(f"{icon} {menu_name}")
+    
+    # 카테고리별로 헤더와 메뉴를 함께 표시
+    # 각 카테고리의 메뉴를 버튼으로 표시하여 카테고리별 구분이 명확하게 보이도록 함
+    selected_menu_text = st.session_state.current_page
+    
+    for category_name, items in menu_categories.items():
+        # 카테고리 헤더
+        st.sidebar.markdown(f"""
+        <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                {category_name}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        if st.sidebar.button(
-            f"{icon} {menu_name}",
-            key=f"menu_btn_{menu_name}",
-            use_container_width=True,
-            type=button_type
-        ):
-            st.session_state.current_page = menu_name
-            st.rerun()
-
-    # 사이드바 하단: 유틸리티 기능들
+        # 카테고리 내 각 메뉴를 버튼으로 표시
+        for menu_name, icon in items:
+            # 현재 선택된 메뉴인지 확인
+            is_selected = (selected_menu_text == menu_name)
+            button_type = "primary" if is_selected else "secondary"
+            
+            if st.sidebar.button(
+                f"{icon} {menu_name}",
+                key=f"menu_btn_{menu_name}",
+                use_container_width=True,
+                type=button_type
+            ):
+                st.session_state.current_page = menu_name
+                st.rerun()
+    
+    # 사이드바 하단: 유틸리티 기능들 (모든 메뉴 카테고리 아래에 배치)
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔧 유틸리티**")
     
