@@ -5367,6 +5367,19 @@ elif page == "통합 대시보드":
                                 menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
                                 menu_price = int(menu_info.iloc[0]['판매가']) if not menu_info.empty else 0
                                 
+                                # 조리방법 가져오기 (menu_master에서)
+                                cooking_method_text = ""
+                                try:
+                                    from src.auth import get_supabase_client, get_current_store_id
+                                    supabase = get_supabase_client()
+                                    store_id = get_current_store_id()
+                                    if supabase and store_id:
+                                        menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
+                                        if menu_result.data and menu_result.data[0].get('cooking_method'):
+                                            cooking_method_text = menu_result.data[0]['cooking_method']
+                                except Exception:
+                                    pass
+                                
                                 # 원가 정보
                                 cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
                                 cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
@@ -5425,14 +5438,27 @@ elif page == "통합 대시보드":
                                 ingredients_table_df = pd.DataFrame(table_data)
                                 st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
                                 
-                                # 레시피 등록 페이지로 이동하는 링크
-                                st.markdown(f"""
-                                <div style="text-align: center; margin-top: 1rem;">
-                                    <a href="?page=레시피 등록" style="color: #60a5fa; text-decoration: none; font-size: 0.9rem;">
-                                        📝 레시피 등록 페이지에서 수정하기 →
-                                    </a>
+                                # 조리방법 표시
+                                render_section_divider()
+                                st.markdown("""
+                                <div style="margin: 2rem 0 1rem 0;">
+                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0;">
+                                        👨‍🍳 조리방법
+                                    </h4>
                                 </div>
                                 """, unsafe_allow_html=True)
+                                
+                                if cooking_method_text:
+                                    st.markdown(f"""
+                                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
+                                                border-left: 4px solid #667eea; margin: 1rem 0;">
+                                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
+                                            {cooking_method_text.replace(chr(10), '<br>')}
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    st.info("조리방법이 등록되지 않았습니다.")
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
