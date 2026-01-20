@@ -4752,8 +4752,8 @@ elif page == "재료 사용량 집계":
 elif page == "발주 관리":
     render_page_header("발주 관리", "🛒")
     
-    # 재료 목록 로드
-    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    # 재료 목록 로드 (발주단위/변환비율 포함)
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
     
     # 탭 구조
@@ -5260,17 +5260,26 @@ elif page == "발주 관리":
                         display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량_발주단위'].round(2)
                         
                         # 공급업체 정보 추가
+                        supplier_price_map = {}
                         if not ingredient_suppliers_df.empty:
                             # 기본 공급업체 매핑
                             default_suppliers = ingredient_suppliers_df[ingredient_suppliers_df.get('기본공급업체', pd.Series([False]*len(ingredient_suppliers_df))) == True]
                             supplier_map = dict(zip(default_suppliers['재료명'], default_suppliers['공급업체명']))
+                            supplier_price_map = dict(zip(default_suppliers['재료명'], default_suppliers['단가']))
                             display_order_df['공급업체'] = display_order_df['재료명'].map(supplier_map).fillna("미지정")
                         else:
                             display_order_df['공급업체'] = "미지정"
+
+                        # 사용단가 분리: 재료등록 기준 vs 공급업체 매핑 기준
+                        # order_df['단가']는 재료등록 기준 기본단위단가(원/사용단위)
+                        display_order_df['사용단가_재료등록'] = display_order_df['단가'].fillna(0.0)
+                        display_order_df['사용단가_공급업체'] = display_order_df['재료명'].map(supplier_price_map)
+                        # 실제 발주에 사용할 단가: 공급업체 단가가 있으면 우선, 없으면 재료등록 단가
+                        display_order_df['사용단가_실제'] = display_order_df['사용단가_공급업체'].combine_first(display_order_df['사용단가_재료등록'])
                         
                         # 발주단위 기준 단가 계산 (사용자에게 보이는 "발주단가")
-                        # 기본 단위 단가(원/기본단위) × 변환비율 = 발주단위단가(원/발주단위)
-                        display_order_df['발주단위단가_숫자'] = display_order_df['단가'] * display_order_df['변환비율']
+                        # 실제 사용단가(원/기본단위) × 변환비율 = 발주단위단가(원/발주단위)
+                        display_order_df['발주단위단가_숫자'] = display_order_df['사용단가_실제'] * display_order_df['변환비율']
 
                         # 예상금액도 발주단위 기준으로 다시 계산 (발주필요량_발주단위 × 발주단위단가)
                         display_order_df['예상금액_숫자'] = display_order_df['발주필요량_발주단위'] * display_order_df['발주단위단가_숫자']
