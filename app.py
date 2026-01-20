@@ -5648,7 +5648,7 @@ elif page == "발주 관리":
             st.session_state.supplier_form_key_counter += 1
             st.session_state.supplier_form_reset = False
         
-        # 성공 메시지 표시
+        # 성공/삭제 메시지 표시
         if 'supplier_success_message' in st.session_state and st.session_state.supplier_success_message:
             st.success(st.session_state.supplier_success_message)
             # 메시지 표시 후 삭제 (한 번만 표시)
@@ -5731,8 +5731,17 @@ elif page == "발주 관리":
             st.dataframe(display_suppliers[display_cols], use_container_width=True, hide_index=True)
             
             # 공급업체 삭제
-            supplier_to_delete = st.selectbox("삭제할 공급업체", options=suppliers_df['공급업체명'].tolist(), key="delete_supplier_select")
-            if st.button("🗑️ 공급업체 삭제", key="delete_supplier"):
+            # 삭제 selectbox의 key를 동적으로 변경하여 삭제 후 옵션이 업데이트되도록
+            if 'supplier_delete_key_counter' not in st.session_state:
+                st.session_state.supplier_delete_key_counter = 0
+            
+            supplier_to_delete = st.selectbox(
+                "삭제할 공급업체", 
+                options=suppliers_df['공급업체명'].tolist(), 
+                key=f"delete_supplier_select_{st.session_state.supplier_delete_key_counter}"
+            )
+            
+            if st.button("🗑️ 공급업체 삭제", key=f"delete_supplier_{st.session_state.supplier_delete_key_counter}"):
                 try:
                     # 삭제 전에 매핑된 품목 수 확인 (경고용)
                     mapped_count = 0
@@ -5743,19 +5752,18 @@ elif page == "발주 관리":
 
                     delete_supplier(supplier_to_delete)
 
-                    # 캐시 초기화 후 즉시 반영
+                    # 캐시 클리어
                     try:
                         st.cache_data.clear()
                     except Exception:
                         pass
 
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
-                    # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
-                    try:
-                        st.cache_data.clear()
-                    except Exception:
-                        pass
-                    st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}")
+                    # 성공 메시지를 session_state에 저장
+                    st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
+                    # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
+                    st.session_state.supplier_delete_key_counter += 1
+                    # Streamlit의 자동 rerun 활용 (탭 상태 유지)
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
         else:
