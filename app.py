@@ -5238,6 +5238,88 @@ elif page == "통합 대시보드":
                         use_container_width=True,
                         hide_index=True
                     )
+                    
+                    render_section_divider()
+                    
+                    # ========== 재료 사용량 TOP 10 ==========
+                    # 재료 사용량 계산
+                    usage_df = calculate_ingredient_usage(filtered_sales_df, recipe_df)
+                    
+                    if not usage_df.empty and not ingredient_df.empty:
+                        # 재료 단가와 조인하여 총 사용 단가 계산
+                        usage_df = pd.merge(
+                            usage_df,
+                            ingredient_df[['재료명', '단가']],
+                            on='재료명',
+                            how='left'
+                        )
+                        usage_df['단가'] = usage_df['단가'].fillna(0)
+                        usage_df['총사용단가'] = usage_df['총사용량'] * usage_df['단가']
+                        
+                        # 재료별 총 사용량/총 사용 단가 집계
+                        ingredient_summary = (
+                            usage_df
+                            .groupby('재료명')[['총사용량', '총사용단가']]
+                            .sum()
+                            .reset_index()
+                        )
+                        
+                        # 사용 단가 기준으로 정렬
+                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
+                        
+                        # 총 사용단가 합계 계산
+                        total_cost = ingredient_summary['총사용단가'].sum()
+                        
+                        if total_cost > 0:
+                            # 비율 및 누적 비율 계산
+                            ingredient_summary['비율(%)'] = (ingredient_summary['총사용단가'] / total_cost * 100).round(2)
+                            ingredient_summary['누적 비율(%)'] = ingredient_summary['비율(%)'].cumsum().round(2)
+                            
+                            # ABC 등급 부여
+                            def assign_abc_grade_ingredient(cumulative_ratio):
+                                if cumulative_ratio <= 70:
+                                    return 'A'
+                                elif cumulative_ratio <= 90:
+                                    return 'B'
+                                else:
+                                    return 'C'
+                            
+                            ingredient_summary['ABC 등급'] = ingredient_summary['누적 비율(%)'].apply(assign_abc_grade_ingredient)
+                            
+                            st.markdown("""
+                            <div style="margin: 2rem 0 1rem 0;">
+                                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                                    📦 재료 사용 단가 TOP 10
+                                </h3>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # TOP 10 재료
+                            top10_ingredients = ingredient_summary.head(10).copy()
+                            top10_ingredients.insert(0, '순위', range(1, len(top10_ingredients) + 1))
+                            
+                            # 표시용 포맷팅
+                            display_top10_ingredients = top10_ingredients.copy()
+                            display_top10_ingredients['총 사용량'] = display_top10_ingredients['총사용량'].apply(lambda x: f"{x:,.2f}")
+                            display_top10_ingredients['총 사용단가'] = display_top10_ingredients['총사용단가'].apply(lambda x: f"{int(x):,}원")
+                            display_top10_ingredients['비율(%)'] = display_top10_ingredients['비율(%)'].apply(lambda x: f"{x:.2f}%")
+                            display_top10_ingredients['누적 비율(%)'] = display_top10_ingredients['누적 비율(%)'].apply(lambda x: f"{x:.2f}%")
+                            
+                            st.dataframe(
+                                display_top10_ingredients[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                            
+                            # TOP 10 총합계
+                            top10_total = top10_ingredients['총사용단가'].sum()
+                            st.markdown(f"""
+                            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <span style="color: #ffffff; font-size: 1rem; font-weight: 600;">
+                                    💰 TOP 10 총 사용단가 합계: {int(top10_total):,}원
+                                </span>
+                            </div>
+                            """, unsafe_allow_html=True)
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
