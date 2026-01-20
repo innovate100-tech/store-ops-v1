@@ -181,16 +181,20 @@ st.markdown("""
     .main-header h1 {
         position: relative;
         z-index: 1;
-        text-shadow: 
-            0 0 10px rgba(255, 255, 255, 0.3),
-            0 0 20px rgba(100, 150, 255, 0.3),
-            2px 2px 8px rgba(0, 0, 0, 0.5);
         font-weight: 700;
         letter-spacing: -0.5px;
+        color: white;
+    }
+    
+    .main-header h1 span {
         background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        text-shadow: 
+            0 0 10px rgba(255, 255, 255, 0.3),
+            0 0 20px rgba(100, 150, 255, 0.3),
+            2px 2px 8px rgba(0, 0, 0, 0.5);
     }
     
     @keyframes gradientShift {
@@ -1106,7 +1110,7 @@ if st.session_state.get("theme", "light") == "dark":
 # 타이틀 (개선된 디자인)
 st.markdown("""
 <div class="main-header">
-    <h1>😎 Restaurant Decision Intelligence System (RDIS)</h1>
+    <h1>😎 <span>Restaurant Decision Intelligence System (RDIS)</span></h1>
 </div>
 """, unsafe_allow_html=True)
 
