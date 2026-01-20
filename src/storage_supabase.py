@@ -33,6 +33,55 @@ setup_logger()
 # Helper Functions
 # ============================================
 
+def _get_id_by_name(supabase, table_name: str, name_column: str, name_value: str, store_id: str = None):
+    """
+    이름으로 ID 조회 (공통 헬퍼 함수)
+    
+    Args:
+        supabase: Supabase 클라이언트
+        table_name: 테이블명
+        name_column: 이름 컬럼명 (예: 'name')
+        name_value: 조회할 이름 값
+        store_id: store_id 필터 (None이면 사용 안 함)
+    
+    Returns:
+        str: ID (없으면 None)
+    """
+    try:
+        query = supabase.table(table_name).select("id")
+        if store_id:
+            query = query.eq("store_id", store_id)
+        query = query.eq(name_column, name_value)
+        result = query.execute()
+        if result.data:
+            return result.data[0]['id']
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get ID for {table_name}.{name_column}={name_value}: {e}")
+        return None
+
+
+def _check_duplicate(supabase, table_name: str, name_column: str, name_value: str, store_id: str):
+    """
+    중복 체크 (공통 헬퍼 함수)
+    
+    Args:
+        supabase: Supabase 클라이언트
+        table_name: 테이블명
+        name_column: 이름 컬럼명
+        name_value: 체크할 이름 값
+        store_id: store_id
+    
+    Returns:
+        bool: 중복이면 True
+    """
+    try:
+        result = supabase.table(table_name).select("id").eq("store_id", store_id).eq(name_column, name_value).execute()
+        return len(result.data) > 0
+    except Exception:
+        return False
+
+
 def _check_supabase_for_dev_mode():
     """
     Supabase 클라이언트 반환 (에러 처리)
@@ -472,9 +521,8 @@ def save_menu(menu_name, price):
         raise Exception("No store_id found")
     
     try:
-        # 중복 체크
-        existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if existing.data:
+        # 중복 체크 (헬퍼 함수 사용)
+        if _check_duplicate(supabase, "menu_master", "name", menu_name, store_id):
             return False, f"'{menu_name}' 메뉴는 이미 등록되어 있습니다."
         
         result = supabase.table("menu_master").insert({
@@ -519,10 +567,9 @@ def update_menu(old_menu_name, new_menu_name, new_price, category=None, expected
         if expected_updated_at and current_updated_at != expected_updated_at:
             return False, f"다른 사용자가 '{old_menu_name}' 메뉴를 수정했습니다. 페이지를 새로고침한 후 다시 시도해주세요."
         
-        # 새 메뉴명이 다른 경우 중복 체크
+        # 새 메뉴명이 다른 경우 중복 체크 (헬퍼 함수 사용)
         if new_menu_name != old_menu_name:
-            dup_check = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", new_menu_name).execute()
-            if dup_check.data:
+            if _check_duplicate(supabase, "menu_master", "name", new_menu_name, store_id):
                 return False, f"'{new_menu_name}' 메뉴명은 이미 사용 중입니다."
         
         # 업데이트 데이터 준비
@@ -661,9 +708,8 @@ def save_ingredient(ingredient_name, unit, unit_price, order_unit=None, conversi
         raise Exception("No store_id found")
     
     try:
-        # 중복 체크
-        existing = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if existing.data:
+        # 중복 체크 (헬퍼 함수 사용)
+        if _check_duplicate(supabase, "ingredients", "name", ingredient_name, store_id):
             return False, f"'{ingredient_name}' 재료는 이미 등록되어 있습니다."
         
         # 발주 단위가 없으면 기본 단위와 동일하게 설정
@@ -706,10 +752,9 @@ def update_ingredient(old_ingredient_name, new_ingredient_name, new_unit, new_un
         
         ing_id = existing.data[0]['id']
         
-        # 새 재료명이 다른 경우 중복 체크
+        # 새 재료명이 다른 경우 중복 체크 (헬퍼 함수 사용)
         if new_ingredient_name != old_ingredient_name:
-            dup_check = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", new_ingredient_name).execute()
-            if dup_check.data:
+            if _check_duplicate(supabase, "ingredients", "name", new_ingredient_name, store_id):
                 return False, f"'{new_ingredient_name}' 재료명은 이미 사용 중입니다."
         
         # 업데이트
@@ -1089,7 +1134,7 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         # sales_items를 JSON으로 변환
         sales_items_json = json.dumps(sales_items, ensure_ascii=False)
         
-        # 1. daily_close 저장
+        # 1. daily_close 저장 (단일 소스로 모든 마감 데이터 저장)
         supabase.table("daily_close").upsert({
             "store_id": store_id,
             "date": date_str,
@@ -1106,7 +1151,9 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         }, on_conflict="store_id,date").execute()
         saved_operations.append(('daily_close', date_str))
         
-        # 2. 기존 매출, 방문자, 판매 데이터에도 저장 (호환성 유지)
+        # 2. 호환성을 위해 기존 테이블에도 저장 (하지만 daily_close가 단일 소스)
+        # 주의: 이는 레거시 코드 호환성을 위한 것이며, 
+        # 새로운 코드는 daily_close 테이블을 직접 조회하는 것을 권장합니다.
         if total_sales > 0:
             save_sales(date, store_name, card_sales, cash_sales, total_sales)
             saved_operations.append(('sales', date_str))
