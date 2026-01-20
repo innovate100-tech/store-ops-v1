@@ -1220,27 +1220,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # 테마 전환 버튼
-    st.markdown("### 🎨 테마 설정")
-    col1, col2 = st.columns(2)
-    current_theme = st.session_state.get("theme", "light")
-    
-    with col1:
-        if st.button("☀️ 화이트", use_container_width=True, 
-                    type="primary" if current_theme == "light" else "secondary",
-                    key="theme_light"):
-            st.session_state.theme = "light"
-            st.rerun()
-    
-    with col2:
-        if st.button("🌙 다크", use_container_width=True,
-                    type="primary" if current_theme == "dark" else "secondary",
-                    key="theme_dark"):
-            st.session_state.theme = "dark"
-            st.rerun()
-    
-    st.markdown("---")
-    
     # 사이드바 네비게이션 - 카테고리별로 구분
     # 메뉴 항목들을 카테고리별로 정의
     menu_categories = {
@@ -1310,7 +1289,27 @@ with st.sidebar:
                 st.session_state.current_page = menu_name
                 st.rerun()
     
-    # 사이드바 하단: 유틸리티 기능들 (모든 메뉴 카테고리 아래에 배치)
+    # 사이드바 하단: 테마 설정 (모든 메뉴 카테고리 아래에 배치)
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🎨 테마 설정")
+    col1, col2 = st.columns(2)
+    current_theme = st.session_state.get("theme", "light")
+    
+    with col1:
+        if st.button("☀️ 화이트", use_container_width=True, 
+                    type="primary" if current_theme == "light" else "secondary",
+                    key="theme_light"):
+            st.session_state.theme = "light"
+            st.rerun()
+    
+    with col2:
+        if st.button("🌙 다크", use_container_width=True,
+                    type="primary" if current_theme == "dark" else "secondary",
+                    key="theme_dark"):
+            st.session_state.theme = "dark"
+            st.rerun()
+    
+    # 사이드바 하단: 유틸리티 기능들 (테마 설정 아래에 배치)
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔧 유틸리티**")
     
