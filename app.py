@@ -2852,6 +2852,23 @@ elif page == "재료 등록":
         # 표에 수정/삭제 버튼 추가
         st.write("**📋 등록된 재료 리스트** (표에서 바로 수정/삭제 가능)")
         
+        # 표 헤더
+        header_col_name, header_col_unit, header_col_order_unit, header_col_price1, header_col_price2, header_col_actions = st.columns([2, 1, 2, 1.5, 1.5, 1.5])
+        with header_col_name:
+            st.markdown("**재료명**")
+        with header_col_unit:
+            st.markdown("**단위**")
+        with header_col_order_unit:
+            st.markdown("**발주단위**")
+        with header_col_price1:
+            st.markdown("**1단위단가**")
+        with header_col_price2:
+            st.markdown("**발주단위단가**")
+        with header_col_actions:
+            st.markdown("**작업**")
+        
+        st.markdown("<hr style='margin: 0.5rem 0; border-color: rgba(255,255,255,0.2);'>", unsafe_allow_html=True)
+        
         # 각 재료별로 수정/삭제 버튼이 있는 표 생성
         for idx, row in display_df.iterrows():
             ingredient_name = row['재료명']
