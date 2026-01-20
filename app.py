@@ -5642,13 +5642,19 @@ elif page == "발주 관리":
         if 'supplier_form_key_counter' not in st.session_state:
             st.session_state.supplier_form_key_counter = 0
         
-        # 성공 메시지 표시 (rerun 후에도 유지)
+        # 성공 후 입력 필드 초기화 플래그 확인
+        should_reset_form = st.session_state.get('supplier_form_reset', False)
+        if should_reset_form:
+            st.session_state.supplier_form_key_counter += 1
+            st.session_state.supplier_form_reset = False
+        
+        # 성공 메시지 표시
         if 'supplier_success_message' in st.session_state and st.session_state.supplier_success_message:
             st.success(st.session_state.supplier_success_message)
             # 메시지 표시 후 삭제 (한 번만 표시)
             del st.session_state.supplier_success_message
         
-        with st.expander("➕ 공급업체 등록", expanded=False):
+        with st.expander("➕ 공급업체 등록", expanded=True if should_reset_form else False):
             col1, col2 = st.columns(2)
             with col1:
                 supplier_name = st.text_input("공급업체명 *", key=f"new_supplier_name_{st.session_state.supplier_form_key_counter}")
@@ -5670,12 +5676,12 @@ elif page == "발주 관리":
                             st.cache_data.clear()
                         except Exception:
                             pass
-                        # 성공 메시지를 session_state에 저장 (rerun 후에도 표시되도록)
+                        # 성공 메시지 저장
                         st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!"
-                        # 키 카운터 증가로 입력 필드 자동 초기화 (다음 렌더링 시 새 키로 위젯 생성)
-                        st.session_state.supplier_form_key_counter += 1
-                        # 성공 후 rerun하여 입력 필드가 초기화된 상태로 표시
-                        st.rerun()
+                        # 입력 필드 초기화 플래그 설정 (다음 렌더링 시 key 변경으로 자동 초기화)
+                        st.session_state.supplier_form_reset = True
+                        # Streamlit의 자동 rerun 활용 (탭 상태 유지)
+                        # 성공 메시지와 함께 입력 필드가 자동으로 초기화됨
                     except Exception as e:
                         st.error(f"등록 중 오류가 발생했습니다: {e}")
                 else:
