@@ -4789,10 +4789,11 @@ elif page == "통합 대시보드":
     from datetime import datetime, timedelta
     from calendar import monthrange
     
-    # 날짜 필터
+    # 날짜 필터 (기본값: 이번 달)
     col_filter1, col_filter2, col_filter3 = st.columns([1, 1, 4])
     with col_filter1:
-        filter_mode = st.radio("기간 선택", ["오늘", "이번 주", "이번 달"], horizontal=True, key="dashboard_filter")
+        filter_mode = st.radio("기간 선택", ["오늘", "이번 주", "이번 달"], 
+                               index=2, horizontal=True, key="dashboard_filter")
     with col_filter2:
         st.write("")
         if st.button("🔄 새로고침", key="dashboard_refresh"):
@@ -4828,11 +4829,52 @@ elif page == "통합 대시보드":
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
     inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
     
-    # 날짜 변환
+    # 날짜 변환 및 디버깅
     if not sales_df.empty and '날짜' in sales_df.columns:
         sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
     if not daily_sales_df.empty and '날짜' in daily_sales_df.columns:
         daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
+    
+    # 디버깅 정보 (개발용)
+    with st.expander("🔍 데이터 연결 상태 확인", expanded=False):
+        st.write(f"**매출 데이터**: {len(sales_df)}건")
+        if not sales_df.empty:
+            st.write(f"**매출 데이터 컬럼**: {list(sales_df.columns)}")
+            if '날짜' in sales_df.columns:
+                st.write(f"**매출 데이터 날짜 범위**: {sales_df['날짜'].min()} ~ {sales_df['날짜'].max()}")
+        
+        st.write(f"**일일 판매 데이터**: {len(daily_sales_df)}건")
+        if not daily_sales_df.empty:
+            st.write(f"**일일 판매 데이터 컬럼**: {list(daily_sales_df.columns)}")
+            if '날짜' in daily_sales_df.columns:
+                st.write(f"**일일 판매 데이터 날짜 범위**: {daily_sales_df['날짜'].min()} ~ {daily_sales_df['날짜'].max()}")
+        
+        st.write(f"**메뉴 데이터**: {len(menu_df)}건")
+        if not menu_df.empty:
+            st.write(f"**메뉴 데이터 컬럼**: {list(menu_df.columns)}")
+        
+        st.write(f"**레시피 데이터**: {len(recipe_df)}건")
+        st.write(f"**재료 데이터**: {len(ingredient_df)}건")
+        st.write(f"**재고 데이터**: {len(inventory_df)}건")
+        if not inventory_df.empty:
+            st.write(f"**재고 데이터 컬럼**: {list(inventory_df.columns)}")
+        
+        st.write(f"**선택된 기간**: {start_date} ~ {end_date} ({filter_mode})")
+        
+        # 실제 필터링된 데이터 확인
+        if not sales_df.empty and '날짜' in sales_df.columns:
+            period_sales_check = sales_df[
+                (sales_df['날짜'].dt.date >= start_date) & 
+                (sales_df['날짜'].dt.date <= end_date)
+            ]
+            st.write(f"**기간 내 매출 데이터**: {len(period_sales_check)}건")
+        
+        if not daily_sales_df.empty and '날짜' in daily_sales_df.columns:
+            period_daily_check = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= start_date) & 
+                (daily_sales_df['날짜'].dt.date <= end_date)
+            ]
+            st.write(f"**기간 내 일일 판매 데이터**: {len(period_daily_check)}건")
     
     render_section_divider()
     
@@ -4872,13 +4914,16 @@ elif page == "통합 대시보드":
     
     # 기간 내 매출 계산
     period_sales = 0
-    if not sales_df.empty:
-        period_sales_df = sales_df[
-            (sales_df['날짜'].dt.date >= start_date) & 
-            (sales_df['날짜'].dt.date <= end_date)
-        ]
-        if not period_sales_df.empty:
-            period_sales = period_sales_df['총매출'].sum()
+    if not sales_df.empty and '날짜' in sales_df.columns and '총매출' in sales_df.columns:
+        try:
+            period_sales_df = sales_df[
+                (sales_df['날짜'].dt.date >= start_date) & 
+                (sales_df['날짜'].dt.date <= end_date)
+            ]
+            if not period_sales_df.empty and '총매출' in period_sales_df.columns:
+                period_sales = float(period_sales_df['총매출'].sum())
+        except Exception as e:
+            period_sales = 0
     
     # 이익률 계산 (간단 버전 - 실제 정산 데이터 사용)
     actual_settlement_df = load_csv('actual_settlement.csv', default_columns=[
@@ -4980,49 +5025,61 @@ elif page == "통합 대시보드":
     # 오늘의 매출
     today_sales = 0
     yesterday_sales = 0
-    if not sales_df.empty:
-        today_sales_df = sales_df[sales_df['날짜'].dt.date == today]
-        if not today_sales_df.empty:
-            today_sales = today_sales_df['총매출'].sum()
-        
-        yesterday = today - timedelta(days=1)
-        yesterday_sales_df = sales_df[sales_df['날짜'].dt.date == yesterday]
-        if not yesterday_sales_df.empty:
-            yesterday_sales = yesterday_sales_df['총매출'].sum()
+    if not sales_df.empty and '날짜' in sales_df.columns and '총매출' in sales_df.columns:
+        try:
+            today_sales_df = sales_df[sales_df['날짜'].dt.date == today]
+            if not today_sales_df.empty and '총매출' in today_sales_df.columns:
+                today_sales = float(today_sales_df['총매출'].sum())
+            
+            yesterday = today - timedelta(days=1)
+            yesterday_sales_df = sales_df[sales_df['날짜'].dt.date == yesterday]
+            if not yesterday_sales_df.empty and '총매출' in yesterday_sales_df.columns:
+                yesterday_sales = float(yesterday_sales_df['총매출'].sum())
+        except Exception as e:
+            today_sales = 0
+            yesterday_sales = 0
     
     # 인기 메뉴 TOP 3
     top3_menus = []
-    if not daily_sales_df.empty and not menu_df.empty:
-        period_sales_df = daily_sales_df[
-            (daily_sales_df['날짜'].dt.date >= start_date) & 
-            (daily_sales_df['날짜'].dt.date <= end_date)
-        ]
-        if not period_sales_df.empty:
-            menu_sales = period_sales_df.groupby('메뉴명')['판매수량'].sum().reset_index()
-            menu_sales = menu_sales.sort_values('판매수량', ascending=False).head(3)
-            menu_sales = pd.merge(menu_sales, menu_df[['메뉴명', '판매가']], on='메뉴명', how='left')
-            menu_sales['매출'] = menu_sales['판매수량'] * menu_sales['판매가']
-            top3_menus = menu_sales.to_dict('records')
+    if not daily_sales_df.empty and not menu_df.empty and '날짜' in daily_sales_df.columns:
+        try:
+            period_sales_df = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= start_date) & 
+                (daily_sales_df['날짜'].dt.date <= end_date)
+            ]
+            if not period_sales_df.empty and '메뉴명' in period_sales_df.columns and '판매수량' in period_sales_df.columns:
+                menu_sales = period_sales_df.groupby('메뉴명')['판매수량'].sum().reset_index()
+                menu_sales = menu_sales.sort_values('판매수량', ascending=False).head(3)
+                if '메뉴명' in menu_df.columns and '판매가' in menu_df.columns:
+                    menu_sales = pd.merge(menu_sales, menu_df[['메뉴명', '판매가']], on='메뉴명', how='left')
+                    menu_sales['매출'] = menu_sales['판매수량'] * menu_sales['판매가']
+                    top3_menus = menu_sales.to_dict('records')
+        except Exception as e:
+            top3_menus = []
     
     # ABC 등급 분포
     abc_counts = {'A': 0, 'B': 0, 'C': 0}
-    if not daily_sales_df.empty and not menu_df.empty:
-        period_sales_df = daily_sales_df[
-            (daily_sales_df['날짜'].dt.date >= start_date) & 
-            (daily_sales_df['날짜'].dt.date <= end_date)
-        ]
-        if not period_sales_df.empty:
-            menu_sales = period_sales_df.groupby('메뉴명')['판매수량'].sum().reset_index()
-            menu_sales = pd.merge(menu_sales, menu_df[['메뉴명', '판매가']], on='메뉴명', how='left')
-            menu_sales['매출'] = menu_sales['판매수량'] * menu_sales['판매가']
-            total_revenue = menu_sales['매출'].sum()
-            if total_revenue > 0:
-                menu_sales['비율(%)'] = (menu_sales['매출'] / total_revenue * 100).round(2)
-                menu_sales['누계 비율(%)'] = menu_sales['비율(%)'].cumsum().round(2)
-                menu_sales['ABC 등급'] = menu_sales['누계 비율(%)'].apply(
-                    lambda x: 'A' if x <= 70 else 'B' if x <= 90 else 'C'
-                )
-                abc_counts = menu_sales['ABC 등급'].value_counts().to_dict()
+    if not daily_sales_df.empty and not menu_df.empty and '날짜' in daily_sales_df.columns:
+        try:
+            period_sales_df = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= start_date) & 
+                (daily_sales_df['날짜'].dt.date <= end_date)
+            ]
+            if not period_sales_df.empty and '메뉴명' in period_sales_df.columns and '판매수량' in period_sales_df.columns:
+                menu_sales = period_sales_df.groupby('메뉴명')['판매수량'].sum().reset_index()
+                if '메뉴명' in menu_df.columns and '판매가' in menu_df.columns:
+                    menu_sales = pd.merge(menu_sales, menu_df[['메뉴명', '판매가']], on='메뉴명', how='left')
+                    menu_sales['매출'] = menu_sales['판매수량'] * menu_sales['판매가']
+                    total_revenue = menu_sales['매출'].sum()
+                    if total_revenue > 0:
+                        menu_sales['비율(%)'] = (menu_sales['매출'] / total_revenue * 100).round(2)
+                        menu_sales['누계 비율(%)'] = menu_sales['비율(%)'].cumsum().round(2)
+                        menu_sales['ABC 등급'] = menu_sales['누계 비율(%)'].apply(
+                            lambda x: 'A' if x <= 70 else 'B' if x <= 90 else 'C'
+                        )
+                        abc_counts = menu_sales['ABC 등급'].value_counts().to_dict()
+        except Exception as e:
+            abc_counts = {'A': 0, 'B': 0, 'C': 0}
     
     col1, col2, col3 = st.columns(3)
     
@@ -5057,13 +5114,15 @@ elif page == "통합 대시보드":
         menu_list_html = ""
         if top3_menus:
             for i, menu in enumerate(top3_menus[:3], 1):
+                menu_name = menu.get('메뉴명', '알 수 없음')
+                qty = int(menu.get('판매수량', 0))
                 menu_list_html += f"""
                 <div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">
-                    {i}. {menu['메뉴명']} ({int(menu['판매수량'])}개)
+                    {i}. {menu_name} ({qty}개)
                 </div>
                 """
         else:
-            menu_list_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>데이터 없음</div>"
+            menu_list_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 판매 데이터 없음</div>"
         
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
@@ -5128,50 +5187,62 @@ elif page == "통합 대시보드":
     
     # 재료 사용 단가 TOP 3
     top3_ingredients = []
-    if not daily_sales_df.empty and not recipe_df.empty and not ingredient_df.empty:
-        period_sales_df = daily_sales_df[
-            (daily_sales_df['날짜'].dt.date >= start_date) & 
-            (daily_sales_df['날짜'].dt.date <= end_date)
-        ]
-        if not period_sales_df.empty:
-            usage_df = calculate_ingredient_usage(period_sales_df, recipe_df)
-            if not usage_df.empty:
-                ingredient_summary = usage_df.groupby('재료명')['총사용량'].sum().reset_index()
-                ingredient_summary = pd.merge(ingredient_summary, ingredient_df[['재료명', '단가']], on='재료명', how='left')
-                ingredient_summary['총사용단가'] = ingredient_summary['총사용량'] * ingredient_summary['단가']
-                ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False).head(3)
-                top3_ingredients = ingredient_summary.to_dict('records')
+    if not daily_sales_df.empty and not recipe_df.empty and not ingredient_df.empty and '날짜' in daily_sales_df.columns:
+        try:
+            period_sales_df = daily_sales_df[
+                (daily_sales_df['날짜'].dt.date >= start_date) & 
+                (daily_sales_df['날짜'].dt.date <= end_date)
+            ]
+            if not period_sales_df.empty:
+                usage_df = calculate_ingredient_usage(period_sales_df, recipe_df)
+                if not usage_df.empty and '재료명' in usage_df.columns and '총사용량' in usage_df.columns:
+                    ingredient_summary = usage_df.groupby('재료명')['총사용량'].sum().reset_index()
+                    if '재료명' in ingredient_df.columns and '단가' in ingredient_df.columns:
+                        ingredient_summary = pd.merge(ingredient_summary, ingredient_df[['재료명', '단가']], on='재료명', how='left')
+                        ingredient_summary['총사용단가'] = ingredient_summary['총사용량'] * ingredient_summary['단가']
+                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False).head(3)
+                        top3_ingredients = ingredient_summary.to_dict('records')
+        except Exception as e:
+            top3_ingredients = []
     
     # 발주 필요 재료
     order_needed = []
     if not inventory_df.empty and not ingredient_df.empty:
-        # 컬럼명 확인 (on_hand/현재고, safety_stock/안전재고)
-        current_col = '현재고' if '현재고' in inventory_df.columns else 'on_hand'
-        safety_col = '안전재고' if '안전재고' in inventory_df.columns else 'safety_stock'
-        ingredient_col = '재료명' if '재료명' in inventory_df.columns else 'ingredient_name'
-        
-        if current_col in inventory_df.columns and safety_col in inventory_df.columns:
-            for _, row in inventory_df.iterrows():
-                try:
-                    current = float(row.get(current_col, 0))
-                    safety = float(row.get(safety_col, 0))
-                    if current < safety:
-                        ingredient_name = row.get(ingredient_col, '')
-                        if ingredient_name:
-                            order_qty = safety - current
-                            # 단가 찾기
-                            unit_price = 0
-                            if not ingredient_df.empty:
-                                ing_row = ingredient_df[ingredient_df['재료명'] == ingredient_name]
-                                if not ing_row.empty:
-                                    unit_price = float(ing_row.iloc[0].get('단가', 0))
-                            order_needed.append({
-                                '재료명': ingredient_name,
-                                '필요량': order_qty,
-                                '예상금액': order_qty * unit_price
-                            })
-                except (ValueError, TypeError):
-                    continue
+        try:
+            # 컬럼명 확인 (on_hand/현재고, safety_stock/안전재고)
+            current_col = '현재고' if '현재고' in inventory_df.columns else ('on_hand' if 'on_hand' in inventory_df.columns else None)
+            safety_col = '안전재고' if '안전재고' in inventory_df.columns else ('safety_stock' if 'safety_stock' in inventory_df.columns else None)
+            ingredient_col = '재료명' if '재료명' in inventory_df.columns else ('ingredient_name' if 'ingredient_name' in inventory_df.columns else None)
+            
+            if current_col and safety_col and ingredient_col:
+                for _, row in inventory_df.iterrows():
+                    try:
+                        current_val = row.get(current_col)
+                        safety_val = row.get(safety_col)
+                        if pd.notna(current_val) and pd.notna(safety_val):
+                            current = float(current_val)
+                            safety = float(safety_val)
+                            if current < safety:
+                                ingredient_name = row.get(ingredient_col, '')
+                                if ingredient_name and pd.notna(ingredient_name):
+                                    order_qty = safety - current
+                                    # 단가 찾기
+                                    unit_price = 0
+                                    if not ingredient_df.empty and '재료명' in ingredient_df.columns and '단가' in ingredient_df.columns:
+                                        ing_row = ingredient_df[ingredient_df['재료명'] == ingredient_name]
+                                        if not ing_row.empty:
+                                            unit_price_val = ing_row.iloc[0].get('단가', 0)
+                                            if pd.notna(unit_price_val):
+                                                unit_price = float(unit_price_val)
+                                    order_needed.append({
+                                        '재료명': str(ingredient_name),
+                                        '필요량': order_qty,
+                                        '예상금액': order_qty * unit_price
+                                    })
+                    except (ValueError, TypeError) as e:
+                        continue
+        except Exception as e:
+            order_needed = []
     
     col1, col2, col3 = st.columns(3)
     
@@ -5208,13 +5279,15 @@ elif page == "통합 대시보드":
         ingredient_html = ""
         if top3_ingredients:
             for i, ing in enumerate(top3_ingredients[:3], 1):
+                ing_name = ing.get('재료명', '알 수 없음')
+                cost = int(ing.get('총사용단가', 0))
                 ingredient_html += f"""
                 <div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">
-                    {i}. {ing['재료명']} ({int(ing['총사용단가']):,}원)
+                    {i}. {ing_name} ({cost:,}원)
                 </div>
                 """
         else:
-            ingredient_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>데이터 없음</div>"
+            ingredient_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 사용 데이터 없음</div>"
         
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
