@@ -1310,8 +1310,8 @@ with st.sidebar:
             ("원가 파악", "💰"),
         ],
         "📈 재무 분석 (월 1-2회)": [
-            ("비용구조", "💳"),
-            ("매출구조", "📈"),
+            ("목표 비용구조", "💳"),
+            ("목표 매출구조", "📈"),
             ("실제정산", "🧾"),
         ],
         "📝 정보입력(변경시)": [
@@ -4152,14 +4152,15 @@ elif page == "통합 대시보드":
     else:
         st.info("통합할 데이터가 없습니다. 매출과 방문자 데이터를 먼저 입력해주세요.")
 
-# 비용구조 페이지
-elif page == "비용구조":
+# 목표 비용구조 페이지 (비용구조와 동일)
+elif page == "목표 비용구조" or page == "비용구조":
     # 비용구조 페이지 전용 헤더 (화이트 모드에서도 항상 흰색 텍스트로 표시)
     header_color = "#ffffff"
+    page_title = "목표 비용구조 관리" if page == "목표 비용구조" else "비용구조 관리"
     st.markdown(f"""
     <div style="margin: 0 0 1.0rem 0;">
         <h2 style="color: {header_color}; font-weight: 700; margin: 0;">
-            💳 비용구조 관리
+            💳 {page_title}
         </h2>
     </div>
     """, unsafe_allow_html=True)
@@ -4948,9 +4949,10 @@ elif page == "비용구조":
 
 # 비용구조 페이지 끝
 
-# 매출구조 페이지
-elif page == "매출구조":
-    render_page_header("매출구조 분석", "📈")
+# 목표 매출구조 페이지 (매출구조와 동일)
+elif page == "목표 매출구조" or page == "매출구조":
+    page_title = "목표 매출구조 분석" if page == "목표 매출구조" else "매출구조 분석"
+    render_page_header(page_title, "📈")
     
     from datetime import datetime
     current_year = datetime.now().year
