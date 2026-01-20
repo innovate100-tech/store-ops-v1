@@ -5298,7 +5298,15 @@ elif page == "발주 관리":
                             lambda row: f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}",
                             axis=1
                         )
-                        display_order_df['예상금액'] = display_order_df['예상금액_숫자'].apply(lambda x: f"{int(round(x)):,,}원")
+                        # 예상금액 숫자가 NaN일 수 있으므로 방어적으로 처리
+                        def format_expected_amount(x):
+                            try:
+                                if x is None or pd.isna(x):
+                                    return "-"
+                                return f"{int(round(float(x))):,}원"
+                            except Exception:
+                                return "-"
+                        display_order_df['예상금액'] = display_order_df['예상금액_숫자'].apply(format_expected_amount)
                         
                         # 발주 단위 표시 (기본 단위와 발주 단위 모두 표시)
                         display_order_df['단위표시'] = display_order_df.apply(
