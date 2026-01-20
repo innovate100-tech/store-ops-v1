@@ -187,16 +187,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        overflow: hidden;
-        width: 100%;
-    }
-    
-    .main-header h1 .text-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
         white-space: nowrap;
-        animation: marquee 20s linear infinite;
     }
     
     .main-header h1 .text-gradient {
@@ -209,7 +200,6 @@ st.markdown("""
             0 0 20px rgba(100, 150, 255, 0.3),
             2px 2px 8px rgba(0, 0, 0, 0.5);
         display: inline-block;
-        white-space: nowrap;
     }
     
     .main-header h1 .emoji {
@@ -220,21 +210,81 @@ st.markdown("""
             0 0 10px rgba(255, 255, 255, 0.3),
             0 0 20px rgba(100, 150, 255, 0.3);
         filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
-        flex-shrink: 0;
     }
     
-    @keyframes marquee {
+    /* 전광판 스타일 */
+    .led-board {
+        position: relative;
+        z-index: 1;
+        background: #000000;
+        border: 3px solid #333333;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-top: 1rem;
+        overflow: hidden;
+        box-shadow: 
+            inset 0 0 20px rgba(255, 0, 0, 0.3),
+            0 0 30px rgba(255, 0, 0, 0.2);
+    }
+    
+    .led-board::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: repeating-linear-gradient(
+            0deg,
+            rgba(255, 0, 0, 0.05) 0px,
+            rgba(255, 0, 0, 0.05) 2px,
+            transparent 2px,
+            transparent 4px
+        );
+        pointer-events: none;
+    }
+    
+    .led-text {
+        color: #ff3333;
+        font-weight: 700;
+        font-size: 1.2rem;
+        letter-spacing: 2px;
+        white-space: nowrap;
+        text-shadow: 
+            0 0 10px #ff0000,
+            0 0 20px #ff0000,
+            0 0 30px #ff0000;
+        animation: ledBlink 1.5s ease-in-out infinite;
+        overflow: hidden;
+        position: relative;
+        display: block;
+        width: 100%;
+    }
+    
+    .led-text::before {
+        content: '하루 1분 입력으로 매장의 모든 데이트를 분석하자!';
+        position: absolute;
+        white-space: nowrap;
+        animation: ledScroll 15s linear infinite;
+        color: #ff3333;
+        text-shadow: 
+            0 0 10px #ff0000,
+            0 0 20px #ff0000,
+            0 0 30px #ff0000;
+    }
+    
+    @keyframes ledBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.85; }
+    }
+    
+    @keyframes ledScroll {
         0% {
-            transform: translateX(100%);
+            left: 100%;
         }
         100% {
-            transform: translateX(-100%);
+            left: -100%;
         }
-    }
-    
-    /* 텍스트가 짧으면 애니메이션 중지 */
-    .main-header h1:hover .text-wrapper {
-        animation-play-state: paused;
     }
     
     @keyframes gradientShift {
@@ -1151,11 +1201,12 @@ if st.session_state.get("theme", "light") == "dark":
 st.markdown("""
 <div class="main-header">
     <h1>
-        <div class="text-wrapper">
-            <span class="emoji">😎</span>
-            <span class="text-gradient">Restaurant Decision Intelligence System (RDIS)</span>
-        </div>
+        <span class="emoji">😎</span>
+        <span class="text-gradient">외식경영 의사결정 시스템 (운영 OS)</span>
     </h1>
+    <div class="led-board">
+        <div class="led-text"></div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
