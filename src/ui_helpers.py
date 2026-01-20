@@ -233,3 +233,62 @@ def handle_data_error(operation: str, error: Exception, default_message: str = N
             f"{operation} 중 오류가 발생했습니다. 문제가 지속되면 관리자에게 문의해주세요.",
             str(error)
         )
+
+
+# ============================================
+# Phase 4: 발주 관리 공통 유틸리티 함수
+# ============================================
+
+def format_quantity_with_unit(quantity: float, unit: str, decimal_places: int = 2) -> str:
+    """수량을 단위와 함께 포맷팅"""
+    return f"{quantity:,.{decimal_places}f} {unit}"
+
+
+def format_price_with_unit(price: float, unit: str, decimal_places: int = 1) -> str:
+    """가격을 단위와 함께 포맷팅"""
+    return f"{price:,.{decimal_places}f}원/{unit}"
+
+
+def convert_to_order_unit(base_qty: float, conversion_rate: float) -> float:
+    """기본 단위 → 발주 단위 변환"""
+    if conversion_rate == 0:
+        return base_qty
+    return base_qty / conversion_rate
+
+
+def convert_to_base_unit(order_qty: float, conversion_rate: float) -> float:
+    """발주 단위 → 기본 단위 변환"""
+    return order_qty * conversion_rate
+
+
+def merge_ingredient_with_inventory(ingredient_df: pd.DataFrame, inventory_df: pd.DataFrame) -> pd.DataFrame:
+    """재료 정보와 재고 정보 조인 (공통 패턴)"""
+    if ingredient_df.empty:
+        return pd.DataFrame()
+    
+    ingredient_cols = ['재료명', '단위', '단가', '발주단위', '변환비율']
+    available_cols = [col for col in ingredient_cols if col in ingredient_df.columns]
+    
+    inventory_cols = ['재료명', '현재고', '안전재고']
+    available_inventory_cols = [col for col in inventory_cols if col in inventory_df.columns] if not inventory_df.empty else ['재료명']
+    
+    result = pd.merge(
+        ingredient_df[available_cols],
+        inventory_df[available_inventory_cols] if not inventory_df.empty else pd.DataFrame(columns=['재료명']),
+        on='재료명',
+        how='left'
+    )
+    
+    # 기본값 처리
+    if '발주단위' in result.columns:
+        result['발주단위'] = result['발주단위'].fillna(result.get('단위', ''))
+    if '변환비율' in result.columns:
+        result['변환비율'] = result['변환비율'].fillna(1.0)
+    if '단가' in result.columns:
+        result['단가'] = result['단가'].fillna(0.0)
+    if '현재고' in result.columns:
+        result['현재고'] = result['현재고'].fillna(0.0)
+    if '안전재고' in result.columns:
+        result['안전재고'] = result['안전재고'].fillna(0.0)
+    
+    return result
