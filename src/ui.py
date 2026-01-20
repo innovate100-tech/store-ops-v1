@@ -512,21 +512,33 @@ def render_inventory_input(ingredient_list, ingredient_df=None):
         st.warning("먼저 재료를 등록해주세요.")
         return None, None, None
     
-    # 재료명과 단위 매핑 생성
+    # 재료명과 단위 매핑 생성 (기본 단위, 발주 단위, 변환 비율)
     ingredient_unit_map = {}
+    ingredient_order_unit_map = {}
+    ingredient_conversion_rate_map = {}
+    
     if ingredient_df is not None and not ingredient_df.empty:
         for idx, row in ingredient_df.iterrows():
             ingredient_name = row.get('재료명', '')
             unit = row.get('단위', '')
+            order_unit = row.get('발주단위', unit)  # 발주 단위가 없으면 기본 단위 사용
+            conversion_rate = row.get('변환비율', 1.0)  # 변환 비율이 없으면 1.0
+            
             if ingredient_name:
                 ingredient_unit_map[ingredient_name] = unit
+                ingredient_order_unit_map[ingredient_name] = order_unit
+                ingredient_conversion_rate_map[ingredient_name] = conversion_rate
     
-    # 재료 선택 옵션에 단위 표시
+    # 재료 선택 옵션에 단위 표시 (기본 단위와 발주 단위 모두 표시)
     ingredient_options = []
     for ing in ingredient_list:
         unit = ingredient_unit_map.get(ing, '')
+        order_unit = ingredient_order_unit_map.get(ing, unit)
         if unit:
-            ingredient_options.append(f"{ing} ({unit})")
+            if order_unit != unit:
+                ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
+            else:
+                ingredient_options.append(f"{ing} ({unit})")
         else:
             ingredient_options.append(ing)
     
@@ -541,12 +553,15 @@ def render_inventory_input(ingredient_list, ingredient_df=None):
         # 선택된 옵션에서 재료명 추출 (단위 제거)
         ingredient_name = selected_option.split(" (")[0] if " (" in selected_option else selected_option
         selected_unit = ingredient_unit_map.get(ingredient_name, '')
+        selected_order_unit = ingredient_order_unit_map.get(ingredient_name, selected_unit)
+        selected_conversion_rate = ingredient_conversion_rate_map.get(ingredient_name, 1.0)
     
     with col2:
+        # 발주 단위로 표시
         current_stock_label = f"현재고"
-        if selected_unit:
-            current_stock_label += f" ({selected_unit})"
-        current_stock = st.number_input(
+        if selected_order_unit:
+            current_stock_label += f" ({selected_order_unit})"
+        current_stock_input = st.number_input(
             current_stock_label,
             min_value=0.0,
             value=0.0,
@@ -554,12 +569,15 @@ def render_inventory_input(ingredient_list, ingredient_df=None):
             format="%.2f",
             key="inventory_current"
         )
+        # 발주 단위를 기본 단위로 변환
+        current_stock = current_stock_input * selected_conversion_rate
     
     with col3:
+        # 발주 단위로 표시
         safety_stock_label = f"안전재고"
-        if selected_unit:
-            safety_stock_label += f" ({selected_unit})"
-        safety_stock = st.number_input(
+        if selected_order_unit:
+            safety_stock_label += f" ({selected_order_unit})"
+        safety_stock_input = st.number_input(
             safety_stock_label,
             min_value=0.0,
             value=0.0,
@@ -567,6 +585,8 @@ def render_inventory_input(ingredient_list, ingredient_df=None):
             format="%.2f",
             key="inventory_safety"
         )
+        # 발주 단위를 기본 단위로 변환
+        safety_stock = safety_stock_input * selected_conversion_rate
     
     return ingredient_name, current_stock, safety_stock
 

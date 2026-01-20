@@ -4643,14 +4643,49 @@ elif page == "발주 관리":
             # 재료 정보와 조인하여 단위 표시
             display_inventory_df = pd.merge(
                 inventory_df,
-                ingredient_df[['재료명', '단위']],
+                ingredient_df[['재료명', '단위', '발주단위', '변환비율']],
                 on='재료명',
                 how='left'
             )
             
+            # 발주 단위가 없으면 기본 단위 사용
+            display_inventory_df['발주단위'] = display_inventory_df['발주단위'].fillna(display_inventory_df['단위'])
+            display_inventory_df['변환비율'] = display_inventory_df['변환비율'].fillna(1.0)
+            
+            # 현재고와 안전재고를 발주 단위로 변환하여 표시
+            display_inventory_df['현재고_발주단위'] = display_inventory_df['현재고'] / display_inventory_df['변환비율']
+            display_inventory_df['안전재고_발주단위'] = display_inventory_df['안전재고'] / display_inventory_df['변환비율']
+            
+            # 단위 표시 컬럼 생성 (기본 단위와 발주 단위 모두 표시)
+            def format_unit_display(row):
+                if pd.isna(row['발주단위']) or row['발주단위'] == row['단위']:
+                    return row['단위']
+                else:
+                    return f"{row['단위']} / 발주: {row['발주단위']}"
+            
+            display_inventory_df['단위표시'] = display_inventory_df.apply(format_unit_display, axis=1)
+            
+            # 표시용 컬럼 포맷팅
+            display_inventory_df['현재고_표시'] = display_inventory_df.apply(
+                lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
+                axis=1
+            )
+            display_inventory_df['안전재고_표시'] = display_inventory_df.apply(
+                lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
+                axis=1
+            )
+            
+            # 표시할 컬럼 선택
+            display_cols = ['재료명', '단위표시', '현재고_표시', '안전재고_표시']
+            display_cols_renamed = {
+                '단위표시': '단위',
+                '현재고_표시': '현재고',
+                '안전재고_표시': '안전재고'
+            }
+            
             # id 컬럼 제외하고 표시
-            display_cols = [col for col in display_inventory_df.columns if col not in ['id', 'store_id', 'ingredient_id', 'created_at', 'updated_at']]
-            st.dataframe(display_inventory_df[display_cols], use_container_width=True, hide_index=True)
+            final_display = display_inventory_df[display_cols].rename(columns=display_cols_renamed)
+            st.dataframe(final_display, use_container_width=True, hide_index=True)
         else:
             st.info("등록된 재고 정보가 없습니다.")
     
