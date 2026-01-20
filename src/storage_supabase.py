@@ -173,9 +173,6 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
             'abc_history.csv': 'abc_history',
             'daily_close.csv': 'daily_close',
             'actual_settlement.csv': 'actual_settlement',
-            'suppliers.csv': 'suppliers',
-            'ingredient_suppliers.csv': 'ingredient_suppliers',
-            'orders.csv': 'orders',
             # 파일명 없이 테이블명으로 직접 호출 가능
             'sales': 'sales',
             'naver_visitors': 'naver_visitors',
