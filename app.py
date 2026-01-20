@@ -4599,10 +4599,14 @@ elif page == "발주 관리":
                 if st.button("💾 저장", type="primary", use_container_width=True, key="save_inventory"):
                     try:
                         save_inventory(ingredient_name, current_stock, safety_stock)
+                        # 캐시 클리어하여 즉시 반영
+                        st.cache_data.clear()
                         st.success(f"재고 정보가 저장되었습니다! ({ingredient_name}: 현재고 {current_stock}, 안전재고 {safety_stock})")
                         st.rerun()
                     except Exception as e:
                         st.error(f"저장 중 오류가 발생했습니다: {e}")
+                        import traceback
+                        st.exception(e)
         
         render_section_divider()
         
