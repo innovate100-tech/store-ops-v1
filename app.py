@@ -1855,7 +1855,7 @@ elif page == "매출 관리":
             # 차트 표시: 이번달 날짜별 매출과 방문자 사이의 연관성
             render_section_header("이번달 날짜별 매출과 방문자 사이의 연관성", "📈")
             
-            # 이번달 데이터 필터링
+            # 현재 이번달 월 데이터만 필터링
             from datetime import datetime
             current_year = datetime.now().year
             current_month = datetime.now().month
@@ -1863,6 +1863,7 @@ elif page == "매출 관리":
             chart_df = merged_df.copy()
             if '날짜' in chart_df.columns:
                 chart_df['날짜'] = pd.to_datetime(chart_df['날짜'])
+                # 이번달 데이터만 필터링 (현재 년도의 현재 월)
                 chart_df = chart_df[
                     (chart_df['날짜'].dt.year == current_year) & 
                     (chart_df['날짜'].dt.month == current_month)
