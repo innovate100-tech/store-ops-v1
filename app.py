@@ -5690,15 +5690,17 @@ elif page == "발주 관리":
         render_section_divider()
         
         # 공급업체 목록
-        # 삭제 후 데이터 새로고침 플래그 확인
+        # 삭제 후 데이터 새로고침 플래그 확인 및 캐시 강제 클리어
         if st.session_state.get('supplier_data_refresh', False):
-            # 캐시 클리어 후 데이터 다시 로드
+            # 모든 캐시 강제 클리어
             try:
+                st.cache_data.clear()
                 load_csv.clear()
             except Exception:
                 pass
             st.session_state.supplier_data_refresh = False
         
+        # 캐시 클리어 후 최신 데이터 로드
         suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
         
         if not suppliers_df.empty:
@@ -5744,9 +5746,23 @@ elif page == "발주 관리":
             if 'supplier_delete_key_counter' not in st.session_state:
                 st.session_state.supplier_delete_key_counter = 0
             
+            # 삭제된 공급업체가 있으면 목록에서 제외
+            supplier_options = suppliers_df['공급업체명'].tolist()
+            deleted_name = st.session_state.get('deleted_supplier_name', None)
+            if deleted_name and deleted_name in supplier_options:
+                supplier_options.remove(deleted_name)
+                # 삭제된 이름 제거 후 플래그 삭제
+                del st.session_state.deleted_supplier_name
+            
+            # 옵션이 비어있으면 기본값 없음
+            default_index = None
+            if supplier_options:
+                default_index = 0
+            
             supplier_to_delete = st.selectbox(
                 "삭제할 공급업체", 
-                options=suppliers_df['공급업체명'].tolist(), 
+                options=supplier_options if supplier_options else ["삭제할 공급업체가 없습니다"],
+                index=default_index,
                 key=f"delete_supplier_select_{st.session_state.supplier_delete_key_counter}"
             )
             
@@ -5759,9 +5775,10 @@ elif page == "발주 관리":
                             (ingredient_suppliers_all['공급업체명'] == supplier_to_delete).sum()
                         )
 
+                    # 공급업체 삭제 실행
                     delete_supplier(supplier_to_delete)
 
-                    # 캐시 클리어
+                    # 모든 캐시 즉시 클리어 (삭제 전에 클리어하면 삭제가 반영되지 않을 수 있음)
                     try:
                         st.cache_data.clear()
                         load_csv.clear()
@@ -5773,8 +5790,10 @@ elif page == "발주 관리":
                     st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
                     # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
                     st.session_state.supplier_delete_key_counter += 1
-                    # 삭제 후 데이터 새로고침 플래그 설정
+                    # 삭제 후 데이터 새로고침 플래그 설정 (다음 렌더링에서 캐시 클리어 후 데이터 다시 로드)
                     st.session_state.supplier_data_refresh = True
+                    # 삭제된 공급업체명 저장 (다음 렌더링에서 selectbox 기본값 설정용)
+                    st.session_state.deleted_supplier_name = supplier_to_delete
                     # Streamlit의 자동 rerun 활용 (탭 상태 유지)
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
