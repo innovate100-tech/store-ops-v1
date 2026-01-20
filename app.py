@@ -1797,7 +1797,13 @@ elif page == "매출 관리":
     
     if not merged_df.empty:
         # ========== 1. 핵심 요약 지표 (KPI 카드) ==========
-        render_section_header("이번달 요약", "📊")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📊 이번달 요약
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         if not month_data.empty:
             month_avg_daily_sales = month_total_sales / len(month_data) if len(month_data) > 0 else 0
@@ -1825,7 +1831,13 @@ elif page == "매출 관리":
         render_section_divider()
         
         # ========== 2. 기간별 비교 분석 ==========
-        render_section_header("기간별 비교 분석", "📈")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📈 기간별 비교 분석
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 전월 데이터
         if current_month == 1:
@@ -1916,7 +1928,13 @@ elif page == "매출 관리":
         render_section_divider()
         
         # ========== 3. 요일별 분석 ==========
-        render_section_header("요일별 패턴 분석", "📅")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📅 요일별 패턴 분석
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         if not month_data.empty:
             month_data['요일'] = month_data['날짜'].dt.day_name()
@@ -1975,7 +1993,13 @@ elif page == "매출 관리":
         
         # ========== 4. 목표 대비 실적 ==========
         if not target_row.empty:
-            render_section_header("목표 달성 현황", "🎯")
+            st.markdown("""
+            <div style="margin: 2rem 0 1rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    🎯 목표 달성 현황
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
             
             daily_target = target_sales / days_in_month if days_in_month > 0 else 0
             
@@ -2008,7 +2032,13 @@ elif page == "매출 관리":
             render_section_divider()
         
         # ========== 5. 트렌드 분석 ==========
-        render_section_header("매출 트렌드", "📊")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📊 매출 트렌드
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 최근 7일 vs 최근 30일
         recent_7_days = merged_df[merged_df['날짜'].dt.date >= (today - timedelta(days=7))].copy()
@@ -2032,7 +2062,13 @@ elif page == "매출 관리":
         render_section_divider()
         
         # ========== 6. 경고/알림 ==========
-        render_section_header("알림 및 경고", "⚠️")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                ⚠️ 알림 및 경고
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         alerts = []
         
@@ -2090,7 +2126,13 @@ elif page == "매출 관리":
         render_section_divider()
         
         # ========== 7. 월별 요약 테이블 ==========
-        render_section_header("월별 요약 (최근 6개월)", "📋")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📋 월별 요약 (최근 6개월)
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 최근 6개월 데이터
         six_months_ago = today - timedelta(days=180)
@@ -2128,7 +2170,13 @@ elif page == "매출 관리":
         render_section_divider()
         
         # ========== 8. 예측/예상 ==========
-        render_section_header("예상 매출 및 목표 달성 가능성", "🔮")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                🔮 예상 매출 및 목표 달성 가능성
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         if not month_data.empty:
             # 현재 추세 기반 예상 (위에서 이미 계산된 forecast_sales 사용)
@@ -2208,7 +2256,13 @@ elif page == "매출 관리":
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         
         # ========== 이달 일일 매출과 방문자 사이의 연관성 ==========
-        render_section_header("이달 일일 매출과 방문자 사이의 연관성", "📈")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📈 이달 일일 매출과 방문자 사이의 연관성
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 이번달 데이터 사용 (위에서 이미 필터링됨)
         chart_df = month_data.copy() if not month_data.empty else pd.DataFrame()
