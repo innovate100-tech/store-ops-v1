@@ -1304,7 +1304,6 @@ with st.sidebar:
             ("통합 대시보드", "📊"),
         ],
         "💰 매출 & 비용 (주 2-3회)": [
-            ("매출 관리", "📊"),
             ("판매 관리", "📦"),
             ("재료 사용량 집계", "📈"),
             ("원가 파악", "💰"),
@@ -1587,9 +1586,9 @@ if page == "점장 마감":
                 except Exception as e:
                     st.error(f"저장 중 오류가 발생했습니다: {e}")
 
-# 매출 등록 페이지 (매출 관리와 동일)
-elif page == "매출 등록" or page == "매출 관리":
-    render_page_header("매출 관리", "📊")
+# 매출 등록 페이지
+elif page == "매출 등록":
+    render_page_header("매출 등록", "💰")
     
     # 카테고리 선택 (매출 / 방문자)
     category = st.radio(
@@ -1746,140 +1745,6 @@ elif page == "매출 등록" or page == "매출 관리":
                             st.success(f"✅ {success_count}일의 방문자수가 저장되었습니다!")
                             st.balloons()
                             st.rerun()
-    
-    render_section_divider()
-    
-    # ========== 저장된 데이터 표시 ==========
-    if category == "💰 매출":
-        # 저장된 매출 표시 및 삭제
-        st.markdown("""
-        <div style="margin: 2rem 0 1rem 0;">
-            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-                📋 저장된 매출 내역
-            </h3>
-        </div>
-        """, unsafe_allow_html=True)
-        sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-        
-        if not sales_df.empty:
-            # 삭제 기능
-            st.write("**🗑️ 매출 데이터 삭제**")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                delete_date = st.date_input("삭제할 날짜", key="sales_delete_date")
-            with col2:
-                delete_store_list = sales_df['매장'].unique().tolist()
-                delete_store = st.selectbox(
-                    "매장 선택 (전체 삭제 시 '전체' 선택)",
-                    ["전체"] + delete_store_list,
-                    key="sales_delete_store"
-                )
-            with col3:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ 삭제", key="sales_delete_btn", type="primary"):
-                    try:
-                        if delete_store == "전체":
-                            success, message = delete_sales(delete_date, None)
-                        else:
-                            success, message = delete_sales(delete_date, delete_store)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-            
-            render_section_divider()
-            
-            # 실제 입력값만 표시 (기술적 컬럼 제거)
-            display_df = sales_df.copy()
-            
-            # 표시할 컬럼만 선택
-            display_columns = []
-            if '날짜' in display_df.columns:
-                display_columns.append('날짜')
-            if '매장' in display_df.columns:
-                display_columns.append('매장')
-            if '카드매출' in display_df.columns:
-                display_columns.append('카드매출')
-            if '현금매출' in display_df.columns:
-                display_columns.append('현금매출')
-            if '총매출' in display_df.columns:
-                display_columns.append('총매출')
-            
-            # 필요한 컬럼만 선택
-            if display_columns:
-                display_df = display_df[display_columns]
-                
-                # 날짜를 문자열로 변환
-                if '날짜' in display_df.columns:
-                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-                # 숫자 포맷팅
-                if '총매출' in display_df.columns:
-                    display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '카드매출' in display_df.columns:
-                    display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                if '현금매출' in display_df.columns:
-                    display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-            
-            # 차트 표시
-            render_section_header("날짜별 매출 추이", "📈")
-            render_sales_chart(sales_df)
-        else:
-            st.info("저장된 매출 데이터가 없습니다.")
-    
-    else:
-        # 저장된 방문자 표시 및 삭제
-        render_section_header("저장된 방문자 내역", "📋")
-        visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-        
-        if not visitors_df.empty:
-            # 삭제 기능
-            st.write("**🗑️ 방문자 데이터 삭제**")
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                delete_date = st.date_input("삭제할 날짜", key="visitor_delete_date")
-            with col2:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ 삭제", key="visitor_delete_btn", type="primary"):
-                    try:
-                        success, message = delete_visitor(delete_date)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-            
-            render_section_divider()
-            
-            # 실제 입력값만 표시 (기술적 컬럼 제거)
-            display_df = visitors_df.copy()
-            
-            # 표시할 컬럼만 선택
-            display_columns = []
-            if '날짜' in display_df.columns:
-                display_columns.append('날짜')
-            if '방문자수' in display_df.columns:
-                display_columns.append('방문자수')
-            
-            # 필요한 컬럼만 선택
-            if display_columns:
-                display_df = display_df[display_columns]
-                
-                # 날짜를 문자열로 변환
-                if '날짜' in display_df.columns:
-                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("저장된 방문자 데이터가 없습니다.")
 
 # 메뉴 등록 페이지
 elif page == "메뉴 등록":
