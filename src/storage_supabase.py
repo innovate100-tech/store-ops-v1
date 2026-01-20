@@ -56,7 +56,7 @@ def _check_supabase_for_dev_mode():
 # Load Functions (CSV 호환 인터페이스 유지)
 # ============================================
 
-@st.cache_data(ttl=120)  # 2분 캐시 (동적 데이터와 마스터 데이터 모두 고려)
+@st.cache_data(ttl=10)  # 10초 캐시로 단축 (데이터 지연 최소화)
 def load_csv(filename: str, default_columns: Optional[List[str]] = None):
     """
     테이블에서 데이터 로드 (CSV 호환 인터페이스)
