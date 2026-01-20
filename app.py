@@ -187,6 +187,9 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     
     .main-header h1 .text-gradient {
@@ -199,6 +202,7 @@ st.markdown("""
             0 0 20px rgba(100, 150, 255, 0.3),
             2px 2px 8px rgba(0, 0, 0, 0.5);
         display: inline-block;
+        white-space: nowrap;
     }
     
     .main-header h1 .emoji {
@@ -209,6 +213,7 @@ st.markdown("""
             0 0 10px rgba(255, 255, 255, 0.3),
             0 0 20px rgba(100, 150, 255, 0.3);
         filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+        flex-shrink: 0;
     }
     
     @keyframes gradientShift {
