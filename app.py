@@ -4869,8 +4869,8 @@ elif page == "통합 대시보드":
         
         # 손익분기 매출 vs 목표 매출 비교 섹션
         st.markdown("""
-        <div style="margin: 2rem 0 1rem 0;">
-            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+        <div style="margin: 1rem 0 0.5rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                 📊 손익분기 매출 vs 목표 매출 비교
             </h3>
         </div>
@@ -4878,8 +4878,8 @@ elif page == "통합 대시보드":
         
         if breakeven_sales:
             st.markdown(f"""
-            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                <span style="color: #ffffff; font-size: 0.9rem;">
+            <div style="background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                <span style="color: #ffffff; font-size: 0.85rem;">
                     계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
                 </span>
             </div>
@@ -4889,42 +4889,42 @@ elif page == "통합 대시보드":
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
-                <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
-                <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                <div style="font-size: 1.1rem; margin-bottom: 0.4rem; opacity: 0.9;">📊 손익분기 월매출</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
+                <div style="font-size: 1.1rem; margin-top: 0.75rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.6rem;">
                     💰 추정 영업이익
                 </div>
-                <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem;">0원</div>
+                <div style="font-size: 1.1rem; font-weight: 600; margin-top: 0.2rem;">0원</div>
             </div>
             """, unsafe_allow_html=True)
         with col2:
             if target_sales > 0:
                 profit_color = "#ffd700" if target_profit > 0 else "#ff6b6b"
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                    <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">🎯 목표 월매출</div>
-                    <div style="font-size: 1.8rem; font-weight: 700;">{int(target_sales):,}원</div>
-                    <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                    <div style="font-size: 1.1rem; margin-bottom: 0.4rem; opacity: 0.9;">🎯 목표 월매출</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">{int(target_sales):,}원</div>
+                    <div style="font-size: 1.1rem; margin-top: 0.75rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.6rem;">
                         💰 추정 영업이익
                     </div>
-                    <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem; color: {profit_color};">{int(target_profit):,}원</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; margin-top: 0.2rem; color: {profit_color};">{int(target_profit):,}원</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                <div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 8px; text-align: center; margin-top: 0.5rem; border: 2px dashed rgba(255,255,255,0.3);">
-                    <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #ffffff;">🎯 목표 월매출</div>
-                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7);">목표 비용구조 페이지에서 목표 매출을 설정하세요</div>
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; margin-top: 0.25rem; border: 2px dashed rgba(255,255,255,0.3);">
+                    <div style="font-size: 0.85rem; margin-bottom: 0.4rem; color: #ffffff;">🎯 목표 월매출</div>
+                    <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">목표 비용구조 페이지에서 목표 매출을 설정하세요</div>
                 </div>
                 """, unsafe_allow_html=True)
         
-        render_section_divider()
+        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
         
         # 일일 매출 비교 섹션
         st.markdown("""
-        <div style="margin: 2rem 0 1rem 0;">
-            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+        <div style="margin: 1rem 0 0.5rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                 📅 일일 매출 비교
             </h3>
         </div>
@@ -4934,16 +4934,16 @@ elif page == "통합 대시보드":
         with col1:
             weekday_profit_color = "#ffd700" if weekday_daily_target_profit > 0 else "#ff6b6b" if weekday_daily_target_profit < 0 else "white"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
-                <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">📅 평일 일일 매출</div>
-                <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
-                {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
-                <div style="font-size: 1.275rem; margin-top: 0.9rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
+            <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 1rem; border-radius: 8px; color: white; margin-top: 0.25rem; text-align: right;">
+                <div style="font-size: 1.1rem; margin-bottom: 0.3rem; opacity: 0.9; text-align: center;">📅 평일 일일 매출</div>
+                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
+                {f'<div style="font-size: 1.1rem; font-weight: 700;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 1rem; margin-top: 0.7rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem; text-align: center;">
                     💰 일일 영업이익
                 </div>
-                <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
-                {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekday_profit_color};">목표시 영업이익: {int(weekday_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
-                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; margin-top: 0.2rem; margin-bottom: 0.2rem;">손익분기시 영업이익: 0원</div>
+                {f'<div style="font-size: 0.85rem; font-weight: 600; color: {weekday_profit_color};">목표시 영업이익: {int(weekday_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.75rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 0.7rem; margin-top: 0.4rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.4rem;">
                     (월매출 × {weekday_ratio:.1f}% ÷ 22일)
                 </div>
             </div>
@@ -4951,22 +4951,22 @@ elif page == "통합 대시보드":
         with col2:
             weekend_profit_color = "#ffd700" if weekend_daily_target_profit > 0 else "#ff6b6b" if weekend_daily_target_profit < 0 else "white"
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
-                <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">🎉 주말 일일 매출</div>
-                <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
-                {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
-                <div style="font-size: 1.275rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
+            <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); padding: 1rem; border-radius: 8px; color: white; margin-top: 0.25rem; text-align: right;">
+                <div style="font-size: 1.1rem; margin-bottom: 0.3rem; opacity: 0.9; text-align: center;">🎉 주말 일일 매출</div>
+                <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
+                {f'<div style="font-size: 1.1rem; font-weight: 700;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 1rem; margin-top: 0.7rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem; text-align: center;">
                     💰 일일 영업이익
                 </div>
-                <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
-                {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekend_profit_color};">목표시 영업이익: {int(weekend_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
-                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; margin-top: 0.2rem; margin-bottom: 0.2rem;">손익분기시 영업이익: 0원</div>
+                {f'<div style="font-size: 0.85rem; font-weight: 600; color: {weekend_profit_color};">목표시 영업이익: {int(weekend_daily_target_profit):,}원</div>' if target_sales > 0 else '<div style="font-size: 0.75rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
+                <div style="font-size: 0.7rem; margin-top: 0.4rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.4rem;">
                     (월매출 × {weekend_ratio:.1f}% ÷ 8일)
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
-        render_section_divider()
+        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
         
         # ========== 매출 수준별 비용·영업이익 시뮬레이션 ==========
         if target_sales > 0:
@@ -5003,16 +5003,16 @@ elif page == "통합 대시보드":
             ]
             
             st.markdown("""
-            <div style="margin: 2rem 0 1rem 0;">
-                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            <div style="margin: 1rem 0 0.5rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                     📊 매출 수준별 비용·영업이익 시뮬레이션
                 </h3>
             </div>
             """, unsafe_allow_html=True)
             
             st.markdown("""
-            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                <span style="color: #ffffff; font-size: 0.9rem;">
+            <div style="background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.75rem;">
+                <span style="color: #ffffff; font-size: 0.85rem;">
                     비용구조의 고정비와 변동비율, 목표 매출을 기준으로 다양한 매출 수준에서의 비용과 영업이익을 비교합니다.
                 </span>
             </div>
@@ -5040,21 +5040,21 @@ elif page == "통합 대시보드":
                 tile_col = cols[idx % 3]
                 with tile_col:
                     st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1.2rem; border-radius: 10px; margin-top: 0.8rem; color: #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
-                        <div style="font-size: 0.9rem; margin-bottom: 0.4rem; opacity: 0.9;">{label}</div>
+                    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1rem; border-radius: 10px; margin-top: 0.5rem; color: #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+                        <div style="font-size: 0.85rem; margin-bottom: 0.3rem; opacity: 0.9;">{label}</div>
                         <!-- 매출 영역: 선명한 흰색 -->
-                        <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; color: #ffffff !important;">
+                        <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; color: #ffffff !important;">
                             매출: {int(sales):,}원
                         </div>
                         <!-- 비용 영역 제목: 더 진한 빨간색 -->
-                        <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ff4d4f !important;">
+                        <div style="font-size: 0.85rem; margin-top: 0.4rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.4rem; color: #ff4d4f !important;">
                             비용 합계 및 세부내역
                         </div>
                         <!-- 총 비용: 더 진한 빨간색 -->
-                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem; color: #ff4d4f !important;">
+                        <div style="font-size: 1rem; font-weight: 600; margin-bottom: 0.15rem; color: #ff4d4f !important;">
                             총 비용: {int(total_cost):,}원
                         </div>
-                        <div style="font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.4; color: #ff4d4f !important;">
+                        <div style="font-size: 0.75rem; margin-top: 0.25rem; line-height: 1.3; color: #ff4d4f !important;">
                             임차료(고정비): {int(rent_cost):,}원<br>
                             인건비(고정비): {int(labor_cost):,}원<br>
                             공과금(고정비): {int(utility_cost):,}원<br>
@@ -5062,17 +5062,17 @@ elif page == "통합 대시보드":
                             부가세·카드수수료(변동비): {int(fee_cost):,}원
                         </div>
                         <!-- 추정 영업이익 제목: 선명한 노란색 -->
-                        <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ffd700 !important;">
+                        <div style="font-size: 0.85rem; margin-top: 0.4rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.4rem; color: #ffd700 !important;">
                             추정 영업이익
                         </div>
                         <!-- 추정 영업이익 값: 선명한 노란색 -->
-                        <div style="font-size: 1.1rem; font-weight: 600; color: #ffd700 !important;">
+                        <div style="font-size: 1rem; font-weight: 600; color: #ffd700 !important;">
                             {int(profit):,}원
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
         
-        render_section_divider()
+        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
         
         # ========== 매출 관리 항목들 ==========
         from datetime import timedelta
@@ -5114,8 +5114,8 @@ elif page == "통합 대시보드":
         if not merged_df_dashboard.empty:
             # 1. 이번달 요약
             st.markdown("""
-            <div style="margin: 2rem 0 1rem 0;">
-                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            <div style="margin: 1rem 0 0.5rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                     📊 이번달 요약
                 </h3>
             </div>
@@ -5144,12 +5144,12 @@ elif page == "통합 대시보드":
                     else:
                         st.metric("목표 달성률", "-", help="목표 매출이 설정되지 않았습니다")
             
-            render_section_divider()
+            st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
             
             # 2. 저장된 매출 내역
             st.markdown("""
-            <div style="margin: 2rem 0 1rem 0;">
-                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            <div style="margin: 1rem 0 0.5rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                     📋 저장된 매출 내역
                 </h3>
             </div>
@@ -5194,12 +5194,12 @@ elif page == "통합 대시보드":
                 
                 st.dataframe(display_df_dashboard, use_container_width=True, hide_index=True)
             
-            render_section_divider()
+            st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
             
             # 3. 월별 요약 (최근 6개월)
             st.markdown("""
-            <div style="margin: 2rem 0 1rem 0;">
-                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            <div style="margin: 1rem 0 0.5rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                     📋 월별 요약 (최근 6개월)
                 </h3>
             </div>
@@ -5239,7 +5239,7 @@ elif page == "통합 대시보드":
                     hide_index=True
                 )
         
-        render_section_divider()
+        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
         
         # ========== 판매 ABC 분석 ==========
         
@@ -5309,8 +5309,8 @@ elif page == "통합 대시보드":
                 
                 if total_revenue > 0:
                     st.markdown("""
-                    <div style="margin: 2rem 0 1rem 0;">
-                        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    <div style="margin: 1rem 0 0.5rem 0;">
+                        <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                             📊 판매 ABC 분석
                         </h3>
                     </div>
@@ -5348,11 +5348,11 @@ elif page == "통합 대시보드":
                         a_revenue = abc_stats[abc_stats['ABC 등급'] == 'A']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'A'].empty else 0
                         a_ratio = abc_stats[abc_stats['ABC 등급'] == 'A']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'A'].empty else 0
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🟢 A등급</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(a_count)}개 메뉴</div>
-                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(a_revenue):,}원</div>
-                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {a_ratio:.1f}%</div>
+                        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                            <div style="font-size: 1rem; margin-bottom: 0.4rem; opacity: 0.9;">🟢 A등급</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem;">{int(a_count)}개 메뉴</div>
+                            <div style="font-size: 1rem; margin-bottom: 0.25rem;">{int(a_revenue):,}원</div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">매출 비중: {a_ratio:.1f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
                     with col2:
@@ -5360,11 +5360,11 @@ elif page == "통합 대시보드":
                         b_revenue = abc_stats[abc_stats['ABC 등급'] == 'B']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'B'].empty else 0
                         b_ratio = abc_stats[abc_stats['ABC 등급'] == 'B']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'B'].empty else 0
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🟡 B등급</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(b_count)}개 메뉴</div>
-                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(b_revenue):,}원</div>
-                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {b_ratio:.1f}%</div>
+                        <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                            <div style="font-size: 1rem; margin-bottom: 0.4rem; opacity: 0.9;">🟡 B등급</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem;">{int(b_count)}개 메뉴</div>
+                            <div style="font-size: 1rem; margin-bottom: 0.25rem;">{int(b_revenue):,}원</div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">매출 비중: {b_ratio:.1f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
                     with col3:
@@ -5372,18 +5372,18 @@ elif page == "통합 대시보드":
                         c_revenue = abc_stats[abc_stats['ABC 등급'] == 'C']['총 매출'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'C'].empty else 0
                         c_ratio = abc_stats[abc_stats['ABC 등급'] == 'C']['매출 비율(%)'].values[0] if not abc_stats[abc_stats['ABC 등급'] == 'C'].empty else 0
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.9;">🔴 C등급</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem;">{int(c_count)}개 메뉴</div>
-                            <div style="font-size: 1.1rem; margin-bottom: 0.3rem;">{int(c_revenue):,}원</div>
-                            <div style="font-size: 0.9rem; opacity: 0.8;">매출 비중: {c_ratio:.1f}%</div>
+                        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                            <div style="font-size: 1rem; margin-bottom: 0.4rem; opacity: 0.9;">🔴 C등급</div>
+                            <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem;">{int(c_count)}개 메뉴</div>
+                            <div style="font-size: 1rem; margin-bottom: 0.25rem;">{int(c_revenue):,}원</div>
+                            <div style="font-size: 0.85rem; opacity: 0.8;">매출 비중: {c_ratio:.1f}%</div>
                         </div>
                         """, unsafe_allow_html=True)
                     
                     # TOP 10 메뉴 표시
                     st.markdown("""
-                    <div style="margin: 2rem 0 1rem 0;">
-                        <h4 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    <div style="margin: 1rem 0 0.5rem 0;">
+                        <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
                             🏆 ABC 분석 TOP 10 메뉴
                         </h4>
                     </div>
@@ -5405,7 +5405,7 @@ elif page == "통합 대시보드":
                         hide_index=True
                     )
                     
-                    render_section_divider()
+                    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
                     
                     # ========== 재료 사용량 TOP 10 ==========
                     # 재료 사용량 계산
@@ -5453,8 +5453,8 @@ elif page == "통합 대시보드":
                             ingredient_summary['ABC 등급'] = ingredient_summary['누적 비율(%)'].apply(assign_abc_grade_ingredient)
                             
                             st.markdown("""
-                            <div style="margin: 2rem 0 1rem 0;">
-                                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                            <div style="margin: 1rem 0 0.5rem 0;">
+                                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                                     📦 재료 사용 단가 TOP 10
                                 </h3>
                             </div>
@@ -5480,14 +5480,14 @@ elif page == "통합 대시보드":
                             # TOP 10 총합계
                             top10_total = top10_ingredients['총사용단가'].sum()
                             st.markdown(f"""
-                            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                                <span style="color: #ffffff; font-size: 1rem; font-weight: 600;">
+                            <div style="background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem;">
+                                <span style="color: #ffffff; font-size: 0.9rem; font-weight: 600;">
                                     💰 TOP 10 총 사용단가 합계: {int(top10_total):,}원
                                 </span>
                             </div>
                             """, unsafe_allow_html=True)
                     
-                    render_section_divider()
+                    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
                     
                     # ========== 레시피 검색 및 수정 ==========
                     recipe_df_dashboard = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
@@ -5498,8 +5498,8 @@ elif page == "통합 대시보드":
                         
                         if menus_with_recipes:
                             st.markdown("""
-                            <div style="margin: 2rem 0 1rem 0;">
-                                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                            <div style="margin: 1rem 0 0.5rem 0;">
+                                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
                                     🔍 레시피 검색 및 수정
                                 </h3>
                             </div>
@@ -5554,30 +5554,30 @@ elif page == "통합 대시보드":
                                 col1, col2, col3 = st.columns(3)
                                 with col1:
                                     st.markdown(f"""
-                                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">판매가</div>
-                                        <div style="font-size: 1.5rem; font-weight: 700;">{menu_price:,}원</div>
+                                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">판매가</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 with col2:
                                     st.markdown(f"""
-                                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">원가</div>
-                                        <div style="font-size: 1.5rem; font-weight: 700;">{cost:,}원</div>
+                                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 with col3:
                                     st.markdown(f"""
-                                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">원가율</div>
-                                        <div style="font-size: 1.5rem; font-weight: 700;">{cost_rate:.1f}%</div>
+                                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가율</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
                                 # 구성 재료 및 사용량 테이블
                                 st.markdown("""
-                                <div style="margin: 2rem 0 1rem 0;">
-                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0;">
+                                <div style="margin: 1rem 0 0.5rem 0;">
+                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
                                         📋 구성 재료 및 사용량
                                     </h4>
                                 </div>
@@ -5605,10 +5605,10 @@ elif page == "통합 대시보드":
                                 st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
                                 
                                 # 조리방법 표시
-                                render_section_divider()
+                                st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
                                 st.markdown("""
-                                <div style="margin: 2rem 0 1rem 0;">
-                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0;">
+                                <div style="margin: 1rem 0 0.5rem 0;">
+                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
                                         👨‍🍳 조리방법
                                     </h4>
                                 </div>
@@ -5616,9 +5616,9 @@ elif page == "통합 대시보드":
                                 
                                 if cooking_method_text:
                                     st.markdown(f"""
-                                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
-                                                border-left: 4px solid #667eea; margin: 1rem 0;">
-                                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
+                                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1rem; border-radius: 12px; 
+                                                border-left: 4px solid #667eea; margin: 0.75rem 0;">
+                                        <div style="color: #e5e7eb; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;">
                                             {cooking_method_text.replace(chr(10), '<br>')}
                                         </div>
                                     </div>
