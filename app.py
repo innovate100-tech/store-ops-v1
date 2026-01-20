@@ -4752,9 +4752,10 @@ elif page == "재료 사용량 집계":
 elif page == "발주 관리":
     render_page_header("발주 관리", "🛒")
     
-    # 재료 목록 로드 (발주단위/변환비율 포함)
+    # 재료 / 재고 공통 로드 (발주단위/변환비율 포함)
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
+    inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
     
     # 탭 구조
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -4769,8 +4770,6 @@ elif page == "발주 관리":
     # ========== 탭 1: 안전재고 등록 ==========
     with tab1:
         render_section_header("안전재고 등록", "🛡️")
-        
-        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         if ingredient_df.empty:
             st.info("먼저 재료를 등록해주세요.")
@@ -4854,8 +4853,6 @@ elif page == "발주 관리":
     # ========== 탭 2: 현재 재고 현황 ==========
     with tab2:
         render_section_header("현재 재고 현황", "📦")
-        
-        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         if not ingredient_df.empty:
             # 전체 재료 기준으로 조인해서 재고가 없는 재료도 모두 표시 (현재고/안전재고는 0으로 처리)
@@ -5006,8 +5003,6 @@ elif page == "발주 관리":
     # ========== 탭 3: 발주 추천 ==========
     with tab3:
         render_section_header("발주 추천", "🛒")
-        
-        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         # ========== Phase 4: 고급 알림 및 경고 ==========
         from datetime import datetime, timedelta
