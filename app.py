@@ -5942,34 +5942,46 @@ elif page == "발주 관리":
                 st.write("**📋 재료-공급업체 매핑 목록**")
                 display_mapping = ingredient_suppliers_df.copy()
                 
-                # 재료 단위 정보 추가
-                if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns:
-                    unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['단위']))
-                    order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['발주단위']))
-                    
-                    display_mapping['단위'] = display_mapping['재료명'].map(unit_map).fillna('')
-                    display_mapping['발주단위'] = display_mapping['재료명'].map(order_unit_map).fillna(display_mapping['단위'])
-                    
-                    # 단위 표시 컬럼 생성
-                    def format_unit_display(row):
-                        if pd.isna(row.get('발주단위')) or row.get('발주단위') == row.get('단위', ''):
-                            return row.get('단위', '')
-                        else:
-                            return f"{row.get('단위', '')} / 발주: {row.get('발주단위', '')}"
-                    
-                    display_mapping['단위표시'] = display_mapping.apply(format_unit_display, axis=1)
-                else:
-                    display_mapping['단위표시'] = ''
-                
+                # 재료 단위/발주단위/변환비율 정보 추가
+                unit_map = dict(zip(ingredient_df['재료명'], ingredient_df.get('단위', pd.Series(index=ingredient_df.index, dtype=str))))
+                order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df.get('발주단위', ingredient_df.get('단위', pd.Series(index=ingredient_df.index, dtype=str)))))
+                conv_map = dict(zip(ingredient_df['재료명'], ingredient_df.get('변환비율', pd.Series(index=ingredient_df.index, dtype=float)).fillna(1.0)))
+
+                # 사용단위(기본단위) / 발주단위 / 변환비율
+                display_mapping['사용단위'] = display_mapping['재료명'].map(unit_map).fillna('')
+                display_mapping['발주단위'] = display_mapping['재료명'].map(order_unit_map).fillna(display_mapping['사용단위'])
+
+                # ingredient_suppliers 단가: 기본단위 기준 단가(원/사용단위)
+                base_price_series = display_mapping.get('단가', pd.Series(index=display_mapping.index, dtype=float)).fillna(0)
+                conv_series = display_mapping['재료명'].map(conv_map).fillna(1.0)
+
+                # 사용단가/발주단가 계산
+                display_mapping['사용단가'] = (
+                    base_price_series.astype(float).round(1)
+                )
+                display_mapping['발주단가'] = (
+                    (base_price_series * conv_series).astype(float).round(1)
+                )
+
+                # 포맷팅: "x.x원/단위"
+                display_mapping['사용단가'] = display_mapping.apply(
+                    lambda row: f"{row['사용단가']:,.1f}원/{row['사용단위']}" if row['사용단위'] else f"{row['사용단가']:,.1f}원",
+                    axis=1
+                )
+                display_mapping['발주단가'] = display_mapping.apply(
+                    lambda row: f"{row['발주단가']:,.1f}원/{row['발주단위']}" if row['발주단위'] else f"{row['발주단가']:,.1f}원",
+                    axis=1
+                )
+
+                # 기본공급업체 체크 표시
                 if '기본공급업체' in display_mapping.columns:
                     display_mapping['기본공급업체'] = display_mapping['기본공급업체'].apply(lambda x: "✅" if x else "")
-                if '단가' in display_mapping.columns:
-                    display_mapping['단가'] = display_mapping['단가'].apply(lambda x: f"{int(x):,}원")
-                
-                # 표시할 컬럼 선택 (단위 정보 포함)
-                mapping_display_cols = ['재료명', '단위표시', '공급업체명', '단가', '기본공급업체']
+
+                # 최종 표시 컬럼: 재료명, 사용단위, 발주단위, 공급업체명, 사용단가, 발주단가, 기본공급업체
+                mapping_display_cols = ['재료명', '사용단위', '발주단위', '공급업체명', '사용단가', '발주단가', '기본공급업체']
                 mapping_display_cols = [col for col in mapping_display_cols if col in display_mapping.columns]
-                display_mapping = display_mapping[mapping_display_cols].rename(columns={'단위표시': '단위'})
+                display_mapping = display_mapping[mapping_display_cols]
+
                 st.dataframe(display_mapping, use_container_width=True, hide_index=True)
                 
                 # 매핑 삭제
