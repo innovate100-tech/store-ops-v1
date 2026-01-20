@@ -4792,7 +4792,66 @@ elif page == "발주 관리":
         </div>
         """, unsafe_allow_html=True)
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
-        
+
+        # 수동으로 재고 추가 (발주 단위 기준)
+        if not ingredient_df.empty:
+            st.markdown("**➕ 수동 재고 추가 (입고, 보정용)**")
+            add_col1, add_col2, add_col3 = st.columns([2, 1.5, 1])
+
+            with add_col1:
+                manual_ing = st.selectbox(
+                    "재료 선택",
+                    options=ingredient_df['재료명'].tolist(),
+                    key="manual_inventory_ingredient"
+                )
+
+            # 선택된 재료의 발주단위/변환비율 조회
+            manual_order_unit = ""
+            manual_conversion = 1.0
+            if manual_ing:
+                ing_row = ingredient_df[ingredient_df['재료명'] == manual_ing]
+                if not ing_row.empty:
+                    ing_row = ing_row.iloc[0]
+                    base_unit = ing_row.get('단위', '')
+                    manual_order_unit = ing_row.get('발주단위', base_unit) or base_unit
+                    manual_conversion = ing_row.get('변환비율', 1.0) or 1.0
+
+            with add_col2:
+                add_qty = st.number_input(
+                    f"추가 수량 ({manual_order_unit or '단위'})",
+                    min_value=0.0,
+                    value=0.0,
+                    step=1.0,
+                    format="%.2f",
+                    key="manual_inventory_add_qty"
+                )
+
+            with add_col3:
+                if st.button("재고 추가", key="manual_inventory_add_btn", use_container_width=True):
+                    try:
+                        # 기존 재고 조회 (기본 단위)
+                        if not inventory_df.empty and manual_ing in inventory_df['재료명'].values:
+                            cur_row = inventory_df[inventory_df['재료명'] == manual_ing].iloc[0]
+                            current_stock_base = float(cur_row.get('현재고', 0) or 0)
+                            safety_stock_base = float(cur_row.get('안전재고', 0) or 0)
+                        else:
+                            current_stock_base = 0.0
+                            safety_stock_base = 0.0
+
+                        # 발주 단위를 기본 단위로 변환하여 추가
+                        added_base = float(add_qty) * float(manual_conversion)
+                        new_stock_base = current_stock_base + added_base
+
+                        save_inventory(manual_ing, new_stock_base, safety_stock_base)
+                        st.cache_data.clear()
+                        st.success(
+                            f"재고가 추가되었습니다! {manual_ing}: "
+                            f"{current_stock_base:,.2f} → {new_stock_base:,.2f} (기본 단위 기준)"
+                        )
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"재고 추가 중 오류가 발생했습니다: {e}")
+
         if not inventory_df.empty:
             # 재료 정보와 조인 (단가 포함)
             display_inventory_df = pd.merge(
