@@ -5247,15 +5247,15 @@ elif page == "발주 관리":
                             order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['발주단위']))
                             conversion_rate_map = dict(zip(ingredient_df['재료명'], ingredient_df['변환비율']))
                             
-                            # 발주 필요량을 발주 단위로 변환
+                            # 발주 단위 및 변환비율 매핑
                             display_order_df['발주단위'] = display_order_df['재료명'].map(order_unit_map).fillna(display_order_df['단위'])
                             display_order_df['변환비율'] = display_order_df['재료명'].map(conversion_rate_map).fillna(1.0)
-                            
-                            # 발주 필요량을 발주 단위로 변환 (기본 단위 -> 발주 단위)
-                            display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량'] / display_order_df['변환비율']
                         else:
                             display_order_df['발주단위'] = display_order_df['단위']
-                            display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량']
+                            display_order_df['변환비율'] = 1.0
+
+                        # 발주 필요량을 발주 단위로 변환 (기본 단위 -> 발주 단위)
+                        display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량'] / display_order_df['변환비율']
                         
                         # 공급업체 정보 추가
                         if not ingredient_suppliers_df.empty:
@@ -5266,6 +5266,13 @@ elif page == "발주 관리":
                         else:
                             display_order_df['공급업체'] = "미지정"
                         
+                        # 발주단위 기준 단가 계산 (사용자에게 보이는 "발주단가")
+                        # 기본 단위 단가(원/기본단위) × 변환비율 = 발주단위단가(원/발주단위)
+                        display_order_df['발주단위단가_숫자'] = display_order_df['단가'] * display_order_df['변환비율']
+
+                        # 예상금액도 발주단위 기준으로 다시 계산 (발주필요량_발주단위 × 발주단위단가)
+                        display_order_df['예상금액_숫자'] = display_order_df['발주필요량_발주단위'] * display_order_df['발주단위단가_숫자']
+
                         # 수량 관련 컬럼에 단위 붙여서 표시
                         display_order_df['현재고_표시'] = display_order_df.apply(
                             lambda row: f"{row['현재고']:,.2f} {row['단위']}",
@@ -5287,7 +5294,11 @@ elif page == "발주 관리":
                             lambda row: f"{row['발주필요량_발주단위']:,.2f} {row['발주단위']}",
                             axis=1
                         )
-                        display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
+                        display_order_df['발주단위단가_표시'] = display_order_df.apply(
+                            lambda row: f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}",
+                            axis=1
+                        )
+                        display_order_df['예상금액'] = display_order_df['예상금액_숫자'].apply(lambda x: f"{int(round(x)):,,}원")
                         
                         # 발주 단위 표시 (기본 단위와 발주 단위 모두 표시)
                         display_order_df['단위표시'] = display_order_df.apply(
@@ -5305,6 +5316,7 @@ elif page == "발주 관리":
                                 '최근평균사용량_표시',
                                 '예상소요량_표시',
                                 '발주필요량_표시',
+                                '발주단위단가_표시',
                                 '예상금액'
                             ]].rename(columns={
                                 '단위표시': '단위',
@@ -5312,14 +5324,15 @@ elif page == "발주 관리":
                                 '안전재고_표시': '안전재고',
                                 '최근평균사용량_표시': '최근평균사용량',
                                 '예상소요량_표시': '예상소요량',
-                                '발주필요량_표시': '발주필요량'
+                                '발주필요량_표시': '발주필요량',
+                                '발주단위단가_표시': '발주단가'
                             }),
                             use_container_width=True,
                             hide_index=True
                         )
                         
-                        # 총 예상 금액
-                        total_amount = order_df['예상금액'].sum()
+                        # 총 예상 금액 (발주단위 기준 금액 합계 사용)
+                        total_amount = display_order_df['예상금액_숫자'].sum()
                         st.metric("총 예상 발주 금액", f"{int(total_amount):,}원")
                         
                         # ========== Phase 3: 스마트 발주 최적화 ==========
