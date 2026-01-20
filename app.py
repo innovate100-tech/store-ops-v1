@@ -5506,12 +5506,12 @@ elif page == "발주 관리":
                         # 전체 선택/해제 버튼
                         col_select1, col_select2 = st.columns([1, 4])
                         with col_select1:
+                            # 버튼을 누르면 세션 상태만 변경하고, 별도의 st.rerun()은 호출하지 않는다.
+                            # (강제 rerun은 탭이 첫 번째로 튀는 느낌을 줄 수 있음)
                             if st.button("✅ 전체 선택", key="select_all_items"):
                                 st.session_state['selected_order_items'] = order_df['재료명'].tolist()
-                                st.rerun()
                             if st.button("❌ 전체 해제", key="deselect_all_items"):
                                 st.session_state['selected_order_items'] = []
-                                st.rerun()
                         
                         # 재료별 상세 정보와 함께 선택 UI
                         selected_items = []
