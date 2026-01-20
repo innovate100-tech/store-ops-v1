@@ -2169,43 +2169,43 @@ elif page == "매출 관리":
         """, unsafe_allow_html=True)
         
         if not merged_df.empty:
-        # 통합 데이터 표시 (입력값만 표시)
-        display_df = merged_df.copy()
-        
-        # 표시할 컬럼만 선택 (기술적 컬럼 제외)
-        display_columns = []
-        if '날짜' in display_df.columns:
-            display_columns.append('날짜')
-        if '매장' in display_df.columns:
-            display_columns.append('매장')
-        if '카드매출' in display_df.columns:
-            display_columns.append('카드매출')
-        if '현금매출' in display_df.columns:
-            display_columns.append('현금매출')
-        if '총매출' in display_df.columns:
-            display_columns.append('총매출')
-        if '방문자수' in display_df.columns:
-            display_columns.append('방문자수')
-        
-        # 필요한 컬럼만 선택
-        if display_columns:
-            display_df = display_df[display_columns]
+            # 통합 데이터 표시 (입력값만 표시)
+            display_df = merged_df.copy()
             
-            # 날짜를 문자열로 변환
+            # 표시할 컬럼만 선택 (기술적 컬럼 제외)
+            display_columns = []
             if '날짜' in display_df.columns:
-                display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-            
-            # 숫자 포맷팅
-            if '총매출' in display_df.columns:
-                display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_columns.append('날짜')
+            if '매장' in display_df.columns:
+                display_columns.append('매장')
             if '카드매출' in display_df.columns:
-                display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_columns.append('카드매출')
             if '현금매출' in display_df.columns:
-                display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_columns.append('현금매출')
+            if '총매출' in display_df.columns:
+                display_columns.append('총매출')
             if '방문자수' in display_df.columns:
-                display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                display_columns.append('방문자수')
+            
+            # 필요한 컬럼만 선택
+            if display_columns:
+                display_df = display_df[display_columns]
+                
+                # 날짜를 문자열로 변환
+                if '날짜' in display_df.columns:
+                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
+                
+                # 숫자 포맷팅
+                if '총매출' in display_df.columns:
+                    display_df['총매출'] = display_df['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                if '카드매출' in display_df.columns:
+                    display_df['카드매출'] = display_df['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                if '현금매출' in display_df.columns:
+                    display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                if '방문자수' in display_df.columns:
+                    display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
         
         # ========== 이달 일일 매출과 방문자 사이의 연관성 ==========
         render_section_header("이달 일일 매출과 방문자 사이의 연관성", "📈")
