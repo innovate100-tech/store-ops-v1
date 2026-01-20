@@ -5166,27 +5166,27 @@ elif page == "발주 관리":
                     axis=1
                 )
 
-                    # 예상 소진일 표시
-                    if '예상소진일' in urgent_df.columns:
-                        def format_depletion_days(days):
-                            if pd.isna(days) or days is None:
-                                return "계산 불가"
-                            elif days <= 0:
-                                return "⚠️ 즉시 소진"
-                            elif days <= 3:
-                                return f"🔴 {int(days)}일 후 (긴급)"
-                            elif days <= 7:
-                                return f"🟡 {int(days)}일 후"
-                            else:
-                                return f"🟢 {int(days)}일 후"
-                        
-                        urgent_df['예상소진일'] = urgent_df['예상소진일'].apply(format_depletion_days)
+                # 예상 소진일 표시
+                if '예상소진일' in urgent_df.columns:
+                    def format_depletion_days(days):
+                        if pd.isna(days) or days is None:
+                            return "계산 불가"
+                        elif days <= 0:
+                            return "⚠️ 즉시 소진"
+                        elif days <= 3:
+                            return f"🔴 {int(days)}일 후 (긴급)"
+                        elif days <= 7:
+                            return f"🟡 {int(days)}일 후"
+                        else:
+                            return f"🟢 {int(days)}일 후"
+                    
+                    urgent_df['예상소진일'] = urgent_df['예상소진일'].apply(format_depletion_days)
 
-                    # 표시할 컬럼만 선택
-                    display_cols = ['재료명', '단위', '발주단위', '현재고', '안전재고', '부족량']
-                    if '예상소진일' in urgent_df.columns:
-                        display_cols.append('예상소진일')
-                    st.dataframe(urgent_df[display_cols], use_container_width=True, hide_index=True)
+                # 표시할 컬럼만 선택
+                display_cols = ['재료명', '단위', '발주단위', '현재고', '안전재고', '부족량']
+                if '예상소진일' in urgent_df.columns:
+                    display_cols.append('예상소진일')
+                st.dataframe(urgent_df[display_cols], use_container_width=True, hide_index=True)
             
             # 발주 미완료 재료 리마인더
             if overdue_count > 0 and isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty:
