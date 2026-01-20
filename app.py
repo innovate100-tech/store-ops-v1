@@ -5114,15 +5114,11 @@ elif page == "통합 대시보드":
         menu_list_html = ""
         if top3_menus:
             for i, menu in enumerate(top3_menus[:3], 1):
-                menu_name = menu.get('메뉴명', '알 수 없음')
+                menu_name = str(menu.get('메뉴명', '알 수 없음'))
                 qty = int(menu.get('판매수량', 0))
-                menu_list_html += f"""
-                <div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">
-                    {i}. {menu_name} ({qty}개)
-                </div>
-                """
+                menu_list_html += f'<div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">{i}. {menu_name} ({qty}개)</div>'
         else:
-            menu_list_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 판매 데이터 없음</div>"
+            menu_list_html = '<div style="color: white; font-size: 0.9rem; opacity: 0.7;">기간 내 판매 데이터 없음</div>'
         
         st.markdown("""
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
@@ -5142,13 +5138,9 @@ elif page == "통합 대시보드":
         if total_abc > 0:
             for grade in ['A', 'B', 'C']:
                 count = abc_counts.get(grade, 0)
-                abc_html += f"""
-                <div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">
-                    {grade}등급: {count}개
-                </div>
-                """
+                abc_html += f'<div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">{grade}등급: {count}개</div>'
         else:
-            abc_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>데이터 없음</div>"
+            abc_html = '<div style="color: white; font-size: 0.9rem; opacity: 0.7;">데이터 없음</div>'
         
         st.markdown("""
         <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); 
@@ -5279,15 +5271,12 @@ elif page == "통합 대시보드":
         ingredient_html = ""
         if top3_ingredients:
             for i, ing in enumerate(top3_ingredients[:3], 1):
-                ing_name = ing.get('재료명', '알 수 없음')
+                ing_name = str(ing.get('재료명', '알 수 없음'))
                 cost = int(ing.get('총사용단가', 0))
-                ingredient_html += f"""
-                <div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">
-                    {i}. {ing_name} ({cost:,}원)
-                </div>
-                """
+                cost_str = f"{cost:,}" if cost > 0 else "0"
+                ingredient_html += f'<div style="color: white; font-size: 0.9rem; margin-bottom: 0.3rem;">{i}. {ing_name} ({cost_str}원)</div>'
         else:
-            ingredient_html = "<div style='color: white; font-size: 0.9rem; opacity: 0.7;'>기간 내 사용 데이터 없음</div>"
+            ingredient_html = '<div style="color: white; font-size: 0.9rem; opacity: 0.7;">기간 내 사용 데이터 없음</div>'
         
         st.markdown("""
         <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
