@@ -2779,6 +2779,17 @@ elif page == "재료 등록":
     </div>
     """, unsafe_allow_html=True)
     
+    # 캐시 클리어 버튼
+    col_cache1, col_cache2 = st.columns([1, 9])
+    with col_cache1:
+        if st.button("🔄 캐시 새로고침", key="clear_cache_ingredients", help="데이터가 안 보일 때 클릭하세요"):
+            try:
+                load_csv.clear()
+                st.success("캐시가 클리어되었습니다!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"캐시 클리어 오류: {e}")
+    
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
     
     if not ingredient_df.empty:
