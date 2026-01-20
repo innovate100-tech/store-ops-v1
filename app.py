@@ -1314,11 +1314,11 @@ for category_name, items in menu_categories.items():
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🔧 유틸리티**")
     
-    if st.sidebar.button("🚪 로그아웃", use_container_width=True, type="secondary"):
+    if st.sidebar.button("🚪 로그아웃", use_container_width=True, type="secondary", key="sidebar_logout_btn"):
         logout()
         st.rerun()
     
-    if st.sidebar.button("💾 데이터 백업 생성", use_container_width=True):
+    if st.sidebar.button("💾 데이터 백업 생성", use_container_width=True, key="sidebar_backup_btn"):
         try:
             success, message = create_backup()
             if success:
@@ -1330,7 +1330,7 @@ for category_name, items in menu_categories.items():
     
     st.sidebar.markdown("**🔍 데이터 진단**")
     
-    if st.sidebar.button("🔍 데이터 연결 상태 확인", use_container_width=True):
+    if st.sidebar.button("🔍 데이터 연결 상태 확인", use_container_width=True, key="sidebar_data_check_btn"):
         try:
             from src.auth import get_supabase_client, get_current_store_id
             
@@ -1377,7 +1377,7 @@ for category_name, items in menu_categories.items():
             st.error(f"진단 중 오류: {e}")
             st.exception(e)
     
-    if st.sidebar.button("🔄 모든 캐시 클리어", use_container_width=True):
+    if st.sidebar.button("🔄 모든 캐시 클리어", use_container_width=True, key="sidebar_cache_clear_btn"):
         try:
             load_csv.clear()
             st.success("✅ 캐시가 클리어되었습니다. 페이지를 새로고침해주세요.")
