@@ -5512,18 +5512,24 @@ elif page == "발주 관리":
                         # 재료별 카드 형태로 표시
                         for idx, row in order_df.iterrows():
                             ingredient_name = row['재료명']
-                            supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
                             
-                            # 발주 단위로 변환된 수량
+                            # 화면에서 사용하는 발주 기준 데이터 우선 사용
+                            row_display = display_order_df[display_order_df['재료명'] == ingredient_name].iloc[0]
+                            supplier_name = row_display['공급업체']
+                            
+                            # 발주 단위로 변환된 수량 / 단위
                             if '발주필요량_발주단위' in display_order_df.columns:
-                                quantity_display = display_order_df[display_order_df['재료명'] == ingredient_name]['발주필요량_발주단위'].iloc[0]
-                                order_unit_display = display_order_df[display_order_df['재료명'] == ingredient_name]['발주단위'].iloc[0]
+                                quantity_display = row_display['발주필요량_발주단위']
+                                order_unit_display = row_display['발주단위']
                             else:
                                 quantity_display = row['발주필요량']
                                 order_unit_display = row['단위']
                             
-                            quantity = row['발주필요량']  # 기본 단위 (저장용)
-                            amount = row['예상금액']
+                            # 기본 단위 수량(저장용)은 기존 로직 그대로 유지
+                            quantity = row['발주필요량']
+                            
+                            # 금액도 공급업체 단가를 반영한 화면 계산값 사용
+                            amount = float(row_display.get('예상금액_숫자', row['예상금액']))
                             
                             # 체크박스와 정보를 함께 표시
                             col_check, col_info = st.columns([0.3, 9.7])
