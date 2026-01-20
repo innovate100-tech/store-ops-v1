@@ -2777,16 +2777,18 @@ elif page == "메뉴 등록":
                 if st.button("✅ 수정", key="menu_edit_btn"):
                     try:
                         success, message = update_menu(menu_info.get('메뉴명', ''), new_menu_name, new_price)
-                    if success:
-                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
-                        try:
-                            st.cache_data.clear()
-                        except Exception:
-                            pass
-                        st.success(f"✅ {message}")
-                    else:
-                        st.error(message)
-                except Exception as e:
+                        if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 수정): {cache_error}")
+                            st.success(f"✅ {message}")
+                        else:
+                            st.error(message)
+                    except Exception as e:
                     # Phase 3: 에러 메시지 표준화
                     error_msg = handle_data_error("메뉴 수정", e)
                     st.error(error_msg)
