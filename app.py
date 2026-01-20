@@ -188,28 +188,25 @@ st.markdown("""
         align-items: center;
         gap: 0.5rem;
         white-space: nowrap;
+        font-size: 2.25rem;
     }
     
     .main-header h1 .text-gradient {
-        background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-shadow: 
-            0 0 10px rgba(255, 255, 255, 0.3),
-            0 0 20px rgba(100, 150, 255, 0.3),
-            2px 2px 8px rgba(0, 0, 0, 0.5);
+        color: white;
         display: inline-block;
+        background: none !important;
+        -webkit-background-clip: initial !important;
+        -webkit-text-fill-color: white !important;
+        background-clip: initial !important;
+        text-shadow: none;
     }
     
     .main-header h1 .emoji {
         display: inline-block;
         -webkit-text-fill-color: initial;
         background: none !important;
-        text-shadow: 
-            0 0 10px rgba(255, 255, 255, 0.3),
-            0 0 20px rgba(100, 150, 255, 0.3);
-        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+        text-shadow: none;
+        filter: none;
     }
     
     /* 전광판 스타일 (독립 박스) */
@@ -313,7 +310,7 @@ st.markdown("""
         }
         
         .main-header h1 {
-            font-size: 1.5rem !important;
+            font-size: 1.35rem !important;
         }
         
         .main-header p {
