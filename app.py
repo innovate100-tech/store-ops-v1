@@ -1669,7 +1669,13 @@ elif page == "매출 관리":
     # ========== 저장된 데이터 표시 ==========
     if category == "💰 매출":
         # 저장된 매출 표시 및 삭제
-        render_section_header("저장된 매출 내역", "📋")
+        st.markdown("""
+        <div style="margin: 2rem 0 1rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                📋 저장된 매출 내역
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
         
         if not sales_df.empty:
