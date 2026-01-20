@@ -52,9 +52,9 @@ def render_sales_input():
     with col3:
         total_sales = card_sales + cash_sales
         st.markdown(f"""
-        <div style="padding: 1rem; background: #f0f2f6; border-radius: 8px; border: 2px solid #667eea;">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">💰 총매출 (자동계산)</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #1f4788;">{total_sales:,}원</div>
+        <div style="padding: 1rem; background: #28a745; border-radius: 8px; border: 2px solid #1e7e34;">
+            <div style="font-size: 0.9rem; color: #ffffff; margin-bottom: 0.5rem;">💰 총매출 (자동계산)</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: #ffffff;">{total_sales:,}원</div>
         </div>
         """, unsafe_allow_html=True)
     
