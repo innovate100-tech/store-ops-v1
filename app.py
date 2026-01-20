@@ -5357,15 +5357,19 @@ elif page == "발주 관리":
                         # (사용자 요청으로 Phase 3 스마트 발주 최적화/비용 비교 UI는 비활성화됨)
                         
                         # 최적화 계산 (발주단위 기준 수량/단가/금액 사용)
-                        optimization_result = optimize_order_by_supplier(
-                            order_df_for_opt,
-                            suppliers_df,
-                            ingredient_suppliers_df
-                        )
+                        # 👉 사용자 요청으로 스마트 발주 최적화 기능은 비활성화.
+                        #    나중에 다시 사용할 때를 대비해 최소한의 더미 값만 남겨둔다.
+                        optimization_result = {
+                            'optimized_orders': [],
+                            'total_savings': 0,
+                            'recommendations': [],
+                            'total_delivery_fee': 0,
+                            'optimized_delivery_fee': 0,
+                        }
                         
-                        optimized_orders = optimization_result['optimized_orders']
-                        total_savings = optimization_result['total_savings']
-                        recommendations = optimization_result['recommendations']
+                        optimized_orders = []
+                        total_savings = 0
+                        recommendations = []
                         
                         # 최적화 결과 표시
                         if optimized_orders:
