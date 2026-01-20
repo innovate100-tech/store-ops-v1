@@ -5256,6 +5256,8 @@ elif page == "발주 관리":
 
                         # 발주 필요량을 발주 단위로 변환 (기본 단위 -> 발주 단위)
                         display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량'] / display_order_df['변환비율']
+                        # 화면에 보이는 값과 계산 값이 일치하도록 소수 둘째 자리까지 반올림
+                        display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량_발주단위'].round(2)
                         
                         # 공급업체 정보 추가
                         if not ingredient_suppliers_df.empty:
