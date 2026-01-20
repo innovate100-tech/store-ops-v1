@@ -4924,7 +4924,7 @@ elif page == "발주 관리":
             st.info("먼저 재료를 등록해주세요.")
         
         render_section_divider()
-        render_section_header("현재고 / 안전재고 수정", "✏️")
+        render_section_header("현재고 수정 (안전재고는 1번 탭에서 관리)", "✏️")
         
         if not ingredient_df.empty:
             # 전체 재료 기준으로 현재고/안전재고를 한 번에 수정 (발주단위 기준 입력)
@@ -4947,15 +4947,15 @@ elif page == "발주 관리":
             edit_df['현재고_발주단위'] = edit_df['현재고'] / edit_df['변환비율']
             edit_df['안전재고_발주단위'] = edit_df['안전재고'] / edit_df['변환비율']
             
-            # 헤더 (안전재고 등록과 동일 구조 + 현재고 입력 추가)
+            # 헤더 (안전재고는 읽기 전용, 현재고만 입력)
             h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 1])
             h1.markdown("**재료명**")
             h2.markdown("**사용단위**")
             h3.markdown("**발주단위**")
             h4.markdown("**사용단가**")
             h5.markdown("**발주단가**")
-            h6.markdown("**현재고 (발주단위)**")
-            h7.markdown("**안전재고 (발주단위)**")
+            h6.markdown("**기준 안전재고 (발주단위)**")
+            h7.markdown("**현재고 입력 (발주단위)**")
             h8.markdown("**저장**")
             
             for idx, row in edit_df.iterrows():
@@ -4971,6 +4971,10 @@ elif page == "발주 관리":
                 with col5:
                     st.write(f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}")
                 with col6:
+                    # 기준 안전재고는 읽기 전용 (발주단위 기준 표시)
+                    st.write(f"{float(row['안전재고_발주단위']):,.2f} {row['발주단위']}")
+                with col7:
+                    # 현재고만 입력/수정 (발주단위 기준)
                     new_current_order = st.number_input(
                         f"발주단위: {row['발주단위']}",
                         min_value=0.0,
@@ -4979,28 +4983,21 @@ elif page == "발주 관리":
                         format="%.2f",
                         key=f"edit_current_order_{row['재료명']}"
                     )
-                with col7:
-                    new_safety_order = st.number_input(
-                        f"발주단위: {row['발주단위']}",
-                        min_value=0.0,
-                        value=float(row['안전재고_발주단위']),
-                        step=1.0,
-                        format="%.2f",
-                        key=f"edit_safety_order_{row['재료명']}"
-                    )
                 with col8:
                     if st.button("저장", key=f"edit_inventory_save_{row['재료명']}", use_container_width=True):
                         try:
-                            # 발주단위를 기본단위로 변환해서 저장
+                            # 발주단위를 기본단위로 변환해서 저장 (현재고만 변경, 안전재고는 기존 값 유지)
                             new_current_base = float(new_current_order) * float(row['변환비율'] or 1.0)
-                            new_safety_base = float(new_safety_order) * float(row['변환비율'] or 1.0)
+                            # 기존 안전재고(기본단위)를 그대로 사용
+                            new_safety_base = float(row['안전재고'] or 0.0)
                             
                             save_inventory(row['재료명'], new_current_base, new_safety_base)
                             st.cache_data.clear()
                             st.success(
-                                f"'{row['재료명']}'의 현재고/안전재고가 "
-                                f"{new_current_order:,.2f} / {new_safety_order:,.2f} {row['발주단위']} "
-                                f"(기본단위 기준 {new_current_base:,.2f} / {new_safety_base:,.2f} {row['단위']})로 수정되었습니다."
+                                f"'{row['재료명']}'의 현재고가 "
+                                f"{new_current_order:,.2f} {row['발주단위']} "
+                                f"(기본단위 기준 {new_current_base:,.2f} {row['단위']})로 수정되었습니다. "
+                                f"(안전재고는 변경되지 않았습니다.)"
                             )
                             st.rerun()
                         except Exception as e:
