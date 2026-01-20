@@ -5500,92 +5500,72 @@ elif page == "발주 관리":
                         with col_date1:
                             order_date = st.date_input("발주일", value=datetime.now().date(), key="order_date")
                         
-                        # 발주 생성할 재료 선택 (개선된 UI)
+                        # 발주 생성할 재료 선택 (새로운 단순 구조: 멀티셀렉트 기반)
                         st.write("**발주할 재료 선택**")
                         
-                        # 전체 선택/해제 버튼
-                        col_select1, col_select2 = st.columns([1, 4])
-                        with col_select1:
-                            # 버튼을 누르면 세션 상태만 변경하고, 별도의 st.rerun()은 호출하지 않는다.
-                            # (강제 rerun은 탭이 첫 번째로 튀는 느낌을 줄 수 있음)
-                            if st.button("✅ 전체 선택", key="select_all_items"):
-                                st.session_state['selected_order_items'] = order_df['재료명'].tolist()
-                            if st.button("❌ 전체 해제", key="deselect_all_items"):
-                                st.session_state['selected_order_items'] = []
-                        
-                        # 재료별 상세 정보와 함께 선택 UI
-                        selected_items = []
-                        if 'selected_order_items' not in st.session_state:
-                            st.session_state['selected_order_items'] = order_df['재료명'].tolist()
-                        
-                        # 재료별 카드 형태로 표시
-                        for idx, row in order_df.iterrows():
-                            ingredient_name = row['재료명']
+                        # 멀티셀렉트용 옵션 라벨 구성
+                        option_labels = []
+                        label_to_name = {}
+                        for _, row in display_order_df.iterrows():
+                            ingredient_name = row.get('재료명')
+                            if not ingredient_name:
+                                continue
+                            supplier_name = row.get('공급업체', '미지정')
+                            qty = float(row.get('발주필요량_발주단위', row.get('발주필요량', 0)) or 0)
+                            unit = row.get('발주단위', row.get('단위', ''))
+                            amount = float(row.get('예상금액_숫자', row.get('예상금액', 0)) or 0)
                             
-                            # 화면에서 사용하는 발주 기준 데이터 우선 사용
+                            label = f"{ingredient_name} | {supplier_name} | {qty:,.2f}{unit} | {int(amount):,}원"
+                            option_labels.append(label)
+                            label_to_name[label] = ingredient_name
+                        
+                        if option_labels:
+                            selected_labels = st.multiselect(
+                                "발주할 재료를 선택하세요.",
+                                options=option_labels,
+                                default=option_labels,
+                                key="order_select_items"
+                            )
+                            selected_items = [label_to_name[label] for label in selected_labels]
+                        else:
+                            selected_items = []
+                            st.info("발주할 수 있는 재료가 없습니다.")
+                        
+                        # 선택된 재료 카드 표시
+                        for ingredient_name in selected_items:
                             row_display_df = display_order_df[display_order_df['재료명'] == ingredient_name]
                             if row_display_df.empty:
-                                # 매칭되는 발주 기준 데이터가 없으면 해당 재료는 스킵 (에러 방지)
                                 continue
                             row_display = row_display_df.iloc[0]
-                            supplier_name = row_display.get('공급업체', row.get('공급업체', '미지정'))
                             
-                            # 발주 단위로 변환된 수량 / 단위
-                            if '발주필요량_발주단위' in display_order_df.columns:
-                                quantity_display = row_display['발주필요량_발주단위']
-                                order_unit_display = row_display['발주단위']
-                            else:
-                                quantity_display = row['발주필요량']
-                                order_unit_display = row['단위']
+                            supplier_name = row_display.get('공급업체', '미지정')
+                            qty = float(row_display.get('발주필요량_발주단위', row_display.get('발주필요량', 0)) or 0)
+                            unit = row_display.get('발주단위', row_display.get('단위', ''))
+                            amount = float(row_display.get('예상금액_숫자', row_display.get('예상금액', 0)) or 0)
                             
-                            # 기본 단위 수량(저장용)은 기존 로직 그대로 유지
-                            quantity = row['발주필요량']
-                            
-                            # 금액도 공급업체 단가를 반영한 화면 계산값 사용
-                            amount = float(row_display.get('예상금액_숫자', row.get('예상금액', 0)) or 0)
-                            
-                            # 체크박스와 정보를 함께 표시
-                            col_check, col_info = st.columns([0.3, 9.7])
-                            with col_check:
-                                is_selected = st.checkbox(
-                                    "",
-                                    value=ingredient_name in st.session_state['selected_order_items'],
-                                    key=f"order_check_{ingredient_name}"
-                                )
-                                if is_selected and ingredient_name not in selected_items:
-                                    selected_items.append(ingredient_name)
-                                elif not is_selected and ingredient_name in selected_items:
-                                    selected_items.remove(ingredient_name)
-                            
-                            with col_info:
-                                supplier_color = "#ef4444" if supplier_name == "미지정" else "#10b981"
-                                unit_display = order_unit_display if order_unit_display != row['단위'] else row['단위']
-                                st.markdown(f"""
-                                <div style="background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {supplier_color};">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
-                                            <strong style="color: #ffffff; font-size: 1rem;">{ingredient_name}</strong>
-                                            <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">({unit_display})</span>
-                                        </div>
-                                        <div style="text-align: right;">
-                                            <div style="color: #ffffff; font-size: 0.9rem;">수량: {quantity_display:,.2f} {unit_display}</div>
-                                            <div style="color: #94a3b8; font-size: 0.85rem;">금액: {int(amount):,}원</div>
-                                        </div>
+                            supplier_color = "#ef4444" if supplier_name == "미지정" else "#10b981"
+                            st.markdown(f"""
+                            <div style="background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {supplier_color};">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="color: #ffffff; font-size: 1rem;">{ingredient_name}</strong>
+                                        <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">({unit})</span>
                                     </div>
-                                    <div style="margin-top: 0.3rem; font-size: 0.8rem; color: #94a3b8;">
-                                        공급업체: <span style="color: {supplier_color};">{supplier_name}</span>
+                                    <div style="text-align: right;">
+                                        <div style="color: #ffffff; font-size: 0.9rem;">수량: {qty:,.2f} {unit}</div>
+                                        <div style="color: #94a3b8; font-size: 0.85rem;">금액: {int(amount):,}원</div>
                                     </div>
                                 </div>
-                                """, unsafe_allow_html=True)
-                        
-                        # 선택된 항목 업데이트
-                        st.session_state['selected_order_items'] = selected_items
+                                <div style="margin-top: 0.3rem; font-size: 0.8rem; color: #94a3b8;">
+                                    공급업체: <span style="color: {supplier_color};">{supplier_name}</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
                         # 선택 요약
                         if selected_items:
-                            # 화면에서 사용하는 실제 발주 기준 금액 합계 사용
                             selected_mask = display_order_df['재료명'].isin(selected_items)
-                            total_selected_amount = display_order_df.loc[selected_mask, '예상금액_숫자'].sum()
+                            total_selected_amount = float(display_order_df.loc[selected_mask, '예상금액_숫자'].sum() or 0)
                             st.info(f"📊 선택된 재료: {len(selected_items)}개 | 총 예상 금액: {int(total_selected_amount):,}원")
                         
                         if st.button("📝 발주 생성", type="primary", key="create_order"):
