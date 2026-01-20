@@ -7,8 +7,8 @@ import pandas as pd
 
 # 페이지 설정은 최상단에 위치 (다른 st.* 호출 전에)
 st.set_page_config(
-    page_title="매장 운영 시스템 v1",
-    page_icon="🏪",
+    page_title="황승진 외식경영 의사결정도구",
+    page_icon="🍽️",
     layout="wide",
     initial_sidebar_state="expanded",  # 사이드바 항상 열림
     menu_items={
@@ -1044,8 +1044,8 @@ if st.session_state.get("theme", "light") == "dark":
 # 타이틀 (개선된 디자인)
 st.markdown("""
 <div class="main-header">
-    <h1>🏪 매장 운영 시스템 v1</h1>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 1.1rem;">효율적인 매장 운영을 위한 통합 관리 시스템</p>
+    <h1>🍽️ 황승진 외식경영 의사결정도구</h1>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 1.1rem;">Restaurant OS</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1097,6 +1097,66 @@ with st.sidebar:
                 st.error(f"백업 생성 실패: {message}")
         except Exception as e:
             st.error(f"백업 중 오류: {e}")
+    
+    # 데이터 진단 기능
+    render_section_divider()
+    st.markdown("**🔍 데이터 진단**")
+    
+    if st.button("🔍 데이터 연결 상태 확인", use_container_width=True):
+        try:
+            from src.auth import get_supabase_client, get_current_store_id
+            
+            # Supabase 클라이언트 확인
+            supabase = get_supabase_client()
+            if not supabase:
+                st.error("❌ Supabase 클라이언트를 생성할 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
+            else:
+                st.success("✅ Supabase 클라이언트 연결 성공")
+            
+            # store_id 확인
+            store_id = get_current_store_id()
+            if not store_id:
+                st.error("❌ store_id를 찾을 수 없습니다. 로그아웃 후 다시 로그인해주세요.")
+            else:
+                st.success(f"✅ store_id: {store_id}")
+            
+            # 실제 데이터 확인
+            if supabase and store_id:
+                try:
+                    # 메뉴 데이터 확인
+                    menu_result = supabase.table("menu_master").select("id,name,price").eq("store_id", store_id).execute()
+                    menu_count = len(menu_result.data) if menu_result.data else 0
+                    st.info(f"📊 메뉴 데이터: {menu_count}개")
+                    if menu_count > 0:
+                        st.json(menu_result.data[:3])  # 처음 3개만 표시
+                    
+                    # 재료 데이터 확인
+                    ing_result = supabase.table("ingredients").select("id,name,unit,unit_cost").eq("store_id", store_id).execute()
+                    ing_count = len(ing_result.data) if ing_result.data else 0
+                    st.info(f"📊 재료 데이터: {ing_count}개")
+                    if ing_count > 0:
+                        st.json(ing_result.data[:3])  # 처음 3개만 표시
+                    
+                    if menu_count == 0 and ing_count == 0:
+                        st.warning("⚠️ 데이터가 없습니다. Supabase 테이블에서 직접 확인해주세요.")
+                    else:
+                        st.success("✅ 데이터가 존재합니다. 캐시를 클리어하고 새로고침해주세요.")
+                        
+                except Exception as e:
+                    st.error(f"데이터 조회 중 오류: {e}")
+                    st.exception(e)
+        except Exception as e:
+            st.error(f"진단 중 오류: {e}")
+            st.exception(e)
+    
+    # 캐시 클리어 버튼
+    if st.button("🔄 모든 캐시 클리어", use_container_width=True):
+        try:
+            load_csv.clear()
+            st.success("✅ 캐시가 클리어되었습니다. 페이지를 새로고침해주세요.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"캐시 클리어 중 오류: {e}")
 
 # 사이드바 네비게이션 - 카테고리별로 구분
 # 메뉴 항목들을 카테고리별로 정의
