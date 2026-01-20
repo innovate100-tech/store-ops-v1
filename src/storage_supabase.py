@@ -1463,15 +1463,6 @@ def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_defa
             "unit_price": float(base_unit_price),
             "is_default": is_default
         }, on_conflict="store_id,ingredient_id,supplier_id").execute()
-
-        # 재료 마스터의 기본 단위 단가도 최신 공급업체 기준으로 갱신
-        try:
-            supabase.table("ingredients").update({
-                "unit_cost": float(base_unit_price)
-            }).eq("id", ingredient_id).execute()
-        except Exception as e:
-            # 단가 갱신 실패는 치명적이지 않으므로 로그만 남김
-            logger.warning(f"Failed to update ingredient unit_cost for {ingredient_name}: {e}")
         
         logger.info(f"Ingredient-supplier mapping saved: {ingredient_name} -> {supplier_name}")
         return True
