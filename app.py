@@ -222,8 +222,8 @@ st.markdown("""
         margin-bottom: 2rem;
         overflow: hidden;
         box-shadow: 
-            inset 0 0 20px rgba(255, 0, 0, 0.3),
-            0 0 30px rgba(255, 0, 0, 0.2);
+            inset 0 0 20px rgba(0, 255, 0, 0.3),
+            0 0 30px rgba(0, 255, 0, 0.2);
     }
     
     .led-board::before {
@@ -235,8 +235,8 @@ st.markdown("""
         bottom: 0;
         background: repeating-linear-gradient(
             0deg,
-            rgba(255, 0, 0, 0.05) 0px,
-            rgba(255, 0, 0, 0.05) 2px,
+            rgba(0, 255, 0, 0.05) 0px,
+            rgba(0, 255, 0, 0.05) 2px,
             transparent 2px,
             transparent 4px
         );
@@ -255,7 +255,7 @@ st.markdown("""
         content: '하루 1분 입력으로 매장의 모든 데이트를 분석하자!';
         position: absolute;
         white-space: nowrap;
-        color: #ff3333;
+        color: #33ff33;
         font-weight: 700;
         font-size: 1.2rem;
         letter-spacing: 2px;
@@ -264,7 +264,7 @@ st.markdown("""
         line-height: 1.5rem;
         background: none !important;
         -webkit-background-clip: initial !important;
-        -webkit-text-fill-color: #ff3333 !important;
+        -webkit-text-fill-color: #33ff33 !important;
         background-clip: initial !important;
     }
     
