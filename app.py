@@ -1841,8 +1841,8 @@ elif page == "매출 관리":
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # 차트 표시: 이번달 날짜별 매출과 방문자 사이의 연관성
-        render_section_header("이번달 날짜별 매출과 방문자 사이의 연관성", "📈")
+        # 차트 표시: 이달 일일 매출과 방문자 사이의 연관성
+        render_section_header("이달 일일 매출과 방문자 사이의 연관성", "📈")
         
         # 현재 이번달 월 데이터만 필터링
         from datetime import datetime
@@ -1859,6 +1859,35 @@ elif page == "매출 관리":
             ].sort_values('날짜')
         
         if not chart_df.empty and '총매출' in chart_df.columns and '방문자수' in chart_df.columns:
+            # 연관성 지표 계산
+            month_sales_df = chart_df[['날짜', '총매출']].copy()
+            month_visitors_df = chart_df[['날짜', '방문자수']].copy()
+            correlation = calculate_correlation(month_sales_df, month_visitors_df)
+            
+            # 연관성 지표 표시
+            if correlation is not None:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric(
+                        "상관계수",
+                        f"{correlation:.3f}",
+                        help="피어슨 상관계수: -1 ~ 1 사이 값. 1에 가까울수록 양의 상관관계가 강함"
+                    )
+                with col2:
+                    if correlation > 0.7:
+                        st.success("✅ 강한 양의 상관관계\n방문자가 많을수록 매출이 높습니다.")
+                    elif correlation > 0.3:
+                        st.info("ℹ️ 중간 정도의 양의 상관관계")
+                    elif correlation > -0.3:
+                        st.warning("⚠️ 상관관계가 거의 없음")
+                    else:
+                        st.error("❌ 음의 상관관계")
+                with col3:
+                    # 평균 일일 매출
+                    avg_sales = chart_df['총매출'].mean()
+                    st.metric("평균 일일 매출", f"{avg_sales:,.0f}원")
+            
+            render_section_divider()
             import matplotlib.pyplot as plt
             import matplotlib.font_manager as fm
             
@@ -1888,7 +1917,7 @@ elif page == "매출 관리":
             ax2.tick_params(axis='y', labelcolor=color2)
             
             # 제목
-            ax1.set_title('이번달 날짜별 매출과 방문자 사이의 연관성', fontsize=14, fontweight='bold', pad=20)
+            ax1.set_title('이달 일일 매출과 방문자 사이의 연관성', fontsize=14, fontweight='bold', pad=20)
             
             # 범례
             lines = line1 + line2
