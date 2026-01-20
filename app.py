@@ -4629,27 +4629,86 @@ elif page == "발주 관리":
         
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
-        # ========== 알림 대시보드 ==========
+        # ========== Phase 4: 고급 알림 및 경고 ==========
         from datetime import datetime, timedelta
         
-        # 품절 위험 알림 계산
+        # 품절 위험 알림 계산 (예상 소진일 포함)
         urgent_orders = []
         low_stock_items = []
         pending_orders_count = 0
         expected_deliveries = []
+        overdue_orders = []  # 발주 미완료 재료
+        low_turnover_items = []  # 재고 회전율 낮은 재료
+        excess_inventory_cost = 0  # 과다재고 비용
+        
+        # 재료 사용량 데이터 로드 (예상 소진일 계산용)
+        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+        usage_df = pd.DataFrame()
+        
+        if not daily_sales_df.empty and not recipe_df.empty:
+            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
         
         if not inventory_df.empty:
-            # 현재고 < 안전재고인 재료 찾기
+            # 현재고 < 안전재고인 재료 찾기 (예상 소진일 계산 포함)
             for idx, row in inventory_df.iterrows():
+                ingredient_name = row['재료명']
                 current_stock = row.get('현재고', 0)
                 safety_stock = row.get('안전재고', 0)
+                
                 if current_stock < safety_stock:
+                    # 예상 소진일 계산
+                    expected_depletion_days = None
+                    if not usage_df.empty:
+                        ingredient_usage = usage_df[usage_df['재료명'] == ingredient_name]
+                        if not ingredient_usage.empty:
+                            # 최근 7일 평균 일일 사용량
+                            recent_usage = ingredient_usage.tail(7)
+                            if not recent_usage.empty:
+                                avg_daily_usage = recent_usage['총사용량'].mean()
+                                if avg_daily_usage > 0:
+                                    expected_depletion_days = int(current_stock / avg_daily_usage)
+                    
                     low_stock_items.append({
-                        '재료명': row['재료명'],
+                        '재료명': ingredient_name,
                         '현재고': current_stock,
                         '안전재고': safety_stock,
-                        '부족량': safety_stock - current_stock
+                        '부족량': safety_stock - current_stock,
+                        '예상소진일': expected_depletion_days
                     })
+                
+                # 재고 회전율 계산 (과다재고 경고용)
+                if not usage_df.empty and current_stock > 0:
+                    from src.analytics import calculate_inventory_turnover
+                    turnover_info = calculate_inventory_turnover(
+                        ingredient_name,
+                        usage_df,
+                        inventory_df,
+                        days_period=30
+                    )
+                    
+                    # 회전율이 낮은 재료 (연간 회전율 < 12회 = 월 1회 미만)
+                    if turnover_info['turnover_rate'] > 0 and turnover_info['turnover_rate'] < 12:
+                        days_on_hand = turnover_info['days_on_hand']
+                        # 재고 보유일수가 30일 이상인 경우 과다재고로 판단
+                        if days_on_hand >= 30:
+                            # 과다재고 비용 계산 (재고 가치의 일부)
+                            ingredient_row = ingredient_df[ingredient_df['재료명'] == ingredient_name]
+                            if not ingredient_row.empty:
+                                unit_price = ingredient_row.iloc[0].get('단가', 0)
+                                excess_stock = current_stock - (safety_stock * 2)  # 안전재고의 2배를 기준으로
+                                if excess_stock > 0:
+                                    excess_cost = excess_stock * unit_price
+                                    excess_inventory_cost += excess_cost
+                                    
+                                    low_turnover_items.append({
+                                        '재료명': ingredient_name,
+                                        '현재고': current_stock,
+                                        '재고보유일수': int(days_on_hand),
+                                        '회전율': turnover_info['turnover_rate'],
+                                        '과다재고량': excess_stock,
+                                        '과다재고비용': excess_cost
+                                    })
         
         # 발주 예정/완료 상태인 발주 개수
         orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
@@ -4666,12 +4725,23 @@ elif page == "발주 관리":
                     (orders_df['상태'].isin(['예정', '완료'])) & 
                     (pd.to_datetime(orders_df['입고예정일']).dt.date <= tomorrow)
                 ]
+            
+            # 발주 미완료 재료 리마인더 (발주 예정인데 3일 이상 지난 경우)
+            if '발주일' in orders_df.columns:
+                orders_df['발주일'] = pd.to_datetime(orders_df['발주일'], errors='coerce')
+                three_days_ago = today - timedelta(days=3)
+                overdue_orders = orders_df[
+                    (orders_df['상태'] == '예정') & 
+                    (pd.to_datetime(orders_df['발주일']).dt.date < three_days_ago)
+                ]
         
-        # 알림 타일 표시
+        # 알림 타일 표시 (Phase 4: 고급 알림)
         expected_count = len(expected_deliveries) if isinstance(expected_deliveries, pd.DataFrame) and not expected_deliveries.empty else 0
-        if low_stock_items or pending_orders_count > 0 or expected_count > 0:
+        overdue_count = len(overdue_orders) if isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty else (len(overdue_orders) if isinstance(overdue_orders, list) else 0)
+        
+        if low_stock_items or pending_orders_count > 0 or expected_count > 0 or overdue_count > 0 or low_turnover_items:
             st.markdown("### 🔔 알림")
-            alert_col1, alert_col2, alert_col3 = st.columns(3)
+            alert_col1, alert_col2, alert_col3, alert_col4 = st.columns(4)
             
             with alert_col1:
                 if low_stock_items:
@@ -4721,14 +4791,86 @@ elif page == "발주 관리":
                     </div>
                     """, unsafe_allow_html=True)
             
-            # 품절 위험 상세 정보
+            with alert_col4:
+                if overdue_count > 0:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">⏰ 발주 지연</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{overdue_count}건</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">3일 이상 미완료</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif low_turnover_items:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📊 과다재고</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{len(low_turnover_items)}개</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">회전율 낮음</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">추가 알림 없음</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # 품절 위험 상세 정보 (예상 소진일 포함)
             if low_stock_items:
                 with st.expander(f"🚨 품절 위험 재료 상세 ({len(low_stock_items)}개)", expanded=True):
                     urgent_df = pd.DataFrame(low_stock_items)
                     urgent_df['현재고'] = urgent_df['현재고'].apply(lambda x: f"{x:,.2f}")
                     urgent_df['안전재고'] = urgent_df['안전재고'].apply(lambda x: f"{x:,.2f}")
                     urgent_df['부족량'] = urgent_df['부족량'].apply(lambda x: f"{x:,.2f}")
+                    
+                    # 예상 소진일 표시
+                    if '예상소진일' in urgent_df.columns:
+                        def format_depletion_days(days):
+                            if pd.isna(days) or days is None:
+                                return "계산 불가"
+                            elif days <= 0:
+                                return "⚠️ 즉시 소진"
+                            elif days <= 3:
+                                return f"🔴 {int(days)}일 후 (긴급)"
+                            elif days <= 7:
+                                return f"🟡 {int(days)}일 후"
+                            else:
+                                return f"🟢 {int(days)}일 후"
+                        
+                        urgent_df['예상소진일'] = urgent_df['예상소진일'].apply(format_depletion_days)
+                    
                     st.dataframe(urgent_df, use_container_width=True, hide_index=True)
+            
+            # 발주 미완료 재료 리마인더
+            if overdue_count > 0 and isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty:
+                with st.expander(f"⏰ 발주 미완료 재료 리마인더 ({overdue_count}건)", expanded=True):
+                    display_overdue = overdue_orders[['재료명', '공급업체명', '발주일', '수량', '상태']].copy()
+                    if '발주일' in display_overdue.columns:
+                        display_overdue['발주일'] = pd.to_datetime(display_overdue['발주일']).dt.strftime('%Y-%m-%d')
+                    if '수량' in display_overdue.columns:
+                        display_overdue['수량'] = display_overdue['수량'].apply(lambda x: f"{x:,.2f}")
+                    
+                    # 지연일수 계산
+                    if '발주일' in overdue_orders.columns:
+                        display_overdue['지연일수'] = (today - pd.to_datetime(overdue_orders['발주일']).dt.date).apply(lambda x: f"{x.days}일")
+                    
+                    st.dataframe(display_overdue, use_container_width=True, hide_index=True)
+                    st.warning("⚠️ 발주 예정 상태인데 3일 이상 지난 발주입니다. 발주 상태를 확인해주세요.")
+            
+            # 과다재고 경고
+            if low_turnover_items:
+                with st.expander(f"📊 과다재고 경고 ({len(low_turnover_items)}개 재료)", expanded=False):
+                    excess_df = pd.DataFrame(low_turnover_items)
+                    excess_df['현재고'] = excess_df['현재고'].apply(lambda x: f"{x:,.2f}")
+                    excess_df['재고보유일수'] = excess_df['재고보유일수'].apply(lambda x: f"{int(x)}일")
+                    excess_df['회전율'] = excess_df['회전율'].apply(lambda x: f"{x:.1f}회/년")
+                    excess_df['과다재고량'] = excess_df['과다재고량'].apply(lambda x: f"{x:,.2f}")
+                    excess_df['과다재고비용'] = excess_df['과다재고비용'].apply(lambda x: f"{int(x):,}원")
+                    
+                    st.dataframe(excess_df, use_container_width=True, hide_index=True)
+                    
+                    if excess_inventory_cost > 0:
+                        st.warning(f"💰 총 과다재고 비용: {int(excess_inventory_cost):,}원 (재고 회전율이 낮아 자금이 묶여있습니다)")
             
             render_section_divider()
         
