@@ -221,11 +221,11 @@ st.markdown("""
         filter: none;
     }
     
-    /* 저작권 표시 (왼쪽 하단) */
+    /* 저작권 표시 (오른쪽 하단) */
     .main-header .copyright {
         position: absolute;
         bottom: 0.75rem;
-        left: 1.5rem;
+        right: 1.5rem;
         font-size: 0.7rem;
         color: rgba(255, 255, 255, 0.4);
         opacity: 0.6;
