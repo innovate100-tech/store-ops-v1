@@ -11,6 +11,15 @@ ADD COLUMN IF NOT EXISTS order_unit TEXT;
 ALTER TABLE ingredients 
 ADD COLUMN IF NOT EXISTS conversion_rate NUMERIC(10, 2) DEFAULT 1.0;
 
+-- ============================================
+-- 발주 이력 테이블 안정성 보강용 컬럼
+-- - inventory_applied: 입고 완료 시 재고 반영이 이미 수행되었는지 여부
+--   (상태를 여러 번 바꾸더라도 재고가 중복 반영되지 않도록 하기 위함)
+-- ============================================
+
+ALTER TABLE orders 
+ADD COLUMN IF NOT EXISTS inventory_applied BOOLEAN DEFAULT FALSE;
+
 -- 기존 데이터에 대한 기본값 설정 (변환 비율이 없으면 1로 설정)
 UPDATE ingredients 
 SET conversion_rate = 1.0 

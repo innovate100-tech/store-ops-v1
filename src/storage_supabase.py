@@ -1504,7 +1504,16 @@ def delete_ingredient_supplier(ingredient_name, supplier_name):
 
 def save_order(order_date, ingredient_name, supplier_name, quantity, unit_price, 
                total_amount, status="예정", expected_delivery_date=None, notes=None):
-    """발주 이력 저장"""
+    """발주 이력 저장
+    
+    주의
+    ----
+    - quantity, unit_price 는 **기본 단위 기준** 값이다.
+      (예: quantity = g, unit_price = 원/g)
+    - UI 단에서 발주단위(개, 박스 등)를 사용하더라도,
+      이 함수에 들어올 때는 반드시 기본 단위로 환산해서 넣어야 한다.
+      (환산 로직은 `order_service.py` 등에 모아 관리한다.)
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1548,7 +1557,12 @@ def save_order(order_date, ingredient_name, supplier_name, quantity, unit_price,
 
 
 def update_order_status(order_id, status, actual_delivery_date=None):
-    """발주 상태 업데이트"""
+    """발주 상태 업데이트
+    
+    - status 가 '입고완료' 이고 actual_delivery_date 가 있을 때 재고(on_hand)를 증가시킨다.
+    - 중복 입고 반영을 막기 위해 orders.inventory_applied 플래그를 사용한다.
+      (단, 해당 컬럼이 아직 없을 수도 있으므로, 없으면 조용히 건너뛴다.)
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1562,22 +1576,47 @@ def update_order_status(order_id, status, actual_delivery_date=None):
         if actual_delivery_date:
             update_data["actual_delivery_date"] = actual_delivery_date.strftime("%Y-%m-%d") if isinstance(actual_delivery_date, datetime) else str(actual_delivery_date)
         
-        # 입고 완료 시 재고 반영
+        # 입고 완료 시 재고 반영 (inventory_applied 플래그 기반, idempotent)
         if status == "입고완료" and actual_delivery_date:
-            # 발주 정보 가져오기
-            order_result = supabase.table("orders").select("ingredient_id,quantity").eq("id", order_id).eq("store_id", store_id).execute()
+            # 발주 정보 가져오기 (inventory_applied 포함 시도)
+            order_result = supabase.table("orders")\
+                .select("ingredient_id,quantity,inventory_applied")\
+                .eq("id", order_id)\
+                .eq("store_id", store_id)\
+                .execute()
             if order_result.data:
-                ingredient_id = order_result.data[0]['ingredient_id']
-                quantity = order_result.data[0]['quantity']
-                
-                # 현재 재고 가져오기
-                inv_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
-                if inv_result.data:
-                    current_stock = inv_result.data[0]['on_hand']
-                    new_stock = current_stock + quantity
-                    # 재고 업데이트
-                    supabase.table("inventory").update({"on_hand": new_stock}).eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
-        
+                row = order_result.data[0]
+                ingredient_id = row.get("ingredient_id")
+                quantity = row.get("quantity", 0)
+                inventory_applied = bool(row.get("inventory_applied", False))
+
+                # 아직 재고 반영이 안 된 경우에만 처리
+                if ingredient_id and not inventory_applied:
+                    inv_result = supabase.table("inventory")\
+                        .select("on_hand")\
+                        .eq("store_id", store_id)\
+                        .eq("ingredient_id", ingredient_id)\
+                        .execute()
+                    if inv_result.data:
+                        current_stock = float(inv_result.data[0].get("on_hand", 0) or 0)
+                        new_stock = current_stock + float(quantity or 0)
+                        supabase.table("inventory")\
+                            .update({"on_hand": new_stock})\
+                            .eq("store_id", store_id)\
+                            .eq("ingredient_id", ingredient_id)\
+                            .execute()
+
+                    # 재고 반영 완료 표시 (컬럼이 없으면 조용히 무시)
+                    try:
+                        supabase.table("orders")\
+                            .update({"inventory_applied": True})\
+                            .eq("id", order_id)\
+                            .eq("store_id", store_id)\
+                            .execute()
+                    except Exception as e:
+                        logger.warning(f"inventory_applied 업데이트 실패 (마이그레이션 필요할 수 있음): {e}")
+
+        # 상태/입고일 업데이트
         supabase.table("orders").update(update_data).eq("id", order_id).eq("store_id", store_id).execute()
         logger.info(f"Order status updated: {order_id} -> {status}")
         return True
