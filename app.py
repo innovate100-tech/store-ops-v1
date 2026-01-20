@@ -4965,6 +4965,112 @@ elif page == "통합 대시보드":
                 </div>
             </div>
             """, unsafe_allow_html=True)
+        
+        render_section_divider()
+        
+        # ========== 매출 수준별 비용·영업이익 시뮬레이션 ==========
+        if target_sales > 0:
+            # 5대 비용 세부 계산을 위한 카테고리별 데이터
+            fixed_by_category = {
+                '임차료': 0,
+                '인건비': 0,
+                '공과금': 0,
+            }
+            variable_rate_by_category = {
+                '재료비': 0.0,
+                '부가세&카드수수료': 0.0,
+            }
+            
+            if not expense_df.empty:
+                fixed_categories = ['임차료', '인건비', '공과금']
+                for cat in fixed_categories:
+                    fixed_by_category[cat] = expense_df[expense_df['category'] == cat]['amount'].sum()
+                
+                variable_categories = ['재료비', '부가세&카드수수료']
+                variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+                if not variable_df.empty:
+                    for cat in variable_categories:
+                        variable_rate_by_category[cat] = variable_df[variable_df['category'] == cat]['amount'].sum()
+            
+            # 목표매출을 기준으로 다양한 시나리오 생성
+            scenarios = [
+                ("목표매출 - 1,000만원", max(target_sales - 10_000_000, 0)),
+                ("목표매출 - 500만원", max(target_sales - 5_000_000, 0)),
+                ("목표매출 (기준)", target_sales),
+                ("목표매출 + 500만원", target_sales + 5_000_000),
+                ("목표매출 + 1,000만원", target_sales + 10_000_000),
+                ("목표매출 + 1,500만원", target_sales + 15_000_000),
+            ]
+            
+            st.markdown("""
+            <div style="margin: 2rem 0 1rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    📊 매출 수준별 비용·영업이익 시뮬레이션
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <span style="color: #ffffff; font-size: 0.9rem;">
+                    비용구조의 고정비와 변동비율, 목표 매출을 기준으로 다양한 매출 수준에서의 비용과 영업이익을 비교합니다.
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns(3)
+            cols = [col1, col2, col3]
+            
+            for idx, (label, sales) in enumerate(scenarios):
+                if sales <= 0:
+                    continue
+                
+                # 5대 비용 세부 계산
+                rent_cost = fixed_by_category.get('임차료', 0)
+                labor_cost = fixed_by_category.get('인건비', 0)
+                utility_cost = fixed_by_category.get('공과금', 0)
+                material_rate = variable_rate_by_category.get('재료비', 0.0) / 100
+                fee_rate = variable_rate_by_category.get('부가세&카드수수료', 0.0) / 100
+                material_cost = sales * material_rate
+                fee_cost = sales * fee_rate
+                
+                total_cost = rent_cost + labor_cost + utility_cost + material_cost + fee_cost
+                profit = sales - total_cost
+                
+                tile_col = cols[idx % 3]
+                with tile_col:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1.2rem; border-radius: 10px; margin-top: 0.8rem; color: #e5e7eb; box-shadow: 0 2px 6px rgba(0,0,0,0.35);">
+                        <div style="font-size: 0.9rem; margin-bottom: 0.4rem; opacity: 0.9;">{label}</div>
+                        <!-- 매출 영역: 선명한 흰색 -->
+                        <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; color: #ffffff !important;">
+                            매출: {int(sales):,}원
+                        </div>
+                        <!-- 비용 영역 제목: 더 진한 빨간색 -->
+                        <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ff4d4f !important;">
+                            비용 합계 및 세부내역
+                        </div>
+                        <!-- 총 비용: 더 진한 빨간색 -->
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.2rem; color: #ff4d4f !important;">
+                            총 비용: {int(total_cost):,}원
+                        </div>
+                        <div style="font-size: 0.85rem; margin-top: 0.3rem; line-height: 1.4; color: #ff4d4f !important;">
+                            임차료(고정비): {int(rent_cost):,}원<br>
+                            인건비(고정비): {int(labor_cost):,}원<br>
+                            공과금(고정비): {int(utility_cost):,}원<br>
+                            재료비(변동비): {int(material_cost):,}원<br>
+                            부가세·카드수수료(변동비): {int(fee_cost):,}원
+                        </div>
+                        <!-- 추정 영업이익 제목: 선명한 노란색 -->
+                        <div style="font-size: 0.9rem; margin-top: 0.5rem; border-top: 1px solid rgba(148,163,184,0.5); padding-top: 0.5rem; color: #ffd700 !important;">
+                            추정 영업이익
+                        </div>
+                        <!-- 추정 영업이익 값: 선명한 노란색 -->
+                        <div style="font-size: 1.1rem; font-weight: 600; color: #ffd700 !important;">
+                            {int(profit):,}원
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
