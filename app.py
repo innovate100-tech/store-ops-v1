@@ -259,10 +259,7 @@ st.markdown("""
         font-weight: 700;
         font-size: 1.2rem;
         letter-spacing: 2px;
-        text-shadow: 
-            0 0 10px #ff0000,
-            0 0 20px #ff0000,
-            0 0 30px #ff0000;
+        text-shadow: none;
         animation: ledBlink 1.5s ease-in-out infinite, ledScroll 15s linear infinite;
         line-height: 1.5rem;
         background: none !important;
