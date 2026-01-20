@@ -5870,9 +5870,33 @@ elif page == "발주 관리":
         
         if not suppliers_df.empty:
             st.write("**📋 등록된 공급업체**")
-            # id 컬럼 제외하고 표시
-            display_cols = [col for col in suppliers_df.columns if col not in ['id', 'store_id', 'created_at', 'updated_at']]
-            st.dataframe(suppliers_df[display_cols], use_container_width=True, hide_index=True)
+
+            # 재료-공급업체 매핑을 이용해 업체별 취급 품목 목록 생성
+            ingredient_suppliers_all = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명'])
+            supplier_items_map = {}
+            if not ingredient_suppliers_all.empty:
+                for sup_name in suppliers_df['공급업체명'].tolist():
+                    items = ingredient_suppliers_all[ingredient_suppliers_all['공급업체명'] == sup_name]['재료명'].dropna().unique().tolist()
+                    if items:
+                        supplier_items_map[sup_name] = ", ".join(items)
+                    else:
+                        supplier_items_map[sup_name] = ""
+            else:
+                supplier_items_map = {sup_name: "" for sup_name in suppliers_df['공급업체명'].tolist()}
+
+            # 표시용 DataFrame 구성 (영문 컬럼 제거, 한글 컬럼 + 취급품목만)
+            display_suppliers = suppliers_df.copy()
+            # 중복 영문 컬럼 제거
+            for col in ['name', 'phone', 'email', 'delivery_days', 'min_order_amount', 'delivery_fee', 'notes']:
+                if col in display_suppliers.columns:
+                    display_suppliers.drop(columns=[col], inplace=True)
+
+            display_suppliers['취급품목'] = display_suppliers['공급업체명'].map(supplier_items_map).fillna("")
+
+            display_cols = ['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고', '취급품목']
+            display_cols = [c for c in display_cols if c in display_suppliers.columns]
+
+            st.dataframe(display_suppliers[display_cols], use_container_width=True, hide_index=True)
             
             # 공급업체 삭제
             supplier_to_delete = st.selectbox("삭제할 공급업체", options=suppliers_df['공급업체명'].tolist(), key="delete_supplier_select")
