@@ -5733,22 +5733,40 @@ elif page == "발주 관리":
             else:
                 orders_display['발주일'] = pd.NaT
             
+            # 생성 시각(배치 기준 시간) - created_at 컬럼이 있으면 사용
+            if 'created_at' in orders_display.columns:
+                orders_display['생성시각'] = pd.to_datetime(orders_display['created_at'], errors='coerce')
+            else:
+                orders_display['생성시각'] = pd.NaT
+            
             # 발주 수량/단가를 발주단위 기준으로 변환
             orders_display['수량_발주단위'] = orders_display['수량'] / orders_display['변환비율']
             orders_display['발주단위단가'] = orders_display['단가'] * orders_display['변환비율']
+
+            # 발주 생성 배치 기준 그룹 키 (초 단위까지)
+            # 1) 생성시각이 있으면 초 단위로 내림(floor), 2) 없으면 발주일(날짜) 사용
+            orders_display['그룹키'] = orders_display['생성시각'].dt.floor('S')
+            fallback_mask = orders_display['그룹키'].isna()
+            orders_display.loc[fallback_mask, '그룹키'] = orders_display.loc[fallback_mask, '발주일']
             
-            # 날짜별 그룹핑 (최근 날짜가 위로)
-            orders_display = orders_display.sort_values('발주일', ascending=False)
-            grouped = orders_display.groupby(orders_display['발주일'].dt.date.fillna(pd.to_datetime("1970-01-01").date()))
+            # 최신 발주부터 표시
+            orders_display = orders_display.sort_values('그룹키', ascending=False)
+            grouped = orders_display.groupby('그룹키')
             
-            for order_date, group in grouped:
-                date_str = "발주일 미지정" if pd.isna(order_date) else datetime.combine(order_date, datetime.min.time()).strftime("%Y-%m-%d")
+            for group_key, group in grouped:
+                # 헤더용 일시 문자열 구성
+                header_dt = pd.to_datetime(group_key, errors='coerce')
+                if pd.isna(header_dt):
+                    date_time_str = "발주일시 미지정"
+                else:
+                    date_time_str = header_dt.strftime("%Y-%m-%d %H:%M:%S")
+                
                 total_amount = group['총금액'].fillna(0).sum()
                 
                 st.markdown(f"""
                 <div style="background: rgba(15,23,42,0.9); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; border: 1px solid rgba(148,163,184,0.3);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <div style="font-size: 1rem; font-weight: 600; color: #e5e7eb;">📅 발주일: {date_str}</div>
+                        <div style="font-size: 1rem; font-weight: 600; color: #e5e7eb;">📅 발주일시: {date_time_str}</div>
                         <div style="font-size: 0.95rem; color: #93c5fd;">총 발주 금액: {int(total_amount):,}원</div>
                     </div>
                 </div>
