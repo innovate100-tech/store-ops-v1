@@ -1852,9 +1852,68 @@ elif page == "매출 관리":
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
             
-            # 차트 표시
-            render_section_header("날짜별 매출 추이", "📈")
-            render_sales_chart(sales_df)
+            # 차트 표시: 이번달 날짜별 매출과 방문자 사이의 연관성
+            render_section_header("이번달 날짜별 매출과 방문자 사이의 연관성", "📈")
+            
+            # 이번달 데이터 필터링
+            from datetime import datetime
+            current_year = datetime.now().year
+            current_month = datetime.now().month
+            
+            chart_df = merged_df.copy()
+            if '날짜' in chart_df.columns:
+                chart_df['날짜'] = pd.to_datetime(chart_df['날짜'])
+                chart_df = chart_df[
+                    (chart_df['날짜'].dt.year == current_year) & 
+                    (chart_df['날짜'].dt.month == current_month)
+                ].sort_values('날짜')
+            
+            if not chart_df.empty and '총매출' in chart_df.columns and '방문자수' in chart_df.columns:
+                import matplotlib.pyplot as plt
+                import matplotlib.font_manager as fm
+                
+                # 한글 폰트 설정
+                plt.rcParams['font.family'] = 'Malgun Gothic'
+                plt.rcParams['axes.unicode_minus'] = False
+                
+                fig, ax1 = plt.subplots(figsize=(12, 6))
+                
+                # 매출 차트 (왼쪽 Y축)
+                color1 = '#667eea'
+                ax1.set_xlabel('날짜', fontsize=12)
+                ax1.set_ylabel('일일 매출 (원)', color=color1, fontsize=12)
+                line1 = ax1.plot(chart_df['날짜'], chart_df['총매출'], 
+                                marker='o', linewidth=2, markersize=6, 
+                                color=color1, label='일일 매출')
+                ax1.tick_params(axis='y', labelcolor=color1)
+                ax1.grid(True, alpha=0.3)
+                
+                # 방문자 차트 (오른쪽 Y축)
+                ax2 = ax1.twinx()
+                color2 = '#f093fb'
+                ax2.set_ylabel('일일 방문자수 (명)', color=color2, fontsize=12)
+                line2 = ax2.plot(chart_df['날짜'], chart_df['방문자수'], 
+                                marker='s', linewidth=2, markersize=6, 
+                                color=color2, label='일일 방문자수')
+                ax2.tick_params(axis='y', labelcolor=color2)
+                
+                # 제목
+                ax1.set_title('이번달 날짜별 매출과 방문자 사이의 연관성', fontsize=14, fontweight='bold', pad=20)
+                
+                # 범례
+                lines = line1 + line2
+                labels = [l.get_label() for l in lines]
+                ax1.legend(lines, labels, loc='upper left')
+                
+                # 날짜 포맷팅
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                
+                st.pyplot(fig)
+            elif not chart_df.empty:
+                st.info("이번달 매출 또는 방문자 데이터가 없습니다.")
+            else:
+                st.info("이번달 데이터가 없습니다.")
         else:
             st.info("저장된 매출 데이터가 없습니다.")
     
