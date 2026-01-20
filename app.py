@@ -2811,12 +2811,30 @@ elif page == "재료 등록":
             except Exception as e:
                 st.error(f"캐시 클리어 오류: {e}")
     
-    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     
     if not ingredient_df.empty:
-        # 필요한 컬럼만 선택 (재료명, 단위, 단가)
-        base_columns = [col for col in ['재료명', '단위', '단가'] if col in ingredient_df.columns]
+        # 발주 단위 정보 처리
+        if '발주단위' not in ingredient_df.columns:
+            ingredient_df['발주단위'] = ingredient_df['단위']
+        if '변환비율' not in ingredient_df.columns:
+            ingredient_df['변환비율'] = 1.0
+        
+        ingredient_df['발주단위'] = ingredient_df['발주단위'].fillna(ingredient_df['단위'])
+        ingredient_df['변환비율'] = ingredient_df['변환비율'].fillna(1.0)
+        
+        # 필요한 컬럼만 선택 (재료명, 단위, 발주단위, 단가)
+        base_columns = [col for col in ['재료명', '단위', '발주단위', '변환비율', '단가'] if col in ingredient_df.columns]
         display_df = ingredient_df[base_columns].copy()
+        
+        # 단위 표시 컬럼 생성 (기본 단위와 발주 단위 모두 표시)
+        def format_unit_display(row):
+            if pd.isna(row.get('발주단위')) or row.get('발주단위') == row['단위']:
+                return row['단위']
+            else:
+                return f"{row['단위']} / 발주: {row['발주단위']}"
+        
+        display_df['단위표시'] = display_df.apply(format_unit_display, axis=1)
         
         # 단가 표시 포맷팅 (단가는 소수점 1자리까지 표시)
         def format_price(row):
@@ -2826,6 +2844,10 @@ elif page == "재료 등록":
             return f"{price:,.1f}원/{unit}"
         
         display_df['단가'] = display_df.apply(format_price, axis=1)
+        
+        # 표시할 컬럼 선택
+        display_cols = ['재료명', '단위표시', '단가']
+        display_df = display_df[display_cols].rename(columns={'단위표시': '단위'})
         
         # 수정/삭제 기능
         st.write("**📝 재료 수정/삭제**")
@@ -3044,7 +3066,7 @@ elif page == "레시피 등록":
                         label_visibility="collapsed"
                     )
                     
-                    # 검색어로 필터링된 재료 목록
+                    # 검색어로 필터링된 재료 목록 (단위 정보 포함)
                     if search_term and search_term.strip():
                         filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
                         if not filtered_ingredients:
@@ -3052,21 +3074,54 @@ elif page == "레시피 등록":
                     else:
                         filtered_ingredients = ingredient_list
                     
+                    # 재료 선택 옵션에 단위 정보 표시
+                    ingredient_options = []
+                    if '발주단위' in ingredient_df.columns:
+                        for ing in filtered_ingredients:
+                            ing_row = ingredient_df[ingredient_df['재료명'] == ing]
+                            if not ing_row.empty:
+                                unit = ing_row.iloc[0].get('단위', '')
+                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                if order_unit != unit:
+                                    ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
+                                else:
+                                    ingredient_options.append(f"{ing} ({unit})")
+                            else:
+                                ingredient_options.append(ing)
+                    else:
+                        ingredient_options = filtered_ingredients
+                    
                     # 재료 선택 (필터링된 목록에서)
                     ingredient_key = f"batch_recipe_ingredient_{i}"
-                    selected_ingredient = st.selectbox(
+                    selected_ingredient_option = st.selectbox(
                         "",
-                        options=filtered_ingredients,
+                        options=ingredient_options,
                         key=ingredient_key,
                         index=None,
                         label_visibility="collapsed"
                     )
+                    
+                    # 선택된 옵션에서 재료명 추출
+                    selected_ingredient = selected_ingredient_option.split(" (")[0] if selected_ingredient_option and " (" in selected_ingredient_option else selected_ingredient_option
                 
                 with col2:
-                    # 기준단위 (자동 표시)
+                    # 기준단위 (자동 표시, 발주 단위도 함께 표시)
                     if selected_ingredient and selected_ingredient in ingredient_info_dict:
                         unit = ingredient_info_dict[selected_ingredient]['단위']
-                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{unit}</strong></div>", unsafe_allow_html=True)
+                        # 발주 단위 정보 가져오기
+                        if '발주단위' in ingredient_df.columns:
+                            ing_row = ingredient_df[ingredient_df['재료명'] == selected_ingredient]
+                            if not ing_row.empty:
+                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                if order_unit != unit:
+                                    unit_display = f"{unit} / 발주: {order_unit}"
+                                else:
+                                    unit_display = unit
+                            else:
+                                unit_display = unit
+                        else:
+                            unit_display = unit
+                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{unit_display}</strong></div>", unsafe_allow_html=True)
                     else:
                         st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
                 
@@ -5008,9 +5063,9 @@ elif page == "발주 관리":
                         display_order_df['발주필요량_표시'] = display_order_df['발주필요량_발주단위'].apply(lambda x: f"{x:,.2f}")
                         display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
                         
-                        # 발주 단위 표시
+                        # 발주 단위 표시 (기본 단위와 발주 단위 모두 표시)
                         display_order_df['단위표시'] = display_order_df.apply(
-                            lambda row: f"{row['발주단위']}" if row['발주단위'] != row['단위'] else row['단위'],
+                            lambda row: f"{row['단위']} / 발주: {row['발주단위']}" if row['발주단위'] != row['단위'] else row['단위'],
                             axis=1
                         )
                         
@@ -5051,11 +5106,32 @@ elif page == "발주 관리":
                                 with st.expander(f"🏢 {supplier_name} ({len(supplier_data['items'])}개 재료)", expanded=True):
                                     # 발주 항목 표시
                                     items_df = pd.DataFrame(supplier_data['items'])
+                                    
+                                    # 재료 단위 정보 추가
+                                    if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns:
+                                        order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['발주단위']))
+                                        conversion_rate_map = dict(zip(ingredient_df['재료명'], ingredient_df['변환비율']))
+                                        
+                                        items_df['단위'] = items_df['재료명'].map(dict(zip(ingredient_df['재료명'], ingredient_df['단위']))).fillna('')
+                                        items_df['발주단위'] = items_df['재료명'].map(order_unit_map).fillna(items_df['단위'])
+                                        items_df['변환비율'] = items_df['재료명'].map(conversion_rate_map).fillna(1.0)
+                                        
+                                        # 단위 표시 컬럼 생성
+                                        def format_unit_display(row):
+                                            if pd.isna(row.get('발주단위')) or row.get('발주단위') == row.get('단위', ''):
+                                                return row.get('단위', '')
+                                            else:
+                                                return f"{row.get('단위', '')} / 발주: {row.get('발주단위', '')}"
+                                        
+                                        items_df['단위표시'] = items_df.apply(format_unit_display, axis=1)
+                                    else:
+                                        items_df['단위표시'] = ''
+                                    
                                     items_df['수량'] = items_df['수량'].apply(lambda x: f"{x:,.2f}")
                                     items_df['단가'] = items_df['단가'].apply(lambda x: f"{int(x):,}원")
                                     items_df['금액'] = items_df['금액'].apply(lambda x: f"{int(x):,}원")
                                     
-                                    st.dataframe(items_df[['재료명', '수량', '단가', '금액']], use_container_width=True, hide_index=True)
+                                    st.dataframe(items_df[['재료명', '단위표시', '수량', '단가', '금액']].rename(columns={'단위표시': '단위'}), use_container_width=True, hide_index=True)
                                     
                                     # 요약 정보
                                     col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
@@ -5519,7 +5595,26 @@ elif page == "발주 관리":
             with st.expander("➕ 재료-공급업체 매핑 추가", expanded=False):
                 col1, col2 = st.columns(2)
                 with col1:
-                    mapping_ingredient = st.selectbox("재료 선택", options=ingredient_list, key="mapping_ingredient")
+                    # 재료 선택 옵션에 단위 정보 표시
+                    ingredient_options = []
+                    if '발주단위' in ingredient_df.columns:
+                        for ing in ingredient_list:
+                            ing_row = ingredient_df[ingredient_df['재료명'] == ing]
+                            if not ing_row.empty:
+                                unit = ing_row.iloc[0].get('단위', '')
+                                order_unit = ing_row.iloc[0].get('발주단위', unit)
+                                if order_unit != unit:
+                                    ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
+                                else:
+                                    ingredient_options.append(f"{ing} ({unit})")
+                            else:
+                                ingredient_options.append(ing)
+                    else:
+                        ingredient_options = ingredient_list
+                    
+                    mapping_ingredient_option = st.selectbox("재료 선택", options=ingredient_options, key="mapping_ingredient")
+                    # 선택된 옵션에서 재료명 추출
+                    mapping_ingredient = mapping_ingredient_option.split(" (")[0] if " (" in mapping_ingredient_option else mapping_ingredient_option
                     mapping_supplier = st.selectbox("공급업체 선택", options=suppliers_df['공급업체명'].tolist(), key="mapping_supplier")
                 with col2:
                     mapping_price = st.number_input("단가 (원)", min_value=0.0, value=0.0, key="mapping_price")
@@ -5539,14 +5634,36 @@ elif page == "발주 관리":
             if not ingredient_suppliers_df.empty:
                 st.write("**📋 재료-공급업체 매핑 목록**")
                 display_mapping = ingredient_suppliers_df.copy()
+                
+                # 재료 단위 정보 추가
+                if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns:
+                    unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['단위']))
+                    order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['발주단위']))
+                    
+                    display_mapping['단위'] = display_mapping['재료명'].map(unit_map).fillna('')
+                    display_mapping['발주단위'] = display_mapping['재료명'].map(order_unit_map).fillna(display_mapping['단위'])
+                    
+                    # 단위 표시 컬럼 생성
+                    def format_unit_display(row):
+                        if pd.isna(row.get('발주단위')) or row.get('발주단위') == row.get('단위', ''):
+                            return row.get('단위', '')
+                        else:
+                            return f"{row.get('단위', '')} / 발주: {row.get('발주단위', '')}"
+                    
+                    display_mapping['단위표시'] = display_mapping.apply(format_unit_display, axis=1)
+                else:
+                    display_mapping['단위표시'] = ''
+                
                 if '기본공급업체' in display_mapping.columns:
                     display_mapping['기본공급업체'] = display_mapping['기본공급업체'].apply(lambda x: "✅" if x else "")
                 if '단가' in display_mapping.columns:
                     display_mapping['단가'] = display_mapping['단가'].apply(lambda x: f"{int(x):,}원")
                 
-                # id 컬럼 제외하고 표시
-                mapping_display_cols = [col for col in display_mapping.columns if col not in ['id', 'store_id', 'ingredient_id', 'supplier_id', 'created_at', 'updated_at']]
-                st.dataframe(display_mapping[mapping_display_cols], use_container_width=True, hide_index=True)
+                # 표시할 컬럼 선택 (단위 정보 포함)
+                mapping_display_cols = ['재료명', '단위표시', '공급업체명', '단가', '기본공급업체']
+                mapping_display_cols = [col for col in mapping_display_cols if col in display_mapping.columns]
+                display_mapping = display_mapping[mapping_display_cols].rename(columns={'단위표시': '단위'})
+                st.dataframe(display_mapping, use_container_width=True, hide_index=True)
                 
                 # 매핑 삭제
                 if len(ingredient_suppliers_df) > 0:
