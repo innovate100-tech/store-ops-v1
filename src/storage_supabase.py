@@ -151,6 +151,10 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
                     df['단위'] = df['unit']
                 if 'unit_cost' in df.columns:
                     df['단가'] = df['unit_cost']
+                if 'order_unit' in df.columns:
+                    df['발주단위'] = df['order_unit']
+                if 'conversion_rate' in df.columns:
+                    df['변환비율'] = df['conversion_rate']
             
             elif actual_table == 'recipes':
                 # menu_id와 ingredient_id를 이름으로 변환
@@ -600,7 +604,7 @@ def delete_menu(menu_name, check_references=True):
         raise
 
 
-def save_ingredient(ingredient_name, unit, unit_price):
+def save_ingredient(ingredient_name, unit, unit_price, order_unit=None, conversion_rate=1.0):
     """재료 저장"""
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
@@ -616,12 +620,20 @@ def save_ingredient(ingredient_name, unit, unit_price):
         if existing.data:
             return False, f"'{ingredient_name}' 재료는 이미 등록되어 있습니다."
         
-        result = supabase.table("ingredients").insert({
+        # 발주 단위가 없으면 기본 단위와 동일하게 설정
+        if not order_unit:
+            order_unit = unit
+        
+        insert_data = {
             "store_id": store_id,
             "name": ingredient_name,
             "unit": unit,
-            "unit_cost": float(unit_price)
-        }).execute()
+            "unit_cost": float(unit_price),
+            "order_unit": order_unit,
+            "conversion_rate": float(conversion_rate)
+        }
+        
+        result = supabase.table("ingredients").insert(insert_data).execute()
         
         logger.info(f"Ingredient saved: {ingredient_name}")
         return True, "저장 성공"

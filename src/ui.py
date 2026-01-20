@@ -341,14 +341,14 @@ def render_ingredient_input():
     
     with col2:
         unit = st.selectbox(
-            "단위",
+            "기본 단위",
             options=["g", "ml", "ea", "개", "kg", "L"],
             key="ingredient_unit"
         )
     
     with col3:
         unit_price = st.number_input(
-            "단가 (원/단위)",
+            "단가 (원/기본단위)",
             min_value=0.0,
             value=0.0,
             step=100.0,
@@ -356,7 +356,32 @@ def render_ingredient_input():
             key="ingredient_unit_price"
         )
     
-    return ingredient_name, unit, unit_price
+    # 발주 단위 설정 (선택사항)
+    st.markdown("**📦 발주 단위 설정 (선택사항)**")
+    st.caption("발주 시 다른 단위로 주문하는 경우 설정하세요. 예: 버터는 g 단위로 관리하지만 발주는 '개' 단위로 주문")
+    
+    col4, col5 = st.columns(2)
+    
+    with col4:
+        order_unit = st.selectbox(
+            "발주 단위",
+            options=["", "g", "ml", "ea", "개", "kg", "L", "박스", "봉지"],
+            key="ingredient_order_unit",
+            help="발주 시 사용할 단위 (비워두면 기본 단위와 동일)"
+        )
+    
+    with col5:
+        conversion_rate = st.number_input(
+            "변환 비율 (1 발주단위 = ? 기본단위)",
+            min_value=0.0,
+            value=1.0,
+            step=0.1,
+            format="%.2f",
+            key="ingredient_conversion_rate",
+            help="예: 버터 1개 = 500g이면 500 입력"
+        )
+    
+    return ingredient_name, unit, unit_price, order_unit if order_unit else None, conversion_rate
 
 
 def render_recipe_input(menu_list, ingredient_list):

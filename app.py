@@ -2729,7 +2729,14 @@ elif page == "재료 등록":
     render_page_header("재료 등록", "🥬")
     
     # 재료 입력 폼
-    ingredient_name, unit, unit_price = render_ingredient_input()
+    ingredient_result = render_ingredient_input()
+    if len(ingredient_result) == 5:
+        ingredient_name, unit, unit_price, order_unit, conversion_rate = ingredient_result
+    else:
+        # 기존 호환성 유지
+        ingredient_name, unit, unit_price = ingredient_result[:3]
+        order_unit = None
+        conversion_rate = 1.0
     
     col1, col2 = st.columns([1, 4])
     with col1:
@@ -2755,9 +2762,21 @@ elif page == "재료 등록":
                         final_unit_price = unit_price / 1000.0
                         st.info(f"💡 단위가 자동 변환되었습니다: {unit} → {final_unit} (단가: {unit_price:,.2f}원/{unit} → {final_unit_price:,.4f}원/{final_unit})")
                     
-                    success, message = save_ingredient(ingredient_name, final_unit, final_unit_price)
+                    # 발주 단위도 변환 필요 시 조정
+                    final_order_unit = order_unit if order_unit else final_unit
+                    final_conversion_rate = conversion_rate
+                    
+                    # 발주 단위가 기본 단위와 다르면 변환 비율 적용
+                    if final_order_unit != final_unit and final_conversion_rate == 1.0:
+                        # 변환 비율이 설정되지 않았으면 기본값 1 유지
+                        pass
+                    
+                    success, message = save_ingredient(ingredient_name, final_unit, final_unit_price, final_order_unit, final_conversion_rate)
                     if success:
-                        st.success(f"재료가 저장되었습니다! ({ingredient_name}, {final_unit_price:,.4f}원/{final_unit})")
+                        unit_display = f"{final_unit_price:,.4f}원/{final_unit}"
+                        if final_order_unit != final_unit:
+                            unit_display += f" (발주: {final_order_unit}, 변환비율: {final_conversion_rate})"
+                        st.success(f"재료가 저장되었습니다! ({ingredient_name}, {unit_display})")
                         # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
                         try:
                             load_csv.clear()
@@ -4923,6 +4942,21 @@ elif page == "발주 관리":
                         # 표시용 DataFrame 생성
                         display_order_df = order_df.copy()
                         
+                        # 발주 단위 정보 추가 (재료 마스터에서)
+                        if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns:
+                            order_unit_map = dict(zip(ingredient_df['재료명'], ingredient_df['발주단위']))
+                            conversion_rate_map = dict(zip(ingredient_df['재료명'], ingredient_df['변환비율']))
+                            
+                            # 발주 필요량을 발주 단위로 변환
+                            display_order_df['발주단위'] = display_order_df['재료명'].map(order_unit_map).fillna(display_order_df['단위'])
+                            display_order_df['변환비율'] = display_order_df['재료명'].map(conversion_rate_map).fillna(1.0)
+                            
+                            # 발주 필요량을 발주 단위로 변환 (기본 단위 -> 발주 단위)
+                            display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량'] / display_order_df['변환비율']
+                        else:
+                            display_order_df['발주단위'] = display_order_df['단위']
+                            display_order_df['발주필요량_발주단위'] = display_order_df['발주필요량']
+                        
                         # 공급업체 정보 추가
                         if not ingredient_suppliers_df.empty:
                             # 기본 공급업체 매핑
@@ -4936,10 +4970,19 @@ elif page == "발주 관리":
                         display_order_df['안전재고'] = display_order_df['안전재고'].apply(lambda x: f"{x:,.2f}")
                         display_order_df['최근평균사용량'] = display_order_df['최근평균사용량'].apply(lambda x: f"{x:,.2f}")
                         display_order_df['예상소요량'] = display_order_df['예상소요량'].apply(lambda x: f"{x:,.2f}")
-                        display_order_df['발주필요량'] = display_order_df['발주필요량'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['발주필요량_표시'] = display_order_df['발주필요량_발주단위'].apply(lambda x: f"{x:,.2f}")
                         display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
                         
-                        st.dataframe(display_order_df[['재료명', '단위', '공급업체', '발주필요량', '예상금액']], use_container_width=True, hide_index=True)
+                        # 발주 단위 표시
+                        display_order_df['단위표시'] = display_order_df.apply(
+                            lambda row: f"{row['발주단위']}" if row['발주단위'] != row['단위'] else row['단위'],
+                            axis=1
+                        )
+                        
+                        st.dataframe(display_order_df[['재료명', '단위표시', '공급업체', '발주필요량_표시', '예상금액']].rename(columns={
+                            '단위표시': '단위',
+                            '발주필요량_표시': '발주필요량'
+                        }), use_container_width=True, hide_index=True)
                         
                         # 총 예상 금액
                         total_amount = order_df['예상금액'].sum()
@@ -5074,7 +5117,16 @@ elif page == "발주 관리":
                         for idx, row in order_df.iterrows():
                             ingredient_name = row['재료명']
                             supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
-                            quantity = row['발주필요량']
+                            
+                            # 발주 단위로 변환된 수량
+                            if '발주필요량_발주단위' in display_order_df.columns:
+                                quantity_display = display_order_df[display_order_df['재료명'] == ingredient_name]['발주필요량_발주단위'].iloc[0]
+                                order_unit_display = display_order_df[display_order_df['재료명'] == ingredient_name]['발주단위'].iloc[0]
+                            else:
+                                quantity_display = row['발주필요량']
+                                order_unit_display = row['단위']
+                            
+                            quantity = row['발주필요량']  # 기본 단위 (저장용)
                             amount = row['예상금액']
                             
                             # 체크박스와 정보를 함께 표시
@@ -5092,15 +5144,16 @@ elif page == "발주 관리":
                             
                             with col_info:
                                 supplier_color = "#ef4444" if supplier_name == "미지정" else "#10b981"
+                                unit_display = order_unit_display if order_unit_display != row['단위'] else row['단위']
                                 st.markdown(f"""
                                 <div style="background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {supplier_color};">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <div>
                                             <strong style="color: #ffffff; font-size: 1rem;">{ingredient_name}</strong>
-                                            <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">({row['단위']})</span>
+                                            <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">({unit_display})</span>
                                         </div>
                                         <div style="text-align: right;">
-                                            <div style="color: #ffffff; font-size: 0.9rem;">수량: {quantity:,.2f}</div>
+                                            <div style="color: #ffffff; font-size: 0.9rem;">수량: {quantity_display:,.2f} {unit_display}</div>
                                             <div style="color: #94a3b8; font-size: 0.85rem;">금액: {int(amount):,}원</div>
                                         </div>
                                     </div>
