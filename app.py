@@ -5690,6 +5690,15 @@ elif page == "발주 관리":
         render_section_divider()
         
         # 공급업체 목록
+        # 삭제 후 데이터 새로고침 플래그 확인
+        if st.session_state.get('supplier_data_refresh', False):
+            # 캐시 클리어 후 데이터 다시 로드
+            try:
+                load_csv.clear()
+            except Exception:
+                pass
+            st.session_state.supplier_data_refresh = False
+        
         suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
         
         if not suppliers_df.empty:
@@ -5755,6 +5764,7 @@ elif page == "발주 관리":
                     # 캐시 클리어
                     try:
                         st.cache_data.clear()
+                        load_csv.clear()
                     except Exception:
                         pass
 
@@ -5763,6 +5773,8 @@ elif page == "발주 관리":
                     st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
                     # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
                     st.session_state.supplier_delete_key_counter += 1
+                    # 삭제 후 데이터 새로고침 플래그 설정
+                    st.session_state.supplier_data_refresh = True
                     # Streamlit의 자동 rerun 활용 (탭 상태 유지)
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
