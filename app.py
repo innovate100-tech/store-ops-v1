@@ -2800,17 +2800,6 @@ elif page == "재료 등록":
     </div>
     """, unsafe_allow_html=True)
     
-    # 캐시 클리어 버튼
-    col_cache1, col_cache2 = st.columns([1, 9])
-    with col_cache1:
-        if st.button("🔄 캐시 새로고침", key="clear_cache_ingredients", help="데이터가 안 보일 때 클릭하세요"):
-            try:
-                load_csv.clear()
-                st.success("캐시가 클리어되었습니다!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"캐시 클리어 오류: {e}")
-    
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     
     if not ingredient_df.empty:
@@ -2860,63 +2849,145 @@ elif page == "재료 등록":
         display_cols = ['재료명', '단위', '발주단위', '1단위단가', '발주단위단가']
         display_df = display_df[display_cols]
         
-        # 수정/삭제 기능
-        st.write("**📝 재료 수정/삭제**")
-        ingredient_list = ingredient_df['재료명'].tolist()
-        selected_ingredient = st.selectbox(
-            "수정/삭제할 재료 선택",
-            ["선택하세요"] + ingredient_list,
-            key="ingredient_edit_select"
-        )
+        # 표에 수정/삭제 버튼 추가
+        st.write("**📋 등록된 재료 리스트** (표에서 바로 수정/삭제 가능)")
         
-        if selected_ingredient != "선택하세요":
-            ingredient_info = ingredient_df[ingredient_df['재료명'] == selected_ingredient].iloc[0]
+        # 각 재료별로 수정/삭제 버튼이 있는 표 생성
+        for idx, row in display_df.iterrows():
+            ingredient_name = row['재료명']
+            ingredient_info = ingredient_df[ingredient_df['재료명'] == ingredient_name].iloc[0]
             
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**수정**")
-                new_ingredient_name = st.text_input("재료명", value=ingredient_info['재료명'], key="ingredient_edit_name")
-                new_unit = st.text_input("단위", value=ingredient_info['단위'], key="ingredient_edit_unit")
-                new_unit_price = st.number_input("단가 (원)", min_value=0.0, value=float(ingredient_info['단가']), step=100.0, key="ingredient_edit_price")
-                if st.button("✅ 수정", key="ingredient_edit_btn"):
-                    try:
-                        success, message = update_ingredient(ingredient_info['재료명'], new_ingredient_name, new_unit, new_unit_price)
-                        if success:
-                            st.success(message)
-                            # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
-                            try:
-                                load_csv.clear()
-                            except Exception:
-                                pass
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"수정 중 오류: {e}")
+            # 행 표시
+            col_name, col_unit, col_order_unit, col_price1, col_price2, col_actions = st.columns([2, 1, 2, 1.5, 1.5, 1.5])
             
-            with col2:
-                st.write("**삭제**")
-                st.warning(f"⚠️ '{selected_ingredient}' 재료를 삭제하시겠습니까?")
-                if st.button("🗑️ 삭제", key="ingredient_delete_btn", type="primary"):
-                    try:
-                        success, message, refs = delete_ingredient(selected_ingredient)
-                        if success:
-                            st.success(message)
-                            # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
+            with col_name:
+                st.write(f"**{row['재료명']}**")
+            with col_unit:
+                st.write(row['단위'])
+            with col_order_unit:
+                st.write(row['발주단위'])
+            with col_price1:
+                st.write(row['1단위단가'])
+            with col_price2:
+                st.write(row['발주단위단가'])
+            with col_actions:
+                # 수정/삭제 버튼
+                edit_col, delete_col = st.columns(2)
+                with edit_col:
+                    if st.button("✏️", key=f"edit_{ingredient_name}", help="수정"):
+                        st.session_state[f'editing_{ingredient_name}'] = True
+                        st.rerun()
+                with delete_col:
+                    if st.button("🗑️", key=f"delete_{ingredient_name}", help="삭제"):
+                        st.session_state[f'deleting_{ingredient_name}'] = True
+                        st.rerun()
+            
+            # 수정 모드
+            if st.session_state.get(f'editing_{ingredient_name}', False):
+                with st.expander(f"✏️ {ingredient_name} 수정", expanded=True):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_ingredient_name = st.text_input("재료명", value=ingredient_info['재료명'], key=f"edit_name_{ingredient_name}")
+                        new_unit = st.selectbox(
+                            "기본 단위",
+                            options=["g", "ml", "ea", "개", "kg", "L"],
+                            index=["g", "ml", "ea", "개", "kg", "L"].index(ingredient_info['단위']) if ingredient_info['단위'] in ["g", "ml", "ea", "개", "kg", "L"] else 0,
+                            key=f"edit_unit_{ingredient_name}"
+                        )
+                        new_unit_price = st.number_input("단가 (원/기본단위)", min_value=0.0, value=float(ingredient_info['단가']), step=100.0, key=f"edit_price_{ingredient_name}")
+                    
+                    with col2:
+                        new_order_unit = st.selectbox(
+                            "발주 단위",
+                            options=["", "g", "ml", "ea", "개", "kg", "L", "박스", "봉지"],
+                            index=["", "g", "ml", "ea", "개", "kg", "L", "박스", "봉지"].index(ingredient_info.get('발주단위', '')) if ingredient_info.get('발주단위', '') in ["", "g", "ml", "ea", "개", "kg", "L", "박스", "봉지"] else 0,
+                            key=f"edit_order_unit_{ingredient_name}"
+                        )
+                        new_conversion_rate = st.number_input(
+                            "변환 비율 (1 발주단위 = ? 기본단위)",
+                            min_value=0.0,
+                            value=float(ingredient_info.get('변환비율', 1.0)),
+                            step=0.1,
+                            format="%.2f",
+                            key=f"edit_conversion_{ingredient_name}"
+                        )
+                    
+                    col_save, col_cancel = st.columns(2)
+                    with col_save:
+                        if st.button("💾 저장", key=f"save_edit_{ingredient_name}", type="primary"):
                             try:
-                                load_csv.clear()
-                            except Exception:
-                                pass
+                                # 단위 자동 변환: kg → g, L → ml
+                                final_unit = new_unit
+                                final_unit_price = new_unit_price
+                                
+                                if new_unit == "kg":
+                                    final_unit = "g"
+                                    final_unit_price = new_unit_price / 1000.0
+                                elif new_unit == "L":
+                                    final_unit = "ml"
+                                    final_unit_price = new_unit_price / 1000.0
+                                
+                                final_order_unit = new_order_unit if new_order_unit else final_unit
+                                
+                                # update_ingredient 함수는 기존 함수이므로 발주단위와 변환비율을 지원하도록 수정 필요
+                                # 일단 기본 정보만 업데이트
+                                success, message = update_ingredient(ingredient_info['재료명'], new_ingredient_name, final_unit, final_unit_price)
+                                if success:
+                                    # 발주단위와 변환비율은 별도로 업데이트 필요
+                                    from src.storage_supabase import get_supabase_client, get_current_store_id
+                                    supabase = get_supabase_client()
+                                    store_id = get_current_store_id()
+                                    if supabase and store_id:
+                                        # 재료 ID 찾기
+                                        ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", new_ingredient_name).execute()
+                                        if ing_result.data:
+                                            supabase.table("ingredients").update({
+                                                "order_unit": final_order_unit,
+                                                "conversion_rate": float(new_conversion_rate)
+                                            }).eq("id", ing_result.data[0]['id']).execute()
+                                    
+                                    st.session_state[f'editing_{ingredient_name}'] = False
+                                    st.cache_data.clear()
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
+                            except Exception as e:
+                                st.error(f"수정 중 오류: {e}")
+                    
+                    with col_cancel:
+                        if st.button("❌ 취소", key=f"cancel_edit_{ingredient_name}"):
+                            st.session_state[f'editing_{ingredient_name}'] = False
                             st.rerun()
-                        else:
-                            st.error(message)
-                            if refs:
-                                st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-        
-        render_section_divider()
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+            # 삭제 확인 모드
+            if st.session_state.get(f'deleting_{ingredient_name}', False):
+                with st.expander(f"🗑️ {ingredient_name} 삭제 확인", expanded=True):
+                    st.warning(f"⚠️ '{ingredient_name}' 재료를 삭제하시겠습니까?")
+                    col_del, col_cancel_del = st.columns(2)
+                    with col_del:
+                        if st.button("✅ 삭제 확인", key=f"confirm_delete_{ingredient_name}", type="primary"):
+                            try:
+                                success, message, refs = delete_ingredient(ingredient_name)
+                                if success:
+                                    st.session_state[f'deleting_{ingredient_name}'] = False
+                                    st.cache_data.clear()
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
+                                    if refs:
+                                        st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
+                            except Exception as e:
+                                st.error(f"삭제 중 오류: {e}")
+                    
+                    with col_cancel_del:
+                        if st.button("❌ 취소", key=f"cancel_delete_{ingredient_name}"):
+                            st.session_state[f'deleting_{ingredient_name}'] = False
+                            st.rerun()
+            
+            # 구분선
+            st.markdown("<hr style='margin: 0.5rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     else:
         st.info("등록된 재료가 없습니다.")
 
