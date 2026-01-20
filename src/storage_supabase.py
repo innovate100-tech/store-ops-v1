@@ -92,6 +92,9 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
             'abc_history.csv': 'abc_history',
             'daily_close.csv': 'daily_close',
             'actual_settlement.csv': 'actual_settlement',
+            'suppliers.csv': 'suppliers',
+            'ingredient_suppliers.csv': 'ingredient_suppliers',
+            'orders.csv': 'orders',
             # 파일명 없이 테이블명으로 직접 호출 가능
             'sales': 'sales',
             'naver_visitors': 'naver_visitors',
@@ -250,6 +253,82 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
                     df['연도'] = df['year']
                 if 'month' in df.columns:
                     df['월'] = df['month']
+            
+            elif actual_table == 'suppliers':
+                if 'name' in df.columns:
+                    df['공급업체명'] = df['name']
+                if 'phone' in df.columns:
+                    df['전화번호'] = df['phone']
+                if 'email' in df.columns:
+                    df['이메일'] = df['email']
+                if 'delivery_days' in df.columns:
+                    df['배송일'] = df['delivery_days']
+                if 'min_order_amount' in df.columns:
+                    df['최소주문금액'] = df['min_order_amount']
+                if 'delivery_fee' in df.columns:
+                    df['배송비'] = df['delivery_fee']
+                if 'notes' in df.columns:
+                    df['비고'] = df['notes']
+            
+            elif actual_table == 'ingredient_suppliers':
+                # 재료 ID -> 재료명 변환
+                if 'ingredient_id' in df.columns:
+                    ing_ids = df['ingredient_id'].dropna().unique().tolist()
+                    if ing_ids:
+                        ing_result = supabase.table("ingredients").select("id,name").in_("id", ing_ids).execute()
+                        ing_map = {i['id']: i['name'] for i in ing_result.data}
+                        df['재료명'] = df['ingredient_id'].map(ing_map)
+                
+                # 공급업체 ID -> 공급업체명 변환
+                if 'supplier_id' in df.columns:
+                    sup_ids = df['supplier_id'].dropna().unique().tolist()
+                    if sup_ids:
+                        sup_result = supabase.table("suppliers").select("id,name").in_("id", sup_ids).execute()
+                        sup_map = {s['id']: s['name'] for s in sup_result.data}
+                        df['공급업체명'] = df['supplier_id'].map(sup_map)
+                
+                if 'unit_price' in df.columns:
+                    df['단가'] = df['unit_price']
+                if 'is_default' in df.columns:
+                    df['기본공급업체'] = df['is_default']
+            
+            elif actual_table == 'orders':
+                # id 컬럼 유지
+                if 'id' not in df.columns:
+                    df['id'] = df.index
+                
+                # 재료 ID -> 재료명 변환
+                if 'ingredient_id' in df.columns:
+                    ing_ids = df['ingredient_id'].dropna().unique().tolist()
+                    if ing_ids:
+                        ing_result = supabase.table("ingredients").select("id,name").in_("id", ing_ids).execute()
+                        ing_map = {i['id']: i['name'] for i in ing_result.data}
+                        df['재료명'] = df['ingredient_id'].map(ing_map)
+                
+                # 공급업체 ID -> 공급업체명 변환
+                if 'supplier_id' in df.columns:
+                    sup_ids = df['supplier_id'].dropna().unique().tolist()
+                    if sup_ids:
+                        sup_result = supabase.table("suppliers").select("id,name").in_("id", sup_ids).execute()
+                        sup_map = {s['id']: s['name'] for s in sup_result.data}
+                        df['공급업체명'] = df['supplier_id'].map(sup_map)
+                
+                if 'order_date' in df.columns:
+                    df['발주일'] = pd.to_datetime(df['order_date'])
+                if 'quantity' in df.columns:
+                    df['수량'] = df['quantity']
+                if 'unit_price' in df.columns:
+                    df['단가'] = df['unit_price']
+                if 'total_amount' in df.columns:
+                    df['총금액'] = df['total_amount']
+                if 'status' in df.columns:
+                    df['상태'] = df['status']
+                if 'expected_delivery_date' in df.columns:
+                    df['입고예정일'] = pd.to_datetime(df['expected_delivery_date'])
+                if 'actual_delivery_date' in df.columns:
+                    df['입고일'] = pd.to_datetime(df['actual_delivery_date'])
+                if 'notes' in df.columns:
+                    df['비고'] = df['notes']
             
             return df
         else:
@@ -1199,3 +1278,218 @@ def create_backup():
     logger = logging.getLogger(__name__)
     logger.info("Backup requested (DB mode - data is already persisted in Supabase)")
     return True, "데이터는 Supabase에 자동으로 영구 저장됩니다."
+
+
+# ============================================
+# Phase 1: 공급업체 및 발주 이력 관리 함수
+# ============================================
+
+def save_supplier(supplier_name, phone=None, email=None, delivery_days=None, 
+                  min_order_amount=0, delivery_fee=0, notes=None):
+    """공급업체 등록/수정"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        supabase.table("suppliers").upsert({
+            "store_id": store_id,
+            "name": supplier_name,
+            "phone": phone or "",
+            "email": email or "",
+            "delivery_days": delivery_days or "",
+            "min_order_amount": float(min_order_amount) if min_order_amount else 0,
+            "delivery_fee": float(delivery_fee) if delivery_fee else 0,
+            "notes": notes or ""
+        }, on_conflict="store_id,name").execute()
+        
+        logger.info(f"Supplier saved: {supplier_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save supplier: {e}")
+        raise
+
+
+def delete_supplier(supplier_name):
+    """공급업체 삭제"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        supabase.table("suppliers").delete().eq("store_id", store_id).eq("name", supplier_name).execute()
+        logger.info(f"Supplier deleted: {supplier_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete supplier: {e}")
+        raise
+
+
+def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_default=True):
+    """재료-공급업체 매핑 저장"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 재료 ID 찾기
+        ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
+        if not ing_result.data:
+            raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
+        ingredient_id = ing_result.data[0]['id']
+        
+        # 공급업체 ID 찾기
+        sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
+        if not sup_result.data:
+            raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
+        supplier_id = sup_result.data[0]['id']
+        
+        # 기본 공급업체인 경우, 다른 기본 공급업체 해제
+        if is_default:
+            # 해당 재료의 다른 기본 공급업체 해제
+            existing = supabase.table("ingredient_suppliers").select("id").eq("store_id", store_id).eq("ingredient_id", ingredient_id).eq("is_default", True).execute()
+            if existing.data:
+                for item in existing.data:
+                    supabase.table("ingredient_suppliers").update({"is_default": False}).eq("id", item['id']).execute()
+        
+        # 재료-공급업체 매핑 저장
+        supabase.table("ingredient_suppliers").upsert({
+            "store_id": store_id,
+            "ingredient_id": ingredient_id,
+            "supplier_id": supplier_id,
+            "unit_price": float(unit_price),
+            "is_default": is_default
+        }, on_conflict="store_id,ingredient_id,supplier_id").execute()
+        
+        logger.info(f"Ingredient-supplier mapping saved: {ingredient_name} -> {supplier_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save ingredient-supplier mapping: {e}")
+        raise
+
+
+def delete_ingredient_supplier(ingredient_name, supplier_name):
+    """재료-공급업체 매핑 삭제"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 재료 ID 찾기
+        ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
+        if not ing_result.data:
+            raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
+        ingredient_id = ing_result.data[0]['id']
+        
+        # 공급업체 ID 찾기
+        sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
+        if not sup_result.data:
+            raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
+        supplier_id = sup_result.data[0]['id']
+        
+        supabase.table("ingredient_suppliers").delete().eq("store_id", store_id).eq("ingredient_id", ingredient_id).eq("supplier_id", supplier_id).execute()
+        logger.info(f"Ingredient-supplier mapping deleted: {ingredient_name} -> {supplier_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete ingredient-supplier mapping: {e}")
+        raise
+
+
+def save_order(order_date, ingredient_name, supplier_name, quantity, unit_price, 
+               total_amount, status="예정", expected_delivery_date=None, notes=None):
+    """발주 이력 저장"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        # 재료 ID 찾기
+        ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
+        if not ing_result.data:
+            raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
+        ingredient_id = ing_result.data[0]['id']
+        
+        # 공급업체 ID 찾기
+        sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
+        if not sup_result.data:
+            raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
+        supplier_id = sup_result.data[0]['id']
+        
+        # 발주 저장
+        result = supabase.table("orders").insert({
+            "store_id": store_id,
+            "order_date": order_date.strftime("%Y-%m-%d") if isinstance(order_date, datetime) else str(order_date),
+            "ingredient_id": ingredient_id,
+            "supplier_id": supplier_id,
+            "quantity": float(quantity),
+            "unit_price": float(unit_price),
+            "total_amount": float(total_amount),
+            "status": status,
+            "expected_delivery_date": expected_delivery_date.strftime("%Y-%m-%d") if expected_delivery_date and isinstance(expected_delivery_date, datetime) else (str(expected_delivery_date) if expected_delivery_date else None),
+            "notes": notes or ""
+        }).execute()
+        
+        logger.info(f"Order saved: {ingredient_name} from {supplier_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save order: {e}")
+        raise
+
+
+def update_order_status(order_id, status, actual_delivery_date=None):
+    """발주 상태 업데이트"""
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        update_data = {"status": status}
+        if actual_delivery_date:
+            update_data["actual_delivery_date"] = actual_delivery_date.strftime("%Y-%m-%d") if isinstance(actual_delivery_date, datetime) else str(actual_delivery_date)
+        
+        # 입고 완료 시 재고 반영
+        if status == "입고완료" and actual_delivery_date:
+            # 발주 정보 가져오기
+            order_result = supabase.table("orders").select("ingredient_id,quantity").eq("id", order_id).eq("store_id", store_id).execute()
+            if order_result.data:
+                ingredient_id = order_result.data[0]['ingredient_id']
+                quantity = order_result.data[0]['quantity']
+                
+                # 현재 재고 가져오기
+                inv_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                if inv_result.data:
+                    current_stock = inv_result.data[0]['on_hand']
+                    new_stock = current_stock + quantity
+                    # 재고 업데이트
+                    supabase.table("inventory").update({"on_hand": new_stock}).eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+        
+        supabase.table("orders").update(update_data).eq("id", order_id).eq("store_id", store_id).execute()
+        logger.info(f"Order status updated: {order_id} -> {status}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update order status: {e}")
+        raise

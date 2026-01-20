@@ -4570,109 +4570,407 @@ elif page == "발주 관리":
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
     
-    # 재고 입력 폼
-    inventory_result = render_inventory_input(ingredient_list)
+    # 탭 구조
+    tab1, tab2, tab3, tab4 = st.tabs(["📦 재고 현황", "🛒 발주 추천", "📋 발주 관리", "🏢 공급업체"])
     
-    if inventory_result[0] is not None:
-        ingredient_name, current_stock, safety_stock = inventory_result
+    # ========== 탭 1: 재고 현황 ==========
+    with tab1:
+        # 재고 입력 폼
+        inventory_result = render_inventory_input(ingredient_list)
         
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 저장", type="primary", use_container_width=True):
+        if inventory_result[0] is not None:
+            ingredient_name, current_stock, safety_stock = inventory_result
+            
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if st.button("💾 저장", type="primary", use_container_width=True, key="save_inventory"):
+                    try:
+                        save_inventory(ingredient_name, current_stock, safety_stock)
+                        st.success(f"재고 정보가 저장되었습니다! ({ingredient_name}: 현재고 {current_stock}, 안전재고 {safety_stock})")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"저장 중 오류가 발생했습니다: {e}")
+        
+        render_section_divider()
+        
+        # 저장된 재고 정보 표시
+        render_section_header("재고 현황", "📦")
+        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+        
+        if not inventory_df.empty:
+            # 재료 정보와 조인하여 단위 표시
+            display_inventory_df = pd.merge(
+                inventory_df,
+                ingredient_df[['재료명', '단위']],
+                on='재료명',
+                how='left'
+            )
+            
+            st.dataframe(display_inventory_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("등록된 재고 정보가 없습니다.")
+    
+    # ========== 탭 2: 발주 추천 ==========
+    with tab2:
+        render_section_header("발주 추천", "🛒")
+        
+        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+        
+        if not inventory_df.empty:
+            # 재료 사용량 계산을 위한 데이터 로드
+            daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+            recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+            
+            # 발주 추천 파라미터 설정
+            col1, col2 = st.columns(2)
+            with col1:
+                days_for_avg = st.number_input("평균 사용량 계산 기간 (일)", min_value=1, value=7, step=1, key="days_for_avg")
+            with col2:
+                forecast_days = st.number_input("예측일수", min_value=1, value=3, step=1, key="forecast_days")
+            
+            if not daily_sales_df.empty and not recipe_df.empty:
+                # 재료 사용량 계산
+                usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+                
+                if not usage_df.empty:
+                    # 발주 추천 계산
+                    order_df = calculate_order_recommendation(
+                        ingredient_df,
+                        inventory_df,
+                        usage_df,
+                        days_for_avg=int(days_for_avg),
+                        forecast_days=int(forecast_days)
+                    )
+                    
+                    if not order_df.empty:
+                        st.write("**📋 발주 추천 리스트**")
+                        
+                        # 공급업체 정보 로드
+                        from src.storage_supabase import save_order
+                        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비'])
+                        ingredient_suppliers_df = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명', '단가', '기본공급업체'])
+                        
+                        # 표시용 DataFrame 생성
+                        display_order_df = order_df.copy()
+                        
+                        # 공급업체 정보 추가
+                        if not ingredient_suppliers_df.empty:
+                            # 기본 공급업체 매핑
+                            default_suppliers = ingredient_suppliers_df[ingredient_suppliers_df.get('기본공급업체', pd.Series([False]*len(ingredient_suppliers_df))) == True]
+                            supplier_map = dict(zip(default_suppliers['재료명'], default_suppliers['공급업체명']))
+                            display_order_df['공급업체'] = display_order_df['재료명'].map(supplier_map).fillna("미지정")
+                        else:
+                            display_order_df['공급업체'] = "미지정"
+                        
+                        display_order_df['현재고'] = display_order_df['현재고'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['안전재고'] = display_order_df['안전재고'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['최근평균사용량'] = display_order_df['최근평균사용량'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['예상소요량'] = display_order_df['예상소요량'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['발주필요량'] = display_order_df['발주필요량'].apply(lambda x: f"{x:,.2f}")
+                        display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
+                        
+                        st.dataframe(display_order_df[['재료명', '단위', '공급업체', '발주필요량', '예상금액']], use_container_width=True, hide_index=True)
+                        
+                        # 총 예상 금액
+                        total_amount = order_df['예상금액'].sum()
+                        st.metric("총 예상 발주 금액", f"{int(total_amount):,}원")
+                        
+                        # 발주 생성 버튼
+                        render_section_divider()
+                        render_section_header("발주 생성", "📝")
+                        
+                        # 발주일 선택
+                        from datetime import datetime, timedelta
+                        order_date = st.date_input("발주일", value=datetime.now().date(), key="order_date")
+                        
+                        # 발주 생성할 재료 선택
+                        selected_items = st.multiselect(
+                            "발주할 재료 선택",
+                            options=order_df['재료명'].tolist(),
+                            default=order_df['재료명'].tolist(),
+                            key="selected_order_items"
+                        )
+                        
+                        if st.button("📝 발주 생성", type="primary", key="create_order"):
+                            if selected_items:
+                                try:
+                                    from src.storage_supabase import save_order
+                                    created_count = 0
+                                    
+                                    for ingredient_name in selected_items:
+                                        item_row = order_df[order_df['재료명'] == ingredient_name].iloc[0]
+                                        supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                        
+                                        if supplier_name == "미지정":
+                                            st.warning(f"⚠️ {ingredient_name}의 공급업체가 지정되지 않았습니다. 공급업체 탭에서 먼저 설정해주세요.")
+                                            continue
+                                        
+                                        # 공급업체별 단가 가져오기
+                                        supplier_price = item_row['단가']
+                                        if not ingredient_suppliers_df.empty:
+                                            supplier_row = ingredient_suppliers_df[
+                                                (ingredient_suppliers_df['재료명'] == ingredient_name) & 
+                                                (ingredient_suppliers_df['공급업체명'] == supplier_name)
+                                            ]
+                                            if not supplier_row.empty:
+                                                supplier_price = supplier_row.iloc[0]['단가']
+                                        
+                                        quantity = item_row['발주필요량']
+                                        total_amount_item = quantity * supplier_price
+                                        
+                                        # 입고 예정일 계산 (배송일 정보 활용)
+                                        expected_delivery_date = None
+                                        if not suppliers_df.empty:
+                                            supplier_info = suppliers_df[suppliers_df['공급업체명'] == supplier_name]
+                                            if not supplier_info.empty and supplier_info.iloc[0].get('배송일'):
+                                                delivery_days = supplier_info.iloc[0]['배송일']
+                                                try:
+                                                    days = int(delivery_days)
+                                                    expected_delivery_date = order_date + timedelta(days=days)
+                                                except:
+                                                    pass
+                                        
+                                        save_order(
+                                            order_date=order_date,
+                                            ingredient_name=ingredient_name,
+                                            supplier_name=supplier_name,
+                                            quantity=quantity,
+                                            unit_price=supplier_price,
+                                            total_amount=total_amount_item,
+                                            status="예정",
+                                            expected_delivery_date=expected_delivery_date
+                                        )
+                                        created_count += 1
+                                    
+                                    if created_count > 0:
+                                        st.success(f"✅ {created_count}개 재료의 발주가 생성되었습니다!")
+                                        st.rerun()
+                                except Exception as e:
+                                    st.error(f"발주 생성 중 오류가 발생했습니다: {e}")
+                            else:
+                                st.warning("발주할 재료를 선택해주세요.")
+                        
+                        # CSV 다운로드
+                        render_section_divider()
+                        render_section_header("발주 리스트 다운로드", "📥")
+                        
+                        csv_data = order_df.to_csv(index=False, encoding='utf-8-sig')
+                        st.download_button(
+                            label="📥 발주 리스트 다운로드 (CSV)",
+                            data=csv_data,
+                            file_name=f"발주리스트_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                    else:
+                        st.success("✅ 현재 발주가 필요한 재료가 없습니다.")
+                else:
+                    st.info("재료 사용량 데이터가 없습니다. 판매 내역을 입력해주세요.")
+            else:
+                st.info("발주 추천을 계산하려면 판매 내역과 레시피 데이터가 필요합니다.")
+        else:
+            st.info("발주 추천을 계산하려면 재고 정보를 먼저 등록해주세요.")
+    
+    # ========== 탭 3: 발주 관리 (발주 이력) ==========
+    with tab3:
+        render_section_header("발주 이력", "📋")
+        
+        from src.storage_supabase import update_order_status
+        
+        # 발주 이력 로드
+        orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
+        
+        if not orders_df.empty:
+            # 상태 필터
+            status_filter = st.selectbox(
+                "상태 필터",
+                options=["전체", "예정", "완료", "입고완료", "취소"],
+                key="order_status_filter"
+            )
+            
+            # 필터링
+            if status_filter != "전체":
+                filtered_orders = orders_df[orders_df['상태'] == status_filter].copy()
+            else:
+                filtered_orders = orders_df.copy()
+            
+            # 정렬 (최신순)
+            if '발주일' in filtered_orders.columns:
+                filtered_orders = filtered_orders.sort_values('발주일', ascending=False)
+            
+            # 표시용 포맷팅
+            display_orders = filtered_orders.copy()
+            if '발주일' in display_orders.columns:
+                display_orders['발주일'] = pd.to_datetime(display_orders['발주일']).dt.strftime('%Y-%m-%d')
+            if '입고예정일' in display_orders.columns:
+                display_orders['입고예정일'] = pd.to_datetime(display_orders['입고예정일']).dt.strftime('%Y-%m-%d')
+            if '입고일' in display_orders.columns:
+                display_orders['입고일'] = pd.to_datetime(display_orders['입고일']).dt.strftime('%Y-%m-%d')
+            if '수량' in display_orders.columns:
+                display_orders['수량'] = display_orders['수량'].apply(lambda x: f"{x:,.2f}")
+            if '단가' in display_orders.columns:
+                display_orders['단가'] = display_orders['단가'].apply(lambda x: f"{int(x):,}원")
+            if '총금액' in display_orders.columns:
+                display_orders['총금액'] = display_orders['총금액'].apply(lambda x: f"{int(x):,}원")
+            
+            # id 컬럼 제외하고 표시
+            display_cols = [col for col in display_orders.columns if col != 'id']
+            st.dataframe(display_orders[display_cols], use_container_width=True, hide_index=True)
+            
+            # 발주 상태 업데이트
+            render_section_divider()
+            render_section_header("발주 상태 관리", "🔄")
+            
+            if not filtered_orders.empty:
+                # 발주 선택
+                order_options = []
+                order_ids = []
+                for idx, row in filtered_orders.iterrows():
+                    order_date_str = pd.to_datetime(row['발주일']).strftime('%Y-%m-%d') if pd.notna(row.get('발주일')) else "날짜없음"
+                    order_options.append(f"{row['재료명']} - {row['공급업체명']} ({order_date_str})")
+                    # id 컬럼이 있으면 사용, 없으면 index 사용
+                    order_ids.append(row.get('id', idx))
+                
+                if order_options:
+                    selected_order_idx = st.selectbox("발주 선택", options=range(len(order_options)), format_func=lambda x: order_options[x], key="select_order")
+                    
+                    if selected_order_idx is not None and selected_order_idx < len(filtered_orders):
+                        selected_order = filtered_orders.iloc[selected_order_idx]
+                        current_status = selected_order.get('상태', '예정')
+                        
+                        st.info(f"**현재 상태**: {current_status}")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            new_status = st.selectbox(
+                                "새 상태",
+                                options=["예정", "완료", "입고완료", "취소"],
+                                index=["예정", "완료", "입고완료", "취소"].index(current_status) if current_status in ["예정", "완료", "입고완료", "취소"] else 0,
+                                key="new_order_status"
+                            )
+                        
+                        with col2:
+                            if new_status == "입고완료":
+                                delivery_date = st.date_input("입고일", value=datetime.now().date(), key="delivery_date")
+                            else:
+                                delivery_date = None
+                        
+                        if st.button("🔄 상태 업데이트", type="primary", key="update_order_status"):
+                            try:
+                                order_id = order_ids[selected_order_idx]
+                                update_order_status(order_id, new_status, delivery_date)
+                                st.success(f"✅ 발주 상태가 '{new_status}'로 업데이트되었습니다!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"상태 업데이트 중 오류가 발생했습니다: {e}")
+        else:
+            st.info("등록된 발주 이력이 없습니다.")
+    
+    # ========== 탭 4: 공급업체 ==========
+    with tab4:
+        render_section_header("공급업체 관리", "🏢")
+        
+        from src.storage_supabase import save_supplier, delete_supplier, save_ingredient_supplier, delete_ingredient_supplier
+        
+        # 공급업체 등록
+        with st.expander("➕ 공급업체 등록", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                supplier_name = st.text_input("공급업체명 *", key="new_supplier_name")
+                phone = st.text_input("전화번호", key="new_supplier_phone")
+                email = st.text_input("이메일", key="new_supplier_email")
+            with col2:
+                delivery_days = st.text_input("배송일 (일수)", key="new_supplier_delivery_days", help="예: 2 (2일 소요)")
+                min_order_amount = st.number_input("최소 주문금액 (원)", min_value=0, value=0, key="new_supplier_min_order")
+                delivery_fee = st.number_input("배송비 (원)", min_value=0, value=0, key="new_supplier_delivery_fee")
+            
+            notes = st.text_area("비고", key="new_supplier_notes")
+            
+            if st.button("💾 공급업체 등록", type="primary", key="save_supplier"):
+                if supplier_name:
+                    try:
+                        save_supplier(supplier_name, phone, email, delivery_days, min_order_amount, delivery_fee, notes)
+                        st.success(f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"등록 중 오류가 발생했습니다: {e}")
+                else:
+                    st.warning("공급업체명을 입력해주세요.")
+        
+        render_section_divider()
+        
+        # 공급업체 목록
+        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
+        
+        if not suppliers_df.empty:
+            st.write("**📋 등록된 공급업체**")
+            st.dataframe(suppliers_df, use_container_width=True, hide_index=True)
+            
+            # 공급업체 삭제
+            supplier_to_delete = st.selectbox("삭제할 공급업체", options=suppliers_df['공급업체명'].tolist(), key="delete_supplier_select")
+            if st.button("🗑️ 공급업체 삭제", key="delete_supplier"):
                 try:
-                    save_inventory(ingredient_name, current_stock, safety_stock)
-                    st.success(f"재고 정보가 저장되었습니다! ({ingredient_name}: 현재고 {current_stock}, 안전재고 {safety_stock})")
+                    delete_supplier(supplier_to_delete)
+                    st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"저장 중 오류가 발생했습니다: {e}")
-    
-    render_section_divider()
-    
-    # 저장된 재고 정보 표시
-    render_section_header("재고 현황", "📦")
-    inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
-    
-    if not inventory_df.empty:
-        # 재료 정보와 조인하여 단위 표시
-        display_inventory_df = pd.merge(
-            inventory_df,
-            ingredient_df[['재료명', '단위']],
-            on='재료명',
-            how='left'
-        )
-        
-        st.dataframe(display_inventory_df, use_container_width=True, hide_index=True)
-    else:
-        st.info("등록된 재고 정보가 없습니다.")
-    
-    # 발주 추천
-    render_section_divider()
-    render_section_header("발주 추천", "🛒")
-    
-    if not inventory_df.empty:
-        # 재료 사용량 계산을 위한 데이터 로드
-        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-        
-        # 발주 추천 파라미터 설정
-        col1, col2 = st.columns(2)
-        with col1:
-            days_for_avg = st.number_input("평균 사용량 계산 기간 (일)", min_value=1, value=7, step=1, key="days_for_avg")
-        with col2:
-            forecast_days = st.number_input("예측일수", min_value=1, value=3, step=1, key="forecast_days")
-        
-        if not daily_sales_df.empty and not recipe_df.empty:
-            # 재료 사용량 계산
-            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
-            
-            if not usage_df.empty:
-                # 발주 추천 계산
-                order_df = calculate_order_recommendation(
-                    ingredient_df,
-                    inventory_df,
-                    usage_df,
-                    days_for_avg=int(days_for_avg),
-                    forecast_days=int(forecast_days)
-                )
-                
-                if not order_df.empty:
-                    st.write("**📋 발주 추천 리스트**")
-                    
-                    # 표시용 DataFrame 생성
-                    display_order_df = order_df.copy()
-                    display_order_df['현재고'] = display_order_df['현재고'].apply(lambda x: f"{x:,.2f}")
-                    display_order_df['안전재고'] = display_order_df['안전재고'].apply(lambda x: f"{x:,.2f}")
-                    display_order_df['최근평균사용량'] = display_order_df['최근평균사용량'].apply(lambda x: f"{x:,.2f}")
-                    display_order_df['예상소요량'] = display_order_df['예상소요량'].apply(lambda x: f"{x:,.2f}")
-                    display_order_df['발주필요량'] = display_order_df['발주필요량'].apply(lambda x: f"{x:,.2f}")
-                    display_order_df['예상금액'] = display_order_df['예상금액'].apply(lambda x: f"{int(x):,}원")
-                    
-                    st.dataframe(display_order_df, use_container_width=True, hide_index=True)
-                    
-                    # 총 예상 금액
-                    total_amount = order_df['예상금액'].sum()
-                    st.metric("총 예상 발주 금액", f"{int(total_amount):,}원")
-                    
-                    # 엑셀 다운로드
-                    render_section_divider()
-                    render_section_header("발주 리스트 다운로드", "📥")
-                    
-                    # CSV 형식으로 변환
-                    csv_data = order_df.to_csv(index=False, encoding='utf-8-sig')
-                    st.download_button(
-                        label="📥 발주 리스트 다운로드 (CSV)",
-                        data=csv_data,
-                        file_name=f"발주리스트_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.success("✅ 현재 발주가 필요한 재료가 없습니다.")
-            else:
-                st.info("재료 사용량 데이터가 없습니다. 판매 내역을 입력해주세요.")
+                    st.error(f"삭제 중 오류가 발생했습니다: {e}")
         else:
-            st.info("발주 추천을 계산하려면 판매 내역과 레시피 데이터가 필요합니다.")
-    else:
-        st.info("발주 추천을 계산하려면 재고 정보를 먼저 등록해주세요.")
+            st.info("등록된 공급업체가 없습니다.")
+        
+        render_section_divider()
+        
+        # 재료-공급업체 매핑
+        render_section_header("재료-공급업체 매핑", "🔗")
+        
+        if not suppliers_df.empty and not ingredient_df.empty:
+            with st.expander("➕ 재료-공급업체 매핑 추가", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    mapping_ingredient = st.selectbox("재료 선택", options=ingredient_list, key="mapping_ingredient")
+                    mapping_supplier = st.selectbox("공급업체 선택", options=suppliers_df['공급업체명'].tolist(), key="mapping_supplier")
+                with col2:
+                    mapping_price = st.number_input("단가 (원)", min_value=0.0, value=0.0, key="mapping_price")
+                    is_default = st.checkbox("기본 공급업체로 설정", value=True, key="mapping_is_default")
+                
+                if st.button("💾 매핑 저장", type="primary", key="save_mapping"):
+                    try:
+                        save_ingredient_supplier(mapping_ingredient, mapping_supplier, mapping_price, is_default)
+                        st.success(f"✅ 매핑이 저장되었습니다! ({mapping_ingredient} → {mapping_supplier})")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"저장 중 오류가 발생했습니다: {e}")
+            
+            # 매핑 목록
+            ingredient_suppliers_df = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명', '단가', '기본공급업체'])
+            
+            if not ingredient_suppliers_df.empty:
+                st.write("**📋 재료-공급업체 매핑 목록**")
+                display_mapping = ingredient_suppliers_df.copy()
+                if '기본공급업체' in display_mapping.columns:
+                    display_mapping['기본공급업체'] = display_mapping['기본공급업체'].apply(lambda x: "✅" if x else "")
+                if '단가' in display_mapping.columns:
+                    display_mapping['단가'] = display_mapping['단가'].apply(lambda x: f"{int(x):,}원")
+                
+                st.dataframe(display_mapping, use_container_width=True, hide_index=True)
+                
+                # 매핑 삭제
+                if len(ingredient_suppliers_df) > 0:
+                    mapping_options = [f"{row['재료명']} → {row['공급업체명']}" for idx, row in ingredient_suppliers_df.iterrows()]
+                    mapping_to_delete_idx = st.selectbox("삭제할 매핑", options=range(len(mapping_options)), format_func=lambda x: mapping_options[x], key="delete_mapping_select")
+                    
+                    if st.button("🗑️ 매핑 삭제", key="delete_mapping"):
+                        try:
+                            mapping_to_delete = ingredient_suppliers_df.iloc[mapping_to_delete_idx]
+                            delete_ingredient_supplier(mapping_to_delete['재료명'], mapping_to_delete['공급업체명'])
+                            st.success(f"✅ 매핑이 삭제되었습니다!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"삭제 중 오류가 발생했습니다: {e}")
+            else:
+                st.info("등록된 재료-공급업체 매핑이 없습니다.")
+        else:
+            st.info("공급업체와 재료를 먼저 등록해주세요.")
 
 # 주간 리포트 페이지
 elif page == "주간 리포트":
