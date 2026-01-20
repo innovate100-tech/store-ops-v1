@@ -68,7 +68,15 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
     Returns:
         pandas.DataFrame
     """
-    supabase = get_supabase_client()
+    # Supabase 클라이언트 초기화
+    try:
+        supabase = get_supabase_client()
+    except Exception as e:
+        # 환경 변수/네트워크/SSL 문제 등으로 클라이언트 생성 실패 시,
+        # 앱 전체가 죽지 않도록 빈 DataFrame을 반환하고 로그만 남긴다.
+        logger.error(f"Supabase client init failed in load_csv('{filename}'): {e}")
+        return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
+
     if not supabase:
         logger.warning(f"Supabase not available, returning empty DataFrame for {filename}")
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
