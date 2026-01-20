@@ -1751,19 +1751,8 @@ elif page == "매출 등록":
 elif page == "매출 관리":
     render_page_header("매출 관리", "📊")
     
-    # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
-    category = st.radio(
-        "카테고리",
-        ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
-        horizontal=True,
-        key="sales_analysis_category"
-    )
-    
-    render_section_divider()
-    
     # ========== 저장된 데이터 표시 및 분석 ==========
-    if category == "💰 매출":
-        # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
+    # 저장된 매출 내역 (매출 + 네이버 스마트플레이스 방문자 통합)
         st.markdown("""
         <div style="margin: 2rem 0 1rem 0;">
             <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
@@ -1917,55 +1906,6 @@ elif page == "매출 관리":
                 st.info("이번달 데이터가 없습니다.")
         else:
             st.info("저장된 매출 데이터가 없습니다.")
-    
-    else:
-        # 저장된 네이버 스마트플레이스 방문자 표시 및 삭제
-        render_section_header("저장된 네이버 스마트플레이스 방문자 내역", "📋")
-        visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-        
-        if not visitors_df.empty:
-            # 삭제 기능
-            st.write("**🗑️ 네이버 스마트플레이스 방문자 데이터 삭제**")
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                delete_date = st.date_input("삭제할 날짜", key="visitor_delete_date")
-            with col2:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ 삭제", key="visitor_delete_btn", type="primary"):
-                    try:
-                        success, message = delete_visitor(delete_date)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
-            
-            render_section_divider()
-            
-            # 실제 입력값만 표시 (기술적 컬럼 제거)
-            display_df = visitors_df.copy()
-            
-            # 표시할 컬럼만 선택
-            display_columns = []
-            if '날짜' in display_df.columns:
-                display_columns.append('날짜')
-            if '방문자수' in display_df.columns:
-                display_columns.append('방문자수')
-            
-            # 필요한 컬럼만 선택
-            if display_columns:
-                display_df = display_df[display_columns]
-                
-                # 날짜를 문자열로 변환
-                if '날짜' in display_df.columns:
-                    display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-            
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("저장된 네이버 스마트플레이스 방문자 데이터가 없습니다.")
 
 # 메뉴 등록 페이지
 elif page == "메뉴 등록":
