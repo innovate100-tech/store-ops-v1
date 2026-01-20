@@ -154,3 +154,82 @@ def safe_clear_cache(cache_func=None, filename: str = None):
     except Exception as e:
         logger.warning(f"캐시 클리어 실패: {e}")
         return False
+
+
+# ============================================
+# Phase 3: 에러 메시지 표준화
+# ============================================
+
+class AppError(Exception):
+    """애플리케이션 표준 에러 클래스"""
+    def __init__(self, error_code: str, user_message: str, technical_message: str = None):
+        self.error_code = error_code
+        self.user_message = user_message
+        self.technical_message = technical_message
+        super().__init__(self.user_message)
+
+
+def format_error_message(error_code: str, user_message: str, technical_details: str = None) -> str:
+    """
+    표준화된 에러 메시지 포맷
+    
+    Args:
+        error_code: 에러 코드 (예: "ERR_DATA_LOAD_001")
+        user_message: 사용자에게 보여줄 메시지
+        technical_details: 기술적 상세 정보 (디버깅용, 선택적)
+    
+    Returns:
+        포맷된 에러 메시지
+    """
+    if technical_details:
+        logger.error(f"[{error_code}] {user_message} | 기술적 상세: {technical_details}")
+    else:
+        logger.error(f"[{error_code}] {user_message}")
+    
+    return f"⚠️ {user_message}"
+
+
+def handle_data_error(operation: str, error: Exception, default_message: str = None) -> str:
+    """
+    데이터 관련 에러를 표준화된 형식으로 처리
+    
+    Args:
+        operation: 수행 중이던 작업 (예: "매출 데이터 저장")
+        error: 발생한 예외
+        default_message: 기본 메시지 (없으면 자동 생성)
+    
+    Returns:
+        사용자에게 표시할 에러 메시지
+    """
+    error_type = type(error).__name__
+    
+    if "No store_id found" in str(error):
+        return format_error_message(
+            "ERR_AUTH_001",
+            "로그인 정보를 찾을 수 없습니다. 로그아웃 후 다시 로그인해주세요.",
+            str(error)
+        )
+    elif "Supabase not available" in str(error) or "Supabase client" in str(error):
+        return format_error_message(
+            "ERR_CONN_001",
+            "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.",
+            str(error)
+        )
+    elif "IndexError" in error_type or "KeyError" in error_type:
+        return format_error_message(
+            "ERR_DATA_001",
+            f"{operation} 중 데이터를 찾을 수 없습니다. 데이터가 올바르게 입력되었는지 확인해주세요.",
+            str(error)
+        )
+    elif default_message:
+        return format_error_message(
+            "ERR_GENERAL_001",
+            default_message,
+            str(error)
+        )
+    else:
+        return format_error_message(
+            "ERR_GENERAL_002",
+            f"{operation} 중 오류가 발생했습니다. 문제가 지속되면 관리자에게 문의해주세요.",
+            str(error)
+        )

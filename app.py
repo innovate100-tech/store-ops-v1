@@ -103,7 +103,9 @@ from src.ui_helpers import (
     render_section_divider,
     safe_get_first_row,
     safe_get_value,
-    safe_get_row_by_condition
+    safe_get_row_by_condition,
+    handle_data_error,
+    format_error_message
 )
 
 # 커스텀 CSS 적용 (반응형 최적화 포함)
@@ -1593,7 +1595,9 @@ if page == "점장 마감":
                                     """, unsafe_allow_html=True)
                     
                 except Exception as e:
-                    st.error(f"저장 중 오류가 발생했습니다: {e}")
+                    # Phase 3: 에러 메시지 표준화
+                    error_msg = handle_data_error("방문자 데이터 저장", e)
+                    st.error(error_msg)
 
 # 매출 등록 페이지
 elif page == "매출 등록":
@@ -1644,7 +1648,9 @@ elif page == "매출 등록":
                                 logging.getLogger(__name__).warning(f"캐시 클리어 실패 (매출 저장): {cache_error}")
                             st.success(f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
                         except Exception as e:
-                            st.error(f"저장 중 오류가 발생했습니다: {e}")
+                            # Phase 3: 에러 메시지 표준화
+                            error_msg = handle_data_error("매출 데이터 저장", e)
+                            st.error(error_msg)
         
         else:
             # 일괄 입력 폼
@@ -1732,7 +1738,9 @@ elif page == "매출 등록":
                                 logging.getLogger(__name__).warning(f"캐시 클리어 실패 (방문자 저장): {cache_error}")
                             st.success(f"✅ 네이버 스마트플레이스 방문자수가 저장되었습니다! ({date}, {visitors}명)")
                         except Exception as e:
-                            st.error(f"저장 중 오류가 발생했습니다: {e}")
+                            # Phase 3: 에러 메시지 표준화
+                            error_msg = handle_data_error("매출 데이터 저장", e)
+                            st.error(error_msg)
         
         else:
             # 일괄 입력 폼
@@ -2397,7 +2405,9 @@ elif page == "메뉴 등록":
                         else:
                             st.error(message)
                     except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 저장", e)
+                        st.error(error_msg)
     
     else:
         # 일괄 입력 폼
@@ -2695,7 +2705,9 @@ elif page == "메뉴 등록":
                             if refs:
                                 st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
                     except Exception as e:
-                        st.error(f"삭제 중 오류: {e}")
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 삭제", e)
+                        st.error(error_msg)
             
             # 행 종료
             st.markdown('</div>', unsafe_allow_html=True)
@@ -2775,7 +2787,9 @@ elif page == "메뉴 등록":
                     else:
                         st.error(message)
                 except Exception as e:
-                    st.error(f"수정 중 오류: {e}")
+                    # Phase 3: 에러 메시지 표준화
+                    error_msg = handle_data_error("메뉴 수정", e)
+                    st.error(error_msg)
     else:
         st.info("등록된 메뉴가 없습니다.")
 
@@ -2845,7 +2859,9 @@ elif page == "재료 등록":
                     else:
                         st.error(message)
                 except Exception as e:
-                    st.error(f"저장 중 오류가 발생했습니다: {e}")
+                    # Phase 3: 에러 메시지 표준화
+                    error_msg = handle_data_error("방문자 데이터 저장", e)
+                    st.error(error_msg)
     
     render_section_divider()
     
@@ -3043,7 +3059,9 @@ elif page == "재료 등록":
                                 else:
                                     st.error(message)
                             except Exception as e:
-                                st.error(f"수정 중 오류: {e}")
+                                # Phase 3: 에러 메시지 표준화
+                                error_msg = handle_data_error("재료 수정", e)
+                                st.error(error_msg)
                     
                     with col_cancel:
                         if st.button("❌ 취소", key=f"cancel_edit_{ingredient_name}"):
@@ -3072,7 +3090,9 @@ elif page == "재료 등록":
                                     if refs:
                                         st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
                             except Exception as e:
-                                st.error(f"삭제 중 오류: {e}")
+                                # Phase 3: 에러 메시지 표준화
+                                error_msg = handle_data_error("재료 삭제", e)
+                                st.error(error_msg)
                     
                     with col_cancel_del:
                         if st.button("❌ 취소", key=f"cancel_delete_{ingredient_name}"):
@@ -4209,7 +4229,9 @@ elif page == "실제정산":
                                 pass
                             st.rerun()
                     except Exception as e:
-                        st.error(f"실제 정산 데이터 저장 중 오류가 발생했습니다: {e}")
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("실제 정산 데이터 저장", e)
+                        st.error(error_msg)
             
             # 하단에 기존 정산 이력 표시
             render_section_divider()
@@ -4956,7 +4978,9 @@ elif page == "발주 관리":
                                 f"(기본단위 기준 {new_safety_base:,.2f} {row['단위']})로 저장되었습니다."
                             )
                         except Exception as e:
-                            st.error(f"안전재고 저장 중 오류가 발생했습니다: {e}")
+                            # Phase 3: 에러 메시지 표준화
+                            error_msg = handle_data_error("안전재고 저장", e)
+                            st.error(error_msg)
     
     # ========== 탭 2: 현재 재고 현황 ==========
     with tab2:
@@ -5128,7 +5152,9 @@ elif page == "발주 관리":
                                 f"(안전재고는 변경되지 않았습니다.)"
                             )
                         except Exception as e:
-                            st.error(f"재고 수정 중 오류가 발생했습니다: {e}")
+                            # Phase 3: 에러 메시지 표준화
+                            error_msg = handle_data_error("재고 수정", e)
+                            st.error(error_msg)
     
     # ========== 탭 3: 발주 추천 ==========
     with tab3:
@@ -5954,7 +5980,9 @@ elif page == "발주 관리":
                             pass
                         st.success(f"✅ 매핑이 저장되었습니다! ({mapping_ingredient} → {mapping_supplier})")
                     except Exception as e:
-                        st.error(f"저장 중 오류가 발생했습니다: {e}")
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 저장", e)
+                        st.error(error_msg)
             
             # 매핑 목록
             ingredient_suppliers_df = load_csv('ingredient_suppliers.csv', default_columns=['재료명', '공급업체명', '단가', '기본공급업체'])

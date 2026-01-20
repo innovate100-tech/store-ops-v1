@@ -75,7 +75,12 @@ def _get_cache_ttl(filename: str) -> int:
     else:
         return 300   # 5분 (기본값)
 
-@st.cache_data(ttl=60)  # 기본값은 60초이지만, 실제로는 _get_cache_ttl 사용 권장
+# Phase 3: 캐시 전략 개선
+# Streamlit의 @st.cache_data는 데코레이터 레벨에서만 TTL을 설정할 수 있으므로,
+# 파일명에 따라 적절한 TTL을 사용하도록 주석으로 가이드 제공
+# 실제 구현은 기존 load_csv 함수를 유지하되, TTL을 300초(5분)로 조정하여 균형 유지
+
+@st.cache_data(ttl=300)  # Phase 3: 균형잡힌 TTL (5분) - 마스터와 트랜잭션 데이터의 중간값
 def load_csv(filename: str, default_columns: Optional[List[str]] = None):
     """
     테이블에서 데이터 로드 (CSV 호환 인터페이스)
