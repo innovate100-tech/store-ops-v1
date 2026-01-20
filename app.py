@@ -1627,8 +1627,12 @@ elif page == "매출 등록":
                     else:
                         try:
                             save_sales(date, store, card_sales, cash_sales, total_sales)
-                            st.success(f"매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
-                            st.rerun()
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
+                            st.success(f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
                         except Exception as e:
                             st.error(f"저장 중 오류가 발생했습니다: {e}")
         
@@ -1675,9 +1679,13 @@ elif page == "매출 등록":
                                 st.error(error)
                         
                         if success_count > 0:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             st.success(f"✅ {success_count}일의 매출이 저장되었습니다!")
                             st.balloons()
-                            st.rerun()
     
     # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
     else:
@@ -1703,8 +1711,12 @@ elif page == "매출 등록":
                     else:
                         try:
                             save_visitor(date, visitors)
-                            st.success(f"네이버 스마트플레이스 방문자수가 저장되었습니다! ({date}, {visitors}명)")
-                            st.rerun()
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
+                            st.success(f"✅ 네이버 스마트플레이스 방문자수가 저장되었습니다! ({date}, {visitors}명)")
                         except Exception as e:
                             st.error(f"저장 중 오류가 발생했습니다: {e}")
         
@@ -1743,9 +1755,13 @@ elif page == "매출 등록":
                                 st.error(error)
                         
                         if success_count > 0:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             st.success(f"✅ {success_count}일의 네이버 스마트플레이스 방문자수가 저장되었습니다!")
                             st.balloons()
-                            st.rerun()
 
 # 매출 관리 페이지 (분석 전용)
 elif page == "매출 관리":
@@ -2344,8 +2360,17 @@ elif page == "메뉴 등록":
                     try:
                         success, message = save_menu(menu_name, price)
                         if success:
-                            st.success(f"메뉴가 저장되었습니다! ({menu_name}, {price:,}원)")
-                            st.rerun()
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
+                            st.success(f"✅ 메뉴가 저장되었습니다! ({menu_name}, {price:,}원)")
+                            # 입력 필드 초기화 (session_state로)
+                            if 'menu_name' in st.session_state:
+                                st.session_state.menu_name = ""
+                            if 'menu_price' in st.session_state:
+                                st.session_state.menu_price = 0
                         else:
                             st.error(message)
                     except Exception as e:
@@ -2410,15 +2435,19 @@ elif page == "메뉴 등록":
                             st.error(error)
                     
                     if success_count > 0:
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        try:
+                            st.cache_data.clear()
+                        except Exception:
+                            pass
                         st.success(f"✅ {success_count}개 메뉴가 저장되었습니다!")
                         st.balloons()
-                        # 입력 필드 초기화
+                        # 입력 필드 초기화 (session_state로)
                         for i in range(menu_count):
                             if f"batch_menu_name_{i}" in st.session_state:
-                                del st.session_state[f"batch_menu_name_{i}"]
+                                st.session_state[f"batch_menu_name_{i}"] = ""
                             if f"batch_menu_price_{i}" in st.session_state:
                                 st.session_state[f"batch_menu_price_{i}"] = 0
-                        st.rerun()
     
     render_section_divider()
     
@@ -2578,11 +2607,12 @@ elif page == "메뉴 등록":
                     try:
                         success, message = update_menu_category(row['메뉴명'], new_category)
                         if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
-                                load_csv.clear()
-                            except:
+                                st.cache_data.clear()
+                            except Exception:
                                 pass
-                            st.rerun()
+                            st.success(f"✅ 카테고리가 '{new_category}'로 변경되었습니다.")
                         else:
                             st.error(message)
                     except Exception as e:
@@ -2599,11 +2629,8 @@ elif page == "메뉴 등록":
                         prev_order = st.session_state[menu_order_key][prev_menu]
                         st.session_state[menu_order_key][current_menu] = prev_order
                         st.session_state[menu_order_key][prev_menu] = current_order
-                        try:
-                            load_csv.clear()
-                        except:
-                            pass
-                        st.rerun()
+                        # 순서 변경은 session_state만 업데이트, rerun 없이 즉시 반영
+                        st.success("✅ 순서가 변경되었습니다.")
             
             with col7:
                 # 아래로 이동 버튼
@@ -2616,11 +2643,8 @@ elif page == "메뉴 등록":
                         next_order = st.session_state[menu_order_key][next_menu]
                         st.session_state[menu_order_key][current_menu] = next_order
                         st.session_state[menu_order_key][next_menu] = current_order
-                        try:
-                            load_csv.clear()
-                        except:
-                            pass
-                        st.rerun()
+                        # 순서 변경은 session_state만 업데이트, rerun 없이 즉시 반영
+                        st.success("✅ 순서가 변경되었습니다.")
             
             with col8:
                 # 개별 삭제 버튼
@@ -2629,19 +2653,18 @@ elif page == "메뉴 등록":
                     try:
                         success, message, refs = delete_menu(menu_name)
                         if success:
-                            st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             # session_state에서도 제거
                             if menu_name in st.session_state[menu_order_key]:
                                 del st.session_state[menu_order_key][menu_name]
                             # 순서 재정렬
                             remaining_menus = list(st.session_state[menu_order_key].keys())
                             st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
-                            # 캐시 클리어
-                            try:
-                                load_csv.clear()
-                            except:
-                                pass
-                            st.rerun()
+                            st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
                         else:
                             st.error(message)
                             if refs:
@@ -2683,16 +2706,15 @@ elif page == "메뉴 등록":
                             st.error(error)
                     
                     if success_count > 0:
-                        st.success(f"✅ {success_count}개 메뉴가 삭제되었습니다!")
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        try:
+                            st.cache_data.clear()
+                        except Exception:
+                            pass
                         # 순서 재정렬
                         remaining_menus = list(st.session_state[menu_order_key].keys())
                         st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
-                        # 캐시 클리어
-                        try:
-                            load_csv.clear()
-                        except:
-                            pass
-                        st.rerun()
+                        st.success(f"✅ {success_count}개 메뉴가 삭제되었습니다!")
         
         render_section_divider()
         
@@ -2715,12 +2737,12 @@ elif page == "메뉴 등록":
                 try:
                     success, message = update_menu(menu_info['메뉴명'], new_menu_name, new_price)
                     if success:
-                        st.success(message)
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
-                            load_csv.clear()
-                        except:
+                            st.cache_data.clear()
+                        except Exception:
                             pass
-                        st.rerun()
+                        st.success(f"✅ {message}")
                     else:
                         st.error(message)
                 except Exception as e:
@@ -2780,13 +2802,17 @@ elif page == "재료 등록":
                         unit_display = f"{final_unit_price:,.4f}원/{final_unit}"
                         if final_order_unit != final_unit:
                             unit_display += f" (발주: {final_order_unit}, 변환비율: {final_conversion_rate})"
-                        st.success(f"재료가 저장되었습니다! ({ingredient_name}, {unit_display})")
-                        # 재료 마스터 캐시 초기화 후 리스트 즉시 갱신
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
-                            load_csv.clear()
+                            st.cache_data.clear()
                         except Exception:
                             pass
-                        st.rerun()
+                        st.success(f"✅ 재료가 저장되었습니다! ({ingredient_name}, {unit_display})")
+                        # 입력 필드 초기화 (session_state로)
+                        if 'ingredient_name' in st.session_state:
+                            st.session_state.ingredient_name = ""
+                        if 'ingredient_unit_price' in st.session_state:
+                            st.session_state.ingredient_unit_price = 0.0
                     else:
                         st.error(message)
                 except Exception as e:
@@ -2974,9 +3000,12 @@ elif page == "재료 등록":
                                             }).eq("id", ing_result.data[0]['id']).execute()
                                     
                                     st.session_state[f'editing_{ingredient_name}'] = False
-                                    st.cache_data.clear()
-                                    st.success(message)
-                                    st.rerun()
+                                    # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                    try:
+                                        st.cache_data.clear()
+                                    except Exception:
+                                        pass
+                                    st.success(f"✅ {message}")
                                 else:
                                     st.error(message)
                             except Exception as e:
@@ -2985,7 +3014,7 @@ elif page == "재료 등록":
                     with col_cancel:
                         if st.button("❌ 취소", key=f"cancel_edit_{ingredient_name}"):
                             st.session_state[f'editing_{ingredient_name}'] = False
-                            st.rerun()
+                            # 취소는 상태만 변경, rerun 없음
             
             # 삭제 확인 모드
             if st.session_state.get(f'deleting_{ingredient_name}', False):
@@ -2998,9 +3027,12 @@ elif page == "재료 등록":
                                 success, message, refs = delete_ingredient(ingredient_name)
                                 if success:
                                     st.session_state[f'deleting_{ingredient_name}'] = False
-                                    st.cache_data.clear()
-                                    st.success(message)
-                                    st.rerun()
+                                    # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                    try:
+                                        st.cache_data.clear()
+                                    except Exception:
+                                        pass
+                                    st.success(f"✅ {message}")
                                 else:
                                     st.error(message)
                                     if refs:
@@ -3011,7 +3043,7 @@ elif page == "재료 등록":
                     with col_cancel_del:
                         if st.button("❌ 취소", key=f"cancel_delete_{ingredient_name}"):
                             st.session_state[f'deleting_{ingredient_name}'] = False
-                            st.rerun()
+                            # 취소는 상태만 변경, rerun 없음
             
             # 구분선
             st.markdown("<hr style='margin: 0.5rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
@@ -3337,14 +3369,13 @@ elif page == "레시피 등록":
                         success_msg = f"✅ {success_count}개 레시피가 저장되었습니다!"
                         if cooking_method and cooking_method.strip():
                             success_msg += " (조리방법도 함께 저장되었습니다.)"
-                        st.success(success_msg)
-                        st.balloons()
-                        # 레시피 데이터 캐시 초기화 후 리스트 즉시 갱신
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
-                            load_csv.clear()
+                            st.cache_data.clear()
                         except Exception:
                             pass
-                        st.rerun()
+                        st.success(success_msg)
+                        st.balloons()
     
     render_section_divider()
     
@@ -3550,14 +3581,14 @@ elif page == "레시피 등록":
                                 else:
                                     try:
                                         save_recipe(filter_menu, ing_name, new_qty)
-                                        st.success(
-                                            f"'{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
-                                        )
+                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                         try:
-                                            load_csv.clear()
+                                            st.cache_data.clear()
                                         except Exception:
                                             pass
-                                        st.rerun()
+                                        st.success(
+                                            f"✅ '{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
+                                        )
                                     except Exception as e:
                                         st.error(f"사용량 수정 중 오류: {e}")
                         with col5:
@@ -3565,12 +3596,12 @@ elif page == "레시피 등록":
                                 try:
                                     success, msg = delete_recipe(filter_menu, ing_name)
                                     if success:
-                                        st.success(f"'{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
+                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                                         try:
-                                            load_csv.clear()
+                                            st.cache_data.clear()
                                         except Exception:
                                             pass
-                                        st.rerun()
+                                        st.success(f"✅ '{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
                                     else:
                                         st.error(msg)
                                 except Exception as e:
@@ -4850,13 +4881,16 @@ elif page == "발주 관리":
                             new_safety_base = float(new_safety_order) * float(row['변환비율'] or 1.0)
                             
                             save_inventory(row['재료명'], current_stock_base, new_safety_base)
-                            st.cache_data.clear()
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             st.success(
-                                f"'{row['재료명']}'의 안전재고가 "
+                                f"✅ '{row['재료명']}'의 안전재고가 "
                                 f"{new_safety_order:,.2f} {row['발주단위']} "
                                 f"(기본단위 기준 {new_safety_base:,.2f} {row['단위']})로 저장되었습니다."
                             )
-                            st.rerun()
                         except Exception as e:
                             st.error(f"안전재고 저장 중 오류가 발생했습니다: {e}")
     
@@ -4999,14 +5033,17 @@ elif page == "발주 관리":
                             new_safety_base = float(row['안전재고'] or 0.0)
                             
                             save_inventory(row['재료명'], new_current_base, new_safety_base)
-                            st.cache_data.clear()
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception:
+                                pass
                             st.success(
-                                f"'{row['재료명']}'의 현재고가 "
+                                f"✅ '{row['재료명']}'의 현재고가 "
                                 f"{new_current_order:,.2f} {row['발주단위']} "
                                 f"(기본단위 기준 {new_current_base:,.2f} {row['단위']})로 수정되었습니다. "
                                 f"(안전재고는 변경되지 않았습니다.)"
                             )
-                            st.rerun()
                         except Exception as e:
                             st.error(f"재고 수정 중 오류가 발생했습니다: {e}")
     
@@ -5609,13 +5646,15 @@ elif page == "발주 관리":
                 if supplier_name:
                     try:
                         save_supplier(supplier_name, phone, email, delivery_days, min_order_amount, delivery_fee, notes)
-                        # Supabase 캐시 초기화 후 즉시 목록 반영
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
                         except Exception:
                             pass
                         st.success(f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!")
-                        st.rerun()
+                        # 입력 필드 초기화 (session_state로)
+                        if 'new_supplier_name' in st.session_state:
+                            st.session_state.new_supplier_name = ""
                     except Exception as e:
                         st.error(f"등록 중 오류가 발생했습니다: {e}")
                 else:
@@ -5684,8 +5723,12 @@ elif page == "발주 관리":
                         pass
 
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
+                    # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                    try:
+                        st.cache_data.clear()
+                    except Exception:
+                        pass
                     st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}")
-                    st.rerun()
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
         else:
@@ -5735,13 +5778,12 @@ elif page == "발주 관리":
                 if st.button("💾 매핑 저장", type="primary", key="save_mapping"):
                     try:
                         save_ingredient_supplier(mapping_ingredient, mapping_supplier, mapping_price, is_default)
-                        # 캐시 초기화 후 목록 즉시 반영
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                         try:
                             st.cache_data.clear()
                         except Exception:
                             pass
                         st.success(f"✅ 매핑이 저장되었습니다! ({mapping_ingredient} → {mapping_supplier})")
-                        st.rerun()
                     except Exception as e:
                         st.error(f"저장 중 오류가 발생했습니다: {e}")
             
@@ -5826,13 +5868,12 @@ elif page == "발주 관리":
                         try:
                             mapping_to_delete = ingredient_suppliers_df.iloc[mapping_to_delete_idx]
                             delete_ingredient_supplier(mapping_to_delete['재료명'], mapping_to_delete['공급업체명'])
-                            # 캐시 초기화 후 목록 즉시 반영
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
                             except Exception:
                                 pass
                             st.success(f"✅ 매핑이 삭제되었습니다!")
-                            st.rerun()
                         except Exception as e:
                             st.error(f"삭제 중 오류가 발생했습니다: {e}")
             else:
