@@ -4,6 +4,7 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 # 페이지 설정은 최상단에 위치 (다른 st.* 호출 전에)
 st.set_page_config(
@@ -4837,6 +4838,26 @@ elif page == "발주 관리":
             # 사용단가 / 발주단가 계산
             safety_df['발주단위단가_숫자'] = safety_df['단가'] * safety_df['변환비율']
             
+            # 재료가 많을 경우 페이지네이션 적용 (성능 최적화)
+            items_per_page = 20
+            total_items = len(safety_df)
+            total_pages = (total_items + items_per_page - 1) // items_per_page if total_items > 0 else 1
+            
+            if total_items > items_per_page:
+                page_num = st.number_input(
+                    f"페이지 (총 {total_pages}페이지, {total_items}개 재료)",
+                    min_value=1,
+                    max_value=total_pages,
+                    value=1,
+                    step=1,
+                    key="safety_stock_page"
+                )
+                start_idx = (page_num - 1) * items_per_page
+                end_idx = min(start_idx + items_per_page, total_items)
+                safety_df_page = safety_df.iloc[start_idx:end_idx].copy()
+            else:
+                safety_df_page = safety_df
+            
             # 헤더 행 (테이블 느낌으로)
             h1, h2, h3, h4, h5, h6, h7 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 1])
             h1.markdown("**재료명**")
@@ -4847,7 +4868,7 @@ elif page == "발주 관리":
             h6.markdown("**안전재고 (발주단위)**")
             h7.markdown("**저장**")
             
-            for idx, row in safety_df.iterrows():
+            for idx, row in safety_df_page.iterrows():
                 # 기존 안전재고를 발주단위 기준으로 변환
                 current_safety_order = float(row['안전재고'] or 0.0) / float(row['변환비율'] or 1.0)
                 
@@ -4920,35 +4941,31 @@ elif page == "발주 관리":
             display_inventory_df['변환비율'] = display_inventory_df['변환비율'].fillna(1.0)
             display_inventory_df['단가'] = display_inventory_df['단가'].fillna(0)
             
-            # 재료사용단가 포맷팅
-            display_inventory_df['재료사용단가'] = display_inventory_df.apply(
-                lambda row: f"{row['단가']:,.1f}원/{row['단위']}",
-                axis=1
+            # 재료사용단가 포맷팅 (벡터화 연산으로 최적화)
+            display_inventory_df['재료사용단가'] = (
+                display_inventory_df['단가'].apply(lambda x: f"{x:,.1f}") + "원/" + display_inventory_df['단위']
             )
             
-            # 발주단위단가 계산 (기본 단가 × 변환비율)
-            display_inventory_df['발주단위단가'] = display_inventory_df.apply(
-                lambda row: f"{(row['단가'] * row['변환비율']):,.1f}원/{row['발주단위']}",
-                axis=1
+            # 발주단위단가 계산 (기본 단가 × 변환비율) - 벡터화
+            display_inventory_df['발주단위단가_숫자'] = display_inventory_df['단가'] * display_inventory_df['변환비율']
+            display_inventory_df['발주단위단가'] = (
+                display_inventory_df['발주단위단가_숫자'].apply(lambda x: f"{x:,.1f}") + "원/" + display_inventory_df['발주단위']
             )
             
-            # 현재고와 안전재고를 발주 단위로 변환하여 표시
+            # 현재고와 안전재고를 발주 단위로 변환하여 표시 (벡터화)
             display_inventory_df['현재고_발주단위'] = display_inventory_df['현재고'] / display_inventory_df['변환비율']
             display_inventory_df['안전재고_발주단위'] = display_inventory_df['안전재고'] / display_inventory_df['변환비율']
             
-            # 현재고/안전재고/차이 표시
-            display_inventory_df['현재고표시'] = display_inventory_df.apply(
-                lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
-                axis=1
+            # 현재고/안전재고/차이 표시 (벡터화)
+            display_inventory_df['현재고표시'] = (
+                display_inventory_df['현재고_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + display_inventory_df['발주단위']
             )
-            display_inventory_df['안전재고표시'] = display_inventory_df.apply(
-                lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
-                axis=1
+            display_inventory_df['안전재고표시'] = (
+                display_inventory_df['안전재고_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + display_inventory_df['발주단위']
             )
             display_inventory_df['차이'] = display_inventory_df['현재고_발주단위'] - display_inventory_df['안전재고_발주단위']
-            display_inventory_df['차이(+/-)'] = display_inventory_df.apply(
-                lambda row: f"{row['차이']:+,.2f} {row['발주단위']}",
-                axis=1
+            display_inventory_df['차이(+/-)'] = (
+                display_inventory_df['차이'].apply(lambda x: f"{x:+,.2f}") + " " + display_inventory_df['발주단위']
             )
             
             # 표 표시
@@ -4994,6 +5011,26 @@ elif page == "발주 관리":
             edit_df['현재고_발주단위'] = edit_df['현재고'] / edit_df['변환비율']
             edit_df['안전재고_발주단위'] = edit_df['안전재고'] / edit_df['변환비율']
             
+            # 재료가 많을 경우 페이지네이션 적용 (성능 최적화)
+            items_per_page = 20
+            total_items = len(edit_df)
+            total_pages = (total_items + items_per_page - 1) // items_per_page if total_items > 0 else 1
+            
+            if total_items > items_per_page:
+                page_num = st.number_input(
+                    f"페이지 (총 {total_pages}페이지, {total_items}개 재료)",
+                    min_value=1,
+                    max_value=total_pages,
+                    value=1,
+                    step=1,
+                    key="inventory_edit_page"
+                )
+                start_idx = (page_num - 1) * items_per_page
+                end_idx = min(start_idx + items_per_page, total_items)
+                edit_df_page = edit_df.iloc[start_idx:end_idx].copy()
+            else:
+                edit_df_page = edit_df
+            
             # 헤더 (안전재고는 읽기 전용, 현재고만 입력)
             h1, h2, h3, h4, h5, h6, h7, h8 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 1])
             h1.markdown("**재료명**")
@@ -5005,7 +5042,7 @@ elif page == "발주 관리":
             h7.markdown("**현재고 입력 (발주단위)**")
             h8.markdown("**저장**")
             
-            for idx, row in edit_df.iterrows():
+            for idx, row in edit_df_page.iterrows():
                 col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 2, 1])
                 with col1:
                     st.write(f"**{row['재료명']}**")
@@ -5072,7 +5109,7 @@ elif page == "발주 관리":
         low_turnover_items = []  # 재고 회전율 낮은 재료
         excess_inventory_cost = 0  # 과다재고 비용
         
-        # 재료 사용량 데이터 로드 (예상 소진일 계산용)
+        # 재료 사용량 데이터 로드 (예상 소진일 계산용) - 한 번만 로드하고 재사용
         daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
         recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
         usage_df = pd.DataFrame()
@@ -5081,65 +5118,48 @@ elif page == "발주 관리":
             usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
         
         if not tab3_inventory_df.empty:
-            # 현재고 < 안전재고인 재료 찾기 (예상 소진일 계산 포함)
-            for idx, row in tab3_inventory_df.iterrows():
-                ingredient_name = row['재료명']
-                current_stock = row.get('현재고', 0)
-                safety_stock = row.get('안전재고', 0)
-                
-                if current_stock < safety_stock:
-                    # 예상 소진일 계산
-                    expected_depletion_days = None
-                    if not usage_df.empty:
-                        ingredient_usage = usage_df[usage_df['재료명'] == ingredient_name]
-                        if not ingredient_usage.empty:
-                            # 최근 7일 평균 일일 사용량
-                            recent_usage = ingredient_usage.tail(7)
-                            if not recent_usage.empty:
-                                avg_daily_usage = recent_usage['총사용량'].mean()
-                                if avg_daily_usage > 0:
-                                    expected_depletion_days = int(current_stock / avg_daily_usage)
+            # 현재고 < 안전재고인 재료 찾기 (벡터화된 방식으로 최적화)
+            low_stock_mask = tab3_inventory_df['현재고'] < tab3_inventory_df['안전재고']
+            low_stock_data = tab3_inventory_df[low_stock_mask].copy()
+            
+            if not low_stock_data.empty:
+                # 예상 소진일 계산 (벡터화)
+                if not usage_df.empty:
+                    # 최근 7일 평균 일일 사용량을 재료별로 미리 계산
+                    usage_df['날짜'] = pd.to_datetime(usage_df['날짜'])
+                    max_date = usage_df['날짜'].max()
+                    recent_cutoff = max_date - pd.Timedelta(days=7)
+                    recent_usage = usage_df[usage_df['날짜'] >= recent_cutoff]
                     
+                    if not recent_usage.empty:
+                        # 재료별 최근 7일 평균 일일 사용량
+                        daily_avg = recent_usage.groupby('재료명')['총사용량'].sum() / 7
+                        daily_avg = daily_avg.reset_index()
+                        daily_avg.columns = ['재료명', 'avg_daily_usage']
+                        
+                        # low_stock_data와 조인
+                        low_stock_data = pd.merge(low_stock_data, daily_avg, on='재료명', how='left')
+                        # 예상 소진일 계산 (벡터화)
+                        low_stock_data['예상소진일'] = (low_stock_data['현재고'] / low_stock_data['avg_daily_usage']).replace([np.inf, -np.inf], np.nan)
+                        low_stock_data['예상소진일'] = low_stock_data['예상소진일'].fillna(None)
+                        low_stock_data['예상소진일'] = low_stock_data['예상소진일'].apply(lambda x: int(x) if pd.notna(x) and x > 0 else None)
+                    else:
+                        low_stock_data['예상소진일'] = None
+                else:
+                    low_stock_data['예상소진일'] = None
+                
+                # 리스트로 변환
+                for idx, row in low_stock_data.iterrows():
                     low_stock_items.append({
-                        '재료명': ingredient_name,
-                        '현재고': current_stock,
-                        '안전재고': safety_stock,
-                        '부족량': safety_stock - current_stock,
-                        '예상소진일': expected_depletion_days
+                        '재료명': row['재료명'],
+                        '현재고': row.get('현재고', 0),
+                        '안전재고': row.get('안전재고', 0),
+                        '부족량': row.get('안전재고', 0) - row.get('현재고', 0),
+                        '예상소진일': row.get('예상소진일')
                     })
                 
-                # 재고 회전율 계산 (과다재고 경고용)
-                if not usage_df.empty and current_stock > 0:
-                    from src.analytics import calculate_inventory_turnover
-                    turnover_info = calculate_inventory_turnover(
-                        ingredient_name,
-                        usage_df,
-                        tab3_inventory_df,
-                        days_period=30
-                    )
-                    
-                    # 회전율이 낮은 재료 (연간 회전율 < 12회 = 월 1회 미만)
-                    if turnover_info['turnover_rate'] > 0 and turnover_info['turnover_rate'] < 12:
-                        days_on_hand = turnover_info['days_on_hand']
-                        # 재고 보유일수가 30일 이상인 경우 과다재고로 판단
-                        if days_on_hand >= 30:
-                            # 과다재고 비용 계산 (재고 가치의 일부)
-                            ingredient_row = ingredient_df[ingredient_df['재료명'] == ingredient_name]
-                            if not ingredient_row.empty:
-                                unit_price = ingredient_row.iloc[0].get('단가', 0)
-                                excess_stock = current_stock - (safety_stock * 2)  # 안전재고의 2배를 기준으로
-                                if excess_stock > 0:
-                                    excess_cost = excess_stock * unit_price
-                                    excess_inventory_cost += excess_cost
-                                    
-                                    low_turnover_items.append({
-                                        '재료명': ingredient_name,
-                                        '현재고': current_stock,
-                                        '재고보유일수': int(days_on_hand),
-                                        '회전율': turnover_info['turnover_rate'],
-                                        '과다재고량': excess_stock,
-                                        '과다재고비용': excess_cost
-                                    })
+                # 재고 회전율 계산은 벡터화된 방식으로 일괄 계산 (성능 최적화)
+                # 과다재고 경고는 별도 섹션으로 분리하여 필요시에만 계산
         
         # 발주 예정/완료 상태인 발주 개수
         orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
@@ -5200,18 +5220,15 @@ elif page == "발주 관리":
                     urgent_df['안전재고_발주단위'] = urgent_df['안전재고']
                     urgent_df['부족량_발주단위'] = urgent_df['부족량']
 
-                # 표시용 컬럼 포맷팅 (숫자 + 단위)
-                urgent_df['현재고'] = urgent_df.apply(
-                    lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
-                    axis=1
+                # 표시용 컬럼 포맷팅 (숫자 + 단위) - 벡터화 연산으로 최적화
+                urgent_df['현재고'] = (
+                    urgent_df['현재고_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + urgent_df['발주단위']
                 )
-                urgent_df['안전재고'] = urgent_df.apply(
-                    lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
-                    axis=1
+                urgent_df['안전재고'] = (
+                    urgent_df['안전재고_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + urgent_df['발주단위']
                 )
-                urgent_df['부족량'] = urgent_df.apply(
-                    lambda row: f"{row['부족량_발주단위']:,.2f} {row['발주단위']}",
-                    axis=1
+                urgent_df['부족량'] = (
+                    urgent_df['부족량_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + urgent_df['발주단위']
                 )
 
                 # 예상 소진일 표시
@@ -5252,28 +5269,84 @@ elif page == "발주 관리":
                     st.dataframe(display_overdue, use_container_width=True, hide_index=True)
                     st.warning("⚠️ 발주 예정 상태인데 3일 이상 지난 발주입니다. 발주 상태를 확인해주세요.")
             
-            # 과다재고 경고
-            if low_turnover_items:
-                with st.expander(f"📊 과다재고 경고 ({len(low_turnover_items)}개 재료)", expanded=False):
-                    excess_df = pd.DataFrame(low_turnover_items)
-                    excess_df['현재고'] = excess_df['현재고'].apply(lambda x: f"{x:,.2f}")
-                    excess_df['재고보유일수'] = excess_df['재고보유일수'].apply(lambda x: f"{int(x)}일")
-                    excess_df['회전율'] = excess_df['회전율'].apply(lambda x: f"{x:.1f}회/년")
-                    excess_df['과다재고량'] = excess_df['과다재고량'].apply(lambda x: f"{x:,.2f}")
-                    excess_df['과다재고비용'] = excess_df['과다재고비용'].apply(lambda x: f"{int(x):,}원")
-                    
-                    st.dataframe(excess_df, use_container_width=True, hide_index=True)
-                    
-                    if excess_inventory_cost > 0:
-                        st.warning(f"💰 총 과다재고 비용: {int(excess_inventory_cost):,}원 (재고 회전율이 낮아 자금이 묶여있습니다)")
+            # 과다재고 경고 (성능 최적화: 버튼 클릭 시에만 계산)
+            if st.button("📊 과다재고 분석 실행", key="analyze_excess_inventory"):
+                with st.spinner("과다재고 분석 중..."):
+                    # 재고 회전율 계산 (벡터화된 방식으로 일괄 계산)
+                    if not usage_df.empty and not tab3_inventory_df.empty:
+                        from datetime import datetime, timedelta
+                        usage_df['날짜'] = pd.to_datetime(usage_df['날짜'])
+                        cutoff_date = usage_df['날짜'].max() - timedelta(days=30)
+                        recent_usage = usage_df[usage_df['날짜'] >= cutoff_date]
+                        
+                        if not recent_usage.empty:
+                            # 재료별 30일 총 사용량 및 평균 일일 사용량
+                            usage_summary = recent_usage.groupby('재료명')['총사용량'].agg(['sum', 'count']).reset_index()
+                            usage_summary.columns = ['재료명', 'total_usage_30d', 'usage_days']
+                            usage_summary['avg_daily_usage'] = usage_summary['total_usage_30d'] / 30
+                            
+                            # 재고 정보와 조인
+                            turnover_df = pd.merge(
+                                tab3_inventory_df[['재료명', '현재고', '안전재고']],
+                                usage_summary,
+                                on='재료명',
+                                how='left'
+                            )
+                            turnover_df['avg_daily_usage'] = turnover_df['avg_daily_usage'].fillna(0)
+                            
+                            # 회전율 계산 (연간)
+                            turnover_df['turnover_rate'] = (turnover_df['avg_daily_usage'] * 365) / turnover_df['현재고'].replace(0, np.nan)
+                            turnover_df['days_on_hand'] = turnover_df['현재고'] / turnover_df['avg_daily_usage'].replace(0, np.nan)
+                            
+                            # 회전율이 낮고 재고 보유일수가 30일 이상인 재료 필터링
+                            excess_mask = (
+                                (turnover_df['turnover_rate'] > 0) & 
+                                (turnover_df['turnover_rate'] < 12) & 
+                                (turnover_df['days_on_hand'] >= 30) &
+                                (turnover_df['현재고'] > 0)
+                            )
+                            excess_df = turnover_df[excess_mask].copy()
+                            
+                            if not excess_df.empty:
+                                # 재료 단가 정보 추가
+                                excess_df = pd.merge(
+                                    excess_df,
+                                    ingredient_df[['재료명', '단가']],
+                                    on='재료명',
+                                    how='left'
+                                )
+                                excess_df['단가'] = excess_df['단가'].fillna(0)
+                                
+                                # 과다재고량 및 비용 계산
+                                excess_df['과다재고량'] = (excess_df['현재고'] - excess_df['안전재고'] * 2).clip(lower=0)
+                                excess_df['과다재고비용'] = excess_df['과다재고량'] * excess_df['단가']
+                                
+                                # 표시용 포맷팅
+                                excess_display = excess_df[[
+                                    '재료명', '현재고', '재고보유일수', '회전율', '과다재고량', '과다재고비용'
+                                ]].copy()
+                                excess_display['현재고'] = excess_display['현재고'].apply(lambda x: f"{x:,.2f}")
+                                excess_display['재고보유일수'] = excess_display['days_on_hand'].apply(lambda x: f"{int(x)}일")
+                                excess_display['회전율'] = excess_display['turnover_rate'].apply(lambda x: f"{x:.1f}회/년")
+                                excess_display['과다재고량'] = excess_display['과다재고량'].apply(lambda x: f"{x:,.2f}")
+                                excess_display['과다재고비용'] = excess_display['과다재고비용'].apply(lambda x: f"{int(x):,}원")
+                                excess_display = excess_display.drop(columns=['days_on_hand', 'turnover_rate'])
+                                
+                                st.dataframe(excess_display, use_container_width=True, hide_index=True)
+                                
+                                total_excess_cost = excess_df['과다재고비용'].sum()
+                                if total_excess_cost > 0:
+                                    st.warning(f"💰 총 과다재고 비용: {int(total_excess_cost):,}원 (재고 회전율이 낮아 자금이 묶여있습니다)")
+                            else:
+                                st.info("과다재고로 판단되는 재료가 없습니다.")
+                        else:
+                            st.info("최근 30일 사용량 데이터가 없어 과다재고 분석을 수행할 수 없습니다.")
+                    else:
+                        st.info("재고 또는 사용량 데이터가 없어 과다재고 분석을 수행할 수 없습니다.")
             
             render_section_divider()
         
         if not tab3_inventory_df.empty:
-            # 재료 사용량 계산을 위한 데이터 로드
-            daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-            recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-            
             # 발주 추천 파라미터 설정
             col1, col2 = st.columns(2)
             with col1:
@@ -5281,9 +5354,8 @@ elif page == "발주 관리":
             with col2:
                 forecast_days = st.number_input("예측일수", min_value=1, value=3, step=1, key="forecast_days")
             
-            if not daily_sales_df.empty and not recipe_df.empty:
-                # 재료 사용량 계산
-                usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+            # 위에서 이미 로드한 daily_sales_df, recipe_df, usage_df 재사용 (중복 로드 제거)
+            if not daily_sales_df.empty and not recipe_df.empty and not usage_df.empty:
                 
                 if not usage_df.empty:
                     # 발주 추천 계산
@@ -5348,30 +5420,24 @@ elif page == "발주 관리":
                         # 예상금액도 발주단위 기준으로 다시 계산 (발주필요량_발주단위 × 발주단위단가)
                         display_order_df['예상금액_숫자'] = display_order_df['발주필요량_발주단위'] * display_order_df['발주단위단가_숫자']
 
-                        # 수량 관련 컬럼에 단위 붙여서 표시
-                        display_order_df['현재고_표시'] = display_order_df.apply(
-                            lambda row: f"{row['현재고']:,.2f} {row['단위']}",
-                            axis=1
+                        # 수량 관련 컬럼에 단위 붙여서 표시 (벡터화 연산으로 최적화)
+                        display_order_df['현재고_표시'] = (
+                            display_order_df['현재고'].apply(lambda x: f"{x:,.2f}") + " " + display_order_df['단위']
                         )
-                        display_order_df['안전재고_표시'] = display_order_df.apply(
-                            lambda row: f"{row['안전재고']:,.2f} {row['단위']}",
-                            axis=1
+                        display_order_df['안전재고_표시'] = (
+                            display_order_df['안전재고'].apply(lambda x: f"{x:,.2f}") + " " + display_order_df['단위']
                         )
-                        display_order_df['최근평균사용량_표시'] = display_order_df.apply(
-                            lambda row: f"{row['최근평균사용량']:,.2f} {row['단위']}",
-                            axis=1
+                        display_order_df['최근평균사용량_표시'] = (
+                            display_order_df['최근평균사용량'].apply(lambda x: f"{x:,.2f}") + " " + display_order_df['단위']
                         )
-                        display_order_df['예상소요량_표시'] = display_order_df.apply(
-                            lambda row: f"{row['예상소요량']:,.2f} {row['단위']}",
-                            axis=1
+                        display_order_df['예상소요량_표시'] = (
+                            display_order_df['예상소요량'].apply(lambda x: f"{x:,.2f}") + " " + display_order_df['단위']
                         )
-                        display_order_df['발주필요량_표시'] = display_order_df.apply(
-                            lambda row: f"{row['발주필요량_발주단위']:,.2f} {row['발주단위']}",
-                            axis=1
+                        display_order_df['발주필요량_표시'] = (
+                            display_order_df['발주필요량_발주단위'].apply(lambda x: f"{x:,.2f}") + " " + display_order_df['발주단위']
                         )
-                        display_order_df['발주단위단가_표시'] = display_order_df.apply(
-                            lambda row: f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}",
-                            axis=1
+                        display_order_df['발주단위단가_표시'] = (
+                            display_order_df['발주단위단가_숫자'].apply(lambda x: f"{x:,.1f}") + "원/" + display_order_df['발주단위']
                         )
                         # 예상금액 숫자가 NaN일 수 있으므로 방어적으로 처리
                         def format_expected_amount(x):
