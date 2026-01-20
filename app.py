@@ -71,7 +71,9 @@ from src.analytics import (
     calculate_ingredient_usage,
     calculate_order_recommendation,
     abc_analysis,
-    target_gap_analysis
+    target_gap_analysis,
+    optimize_order_by_supplier,
+    calculate_inventory_turnover
 )
 from src.ui import (
     render_sales_input,
@@ -4789,6 +4791,103 @@ elif page == "발주 관리":
                         total_amount = order_df['예상금액'].sum()
                         st.metric("총 예상 발주 금액", f"{int(total_amount):,}원")
                         
+                        # ========== Phase 3: 스마트 발주 최적화 ==========
+                        render_section_divider()
+                        render_section_header("💡 스마트 발주 최적화", "⚡")
+                        
+                        # 최적화 계산
+                        optimization_result = optimize_order_by_supplier(
+                            order_df,
+                            suppliers_df,
+                            ingredient_suppliers_df
+                        )
+                        
+                        optimized_orders = optimization_result['optimized_orders']
+                        total_savings = optimization_result['total_savings']
+                        recommendations = optimization_result['recommendations']
+                        
+                        # 최적화 결과 표시
+                        if optimized_orders:
+                            # 배송비 절감 정보
+                            if total_savings > 0:
+                                st.success(f"💰 배송비 절감 가능: {int(total_savings):,}원 (공급업체별 통합 발주 시)")
+                            
+                            # 공급업체별 그룹화된 발주
+                            st.write("**📦 공급업체별 통합 발주 (최적화)**")
+                            
+                            for supplier_name, supplier_data in optimized_orders.items():
+                                with st.expander(f"🏢 {supplier_name} ({len(supplier_data['items'])}개 재료)", expanded=True):
+                                    # 발주 항목 표시
+                                    items_df = pd.DataFrame(supplier_data['items'])
+                                    items_df['수량'] = items_df['수량'].apply(lambda x: f"{x:,.2f}")
+                                    items_df['단가'] = items_df['단가'].apply(lambda x: f"{int(x):,}원")
+                                    items_df['금액'] = items_df['금액'].apply(lambda x: f"{int(x):,}원")
+                                    
+                                    st.dataframe(items_df[['재료명', '수량', '단가', '금액']], use_container_width=True, hide_index=True)
+                                    
+                                    # 요약 정보
+                                    col_sum1, col_sum2, col_sum3, col_sum4 = st.columns(4)
+                                    with col_sum1:
+                                        st.metric("총 발주금액", f"{int(supplier_data['total_amount']):,}원")
+                                    with col_sum2:
+                                        st.metric("배송비", f"{int(supplier_data['delivery_fee']):,}원")
+                                    with col_sum3:
+                                        savings = supplier_data['savings']
+                                        if savings > 0:
+                                            st.metric("절감액", f"{int(savings):,}원", delta=f"{int(savings):,}원")
+                                        else:
+                                            st.metric("절감액", "0원")
+                                    with col_sum4:
+                                        total_with_delivery = supplier_data['total_amount'] + supplier_data['delivery_fee']
+                                        st.metric("총 비용", f"{int(total_with_delivery):,}원")
+                                    
+                                    # 최소 주문량 확인
+                                    if supplier_data['min_order_amount'] > 0:
+                                        if not supplier_data['meets_min_order']:
+                                            shortage = supplier_data['min_order_amount'] - supplier_data['total_amount']
+                                            st.warning(f"⚠️ 최소 주문금액 미달: {int(supplier_data['min_order_amount']):,}원 (부족: {int(shortage):,}원)")
+                                        else:
+                                            st.success(f"✅ 최소 주문금액 충족: {int(supplier_data['min_order_amount']):,}원")
+                            
+                            # 최적화 제안
+                            if recommendations:
+                                st.write("**💡 최적화 제안**")
+                                for rec in recommendations:
+                                    if rec['type'] == 'min_order':
+                                        st.info(f"📌 {rec['message']}")
+                            
+                            # 통합 발주 vs 개별 발주 비교
+                            render_section_divider()
+                            st.write("**📊 비용 비교**")
+                            
+                            individual_total = total_amount + optimization_result['total_delivery_fee']
+                            optimized_total = total_amount + optimization_result['optimized_delivery_fee']
+                            
+                            comp_col1, comp_col2, comp_col3 = st.columns(3)
+                            with comp_col1:
+                                st.markdown(f"""
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center;">
+                                    <div style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.5rem;">개별 발주</div>
+                                    <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{int(individual_total):,}원</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            with comp_col2:
+                                st.markdown(f"""
+                                <div style="background: rgba(16,185,129,0.2); padding: 1rem; border-radius: 8px; text-align: center; border: 2px solid #10b981;">
+                                    <div style="color: #10b981; font-size: 0.9rem; margin-bottom: 0.5rem;">통합 발주 (최적화)</div>
+                                    <div style="color: #10b981; font-size: 1.3rem; font-weight: 700;">{int(optimized_total):,}원</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            with comp_col3:
+                                savings_pct = (total_savings / individual_total * 100) if individual_total > 0 else 0
+                                st.markdown(f"""
+                                <div style="background: rgba(239,68,68,0.2); padding: 1rem; border-radius: 8px; text-align: center; border: 2px solid #ef4444;">
+                                    <div style="color: #ef4444; font-size: 0.9rem; margin-bottom: 0.5rem;">절감액</div>
+                                    <div style="color: #ef4444; font-size: 1.3rem; font-weight: 700;">{int(total_savings):,}원</div>
+                                    <div style="color: #ef4444; font-size: 0.85rem; margin-top: 0.3rem;">({savings_pct:.1f}%)</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
                         # 발주 생성 버튼
                         render_section_divider()
                         render_section_header("발주 생성", "📝")
@@ -4912,22 +5011,22 @@ elif page == "발주 관리":
                                                 except:
                                                     pass
                                         
-                                            try:
-                                                save_order(
-                                                    order_date=order_date,
-                                                    ingredient_name=ingredient_name,
-                                                    supplier_name=supplier_name,
-                                                    quantity=quantity,
-                                                    unit_price=supplier_price,
-                                                    total_amount=total_amount_item,
-                                                    status="예정",
-                                                    expected_delivery_date=expected_delivery_date
-                                                )
-                                                created_count += 1
-                                            except Exception as e:
-                                                failed_items.append(f"{ingredient_name} ({str(e)})")
-                                        
-                                        if created_count > 0:
+                                        try:
+                                            save_order(
+                                                order_date=order_date,
+                                                ingredient_name=ingredient_name,
+                                                supplier_name=supplier_name,
+                                                quantity=quantity,
+                                                unit_price=supplier_price,
+                                                total_amount=total_amount_item,
+                                                status="예정",
+                                                expected_delivery_date=expected_delivery_date
+                                            )
+                                            created_count += 1
+                                        except Exception as e:
+                                            failed_items.append(f"{ingredient_name} ({str(e)})")
+                                    
+                                    if created_count > 0:
                                             success_msg = f"✅ {created_count}개 재료의 발주가 생성되었습니다!"
                                             if failed_items:
                                                 success_msg += f"\n⚠️ 실패: {len(failed_items)}개"

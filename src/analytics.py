@@ -234,6 +234,187 @@ def calculate_order_recommendation(
     return result
 
 
+def optimize_order_by_supplier(order_df, suppliers_df, ingredient_suppliers_df):
+    """
+    공급업체별 발주 최적화 (배송비 절감)
+    
+    Args:
+        order_df: 발주 추천 DataFrame (재료명, 발주필요량, 단가, 예상금액)
+        suppliers_df: 공급업체 DataFrame (공급업체명, 최소주문금액, 배송비)
+        ingredient_suppliers_df: 재료-공급업체 매핑 DataFrame (재료명, 공급업체명, 단가)
+    
+    Returns:
+        dict: {
+            'optimized_orders': 공급업체별 그룹화된 발주,
+            'total_savings': 배송비 절감액,
+            'recommendations': 최적화 제안
+        }
+    """
+    if order_df.empty or suppliers_df.empty or ingredient_suppliers_df.empty:
+        return {
+            'optimized_orders': {},
+            'total_savings': 0,
+            'recommendations': []
+        }
+    
+    # 공급업체별로 발주 그룹화
+    supplier_groups = {}
+    total_delivery_fee = 0
+    optimized_delivery_fee = 0
+    
+    for idx, row in order_df.iterrows():
+        ingredient_name = row['재료명']
+        
+        # 재료의 공급업체 찾기
+        supplier_row = ingredient_suppliers_df[
+            ingredient_suppliers_df['재료명'] == ingredient_name
+        ]
+        
+        if not supplier_row.empty:
+            supplier_name = supplier_row.iloc[0]['공급업체명']
+            
+            if supplier_name not in supplier_groups:
+                supplier_groups[supplier_name] = {
+                    'items': [],
+                    'total_amount': 0,
+                    'delivery_fee': 0,
+                    'min_order_amount': 0
+                }
+            
+            # 공급업체 정보 가져오기
+            supplier_info = suppliers_df[suppliers_df['공급업체명'] == supplier_name]
+            if not supplier_info.empty:
+                delivery_fee = supplier_info.iloc[0].get('배송비', 0) or 0
+                min_order = supplier_info.iloc[0].get('최소주문금액', 0) or 0
+                
+                supplier_groups[supplier_name]['delivery_fee'] = delivery_fee
+                supplier_groups[supplier_name]['min_order_amount'] = min_order
+            
+            # 발주 항목 추가
+            item_amount = row['예상금액']
+            supplier_groups[supplier_name]['items'].append({
+                '재료명': ingredient_name,
+                '수량': row['발주필요량'],
+                '단가': row['단가'],
+                '금액': item_amount
+            })
+            supplier_groups[supplier_name]['total_amount'] += item_amount
+    
+    # 배송비 계산 및 최소 주문량 확인
+    recommendations = []
+    optimized_orders = {}
+    
+    for supplier_name, group in supplier_groups.items():
+        total_amount = group['total_amount']
+        delivery_fee = group['delivery_fee']
+        min_order = group['min_order_amount']
+        
+        # 개별 발주 시 배송비 (현재 방식)
+        individual_delivery = delivery_fee * len(group['items'])
+        
+        # 통합 발주 시 배송비 (최적화)
+        optimized_delivery = delivery_fee
+        
+        # 최소 주문량 미달 확인
+        if min_order > 0 and total_amount < min_order:
+            shortage = min_order - total_amount
+            recommendations.append({
+                'type': 'min_order',
+                'supplier': supplier_name,
+                'current': total_amount,
+                'required': min_order,
+                'shortage': shortage,
+                'message': f"{supplier_name}: 최소 주문금액 {int(min_order):,}원 미달 (부족: {int(shortage):,}원)"
+            })
+        
+        # 배송비 절감 계산
+        savings = individual_delivery - optimized_delivery
+        
+        optimized_orders[supplier_name] = {
+            'items': group['items'],
+            'total_amount': total_amount,
+            'delivery_fee': optimized_delivery,
+            'individual_delivery_fee': individual_delivery,
+            'savings': savings,
+            'min_order_amount': min_order,
+            'meets_min_order': total_amount >= min_order if min_order > 0 else True
+        }
+        
+        total_delivery_fee += individual_delivery
+        optimized_delivery_fee += optimized_delivery
+    
+    total_savings = total_delivery_fee - optimized_delivery_fee
+    
+    return {
+        'optimized_orders': optimized_orders,
+        'total_savings': total_savings,
+        'total_delivery_fee': total_delivery_fee,
+        'optimized_delivery_fee': optimized_delivery_fee,
+        'recommendations': recommendations
+    }
+
+
+def calculate_inventory_turnover(ingredient_name, usage_df, inventory_df, days_period=30):
+    """
+    재고 회전율 계산
+    
+    Args:
+        ingredient_name: 재료명
+        usage_df: 재료 사용량 DataFrame (날짜, 재료명, 총사용량)
+        inventory_df: 재고 DataFrame (재료명, 현재고)
+        days_period: 분석 기간 (일)
+    
+    Returns:
+        dict: {
+            'turnover_rate': 회전율 (연간),
+            'days_on_hand': 평균 재고 보유일수,
+            'optimal_order_frequency': 최적 발주 빈도 (일)
+        }
+    """
+    from datetime import datetime, timedelta
+    
+    # 재료 사용량 필터링
+    usage_df['날짜'] = pd.to_datetime(usage_df['날짜'])
+    cutoff_date = usage_df['날짜'].max() - timedelta(days=days_period)
+    recent_usage = usage_df[
+        (usage_df['재료명'] == ingredient_name) & 
+        (usage_df['날짜'] >= cutoff_date)
+    ]
+    
+    if recent_usage.empty:
+        return {
+            'turnover_rate': 0,
+            'days_on_hand': 0,
+            'optimal_order_frequency': 0
+        }
+    
+    # 기간 내 총 사용량
+    total_usage = recent_usage['총사용량'].sum()
+    avg_daily_usage = total_usage / days_period if days_period > 0 else 0
+    
+    # 현재 재고
+    inventory_row = inventory_df[inventory_df['재료명'] == ingredient_name]
+    current_stock = inventory_row.iloc[0]['현재고'] if not inventory_row.empty else 0
+    
+    # 평균 재고 보유일수
+    days_on_hand = current_stock / avg_daily_usage if avg_daily_usage > 0 else 0
+    
+    # 연간 회전율 (365일 기준)
+    annual_usage = avg_daily_usage * 365
+    turnover_rate = annual_usage / current_stock if current_stock > 0 else 0
+    
+    # 최적 발주 빈도 (안전재고 고려)
+    safety_stock = inventory_row.iloc[0].get('안전재고', 0) if not inventory_row.empty else 0
+    optimal_order_frequency = max(7, int(days_on_hand * 0.7))  # 재고 보유일수의 70%를 발주 주기로
+    
+    return {
+        'turnover_rate': turnover_rate,
+        'days_on_hand': days_on_hand,
+        'optimal_order_frequency': optimal_order_frequency,
+        'avg_daily_usage': avg_daily_usage
+    }
+
+
 def abc_analysis(daily_sales_df, menu_df, cost_df=None, a_threshold=70, b_threshold=20, c_threshold=10):
     """
     메뉴 ABC 분석
