@@ -139,12 +139,46 @@ st.markdown("""
     
     /* ========== 메인 헤더 (반응형) ========== */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 12px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 8s ease infinite;
+        padding: 2.5rem;
+        border-radius: 16px;
         color: white;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+    
+    .main-header h1 {
+        position: relative;
+        z-index: 1;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        font-weight: 700;
+        letter-spacing: -0.5px;
+    }
+    
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     
     @media (max-width: 768px) {
@@ -1044,8 +1078,7 @@ if st.session_state.get("theme", "light") == "dark":
 # 타이틀 (개선된 디자인)
 st.markdown("""
 <div class="main-header">
-    <h1>🍽️ 황승진 외식경영 의사결정도구</h1>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 1.1rem;">Restaurant OS</p>
+    <h1>😎 Restaurant Decision Intelligence System (RDIS)</h1>
 </div>
 """, unsafe_allow_html=True)
 
