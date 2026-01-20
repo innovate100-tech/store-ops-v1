@@ -5663,31 +5663,31 @@ elif page == "통합 대시보드":
                     usage_df = calculate_ingredient_usage(filtered_sales_df, recipe_df)
                     
                     if not usage_df.empty and not ingredient_df.empty:
-                    # 재료 단가와 조인하여 총 사용 단가 계산
-                    usage_df = pd.merge(
-                        usage_df,
-                        ingredient_df[['재료명', '단가']],
-                        on='재료명',
-                        how='left'
-                    )
-                    usage_df['단가'] = usage_df['단가'].fillna(0)
-                    usage_df['총사용단가'] = usage_df['총사용량'] * usage_df['단가']
-                    
-                    # 재료별 총 사용량/총 사용 단가 집계
-                    ingredient_summary = (
-                        usage_df
-                        .groupby('재료명')[['총사용량', '총사용단가']]
-                        .sum()
-                        .reset_index()
-                    )
-                    
-                    # 사용 단가 기준으로 정렬
-                    ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
-                    
-                    # 총 사용단가 합계 계산
-                    total_cost = ingredient_summary['총사용단가'].sum()
-                    
-                    if total_cost > 0:
+                        # 재료 단가와 조인하여 총 사용 단가 계산
+                        usage_df = pd.merge(
+                            usage_df,
+                            ingredient_df[['재료명', '단가']],
+                            on='재료명',
+                            how='left'
+                        )
+                        usage_df['단가'] = usage_df['단가'].fillna(0)
+                        usage_df['총사용단가'] = usage_df['총사용량'] * usage_df['단가']
+                        
+                        # 재료별 총 사용량/총 사용 단가 집계
+                        ingredient_summary = (
+                            usage_df
+                            .groupby('재료명')[['총사용량', '총사용단가']]
+                            .sum()
+                            .reset_index()
+                        )
+                        
+                        # 사용 단가 기준으로 정렬
+                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
+                        
+                        # 총 사용단가 합계 계산
+                        total_cost = ingredient_summary['총사용단가'].sum()
+                        
+                        if total_cost > 0:
                         # 비율 및 누적 비율 계산
                         ingredient_summary['비율(%)'] = (ingredient_summary['총사용단가'] / total_cost * 100).round(2)
                         ingredient_summary['누적 비율(%)'] = ingredient_summary['비율(%)'].cumsum().round(2)
@@ -5737,17 +5737,17 @@ elif page == "통합 대시보드":
                             </span>
                         </div>
                         """, unsafe_allow_html=True)
-                    
+                        
                     st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
                     
                     # ========== 레시피 검색 및 수정 ==========
                     recipe_df_dashboard = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
                     
                     if not recipe_df_dashboard.empty:
-                    # 레시피가 있는 메뉴 목록 추출
-                    menus_with_recipes = recipe_df_dashboard['메뉴명'].unique().tolist()
-                    
-                    if menus_with_recipes:
+                        # 레시피가 있는 메뉴 목록 추출
+                        menus_with_recipes = recipe_df_dashboard['메뉴명'].unique().tolist()
+                        
+                        if menus_with_recipes:
                         st.markdown("""
                         <div style="margin: 1rem 0 0.5rem 0;">
                             <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
