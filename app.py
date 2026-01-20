@@ -1591,10 +1591,10 @@ if page == "점장 마감":
 elif page == "매출 등록":
     render_page_header("매출 등록", "💰")
     
-    # 카테고리 선택 (매출 / 방문자)
+    # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
     category = st.radio(
         "카테고리",
-        ["💰 매출", "👥 방문자"],
+        ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
         horizontal=True,
         key="sales_category"
     )
@@ -1679,7 +1679,7 @@ elif page == "매출 등록":
                             st.balloons()
                             st.rerun()
     
-    # ========== 방문자 입력 섹션 ==========
+    # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
     else:
         # 입력 모드 선택 (단일 / 일괄)
         input_mode = st.radio(
@@ -1699,11 +1699,11 @@ elif page == "매출 등록":
             with col1:
                 if st.button("💾 저장", type="primary", use_container_width=True):
                     if visitors <= 0:
-                        st.error("방문자수는 0보다 큰 값이어야 합니다.")
+                        st.error("네이버 스마트플레이스 방문자수는 0보다 큰 값이어야 합니다.")
                     else:
                         try:
                             save_visitor(date, visitors)
-                            st.success(f"방문자수가 저장되었습니다! ({date}, {visitors}명)")
+                            st.success(f"네이버 스마트플레이스 방문자수가 저장되었습니다! ({date}, {visitors}명)")
                             st.rerun()
                         except Exception as e:
                             st.error(f"저장 중 오류가 발생했습니다: {e}")
@@ -1719,11 +1719,11 @@ elif page == "매출 등록":
                 st.write("**📊 입력 요약**")
                 summary_df = pd.DataFrame(
                     [(d.strftime('%Y-%m-%d'), f"{v}명") for d, v in visitor_data],
-                    columns=['날짜', '방문자수']
+                    columns=['날짜', '네이버 스마트플레이스 방문자수']
                 )
                 st.dataframe(summary_df, use_container_width=True, hide_index=True)
                 
-                st.markdown(f"**총 {len(visitor_data)}일, 총 방문자수: {sum(v for _, v in visitor_data):,}명**")
+                st.markdown(f"**총 {len(visitor_data)}일, 총 네이버 스마트플레이스 방문자수: {sum(v for _, v in visitor_data):,}명**")
                 
                 col1, col2 = st.columns([1, 4])
                 with col1:
@@ -1743,7 +1743,7 @@ elif page == "매출 등록":
                                 st.error(error)
                         
                         if success_count > 0:
-                            st.success(f"✅ {success_count}일의 방문자수가 저장되었습니다!")
+                            st.success(f"✅ {success_count}일의 네이버 스마트플레이스 방문자수가 저장되었습니다!")
                             st.balloons()
                             st.rerun()
 
