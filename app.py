@@ -5074,8 +5074,174 @@ elif page == "통합 대시보드":
         
         render_section_divider()
         
-        # ========== 판매 ABC 분석 ==========
+        # ========== 매출 관리 항목들 ==========
         from datetime import timedelta
+        from calendar import monthrange
+        
+        # 매출 데이터 로드
+        sales_df_dashboard = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+        visitors_df_dashboard = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+        targets_df_dashboard = load_csv('targets.csv', default_columns=[
+            '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+            '목표임대료율', '목표기타비용율', '목표순이익률'
+        ])
+        
+        # 매출과 방문자 데이터 통합
+        merged_df_dashboard = merge_sales_visitors(sales_df_dashboard, visitors_df_dashboard)
+        
+        # 날짜 컬럼을 datetime으로 변환
+        if not merged_df_dashboard.empty and '날짜' in merged_df_dashboard.columns:
+            merged_df_dashboard['날짜'] = pd.to_datetime(merged_df_dashboard['날짜'])
+        
+        # 이번달 데이터 필터링
+        month_data_dashboard = merged_df_dashboard[
+            (merged_df_dashboard['날짜'].dt.year == current_year) & 
+            (merged_df_dashboard['날짜'].dt.month == current_month)
+        ].copy() if not merged_df_dashboard.empty else pd.DataFrame()
+        
+        month_total_sales_dashboard = month_data_dashboard['총매출'].sum() if not month_data_dashboard.empty and '총매출' in month_data_dashboard.columns else 0
+        month_total_visitors_dashboard = month_data_dashboard['방문자수'].sum() if not month_data_dashboard.empty and '방문자수' in month_data_dashboard.columns else 0
+        
+        # 목표 매출 확인
+        target_sales_dashboard = 0
+        target_row_dashboard = targets_df_dashboard[
+            (targets_df_dashboard['연도'] == current_year) & 
+            (targets_df_dashboard['월'] == current_month)
+        ]
+        if not target_row_dashboard.empty:
+            target_sales_dashboard = float(target_row_dashboard.iloc[0].get('목표매출', 0))
+        
+        if not merged_df_dashboard.empty:
+            # 1. 이번달 요약
+            st.markdown("""
+            <div style="margin: 2rem 0 1rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    📊 이번달 요약
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if not month_data_dashboard.empty:
+                month_avg_daily_sales = month_total_sales_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
+                month_avg_daily_visitors = month_total_visitors_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
+                avg_customer_value = month_total_sales_dashboard / month_total_visitors_dashboard if month_total_visitors_dashboard > 0 else 0
+                
+                col1, col2, col3, col4, col5 = st.columns(5)
+                with col1:
+                    st.metric("이번달 누적 매출", f"{month_total_sales_dashboard:,.0f}원")
+                with col2:
+                    st.metric("평균 일일 매출", f"{month_avg_daily_sales:,.0f}원")
+                with col3:
+                    st.metric("이번달 총 방문자", f"{int(month_total_visitors_dashboard):,}명")
+                with col4:
+                    st.metric("평균 객단가", f"{avg_customer_value:,.0f}원")
+                with col5:
+                    # 목표 달성률 계산
+                    target_achievement = (month_total_sales_dashboard / target_sales_dashboard * 100) if target_sales_dashboard > 0 else None
+                    if target_achievement is not None:
+                        st.metric("목표 달성률", f"{target_achievement:.1f}%", 
+                                f"{target_achievement - 100:.1f}%p" if target_achievement != 100 else "0%p")
+                    else:
+                        st.metric("목표 달성률", "-", help="목표 매출이 설정되지 않았습니다")
+            
+            render_section_divider()
+            
+            # 2. 저장된 매출 내역
+            st.markdown("""
+            <div style="margin: 2rem 0 1rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    📋 저장된 매출 내역
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if not merged_df_dashboard.empty:
+                # 통합 데이터 표시
+                display_df_dashboard = merged_df_dashboard.copy()
+                
+                # 표시할 컬럼만 선택
+                display_columns = []
+                if '날짜' in display_df_dashboard.columns:
+                    display_columns.append('날짜')
+                if '매장' in display_df_dashboard.columns:
+                    display_columns.append('매장')
+                if '카드매출' in display_df_dashboard.columns:
+                    display_columns.append('카드매출')
+                if '현금매출' in display_df_dashboard.columns:
+                    display_columns.append('현금매출')
+                if '총매출' in display_df_dashboard.columns:
+                    display_columns.append('총매출')
+                if '방문자수' in display_df_dashboard.columns:
+                    display_columns.append('방문자수')
+                
+                # 필요한 컬럼만 선택
+                if display_columns:
+                    display_df_dashboard = display_df_dashboard[display_columns]
+                    
+                    # 날짜를 문자열로 변환
+                    if '날짜' in display_df_dashboard.columns:
+                        display_df_dashboard['날짜'] = pd.to_datetime(display_df_dashboard['날짜']).dt.strftime('%Y-%m-%d')
+                    
+                    # 숫자 포맷팅
+                    if '총매출' in display_df_dashboard.columns:
+                        display_df_dashboard['총매출'] = display_df_dashboard['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    if '카드매출' in display_df_dashboard.columns:
+                        display_df_dashboard['카드매출'] = display_df_dashboard['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    if '현금매출' in display_df_dashboard.columns:
+                        display_df_dashboard['현금매출'] = display_df_dashboard['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                    if '방문자수' in display_df_dashboard.columns:
+                        display_df_dashboard['방문자수'] = display_df_dashboard['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+                
+                st.dataframe(display_df_dashboard, use_container_width=True, hide_index=True)
+            
+            render_section_divider()
+            
+            # 3. 월별 요약 (최근 6개월)
+            st.markdown("""
+            <div style="margin: 2rem 0 1rem 0;">
+                <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+                    📋 월별 요약 (최근 6개월)
+                </h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 최근 6개월 데이터
+            today_dashboard = datetime.now().date()
+            six_months_ago = today_dashboard - timedelta(days=180)
+            recent_6m_data = merged_df_dashboard[merged_df_dashboard['날짜'].dt.date >= six_months_ago].copy()
+            
+            if not recent_6m_data.empty:
+                recent_6m_data['연도'] = recent_6m_data['날짜'].dt.year
+                recent_6m_data['월'] = recent_6m_data['날짜'].dt.month
+                
+                monthly_summary = recent_6m_data.groupby(['연도', '월']).agg({
+                    '총매출': ['sum', 'mean', 'count'],
+                    '방문자수': ['sum', 'mean']
+                }).reset_index()
+                monthly_summary.columns = ['연도', '월', '월총매출', '일평균매출', '영업일수', '월총방문자', '일평균방문자']
+                monthly_summary['월별객단가'] = monthly_summary['월총매출'] / monthly_summary['월총방문자']
+                monthly_summary = monthly_summary.sort_values(['연도', '월'], ascending=[False, False])
+                
+                # 성장률 계산
+                monthly_summary['전월대비'] = monthly_summary['월총매출'].pct_change() * 100
+                
+                display_monthly = monthly_summary.head(6).copy()
+                display_monthly['월'] = display_monthly['월'].apply(lambda x: f"{int(x)}월")
+                display_monthly['월총매출'] = display_monthly['월총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_monthly['일평균매출'] = display_monthly['일평균매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_monthly['월총방문자'] = display_monthly['월총방문자'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+                display_monthly['월별객단가'] = display_monthly['월별객단가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
+                display_monthly['전월대비'] = display_monthly['전월대비'].apply(lambda x: f"{x:+.1f}%" if pd.notna(x) else "-")
+                
+                st.dataframe(
+                    display_monthly[['연도', '월', '영업일수', '월총매출', '일평균매출', '월총방문자', '월별객단가', '전월대비']],
+                    use_container_width=True,
+                    hide_index=True
+                )
+        
+        render_section_divider()
+        
+        # ========== 판매 ABC 분석 ==========
         
         # 판매 데이터 로드
         menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -5460,172 +5626,6 @@ elif page == "통합 대시보드":
                                 else:
                                     st.info("조리방법이 등록되지 않았습니다.")
                     
-                    render_section_divider()
-                    
-                    # ========== 매출 관리 항목들 ==========
-                    from datetime import timedelta
-                    from calendar import monthrange
-                    
-                    # 매출 데이터 로드
-                    sales_df_dashboard = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-                    visitors_df_dashboard = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-                    targets_df_dashboard = load_csv('targets.csv', default_columns=[
-                        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
-                        '목표임대료율', '목표기타비용율', '목표순이익률'
-                    ])
-                    
-                    # 매출과 방문자 데이터 통합
-                    merged_df_dashboard = merge_sales_visitors(sales_df_dashboard, visitors_df_dashboard)
-                    
-                    # 날짜 컬럼을 datetime으로 변환
-                    if not merged_df_dashboard.empty and '날짜' in merged_df_dashboard.columns:
-                        merged_df_dashboard['날짜'] = pd.to_datetime(merged_df_dashboard['날짜'])
-                    
-                    # 이번달 데이터 필터링
-                    month_data_dashboard = merged_df_dashboard[
-                        (merged_df_dashboard['날짜'].dt.year == current_year) & 
-                        (merged_df_dashboard['날짜'].dt.month == current_month)
-                    ].copy() if not merged_df_dashboard.empty else pd.DataFrame()
-                    
-                    month_total_sales_dashboard = month_data_dashboard['총매출'].sum() if not month_data_dashboard.empty and '총매출' in month_data_dashboard.columns else 0
-                    month_total_visitors_dashboard = month_data_dashboard['방문자수'].sum() if not month_data_dashboard.empty and '방문자수' in month_data_dashboard.columns else 0
-                    
-                    # 목표 매출 확인
-                    target_sales_dashboard = 0
-                    target_row_dashboard = targets_df_dashboard[
-                        (targets_df_dashboard['연도'] == current_year) & 
-                        (targets_df_dashboard['월'] == current_month)
-                    ]
-                    if not target_row_dashboard.empty:
-                        target_sales_dashboard = float(target_row_dashboard.iloc[0].get('목표매출', 0))
-                    
-                    if not merged_df_dashboard.empty:
-                        # 1. 이번달 요약
-                        st.markdown("""
-                        <div style="margin: 2rem 0 1rem 0;">
-                            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-                                📊 이번달 요약
-                            </h3>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if not month_data_dashboard.empty:
-                            month_avg_daily_sales = month_total_sales_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
-                            month_avg_daily_visitors = month_total_visitors_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
-                            avg_customer_value = month_total_sales_dashboard / month_total_visitors_dashboard if month_total_visitors_dashboard > 0 else 0
-                            
-                            col1, col2, col3, col4, col5 = st.columns(5)
-                            with col1:
-                                st.metric("이번달 누적 매출", f"{month_total_sales_dashboard:,.0f}원")
-                            with col2:
-                                st.metric("평균 일일 매출", f"{month_avg_daily_sales:,.0f}원")
-                            with col3:
-                                st.metric("이번달 총 방문자", f"{int(month_total_visitors_dashboard):,}명")
-                            with col4:
-                                st.metric("평균 객단가", f"{avg_customer_value:,.0f}원")
-                            with col5:
-                                # 목표 달성률 계산
-                                target_achievement = (month_total_sales_dashboard / target_sales_dashboard * 100) if target_sales_dashboard > 0 else None
-                                if target_achievement is not None:
-                                    st.metric("목표 달성률", f"{target_achievement:.1f}%", 
-                                            f"{target_achievement - 100:.1f}%p" if target_achievement != 100 else "0%p")
-                                else:
-                                    st.metric("목표 달성률", "-", help="목표 매출이 설정되지 않았습니다")
-                        
-                        render_section_divider()
-                        
-                        # 2. 저장된 매출 내역
-                        st.markdown("""
-                        <div style="margin: 2rem 0 1rem 0;">
-                            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-                                📋 저장된 매출 내역
-                            </h3>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if not merged_df_dashboard.empty:
-                            # 통합 데이터 표시
-                            display_df_dashboard = merged_df_dashboard.copy()
-                            
-                            # 표시할 컬럼만 선택
-                            display_columns = []
-                            if '날짜' in display_df_dashboard.columns:
-                                display_columns.append('날짜')
-                            if '매장' in display_df_dashboard.columns:
-                                display_columns.append('매장')
-                            if '카드매출' in display_df_dashboard.columns:
-                                display_columns.append('카드매출')
-                            if '현금매출' in display_df_dashboard.columns:
-                                display_columns.append('현금매출')
-                            if '총매출' in display_df_dashboard.columns:
-                                display_columns.append('총매출')
-                            if '방문자수' in display_df_dashboard.columns:
-                                display_columns.append('방문자수')
-                            
-                            # 필요한 컬럼만 선택
-                            if display_columns:
-                                display_df_dashboard = display_df_dashboard[display_columns]
-                                
-                                # 날짜를 문자열로 변환
-                                if '날짜' in display_df_dashboard.columns:
-                                    display_df_dashboard['날짜'] = pd.to_datetime(display_df_dashboard['날짜']).dt.strftime('%Y-%m-%d')
-                                
-                                # 숫자 포맷팅
-                                if '총매출' in display_df_dashboard.columns:
-                                    display_df_dashboard['총매출'] = display_df_dashboard['총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                                if '카드매출' in display_df_dashboard.columns:
-                                    display_df_dashboard['카드매출'] = display_df_dashboard['카드매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                                if '현금매출' in display_df_dashboard.columns:
-                                    display_df_dashboard['현금매출'] = display_df_dashboard['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                                if '방문자수' in display_df_dashboard.columns:
-                                    display_df_dashboard['방문자수'] = display_df_dashboard['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
-                            
-                            st.dataframe(display_df_dashboard, use_container_width=True, hide_index=True)
-                        
-                        render_section_divider()
-                        
-                        # 3. 월별 요약 (최근 6개월)
-                        st.markdown("""
-                        <div style="margin: 2rem 0 1rem 0;">
-                            <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-                                📋 월별 요약 (최근 6개월)
-                            </h3>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # 최근 6개월 데이터
-                        today_dashboard = datetime.now().date()
-                        six_months_ago = today_dashboard - timedelta(days=180)
-                        recent_6m_data = merged_df_dashboard[merged_df_dashboard['날짜'].dt.date >= six_months_ago].copy()
-                        
-                        if not recent_6m_data.empty:
-                            recent_6m_data['연도'] = recent_6m_data['날짜'].dt.year
-                            recent_6m_data['월'] = recent_6m_data['날짜'].dt.month
-                            
-                            monthly_summary = recent_6m_data.groupby(['연도', '월']).agg({
-                                '총매출': ['sum', 'mean', 'count'],
-                                '방문자수': ['sum', 'mean']
-                            }).reset_index()
-                            monthly_summary.columns = ['연도', '월', '월총매출', '일평균매출', '영업일수', '월총방문자', '일평균방문자']
-                            monthly_summary['월별객단가'] = monthly_summary['월총매출'] / monthly_summary['월총방문자']
-                            monthly_summary = monthly_summary.sort_values(['연도', '월'], ascending=[False, False])
-                            
-                            # 성장률 계산
-                            monthly_summary['전월대비'] = monthly_summary['월총매출'].pct_change() * 100
-                            
-                            display_monthly = monthly_summary.head(6).copy()
-                            display_monthly['월'] = display_monthly['월'].apply(lambda x: f"{int(x)}월")
-                            display_monthly['월총매출'] = display_monthly['월총매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                            display_monthly['일평균매출'] = display_monthly['일평균매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                            display_monthly['월총방문자'] = display_monthly['월총방문자'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
-                            display_monthly['월별객단가'] = display_monthly['월별객단가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
-                            display_monthly['전월대비'] = display_monthly['전월대비'].apply(lambda x: f"{x:+.1f}%" if pd.notna(x) else "-")
-                            
-                            st.dataframe(
-                                display_monthly[['연도', '월', '영업일수', '월총매출', '일평균매출', '월총방문자', '월별객단가', '전월대비']],
-                                use_container_width=True,
-                                hide_index=True
-                            )
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
