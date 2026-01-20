@@ -5748,135 +5748,135 @@ elif page == "통합 대시보드":
                         menus_with_recipes = recipe_df_dashboard['메뉴명'].unique().tolist()
                         
                         if menus_with_recipes:
-                        st.markdown("""
-                        <div style="margin: 1rem 0 0.5rem 0;">
-                            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
-                                🔍 레시피 검색 및 수정
-                            </h3>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # 메뉴 선택
-                        filter_menu = st.selectbox(
-                            "메뉴 선택",
-                            options=menus_with_recipes,
-                            key="dashboard_recipe_filter_menu",
-                            index=0 if menus_with_recipes else None
-                        )
-                        
-                        # 선택한 메뉴의 레시피만 필터링
-                        display_recipe_df = recipe_df_dashboard[recipe_df_dashboard['메뉴명'] == filter_menu].copy()
-                        
-                        if not display_recipe_df.empty:
-                            # 재료 정보와 조인하여 단위 및 단가 표시
-                            display_recipe_df = pd.merge(
-                                display_recipe_df,
-                                ingredient_df[['재료명', '단위', '단가']],
-                                on='재료명',
-                                how='left'
+                            st.markdown("""
+                            <div style="margin: 1rem 0 0.5rem 0;">
+                                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
+                                    🔍 레시피 검색 및 수정
+                                </h3>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # 메뉴 선택
+                            filter_menu = st.selectbox(
+                                "메뉴 선택",
+                                options=menus_with_recipes,
+                                key="dashboard_recipe_filter_menu",
+                                index=0 if menus_with_recipes else None
                             )
                             
-                            # 원가 계산
-                            menu_cost_df = calculate_menu_cost(menu_df, recipe_df_dashboard, ingredient_df)
-                            menu_cost_info = menu_cost_df[menu_cost_df['메뉴명'] == filter_menu]
+                            # 선택한 메뉴의 레시피만 필터링
+                            display_recipe_df = recipe_df_dashboard[recipe_df_dashboard['메뉴명'] == filter_menu].copy()
                             
-                            # 메뉴 정보 가져오기
-                            menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
-                            # Phase 1: 안전한 DataFrame 접근
-                            menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
-                            
-                            # 조리방법 가져오기 (menu_master에서)
-                            cooking_method_text = ""
-                            try:
-                                from src.auth import get_supabase_client, get_current_store_id
-                                supabase = get_supabase_client()
-                                store_id = get_current_store_id()
-                                if supabase and store_id:
-                                    menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
-                                    if menu_result.data and menu_result.data[0].get('cooking_method'):
-                                        cooking_method_text = menu_result.data[0]['cooking_method']
-                            except Exception:
-                                pass
-                            
-                            # 원가 정보
-                            cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
-                            cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
-                            
-                            # 메뉴 정보 카드
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
-                                    <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">판매가</div>
-                                    <div style="font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col2:
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
-                                    <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가</div>
-                                    <div style="font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col3:
-                                st.markdown(f"""
-                                <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
-                                    <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가율</div>
-                                    <div style="font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            # 구성 재료 및 사용량 테이블
-                            st.markdown("""
-                            <div style="margin: 1rem 0 0.5rem 0;">
-                                <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
-                                    📋 구성 재료 및 사용량
-                                </h4>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # 테이블 데이터 준비
-                            table_data = []
-                            for idx, row in display_recipe_df.iterrows():
-                                ing_name = row['재료명']
-                                unit = row['단위'] if pd.notna(row['단위']) else ""
-                                current_qty = float(row['사용량'])
-                                unit_price = float(row['단가']) if pd.notna(row['단가']) else 0
-                                ingredient_cost = current_qty * unit_price
+                            if not display_recipe_df.empty:
+                                # 재료 정보와 조인하여 단위 및 단가 표시
+                                display_recipe_df = pd.merge(
+                                    display_recipe_df,
+                                    ingredient_df[['재료명', '단위', '단가']],
+                                    on='재료명',
+                                    how='left'
+                                )
                                 
-                                table_data.append({
-                                    '재료명': ing_name,
-                                    '기준단위': unit,
-                                    '사용량': f"{current_qty:.2f}",
-                                    '1단위 단가': f"{unit_price:,.1f}원",
-                                    '재료비': f"{ingredient_cost:,.1f}원"
-                                })
-                            
-                            # 테이블 표시
-                            ingredients_table_df = pd.DataFrame(table_data)
-                            st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
-                            
-                            # 조리방법 표시
-                            st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
-                            st.markdown("""
-                            <div style="margin: 1rem 0 0.5rem 0;">
-                                <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
-                                    👨‍🍳 조리방법
-                                </h4>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            if cooking_method_text:
-                                st.markdown(f"""
-                                <div style="background: rgba(30, 41, 59, 0.5); padding: 1rem; border-radius: 12px; 
-                                            border-left: 4px solid #667eea; margin: 0.75rem 0;">
-                                    <div style="color: #e5e7eb; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;">
-                                        {cooking_method_text.replace(chr(10), '<br>')}
+                                # 원가 계산
+                                menu_cost_df = calculate_menu_cost(menu_df, recipe_df_dashboard, ingredient_df)
+                                menu_cost_info = menu_cost_df[menu_cost_df['메뉴명'] == filter_menu]
+                                
+                                # 메뉴 정보 가져오기
+                                menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
+                                # Phase 1: 안전한 DataFrame 접근
+                                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
+                                
+                                # 조리방법 가져오기 (menu_master에서)
+                                cooking_method_text = ""
+                                try:
+                                    from src.auth import get_supabase_client, get_current_store_id
+                                    supabase = get_supabase_client()
+                                    store_id = get_current_store_id()
+                                    if supabase and store_id:
+                                        menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
+                                        if menu_result.data and menu_result.data[0].get('cooking_method'):
+                                            cooking_method_text = menu_result.data[0]['cooking_method']
+                                except Exception:
+                                    pass
+                                
+                                # 원가 정보
+                                cost = int(menu_cost_info.iloc[0]['원가']) if not menu_cost_info.empty else 0
+                                cost_rate = float(menu_cost_info.iloc[0]['원가율']) if not menu_cost_info.empty else 0
+                                
+                                # 메뉴 정보 카드
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">판매가</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
                                     </div>
+                                    """, unsafe_allow_html=True)
+                                with col2:
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                with col3:
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.25rem;">
+                                        <div style="font-size: 0.85rem; margin-bottom: 0.4rem; opacity: 0.9;">원가율</div>
+                                        <div style="font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # 구성 재료 및 사용량 테이블
+                                st.markdown("""
+                                <div style="margin: 1rem 0 0.5rem 0;">
+                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
+                                        📋 구성 재료 및 사용량
+                                    </h4>
                                 </div>
                                 """, unsafe_allow_html=True)
-                            else:
-                                st.info("조리방법이 등록되지 않았습니다.")
+                                
+                                # 테이블 데이터 준비
+                                table_data = []
+                                for idx, row in display_recipe_df.iterrows():
+                                    ing_name = row['재료명']
+                                    unit = row['단위'] if pd.notna(row['단위']) else ""
+                                    current_qty = float(row['사용량'])
+                                    unit_price = float(row['단가']) if pd.notna(row['단가']) else 0
+                                    ingredient_cost = current_qty * unit_price
+                                    
+                                    table_data.append({
+                                        '재료명': ing_name,
+                                        '기준단위': unit,
+                                        '사용량': f"{current_qty:.2f}",
+                                        '1단위 단가': f"{unit_price:,.1f}원",
+                                        '재료비': f"{ingredient_cost:,.1f}원"
+                                    })
+                                
+                                # 테이블 표시
+                                ingredients_table_df = pd.DataFrame(table_data)
+                                st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
+                                
+                                # 조리방법 표시
+                                st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+                                st.markdown("""
+                                <div style="margin: 1rem 0 0.5rem 0;">
+                                    <h4 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.1rem;">
+                                        👨‍🍳 조리방법
+                                    </h4>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if cooking_method_text:
+                                    st.markdown(f"""
+                                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1rem; border-radius: 12px; 
+                                                border-left: 4px solid #667eea; margin: 0.75rem 0;">
+                                        <div style="color: #e5e7eb; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap;">
+                                            {cooking_method_text.replace(chr(10), '<br>')}
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    st.info("조리방법이 등록되지 않았습니다.")
                     
     else:
         st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
