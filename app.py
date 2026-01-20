@@ -5141,7 +5141,7 @@ elif page == "발주 관리":
                         low_stock_data = pd.merge(low_stock_data, daily_avg, on='재료명', how='left')
                         # 예상 소진일 계산 (벡터화)
                         low_stock_data['예상소진일'] = (low_stock_data['현재고'] / low_stock_data['avg_daily_usage']).replace([np.inf, -np.inf], np.nan)
-                        low_stock_data['예상소진일'] = low_stock_data['예상소진일'].fillna(None)
+                        # fillna(None) 대신 apply에서 직접 처리 (pandas 최신 버전 호환)
                         low_stock_data['예상소진일'] = low_stock_data['예상소진일'].apply(lambda x: int(x) if pd.notna(x) and x > 0 else None)
                     else:
                         low_stock_data['예상소진일'] = None
