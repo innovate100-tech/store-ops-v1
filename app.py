@@ -4616,6 +4616,109 @@ elif page == "발주 관리":
         
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
+        # ========== 알림 대시보드 ==========
+        from datetime import datetime, timedelta
+        
+        # 품절 위험 알림 계산
+        urgent_orders = []
+        low_stock_items = []
+        pending_orders_count = 0
+        expected_deliveries = []
+        
+        if not inventory_df.empty:
+            # 현재고 < 안전재고인 재료 찾기
+            for idx, row in inventory_df.iterrows():
+                current_stock = row.get('현재고', 0)
+                safety_stock = row.get('안전재고', 0)
+                if current_stock < safety_stock:
+                    low_stock_items.append({
+                        '재료명': row['재료명'],
+                        '현재고': current_stock,
+                        '안전재고': safety_stock,
+                        '부족량': safety_stock - current_stock
+                    })
+        
+        # 발주 예정/완료 상태인 발주 개수
+        orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
+        if not orders_df.empty:
+            pending_orders = orders_df[orders_df['상태'].isin(['예정', '완료'])]
+            pending_orders_count = len(pending_orders)
+            
+            # 입고 예정일이 오늘 또는 내일인 발주
+            today = datetime.now().date()
+            tomorrow = today + timedelta(days=1)
+            if '입고예정일' in orders_df.columns:
+                orders_df['입고예정일'] = pd.to_datetime(orders_df['입고예정일'], errors='coerce')
+                expected_deliveries = orders_df[
+                    (orders_df['상태'].isin(['예정', '완료'])) & 
+                    (pd.to_datetime(orders_df['입고예정일']).dt.date <= tomorrow)
+                ]
+        
+        # 알림 타일 표시
+        expected_count = len(expected_deliveries) if isinstance(expected_deliveries, pd.DataFrame) and not expected_deliveries.empty else 0
+        if low_stock_items or pending_orders_count > 0 or expected_count > 0:
+            st.markdown("### 🔔 알림")
+            alert_col1, alert_col2, alert_col3 = st.columns(3)
+            
+            with alert_col1:
+                if low_stock_items:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">🚨 품절 위험</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{len(low_stock_items)}개</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">재료 부족</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">품절 위험 없음</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with alert_col2:
+                if pending_orders_count > 0:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📋 발주 예정</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{pending_orders_count}건</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">처리 대기</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">발주 예정 없음</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with alert_col3:
+                if expected_count > 0:
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 입고 예정</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;">{expected_count}건</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">오늘/내일 입고</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                        <div style="font-size: 0.9rem; opacity: 0.7;">입고 예정 없음</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # 품절 위험 상세 정보
+            if low_stock_items:
+                with st.expander(f"🚨 품절 위험 재료 상세 ({len(low_stock_items)}개)", expanded=True):
+                    urgent_df = pd.DataFrame(low_stock_items)
+                    urgent_df['현재고'] = urgent_df['현재고'].apply(lambda x: f"{x:,.2f}")
+                    urgent_df['안전재고'] = urgent_df['안전재고'].apply(lambda x: f"{x:,.2f}")
+                    urgent_df['부족량'] = urgent_df['부족량'].apply(lambda x: f"{x:,.2f}")
+                    st.dataframe(urgent_df, use_container_width=True, hide_index=True)
+            
+            render_section_divider()
+        
         if not inventory_df.empty:
             # 재료 사용량 계산을 위한 데이터 로드
             daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
@@ -4681,29 +4784,97 @@ elif page == "발주 관리":
                         
                         # 발주일 선택
                         from datetime import datetime, timedelta
-                        order_date = st.date_input("발주일", value=datetime.now().date(), key="order_date")
+                        col_date1, col_date2 = st.columns([1, 1])
+                        with col_date1:
+                            order_date = st.date_input("발주일", value=datetime.now().date(), key="order_date")
                         
-                        # 발주 생성할 재료 선택
-                        selected_items = st.multiselect(
-                            "발주할 재료 선택",
-                            options=order_df['재료명'].tolist(),
-                            default=order_df['재료명'].tolist(),
-                            key="selected_order_items"
-                        )
+                        # 발주 생성할 재료 선택 (개선된 UI)
+                        st.write("**발주할 재료 선택**")
+                        
+                        # 전체 선택/해제 버튼
+                        col_select1, col_select2 = st.columns([1, 4])
+                        with col_select1:
+                            if st.button("✅ 전체 선택", key="select_all_items"):
+                                st.session_state['selected_order_items'] = order_df['재료명'].tolist()
+                                st.rerun()
+                            if st.button("❌ 전체 해제", key="deselect_all_items"):
+                                st.session_state['selected_order_items'] = []
+                                st.rerun()
+                        
+                        # 재료별 상세 정보와 함께 선택 UI
+                        selected_items = []
+                        if 'selected_order_items' not in st.session_state:
+                            st.session_state['selected_order_items'] = order_df['재료명'].tolist()
+                        
+                        # 재료별 카드 형태로 표시
+                        for idx, row in order_df.iterrows():
+                            ingredient_name = row['재료명']
+                            supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                            quantity = row['발주필요량']
+                            amount = row['예상금액']
+                            
+                            # 체크박스와 정보를 함께 표시
+                            col_check, col_info = st.columns([0.3, 9.7])
+                            with col_check:
+                                is_selected = st.checkbox(
+                                    "",
+                                    value=ingredient_name in st.session_state['selected_order_items'],
+                                    key=f"order_check_{ingredient_name}"
+                                )
+                                if is_selected and ingredient_name not in selected_items:
+                                    selected_items.append(ingredient_name)
+                                elif not is_selected and ingredient_name in selected_items:
+                                    selected_items.remove(ingredient_name)
+                            
+                            with col_info:
+                                supplier_color = "#ef4444" if supplier_name == "미지정" else "#10b981"
+                                st.markdown(f"""
+                                <div style="background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {supplier_color};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <strong style="color: #ffffff; font-size: 1rem;">{ingredient_name}</strong>
+                                            <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">({row['단위']})</span>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="color: #ffffff; font-size: 0.9rem;">수량: {quantity:,.2f}</div>
+                                            <div style="color: #94a3b8; font-size: 0.85rem;">금액: {int(amount):,}원</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 0.3rem; font-size: 0.8rem; color: #94a3b8;">
+                                        공급업체: <span style="color: {supplier_color};">{supplier_name}</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
+                        # 선택된 항목 업데이트
+                        st.session_state['selected_order_items'] = selected_items
+                        
+                        # 선택 요약
+                        if selected_items:
+                            selected_df = order_df[order_df['재료명'].isin(selected_items)]
+                            total_selected_amount = selected_df['예상금액'].sum()
+                            st.info(f"📊 선택된 재료: {len(selected_items)}개 | 총 예상 금액: {int(total_selected_amount):,}원")
                         
                         if st.button("📝 발주 생성", type="primary", key="create_order"):
                             if selected_items:
-                                try:
-                                    from src.storage_supabase import save_order
-                                    created_count = 0
-                                    
-                                    for ingredient_name in selected_items:
-                                        item_row = order_df[order_df['재료명'] == ingredient_name].iloc[0]
-                                        supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                # 공급업체 미지정 재료 확인
+                                missing_suppliers = []
+                                for ingredient_name in selected_items:
+                                    supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                    if supplier_name == "미지정":
+                                        missing_suppliers.append(ingredient_name)
+                                
+                                if missing_suppliers:
+                                    st.error(f"⚠️ 다음 재료의 공급업체가 지정되지 않았습니다: {', '.join(missing_suppliers)}\n공급업체 탭에서 먼저 설정해주세요.")
+                                else:
+                                    try:
+                                        from src.storage_supabase import save_order
+                                        created_count = 0
+                                        failed_items = []
                                         
-                                        if supplier_name == "미지정":
-                                            st.warning(f"⚠️ {ingredient_name}의 공급업체가 지정되지 않았습니다. 공급업체 탭에서 먼저 설정해주세요.")
-                                            continue
+                                        for ingredient_name in selected_items:
+                                            item_row = order_df[order_df['재료명'] == ingredient_name].iloc[0]
+                                            supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
                                         
                                         # 공급업체별 단가 가져오기
                                         supplier_price = item_row['단가']
@@ -4730,23 +4901,35 @@ elif page == "발주 관리":
                                                 except:
                                                     pass
                                         
-                                        save_order(
-                                            order_date=order_date,
-                                            ingredient_name=ingredient_name,
-                                            supplier_name=supplier_name,
-                                            quantity=quantity,
-                                            unit_price=supplier_price,
-                                            total_amount=total_amount_item,
-                                            status="예정",
-                                            expected_delivery_date=expected_delivery_date
-                                        )
-                                        created_count += 1
-                                    
-                                    if created_count > 0:
-                                        st.success(f"✅ {created_count}개 재료의 발주가 생성되었습니다!")
-                                        st.rerun()
-                                except Exception as e:
-                                    st.error(f"발주 생성 중 오류가 발생했습니다: {e}")
+                                            try:
+                                                save_order(
+                                                    order_date=order_date,
+                                                    ingredient_name=ingredient_name,
+                                                    supplier_name=supplier_name,
+                                                    quantity=quantity,
+                                                    unit_price=supplier_price,
+                                                    total_amount=total_amount_item,
+                                                    status="예정",
+                                                    expected_delivery_date=expected_delivery_date
+                                                )
+                                                created_count += 1
+                                            except Exception as e:
+                                                failed_items.append(f"{ingredient_name} ({str(e)})")
+                                        
+                                        if created_count > 0:
+                                            success_msg = f"✅ {created_count}개 재료의 발주가 생성되었습니다!"
+                                            if failed_items:
+                                                success_msg += f"\n⚠️ 실패: {len(failed_items)}개"
+                                            st.success(success_msg)
+                                            if failed_items:
+                                                with st.expander("실패한 항목 상세", expanded=False):
+                                                    for item in failed_items:
+                                                        st.error(item)
+                                            st.rerun()
+                                        else:
+                                            st.error("발주 생성에 실패했습니다. 모든 항목을 확인해주세요.")
+                                    except Exception as e:
+                                        st.error(f"발주 생성 중 오류가 발생했습니다: {e}")
                             else:
                                 st.warning("발주할 재료를 선택해주세요.")
                         
@@ -4775,9 +4958,64 @@ elif page == "발주 관리":
         render_section_header("발주 이력", "📋")
         
         from src.storage_supabase import update_order_status
+        from datetime import datetime, timedelta
         
         # 발주 이력 로드
         orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
+        
+        # 입고 예정일 알림
+        if not orders_df.empty and '입고예정일' in orders_df.columns:
+            today = datetime.now().date()
+            tomorrow = today + timedelta(days=1)
+            
+            # 입고 예정일이 오늘 또는 내일인 발주
+            orders_df['입고예정일'] = pd.to_datetime(orders_df['입고예정일'], errors='coerce')
+            expected_today = orders_df[
+                (orders_df['상태'].isin(['예정', '완료'])) & 
+                (pd.to_datetime(orders_df['입고예정일']).dt.date == today)
+            ]
+            expected_tomorrow = orders_df[
+                (orders_df['상태'].isin(['예정', '완료'])) & 
+                (pd.to_datetime(orders_df['입고예정일']).dt.date == tomorrow)
+            ]
+            
+            if not expected_today.empty or not expected_tomorrow.empty:
+                st.markdown("### 🔔 입고 예정 알림")
+                alert_col1, alert_col2 = st.columns(2)
+                
+                with alert_col1:
+                    if not expected_today.empty:
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 오늘 입고 예정</div>
+                            <div style="font-size: 1.5rem; font-weight: 700;">{len(expected_today)}건</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        with st.expander("오늘 입고 예정 상세", expanded=False):
+                            display_today = expected_today[['재료명', '공급업체명', '수량', '입고예정일']].copy()
+                            if '입고예정일' in display_today.columns:
+                                display_today['입고예정일'] = pd.to_datetime(display_today['입고예정일']).dt.strftime('%Y-%m-%d')
+                            if '수량' in display_today.columns:
+                                display_today['수량'] = display_today['수량'].apply(lambda x: f"{x:,.2f}")
+                            st.dataframe(display_today, use_container_width=True, hide_index=True)
+                
+                with alert_col2:
+                    if not expected_tomorrow.empty:
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 1rem; border-radius: 8px; text-align: center; color: white; margin-bottom: 1rem;">
+                            <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">📦 내일 입고 예정</div>
+                            <div style="font-size: 1.5rem; font-weight: 700;">{len(expected_tomorrow)}건</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        with st.expander("내일 입고 예정 상세", expanded=False):
+                            display_tomorrow = expected_tomorrow[['재료명', '공급업체명', '수량', '입고예정일']].copy()
+                            if '입고예정일' in display_tomorrow.columns:
+                                display_tomorrow['입고예정일'] = pd.to_datetime(display_tomorrow['입고예정일']).dt.strftime('%Y-%m-%d')
+                            if '수량' in display_tomorrow.columns:
+                                display_tomorrow['수량'] = display_tomorrow['수량'].apply(lambda x: f"{x:,.2f}")
+                            st.dataframe(display_tomorrow, use_container_width=True, hide_index=True)
+                
+                render_section_divider()
         
         if not orders_df.empty:
             # 상태 필터
