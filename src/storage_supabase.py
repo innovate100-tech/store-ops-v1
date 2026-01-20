@@ -1404,7 +1404,15 @@ def delete_supplier(supplier_name):
 
 
 def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_default=True):
-    """재료-공급업체 매핑 저장"""
+    """재료-공급업체 매핑 저장
+
+    Notes
+    -----
+    - unit_price 인자는 **발주 단위 기준 단가(원/발주단위)** 로 전달된다고 가정한다.
+    - ingredients 테이블의 conversion_rate 컬럼을 사용해
+      기본 단위 단가(원/기본단위)로 환산해서 DB에 저장한다.
+      (1 발주단위 = conversion_rate * 기본단위)
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1414,11 +1422,13 @@ def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_defa
         raise Exception("No store_id found")
     
     try:
-        # 재료 ID 찾기
-        ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
+        # 재료 ID 및 변환 비율 찾기
+        ing_result = supabase.table("ingredients").select("id,conversion_rate").eq("store_id", store_id).eq("name", ingredient_name).execute()
         if not ing_result.data:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_row = ing_result.data[0]
+        ingredient_id = ingredient_row['id']
+        conversion_rate = ingredient_row.get('conversion_rate', 1.0) or 1.0
         
         # 공급업체 ID 찾기
         sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
@@ -1434,14 +1444,34 @@ def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_defa
                 for item in existing.data:
                     supabase.table("ingredient_suppliers").update({"is_default": False}).eq("id", item['id']).execute()
         
-        # 재료-공급업체 매핑 저장
+        # 발주 단가(원/발주단위)를 기본 단위 단가(원/기본단위)로 환산
+        try:
+            conv = float(conversion_rate)
+            price_per_order_unit = float(unit_price)
+            if conv > 0:
+                base_unit_price = price_per_order_unit / conv
+            else:
+                base_unit_price = price_per_order_unit
+        except Exception:
+            base_unit_price = float(unit_price)
+
+        # 재료-공급업체 매핑 저장 (기본 단위 단가 기준)
         supabase.table("ingredient_suppliers").upsert({
             "store_id": store_id,
             "ingredient_id": ingredient_id,
             "supplier_id": supplier_id,
-            "unit_price": float(unit_price),
+            "unit_price": float(base_unit_price),
             "is_default": is_default
         }, on_conflict="store_id,ingredient_id,supplier_id").execute()
+
+        # 재료 마스터의 기본 단위 단가도 최신 공급업체 기준으로 갱신
+        try:
+            supabase.table("ingredients").update({
+                "unit_cost": float(base_unit_price)
+            }).eq("id", ingredient_id).execute()
+        except Exception as e:
+            # 단가 갱신 실패는 치명적이지 않으므로 로그만 남김
+            logger.warning(f"Failed to update ingredient unit_cost for {ingredient_name}: {e}")
         
         logger.info(f"Ingredient-supplier mapping saved: {ingredient_name} -> {supplier_name}")
         return True

@@ -5861,7 +5861,14 @@ elif page == "발주 관리":
                     mapping_ingredient = mapping_ingredient_option.split(" (")[0] if " (" in mapping_ingredient_option else mapping_ingredient_option
                     mapping_supplier = st.selectbox("공급업체 선택", options=suppliers_df['공급업체명'].tolist(), key="mapping_supplier")
                 with col2:
-                    mapping_price = st.number_input("단가 (원)", min_value=0.0, value=0.0, key="mapping_price")
+                    # 발주 단위 기준 단가 입력 (원/발주단위)
+                    mapping_price = st.number_input(
+                        "발주 단위 기준 단가 (원/발주단위)",
+                        min_value=0.0,
+                        value=0.0,
+                        key="mapping_price",
+                        help="예: 1박스 가격, 1개 가격 등 발주 단위 기준 금액을 입력하세요."
+                    )
                     is_default = st.checkbox("기본 공급업체로 설정", value=True, key="mapping_is_default")
                 
                 if st.button("💾 매핑 저장", type="primary", key="save_mapping"):
