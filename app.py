@@ -5820,19 +5820,19 @@ elif page == "발주 관리":
                 if supplier_name:
                     try:
                         save_supplier(supplier_name, phone, email, delivery_days, min_order_amount, delivery_fee, notes)
-                        # 캐시 클리어 (suppliers.csv 관련 캐시만) - rerun 전에 클리어
+                        # 캐시 클리어 (등록 후 즉시 목록 업데이트)
                         try:
                             load_csv.clear()
                         except Exception:
                             pass
-                        # 성공 메시지 저장 (rerun 후에도 표시되도록)
-                        st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!"
+                        # 성공 메시지 즉시 표시
+                        st.success(f"✅ 공급업체 '{supplier_name}'가 등록되었습니다!")
                         # 입력 필드 초기화 플래그 설정 (다음 렌더링 시 key 변경으로 자동 초기화)
                         st.session_state.supplier_form_reset = True
                         # 입력 필드 key 변경하여 초기화
                         st.session_state.supplier_form_key_counter += 1
-                        # 즉시 페이지 새로고침하여 목록 업데이트
-                        st.rerun()
+                        # 데이터 새로고침 플래그 설정 (목록 로드 시 재로드)
+                        st.session_state.supplier_data_refresh = True
                     except Exception as e:
                         st.error(f"등록 중 오류가 발생했습니다: {e}")
                 else:
@@ -5841,7 +5841,7 @@ elif page == "발주 관리":
         render_section_divider()
         
         # 공급업체 목록
-        # 삭제 후 데이터 새로고침 플래그 확인 및 선택적 캐시 클리어
+        # 등록/삭제 후 데이터 새로고침 플래그 확인 및 선택적 캐시 클리어
         if st.session_state.get('supplier_data_refresh', False):
             # suppliers.csv 캐시만 선택적으로 클리어 (전체 캐시 클리어는 리소스 과다 사용)
             try:
@@ -5853,7 +5853,7 @@ elif page == "발주 관리":
             st.session_state.supplier_data_refresh = False
         
         # 캐시 클리어 후 최신 데이터 로드
-        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
+        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고')
         
         # 삭제된 공급업체가 있으면 목록에서 즉시 제외 (실시간 반영)
         deleted_supplier = st.session_state.get('just_deleted_supplier', None)
@@ -5933,19 +5933,19 @@ elif page == "발주 관리":
                     delete_supplier(supplier_to_delete)
 
                     warn_suffix = f" (연결된 매핑 {mapped_count}건도 함께 삭제되었습니다.)" if mapped_count > 0 else ""
-                    # 성공 메시지 저장 (rerun 후에도 표시되도록)
-                    st.session_state.supplier_success_message = f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}"
-                    # 삭제된 공급업체명 저장 (즉시 목록에서 제외하기 위해)
-                    st.session_state.just_deleted_supplier = supplier_to_delete
-                    # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
-                    st.session_state.supplier_delete_key_counter += 1
-                    # 캐시 클리어 (suppliers.csv 관련 캐시만) - rerun 전에 클리어
+                    # 캐시 클리어 (삭제 후 즉시 목록 업데이트)
                     try:
                         load_csv.clear()
                     except Exception:
                         pass
-                    # 즉시 페이지 새로고침하여 목록 업데이트
-                    st.rerun()
+                    # 성공 메시지 즉시 표시
+                    st.success(f"✅ 공급업체 '{supplier_to_delete}'가 삭제되었습니다!{warn_suffix}")
+                    # 삭제된 공급업체명 저장 (즉시 목록에서 제외하기 위해)
+                    st.session_state.just_deleted_supplier = supplier_to_delete
+                    # 삭제 selectbox의 key를 변경하여 다음 렌더링 시 업데이트된 목록 표시
+                    st.session_state.supplier_delete_key_counter += 1
+                    # 데이터 새로고침 플래그 설정 (목록 로드 시 재로드)
+                    st.session_state.supplier_data_refresh = True
                 except Exception as e:
                     st.error(f"삭제 중 오류가 발생했습니다: {e}")
         else:
