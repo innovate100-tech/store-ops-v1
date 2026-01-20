@@ -479,7 +479,7 @@ def render_daily_sales_input(menu_list):
     return date, menu_name, quantity
 
 
-def render_inventory_input(ingredient_list):
+def render_inventory_input(ingredient_list, ingredient_df=None):
     """재고 입력 폼 렌더링"""
     st.subheader("📦 재고 관리")
     
@@ -487,18 +487,42 @@ def render_inventory_input(ingredient_list):
         st.warning("먼저 재료를 등록해주세요.")
         return None, None, None
     
+    # 재료명과 단위 매핑 생성
+    ingredient_unit_map = {}
+    if ingredient_df is not None and not ingredient_df.empty:
+        for idx, row in ingredient_df.iterrows():
+            ingredient_name = row.get('재료명', '')
+            unit = row.get('단위', '')
+            if ingredient_name:
+                ingredient_unit_map[ingredient_name] = unit
+    
+    # 재료 선택 옵션에 단위 표시
+    ingredient_options = []
+    for ing in ingredient_list:
+        unit = ingredient_unit_map.get(ing, '')
+        if unit:
+            ingredient_options.append(f"{ing} ({unit})")
+        else:
+            ingredient_options.append(ing)
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        ingredient_name = st.selectbox(
+        selected_option = st.selectbox(
             "재료 선택",
-            options=ingredient_list,
+            options=ingredient_options,
             key="inventory_ingredient"
         )
+        # 선택된 옵션에서 재료명 추출 (단위 제거)
+        ingredient_name = selected_option.split(" (")[0] if " (" in selected_option else selected_option
+        selected_unit = ingredient_unit_map.get(ingredient_name, '')
     
     with col2:
+        current_stock_label = f"현재고"
+        if selected_unit:
+            current_stock_label += f" ({selected_unit})"
         current_stock = st.number_input(
-            "현재고",
+            current_stock_label,
             min_value=0.0,
             value=0.0,
             step=1.0,
@@ -507,8 +531,11 @@ def render_inventory_input(ingredient_list):
         )
     
     with col3:
+        safety_stock_label = f"안전재고"
+        if selected_unit:
+            safety_stock_label += f" ({selected_unit})"
         safety_stock = st.number_input(
-            "안전재고",
+            safety_stock_label,
             min_value=0.0,
             value=0.0,
             step=1.0,

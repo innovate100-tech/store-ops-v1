@@ -4589,7 +4589,7 @@ elif page == "발주 관리":
     # ========== 탭 1: 재고 현황 ==========
     with tab1:
         # 재고 입력 폼
-        inventory_result = render_inventory_input(ingredient_list)
+        inventory_result = render_inventory_input(ingredient_list, ingredient_df)
         
         if inventory_result[0] is not None:
             ingredient_name, current_stock, safety_stock = inventory_result
