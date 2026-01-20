@@ -4758,7 +4758,7 @@ elif page == "발주 관리":
     
     # 탭 구조
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "🛟 안전재고 등록",
+        "🛡️ 안전재고 등록",
         "📦 현재 재고 현황",
         "🛒 발주 추천",
         "📋 진행 현황",
@@ -4768,51 +4768,86 @@ elif page == "발주 관리":
     
     # ========== 탭 1: 안전재고 등록 ==========
     with tab1:
-        render_section_header("안전재고 등록", "🛟")
+        render_section_header("안전재고 등록", "🛡️")
         
         inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
         
         if ingredient_df.empty:
             st.info("먼저 재료를 등록해주세요.")
         else:
-            st.caption("전체 재료를 한 번에 펼쳐서 안전재고를 등록·수정할 수 있습니다. 단위는 재료의 기본 단위 기준입니다.")
+            st.caption("전체 재료를 한 번에 펼쳐서 발주단위 기준 안전재고를 등록·수정할 수 있습니다.")
             
-            # 재료 목록과 기존 안전재고를 조인
+            # 재료 목록과 기존 안전재고를 조인 (발주단위/변환비율 포함)
             safety_df = pd.merge(
-                ingredient_df[['재료명', '단위']],
+                ingredient_df[['재료명', '단위', '단가', '발주단위', '변환비율']],
                 inventory_df[['재료명', '안전재고']] if not inventory_df.empty else pd.DataFrame(columns=['재료명', '안전재고']),
                 on='재료명',
                 how='left'
             )
+            
+            # 기본값 처리
+            safety_df['발주단위'] = safety_df['발주단위'].fillna(safety_df['단위'])
+            safety_df['변환비율'] = safety_df['변환비율'].fillna(1.0)
+            safety_df['단가'] = safety_df['단가'].fillna(0.0)
             safety_df['안전재고'] = safety_df['안전재고'].fillna(0.0)
             
+            # 사용단가 / 발주단가 계산
+            safety_df['발주단위단가_숫자'] = safety_df['단가'] * safety_df['변환비율']
+            
+            # 헤더 행 (테이블 느낌으로)
+            h1, h2, h3, h4, h5, h6, h7 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 1])
+            h1.markdown("**재료명**")
+            h2.markdown("**사용단위**")
+            h3.markdown("**발주단위**")
+            h4.markdown("**사용단가**")
+            h5.markdown("**발주단가**")
+            h6.markdown("**안전재고 (발주단위)**")
+            h7.markdown("**저장**")
+            
             for idx, row in safety_df.iterrows():
-                col1, col2, col3 = st.columns([3, 2, 1])
+                # 기존 안전재고를 발주단위 기준으로 변환
+                current_safety_order = float(row['안전재고'] or 0.0) / float(row['변환비율'] or 1.0)
+                
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 1.2, 1.2, 1.8, 1.8, 2, 1])
                 with col1:
-                    st.write(f"**{row['재료명']}**  ({row['단위']})")
+                    st.write(f"**{row['재료명']}**")
                 with col2:
-                    new_safety = st.number_input(
-                        "안전재고",
+                    st.write(row['단위'])
+                with col3:
+                    st.write(row['발주단위'])
+                with col4:
+                    st.write(f"{row['단가']:,.1f}원/{row['단위']}")
+                with col5:
+                    st.write(f"{row['발주단위단가_숫자']:,.1f}원/{row['발주단위']}")
+                with col6:
+                    new_safety_order = st.number_input(
+                        "",
                         min_value=0.0,
-                        value=float(row['안전재고'] or 0.0),
+                        value=current_safety_order,
                         step=1.0,
                         format="%.2f",
-                        key=f"safety_stock_{row['재료명']}",
-                        help=f"기본 단위: {row['단위']}"
+                        key=f"safety_stock_order_{row['재료명']}",
+                        help=f"발주단위: {row['발주단위']}"
                     )
-                with col3:
+                with col7:
                     if st.button("저장", key=f"safety_save_{row['재료명']}", use_container_width=True):
                         try:
-                            # 기존 현재고 유지, 안전재고만 변경
+                            # 기존 현재고는 그대로 두고, 안전재고만 수정 (기본단위 기준으로 저장)
                             if not inventory_df.empty and row['재료명'] in inventory_df['재료명'].values:
                                 cur_row = inventory_df[inventory_df['재료명'] == row['재료명']].iloc[0]
                                 current_stock_base = float(cur_row.get('현재고', 0) or 0)
                             else:
                                 current_stock_base = 0.0
                             
-                            save_inventory(row['재료명'], current_stock_base, float(new_safety))
+                            new_safety_base = float(new_safety_order) * float(row['변환비율'] or 1.0)
+                            
+                            save_inventory(row['재료명'], current_stock_base, new_safety_base)
                             st.cache_data.clear()
-                            st.success(f"'{row['재료명']}'의 안전재고가 {new_safety:,.2f} {row['단위']}로 저장되었습니다.")
+                            st.success(
+                                f"'{row['재료명']}'의 안전재고가 "
+                                f"{new_safety_order:,.2f} {row['발주단위']} "
+                                f"(기본단위 기준 {new_safety_base:,.2f} {row['단위']})로 저장되었습니다."
+                            )
                             st.rerun()
                         except Exception as e:
                             st.error(f"안전재고 저장 중 오류가 발생했습니다: {e}")
