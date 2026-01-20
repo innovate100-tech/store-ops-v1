@@ -5564,8 +5564,9 @@ elif page == "발주 관리":
                         
                         # 선택 요약
                         if selected_items:
-                            selected_df = order_df[order_df['재료명'].isin(selected_items)]
-                            total_selected_amount = selected_df['예상금액'].sum()
+                            # 화면에서 사용하는 실제 발주 기준 금액 합계 사용
+                            selected_mask = display_order_df['재료명'].isin(selected_items)
+                            total_selected_amount = display_order_df.loc[selected_mask, '예상금액_숫자'].sum()
                             st.info(f"📊 선택된 재료: {len(selected_items)}개 | 총 예상 금액: {int(total_selected_amount):,}원")
                         
                         if st.button("📝 발주 생성", type="primary", key="create_order"):
@@ -5597,9 +5598,8 @@ elif page == "발주 관리":
                                             # DB에는 기본단위 기준 수량과 단가를 저장
                                             quantity = order_qty_order_unit * conversion  # 기본단위 수량
                                             
-                                            # 기본단위 단가 (재료 마스터/매핑에 저장된 단가)
-                                            # display_order_df['단가']는 기본단위 단가, 발주단위단가_숫자는 발주단위 기준 단가
-                                            supplier_price = float(row_display['단가'])
+                                            # 기본단위 단가 (실제 발주에 사용하는 단가: 공급업체 단가 우선, 없으면 재료등록 단가)
+                                            supplier_price = float(row_display['사용단가_실제'])
                                             
                                             # 예상금액은 화면에서 계산한 값 사용
                                             total_amount_item = float(row_display['예상금액_숫자'])
