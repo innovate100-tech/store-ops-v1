@@ -5978,10 +5978,38 @@ elif page == "발주 관리":
                     else:
                         ingredient_options = ingredient_list
                     
-                    mapping_ingredient_option = st.selectbox("재료 선택", options=ingredient_options, key="mapping_ingredient")
+                    # 기본값 설정 (이전 선택값 유지)
+                    default_ingredient_index = 0
+                    if 'mapping_ingredient' in st.session_state and st.session_state.mapping_ingredient in ingredient_options:
+                        try:
+                            default_ingredient_index = ingredient_options.index(st.session_state.mapping_ingredient)
+                        except ValueError:
+                            default_ingredient_index = 0
+                    
+                    mapping_ingredient_option = st.selectbox(
+                        "재료 선택", 
+                        options=ingredient_options, 
+                        index=default_ingredient_index,
+                        key="mapping_ingredient"
+                    )
                     # 선택된 옵션에서 재료명 추출
                     mapping_ingredient = mapping_ingredient_option.split(" (")[0] if " (" in mapping_ingredient_option else mapping_ingredient_option
-                    mapping_supplier = st.selectbox("공급업체 선택", options=suppliers_df['공급업체명'].tolist(), key="mapping_supplier")
+                    
+                    # 공급업체 선택도 기본값 설정
+                    default_supplier_index = 0
+                    supplier_options = suppliers_df['공급업체명'].tolist()
+                    if 'mapping_supplier' in st.session_state and st.session_state.mapping_supplier in supplier_options:
+                        try:
+                            default_supplier_index = supplier_options.index(st.session_state.mapping_supplier)
+                        except ValueError:
+                            default_supplier_index = 0
+                    
+                    mapping_supplier = st.selectbox(
+                        "공급업체 선택", 
+                        options=supplier_options, 
+                        index=default_supplier_index,
+                        key="mapping_supplier"
+                    )
                 with col2:
                     # 발주 단위 기준 단가 입력 (원/발주단위)
                     mapping_price = st.number_input(
