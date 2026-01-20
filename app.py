@@ -5252,7 +5252,9 @@ elif page == "발주 관리":
         
         if not suppliers_df.empty:
             st.write("**📋 등록된 공급업체**")
-            st.dataframe(suppliers_df, use_container_width=True, hide_index=True)
+            # id 컬럼 제외하고 표시
+            display_cols = [col for col in suppliers_df.columns if col not in ['id', 'store_id', 'created_at', 'updated_at']]
+            st.dataframe(suppliers_df[display_cols], use_container_width=True, hide_index=True)
             
             # 공급업체 삭제
             supplier_to_delete = st.selectbox("삭제할 공급업체", options=suppliers_df['공급업체명'].tolist(), key="delete_supplier_select")
@@ -5300,7 +5302,9 @@ elif page == "발주 관리":
                 if '단가' in display_mapping.columns:
                     display_mapping['단가'] = display_mapping['단가'].apply(lambda x: f"{int(x):,}원")
                 
-                st.dataframe(display_mapping, use_container_width=True, hide_index=True)
+                # id 컬럼 제외하고 표시
+                mapping_display_cols = [col for col in display_mapping.columns if col not in ['id', 'store_id', 'ingredient_id', 'supplier_id', 'created_at', 'updated_at']]
+                st.dataframe(display_mapping[mapping_display_cols], use_container_width=True, hide_index=True)
                 
                 # 매핑 삭제
                 if len(ingredient_suppliers_df) > 0:
