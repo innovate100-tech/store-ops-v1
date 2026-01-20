@@ -221,6 +221,19 @@ st.markdown("""
         filter: none;
     }
     
+    /* 저작권 표시 (왼쪽 하단) */
+    .main-header .copyright {
+        position: absolute;
+        bottom: 0.75rem;
+        left: 1.5rem;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.4);
+        opacity: 0.6;
+        z-index: 2;
+        font-weight: 300;
+        letter-spacing: 0.5px;
+    }
+    
     /* 전광판 스타일 (독립 박스) */
     .led-board {
         position: relative;
@@ -1290,6 +1303,7 @@ st.markdown("""
         <span class="emoji">😎</span>
         <span class="text-gradient">외식경영 의사결정 시스템 (운영 OS)</span>
     </h1>
+    <div class="copyright">© 2026 황승진. All rights reserved.</div>
 </div>
 <div class="led-board">
     <div class="led-text"></div>

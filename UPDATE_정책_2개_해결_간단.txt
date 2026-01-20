@@ -1,0 +1,54 @@
+============================================
+UPDATE 정책 2개 문제 - 간단 해결 (3단계)
+============================================
+
+Supabase SQL Editor에서 순서대로 실행하세요!
+
+============================================
+1단계: UPDATE 정책 삭제 함수 생성
+============================================
+
+CREATE OR REPLACE FUNCTION drop_all_update_policies()
+RETURNS void AS $$
+DECLARE
+    r RECORD;
+    table_list TEXT[] := ARRAY[
+        'sales', 'naver_visitors', 'menu_master', 'ingredients', 'recipes',
+        'daily_sales_items', 'inventory', 'daily_close', 'targets', 'abc_history',
+        'expense_structure', 'suppliers', 'ingredient_suppliers', 'orders'
+    ];
+    table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY table_list
+    LOOP
+        FOR r IN 
+            SELECT policyname 
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = table_name
+            AND (policyname ILIKE '%update%')
+        LOOP
+            EXECUTE format('DROP POLICY IF EXISTS %I ON %I', r.policyname, table_name);
+            RAISE NOTICE 'Dropped policy: % on table: %', r.policyname, table_name;
+        END LOOP;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+============================================
+2단계: 모든 UPDATE 정책 삭제
+============================================
+
+SELECT drop_all_update_policies();
+
+============================================
+3단계: 정책 재생성 (4개만 생성됨)
+============================================
+
+SELECT create_all_rls_policies();
+
+============================================
+완료!
+이제 각 테이블당 정책이 정확히 4개만 있을 것입니다.
+(1개 SELECT + 1개 INSERT + 1개 UPDATE + 1개 DELETE)
+============================================

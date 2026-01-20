@@ -1,11 +1,33 @@
--- ============================================
--- RLS 정책 동적 생성 헬퍼 함수
--- 모든 테이블에 동일한 패턴의 RLS 정책을 자동으로 생성
--- ============================================
+============================================
+⚠️ 중요: 정책이 8개로 보이시나요?
+먼저 아래 "0단계: 중복 정책 정리"를 실행하세요!
+그 다음 1단계를 실행하세요.
+============================================
 
--- ============================================
--- 함수: 특정 테이블에 대한 RLS 정책 생성
--- ============================================
+============================================
+0단계: 중복 정책 정리 (정책이 8개인 경우 필수!)
+이 코드를 먼저 실행하세요!
+============================================
+
+-- 모든 중복 정책 삭제 후 재생성
+SELECT create_all_rls_policies();
+
+-- 위 코드가 작동하지 않으면 아래 코드 사용:
+-- (특정 테이블 예시 - sales)
+DROP POLICY IF EXISTS "Users can view sales from their store" ON sales;
+DROP POLICY IF EXISTS "Users can insert sales to their store" ON sales;
+DROP POLICY IF EXISTS "Users can update sales in their store" ON sales;
+DROP POLICY IF EXISTS "Users can delete sales from their store" ON sales;
+
+-- 그 다음 create_all_rls_policies() 함수 실행
+
+
+============================================
+1단계: 이 코드를 복사해서 Supabase에 붙여넣고 "Run" 클릭
+(0단계 실행 후에 실행하세요)
+============================================
+
+-- RLS 정책 헬퍼 함수 생성
 CREATE OR REPLACE FUNCTION create_rls_policies_for_table(
     table_name TEXT,
     store_id_column TEXT DEFAULT 'store_id'
@@ -48,13 +70,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================
--- 함수: 모든 표준 테이블에 RLS 정책 일괄 생성
--- ============================================
 CREATE OR REPLACE FUNCTION create_all_rls_policies()
 RETURNS void AS $$
 BEGIN
-    -- 표준 store_id 컬럼을 가진 테이블들
     PERFORM create_rls_policies_for_table('sales');
     PERFORM create_rls_policies_for_table('naver_visitors');
     PERFORM create_rls_policies_for_table('menu_master');
@@ -74,52 +92,52 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ============================================
--- 사용 방법
--- ============================================
--- 1. 개별 테이블에 정책 생성:
---    SELECT create_rls_policies_for_table('sales');
---
--- 2. 모든 테이블에 일괄 생성:
---    SELECT create_all_rls_policies();
---
--- 3. 기존 정책을 업데이트하려면:
---    먼저 기존 정책을 DROP하고 함수를 실행하면 됩니다.
---    (함수 내부에서 자동으로 DROP 처리)
 
--- ============================================
--- 함수: 모든 UPDATE 정책 삭제 (중복 정책 정리용)
--- ============================================
-CREATE OR REPLACE FUNCTION drop_all_update_policies()
-RETURNS void AS $$
-DECLARE
-    r RECORD;
-    table_list TEXT[] := ARRAY[
-        'sales', 'naver_visitors', 'menu_master', 'ingredients', 'recipes',
-        'daily_sales_items', 'inventory', 'daily_close', 'targets', 'abc_history',
-        'expense_structure', 'suppliers', 'ingredient_suppliers', 'orders'
-    ];
-    table_name TEXT;
-BEGIN
-    FOREACH table_name IN ARRAY table_list
-    LOOP
-        FOR r IN 
-            SELECT policyname 
-            FROM pg_policies 
-            WHERE schemaname = 'public' 
-            AND tablename = table_name
-            AND (policyname ILIKE '%update%')
-        LOOP
-            EXECUTE format('DROP POLICY IF EXISTS %I ON %I', r.policyname, table_name);
-            RAISE NOTICE 'Dropped policy: % on table: %', r.policyname, table_name;
-        END LOOP;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
+============================================
+2단계: 위 코드 실행 후, 이 코드를 복사해서 붙여넣고 "Run" 클릭
+============================================
 
--- ============================================
--- 주의사항
--- ============================================
--- - user_profiles와 stores 테이블은 별도 정책이 필요하므로
---   이 함수로 생성하지 않습니다.
--- - 특수한 정책이 필요한 테이블도 수동으로 설정해야 합니다.
+SELECT create_all_rls_policies();
+
+
+============================================
+3단계 (선택사항): 뷰 생성 - 이 코드를 복사해서 붙여넣고 "Run" 클릭
+============================================
+
+CREATE OR REPLACE VIEW sales_from_daily_close AS
+SELECT 
+    store_id,
+    date,
+    card_sales,
+    cash_sales,
+    total_sales,
+    created_at,
+    updated_at
+FROM daily_close
+WHERE total_sales > 0;
+
+CREATE OR REPLACE VIEW naver_visitors_from_daily_close AS
+SELECT 
+    store_id,
+    date,
+    visitors AS visitors,
+    created_at,
+    updated_at
+FROM daily_close
+WHERE visitors > 0;
+
+CREATE OR REPLACE VIEW daily_sales_items_from_daily_close AS
+SELECT 
+    dc.store_id,
+    dc.date,
+    mm.id AS menu_id,
+    mm.name AS menu_name,
+    (item->>'quantity')::INTEGER AS qty,
+    dc.created_at,
+    dc.updated_at
+FROM daily_close dc
+CROSS JOIN LATERAL jsonb_array_elements(dc.sales_items) AS item
+LEFT JOIN menu_master mm ON mm.store_id = dc.store_id 
+    AND mm.name = item->>'menu_name'
+WHERE dc.sales_items IS NOT NULL 
+    AND jsonb_array_length(dc.sales_items) > 0;
