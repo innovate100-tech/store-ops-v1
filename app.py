@@ -5123,48 +5123,48 @@ elif page == "발주 관리":
         overdue_count = len(overdue_orders) if isinstance(overdue_orders, pd.DataFrame) and not overdue_orders.empty else (len(overdue_orders) if isinstance(overdue_orders, list) else 0)
         
         # 알림 섹션 상단의 요약 타일(4개 박스)는 UI 단순화를 위해 제거
-            
-            # 품절 위험 상세 정보 (예상 소진일 + 단위 표시 포함)
-            if low_stock_items:
-                with st.expander(f"🚨 품절 위험 재료 상세 ({len(low_stock_items)}개)", expanded=True):
-                    urgent_df = pd.DataFrame(low_stock_items)
+        
+        # 품절 위험 상세 정보 (예상 소진일 + 단위 표시 포함)
+        if low_stock_items:
+            with st.expander(f"🚨 품절 위험 재료 상세 ({len(low_stock_items)}개)", expanded=True):
+                urgent_df = pd.DataFrame(low_stock_items)
 
-                    # 재료 단위/발주단위 정보 조인
-                    if not ingredient_df.empty:
-                        urgent_df = pd.merge(
-                            urgent_df,
-                            ingredient_df[['재료명', '단위', '발주단위', '변환비율']] if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns
-                            else ingredient_df[['재료명', '단위']],
-                            on='재료명',
-                            how='left'
-                        )
-                    if '발주단위' not in urgent_df.columns:
-                        urgent_df['발주단위'] = urgent_df.get('단위', '')
+                # 재료 단위/발주단위 정보 조인
+                if not ingredient_df.empty:
+                    urgent_df = pd.merge(
+                        urgent_df,
+                        ingredient_df[['재료명', '단위', '발주단위', '변환비율']] if '발주단위' in ingredient_df.columns and '변환비율' in ingredient_df.columns
+                        else ingredient_df[['재료명', '단위']],
+                        on='재료명',
+                        how='left'
+                    )
+                if '발주단위' not in urgent_df.columns:
+                    urgent_df['발주단위'] = urgent_df.get('단위', '')
 
-                    # 수량을 발주단위 기준으로 변환
-                    if '변환비율' in urgent_df.columns:
-                        urgent_df['변환비율'] = urgent_df['변환비율'].fillna(1.0)
-                        urgent_df['현재고_발주단위'] = urgent_df['현재고'] / urgent_df['변환비율']
-                        urgent_df['안전재고_발주단위'] = urgent_df['안전재고'] / urgent_df['변환비율']
-                        urgent_df['부족량_발주단위'] = urgent_df['부족량'] / urgent_df['변환비율']
-                    else:
-                        urgent_df['현재고_발주단위'] = urgent_df['현재고']
-                        urgent_df['안전재고_발주단위'] = urgent_df['안전재고']
-                        urgent_df['부족량_발주단위'] = urgent_df['부족량']
+                # 수량을 발주단위 기준으로 변환
+                if '변환비율' in urgent_df.columns:
+                    urgent_df['변환비율'] = urgent_df['변환비율'].fillna(1.0)
+                    urgent_df['현재고_발주단위'] = urgent_df['현재고'] / urgent_df['변환비율']
+                    urgent_df['안전재고_발주단위'] = urgent_df['안전재고'] / urgent_df['변환비율']
+                    urgent_df['부족량_발주단위'] = urgent_df['부족량'] / urgent_df['변환비율']
+                else:
+                    urgent_df['현재고_발주단위'] = urgent_df['현재고']
+                    urgent_df['안전재고_발주단위'] = urgent_df['안전재고']
+                    urgent_df['부족량_발주단위'] = urgent_df['부족량']
 
-                    # 표시용 컬럼 포맷팅 (숫자 + 단위)
-                    urgent_df['현재고'] = urgent_df.apply(
-                        lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
-                        axis=1
-                    )
-                    urgent_df['안전재고'] = urgent_df.apply(
-                        lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
-                        axis=1
-                    )
-                    urgent_df['부족량'] = urgent_df.apply(
-                        lambda row: f"{row['부족량_발주단위']:,.2f} {row['발주단위']}",
-                        axis=1
-                    )
+                # 표시용 컬럼 포맷팅 (숫자 + 단위)
+                urgent_df['현재고'] = urgent_df.apply(
+                    lambda row: f"{row['현재고_발주단위']:,.2f} {row['발주단위']}",
+                    axis=1
+                )
+                urgent_df['안전재고'] = urgent_df.apply(
+                    lambda row: f"{row['안전재고_발주단위']:,.2f} {row['발주단위']}",
+                    axis=1
+                )
+                urgent_df['부족량'] = urgent_df.apply(
+                    lambda row: f"{row['부족량_발주단위']:,.2f} {row['발주단위']}",
+                    axis=1
+                )
 
                     # 예상 소진일 표시
                     if '예상소진일' in urgent_df.columns:
