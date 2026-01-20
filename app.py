@@ -5691,9 +5691,9 @@ elif page == "발주 관리":
         else:
             st.info("발주 추천을 계산하려면 재고 정보를 먼저 등록해주세요.")
     
-    # ========== 탭 3: 발주 관리 (발주 이력) ==========
+    # ========== 탭 3: 발주 관리 (진행 현황) ==========
     with tab3:
-        render_section_header("발주 이력", "📋")
+        render_section_header("진행 현황", "📋")
         
         from src.storage_supabase import update_order_status
         from datetime import datetime, timedelta
@@ -5788,8 +5788,12 @@ elif page == "발주 관리":
             if '총금액' in display_orders.columns:
                 display_orders['총금액'] = display_orders['총금액'].apply(lambda x: f"{int(x):,}원")
             
-            # id 컬럼 제외하고 표시
-            display_cols = [col for col in display_orders.columns if col != 'id']
+            # 표시할 컬럼만 선택해서 id, store_id 등 시스템 컬럼 숨김
+            preferred_cols = [
+                '재료명', '공급업체명', '발주일', '수량', '단가',
+                '총금액', '상태', '입고예정일', '입고일', '비고'
+            ]
+            display_cols = [col for col in preferred_cols if col in display_orders.columns]
             st.dataframe(display_orders[display_cols], use_container_width=True, hide_index=True)
             
             # 발주 상태 업데이트
@@ -5836,6 +5840,11 @@ elif page == "발주 관리":
                                 order_id = order_ids[selected_order_idx]
                                 update_order_status(order_id, new_status, delivery_date)
                                 st.success(f"✅ 발주 상태가 '{new_status}'로 업데이트되었습니다!")
+                                # 상태 변경이 알림/진행 현황/재고에 즉시 반영되도록 캐시 초기화
+                                try:
+                                    st.cache_data.clear()
+                                except Exception:
+                                    pass
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"상태 업데이트 중 오류가 발생했습니다: {e}")
