@@ -6945,7 +6945,7 @@ elif page == "통합 대시보드":
                                 # 메뉴 정보 가져오기
                                 menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
                                 # Phase 1: 안전한 DataFrame 접근
-                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
+                                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
                                 
                                 # 조리방법 가져오기 (menu_master에서)
                                 cooking_method_text = ""
