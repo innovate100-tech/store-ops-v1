@@ -4985,48 +4985,48 @@ elif page == "발주 관리":
                                         for ingredient_name in selected_items:
                                             item_row = order_df[order_df['재료명'] == ingredient_name].iloc[0]
                                             supplier_name = display_order_df[display_order_df['재료명'] == ingredient_name]['공급업체'].iloc[0]
+                                            
+                                            # 공급업체별 단가 가져오기
+                                            supplier_price = item_row['단가']
+                                            if not ingredient_suppliers_df.empty:
+                                                supplier_row = ingredient_suppliers_df[
+                                                    (ingredient_suppliers_df['재료명'] == ingredient_name) & 
+                                                    (ingredient_suppliers_df['공급업체명'] == supplier_name)
+                                                ]
+                                                if not supplier_row.empty:
+                                                    supplier_price = supplier_row.iloc[0]['단가']
+                                            
+                                            quantity = item_row['발주필요량']
+                                            total_amount_item = quantity * supplier_price
+                                            
+                                            # 입고 예정일 계산 (배송일 정보 활용)
+                                            expected_delivery_date = None
+                                            if not suppliers_df.empty:
+                                                supplier_info = suppliers_df[suppliers_df['공급업체명'] == supplier_name]
+                                                if not supplier_info.empty and supplier_info.iloc[0].get('배송일'):
+                                                    delivery_days = supplier_info.iloc[0]['배송일']
+                                                    try:
+                                                        days = int(delivery_days)
+                                                        expected_delivery_date = order_date + timedelta(days=days)
+                                                    except:
+                                                        pass
+                                            
+                                            try:
+                                                save_order(
+                                                    order_date=order_date,
+                                                    ingredient_name=ingredient_name,
+                                                    supplier_name=supplier_name,
+                                                    quantity=quantity,
+                                                    unit_price=supplier_price,
+                                                    total_amount=total_amount_item,
+                                                    status="예정",
+                                                    expected_delivery_date=expected_delivery_date
+                                                )
+                                                created_count += 1
+                                            except Exception as e:
+                                                failed_items.append(f"{ingredient_name} ({str(e)})")
                                         
-                                        # 공급업체별 단가 가져오기
-                                        supplier_price = item_row['단가']
-                                        if not ingredient_suppliers_df.empty:
-                                            supplier_row = ingredient_suppliers_df[
-                                                (ingredient_suppliers_df['재료명'] == ingredient_name) & 
-                                                (ingredient_suppliers_df['공급업체명'] == supplier_name)
-                                            ]
-                                            if not supplier_row.empty:
-                                                supplier_price = supplier_row.iloc[0]['단가']
-                                        
-                                        quantity = item_row['발주필요량']
-                                        total_amount_item = quantity * supplier_price
-                                        
-                                        # 입고 예정일 계산 (배송일 정보 활용)
-                                        expected_delivery_date = None
-                                        if not suppliers_df.empty:
-                                            supplier_info = suppliers_df[suppliers_df['공급업체명'] == supplier_name]
-                                            if not supplier_info.empty and supplier_info.iloc[0].get('배송일'):
-                                                delivery_days = supplier_info.iloc[0]['배송일']
-                                                try:
-                                                    days = int(delivery_days)
-                                                    expected_delivery_date = order_date + timedelta(days=days)
-                                                except:
-                                                    pass
-                                        
-                                        try:
-                                            save_order(
-                                                order_date=order_date,
-                                                ingredient_name=ingredient_name,
-                                                supplier_name=supplier_name,
-                                                quantity=quantity,
-                                                unit_price=supplier_price,
-                                                total_amount=total_amount_item,
-                                                status="예정",
-                                                expected_delivery_date=expected_delivery_date
-                                            )
-                                            created_count += 1
-                                        except Exception as e:
-                                            failed_items.append(f"{ingredient_name} ({str(e)})")
-                                    
-                                    if created_count > 0:
+                                        if created_count > 0:
                                             success_msg = f"✅ {created_count}개 재료의 발주가 생성되었습니다!"
                                             if failed_items:
                                                 success_msg += f"\n⚠️ 실패: {len(failed_items)}개"
