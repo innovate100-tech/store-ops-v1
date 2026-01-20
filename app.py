@@ -4131,38 +4131,9 @@ elif page == "주간 리포트":
 
 # 통합 대시보드 페이지
 elif page == "통합 대시보드":
-    st.header("📊 통합 대시보드")
+    render_page_header("통합 대시보드", "📊")
     
-    # 데이터 로드
-    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-    
-    # 조인된 데이터 표시
-    render_section_header("매출 & 방문자 통합 데이터", "📋")
-    merged_df = merge_sales_visitors(sales_df, visitors_df)
-    
-    if not merged_df.empty:
-        display_df = merged_df.copy()
-        if '날짜' in display_df.columns:
-            display_df['날짜'] = pd.to_datetime(display_df['날짜']).dt.strftime('%Y-%m-%d')
-        if '총매출' in display_df.columns:
-            display_df['총매출'] = display_df['총매출'].apply(
-                lambda x: f"{int(x):,}원" if pd.notna(x) else "-"
-            )
-        if '방문자수' in display_df.columns:
-            display_df['방문자수'] = display_df['방문자수'].apply(
-                lambda x: f"{int(x):,}명" if pd.notna(x) else "-"
-            )
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-        # 상관계수 계산 및 표시
-        render_section_divider()
-        render_section_header("매출-방문자 상관관계 분석", "📈")
-        correlation = calculate_correlation(sales_df, visitors_df)
-        render_correlation_info(correlation)
-    else:
-        st.info("통합할 데이터가 없습니다. 매출과 방문자 데이터를 먼저 입력해주세요.")
+    # 페이지 내용은 추후 구현 예정
 
 # 목표 비용구조 페이지 (비용구조와 동일)
 elif page == "목표 비용구조" or page == "비용구조":
