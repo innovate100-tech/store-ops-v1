@@ -4584,7 +4584,7 @@ elif page == "발주 관리":
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
     
     # 탭 구조
-    tab1, tab2, tab3, tab4 = st.tabs(["📦 재고 현황", "🛒 발주 추천", "📋 발주 관리", "🏢 공급업체"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📦 재고 현황", "🛒 발주 추천", "📋 발주 관리", "🏢 공급업체", "📊 발주 분석"])
     
     # ========== 탭 1: 재고 현황 ==========
     with tab1:
@@ -5465,6 +5465,307 @@ elif page == "발주 관리":
                 st.info("등록된 재료-공급업체 매핑이 없습니다.")
         else:
             st.info("공급업체와 재료를 먼저 등록해주세요.")
+    
+    # ========== 탭 5: 발주 분석 대시보드 (Phase 5) ==========
+    with tab5:
+        render_section_header("발주 분석 대시보드", "📊")
+        
+        from datetime import datetime, timedelta
+        from src.analytics import calculate_inventory_turnover, calculate_ingredient_usage
+        
+        # 필요한 데이터 로드
+        orders_df = load_csv('orders.csv', default_columns=['id', '재료명', '공급업체명', '발주일', '수량', '단가', '총금액', '상태', '입고예정일', '입고일', '비고'])
+        inventory_df = load_csv('inventory.csv', default_columns=['재료명', '현재고', '안전재고'])
+        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+        suppliers_df = load_csv('suppliers.csv', default_columns=['공급업체명', '전화번호', '이메일', '배송일', '최소주문금액', '배송비', '비고'])
+        
+        # 재료 사용량 계산
+        usage_df = pd.DataFrame()
+        if not daily_sales_df.empty and not recipe_df.empty:
+            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+        
+        # ========== 5.1 재고 회전율 분석 ==========
+        st.markdown("### 📈 재고 회전율 분석")
+        
+        if not inventory_df.empty and not usage_df.empty:
+            turnover_data = []
+            total_days_on_hand = 0
+            valid_count = 0
+            
+            for idx, row in inventory_df.iterrows():
+                ingredient_name = row['재료명']
+                current_stock = row.get('현재고', 0)
+                
+                if current_stock > 0:
+                    turnover_info = calculate_inventory_turnover(
+                        ingredient_name,
+                        usage_df,
+                        inventory_df,
+                        days_period=30
+                    )
+                    
+                    if turnover_info['turnover_rate'] > 0:
+                        turnover_data.append({
+                            '재료명': ingredient_name,
+                            '재고회전율': turnover_info['turnover_rate'],
+                            '재고보유일수': turnover_info['days_on_hand'],
+                            '현재고': current_stock
+                        })
+                        total_days_on_hand += turnover_info['days_on_hand']
+                        valid_count += 1
+            
+            if turnover_data:
+                turnover_df = pd.DataFrame(turnover_data)
+                
+                # 평균 재고 보유일수
+                avg_days_on_hand = total_days_on_hand / valid_count if valid_count > 0 else 0
+                
+                # KPI 카드
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("평균 재고 보유일수", f"{avg_days_on_hand:.1f}일")
+                with col2:
+                    avg_turnover = turnover_df['재고회전율'].mean()
+                    st.metric("평균 재고 회전율", f"{avg_turnover:.1f}회/년")
+                with col3:
+                    st.metric("분석 대상 재료", f"{len(turnover_df)}개")
+                
+                # 회전율 낮은 재료 TOP 10
+                st.markdown("#### 회전율 낮은 재료 TOP 10")
+                low_turnover_df = turnover_df.nsmallest(10, '재고회전율').copy()
+                low_turnover_df = low_turnover_df.sort_values('재고회전율', ascending=True)
+                low_turnover_df['재고회전율'] = low_turnover_df['재고회전율'].apply(lambda x: f"{x:.2f}회/년")
+                low_turnover_df['재고보유일수'] = low_turnover_df['재고보유일수'].apply(lambda x: f"{int(x)}일")
+                low_turnover_df['현재고'] = low_turnover_df['현재고'].apply(lambda x: f"{x:,.2f}")
+                st.dataframe(low_turnover_df[['재료명', '재고회전율', '재고보유일수', '현재고']], use_container_width=True, hide_index=True)
+                
+                # 재료별 재고 회전율 전체 목록
+                with st.expander("전체 재료별 재고 회전율", expanded=False):
+                    full_turnover_df = turnover_df.sort_values('재고회전율', ascending=True).copy()
+                    full_turnover_df['재고회전율'] = full_turnover_df['재고회전율'].apply(lambda x: f"{x:.2f}회/년")
+                    full_turnover_df['재고보유일수'] = full_turnover_df['재고보유일수'].apply(lambda x: f"{int(x)}일")
+                    full_turnover_df['현재고'] = full_turnover_df['현재고'].apply(lambda x: f"{x:,.2f}")
+                    st.dataframe(full_turnover_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("재고 회전율을 계산할 수 있는 데이터가 없습니다.")
+        else:
+            st.info("재고 정보와 사용량 데이터가 필요합니다.")
+        
+        render_section_divider()
+        
+        # ========== 5.2 발주 패턴 분석 ==========
+        st.markdown("### 📊 발주 패턴 분석")
+        
+        if not orders_df.empty:
+            # 발주일 컬럼이 있는지 확인
+            if '발주일' in orders_df.columns:
+                orders_df['발주일'] = pd.to_datetime(orders_df['발주일'], errors='coerce')
+                orders_df = orders_df.dropna(subset=['발주일'])
+                
+                # 월별 발주 횟수/금액
+                orders_df['년월'] = orders_df['발주일'].dt.to_period('M').astype(str)
+                
+                monthly_stats = orders_df.groupby('년월').agg({
+                    'id': 'count',
+                    '총금액': 'sum'
+                }).reset_index()
+                monthly_stats.columns = ['년월', '발주횟수', '발주금액']
+                monthly_stats = monthly_stats.sort_values('년월', ascending=False)
+                
+                st.markdown("#### 월별 발주 통계")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**발주 횟수**")
+                    display_monthly_count = monthly_stats[['년월', '발주횟수']].copy()
+                    display_monthly_count.columns = ['년월', '발주 횟수']
+                    st.dataframe(display_monthly_count, use_container_width=True, hide_index=True)
+                
+                with col2:
+                    st.markdown("**발주 금액**")
+                    display_monthly_amount = monthly_stats[['년월', '발주금액']].copy()
+                    display_monthly_amount['발주금액'] = display_monthly_amount['발주금액'].apply(lambda x: f"{int(x):,}원")
+                    display_monthly_amount.columns = ['년월', '발주 금액']
+                    st.dataframe(display_monthly_amount, use_container_width=True, hide_index=True)
+                
+                # 공급업체별 발주 비중
+                if '공급업체명' in orders_df.columns and '총금액' in orders_df.columns:
+                    st.markdown("#### 공급업체별 발주 비중")
+                    supplier_stats = orders_df.groupby('공급업체명').agg({
+                        'id': 'count',
+                        '총금액': 'sum'
+                    }).reset_index()
+                    supplier_stats.columns = ['공급업체명', '발주횟수', '발주금액']
+                    supplier_stats = supplier_stats.sort_values('발주금액', ascending=False)
+                    
+                    total_amount = supplier_stats['발주금액'].sum()
+                    supplier_stats['비중'] = (supplier_stats['발주금액'] / total_amount * 100).apply(lambda x: f"{x:.1f}%")
+                    supplier_stats['발주금액'] = supplier_stats['발주금액'].apply(lambda x: f"{int(x):,}원")
+                    
+                    st.dataframe(supplier_stats, use_container_width=True, hide_index=True)
+                
+                # 재료별 발주 빈도
+                if '재료명' in orders_df.columns:
+                    st.markdown("#### 재료별 발주 빈도")
+                    ingredient_freq = orders_df.groupby('재료명').agg({
+                        'id': 'count',
+                        '수량': 'sum',
+                        '총금액': 'sum'
+                    }).reset_index()
+                    ingredient_freq.columns = ['재료명', '발주횟수', '총수량', '총금액']
+                    ingredient_freq = ingredient_freq.sort_values('발주횟수', ascending=False)
+                    
+                    ingredient_freq['총수량'] = ingredient_freq['총수량'].apply(lambda x: f"{x:,.2f}")
+                    ingredient_freq['총금액'] = ingredient_freq['총금액'].apply(lambda x: f"{int(x):,}원")
+                    
+                    st.dataframe(ingredient_freq.head(20), use_container_width=True, hide_index=True)
+                
+                # 발주 비용 추이 그래프 (간단한 표로 표시)
+                st.markdown("#### 발주 비용 추이")
+                if len(monthly_stats) > 0:
+                    trend_df = monthly_stats[['년월', '발주금액']].copy()
+                    trend_df['발주금액'] = trend_df['발주금액'].apply(lambda x: int(x))
+                    trend_df = trend_df.sort_values('년월', ascending=True)
+                    st.dataframe(trend_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("발주일 정보가 없어 분석할 수 없습니다.")
+        else:
+            st.info("발주 이력이 없습니다.")
+        
+        render_section_divider()
+        
+        # ========== 5.3 비용 최적화 인사이트 ==========
+        st.markdown("### 💡 비용 최적화 인사이트")
+        
+        if not orders_df.empty and not suppliers_df.empty:
+            # 배송비 절감 기회
+            st.markdown("#### 배송비 절감 기회")
+            
+            # 최근 30일 발주 데이터
+            thirty_days_ago = datetime.now().date() - timedelta(days=30)
+            if '발주일' in orders_df.columns:
+                recent_orders = orders_df[pd.to_datetime(orders_df['발주일']).dt.date >= thirty_days_ago]
+                
+                if not recent_orders.empty and '공급업체명' in recent_orders.columns:
+                    # 공급업체별 발주 횟수
+                    supplier_order_count = recent_orders.groupby('공급업체명')['id'].count().reset_index()
+                    supplier_order_count.columns = ['공급업체명', '발주횟수']
+                    
+                    # 공급업체별 배송비 정보 조인
+                    if '배송비' in suppliers_df.columns:
+                        supplier_order_count = supplier_order_count.merge(
+                            suppliers_df[['공급업체명', '배송비']],
+                            on='공급업체명',
+                            how='left'
+                        )
+                        supplier_order_count['배송비'] = supplier_order_count['배송비'].fillna(0)
+                        
+                        # 배송비 절감 계산 (2회 이상 발주 시 통합 가능)
+                        supplier_order_count['현재배송비'] = supplier_order_count['발주횟수'] * supplier_order_count['배송비']
+                        supplier_order_count['최적화배송비'] = supplier_order_count['배송비']  # 통합 시 1회만
+                        supplier_order_count['절감가능액'] = supplier_order_count['현재배송비'] - supplier_order_count['최적화배송비']
+                        supplier_order_count = supplier_order_count[supplier_order_count['발주횟수'] >= 2]
+                        supplier_order_count = supplier_order_count.sort_values('절감가능액', ascending=False)
+                        
+                        if not supplier_order_count.empty:
+                            total_savings = supplier_order_count['절감가능액'].sum()
+                            
+                            st.success(f"💰 최근 30일 기준 배송비 절감 가능액: {int(total_savings):,}원")
+                            
+                            display_savings = supplier_order_count[['공급업체명', '발주횟수', '현재배송비', '최적화배송비', '절감가능액']].copy()
+                            display_savings['현재배송비'] = display_savings['현재배송비'].apply(lambda x: f"{int(x):,}원")
+                            display_savings['최적화배송비'] = display_savings['최적화배송비'].apply(lambda x: f"{int(x):,}원")
+                            display_savings['절감가능액'] = display_savings['절감가능액'].apply(lambda x: f"{int(x):,}원")
+                            display_savings.columns = ['공급업체명', '발주횟수', '현재 배송비', '최적화 배송비', '절감 가능액']
+                            st.dataframe(display_savings, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("최근 30일 동안 2회 이상 발주한 공급업체가 없습니다.")
+                    else:
+                        st.info("공급업체 배송비 정보가 없습니다.")
+                else:
+                    st.info("최근 30일 발주 이력이 없습니다.")
+            else:
+                st.info("발주일 정보가 없습니다.")
+            
+            # 가격 변동 영향 분석
+            st.markdown("#### 가격 변동 영향 분석")
+            
+            if '재료명' in orders_df.columns and '단가' in orders_df.columns and '발주일' in orders_df.columns:
+                # 재료별 최근 가격 추이
+                price_trend = orders_df.groupby(['재료명', '발주일'])['단가'].mean().reset_index()
+                price_trend['발주일'] = pd.to_datetime(price_trend['발주일'])
+                price_trend = price_trend.sort_values(['재료명', '발주일'])
+                
+                # 가격 변동이 큰 재료 찾기
+                price_changes = []
+                for ingredient in price_trend['재료명'].unique():
+                    ingredient_prices = price_trend[price_trend['재료명'] == ingredient]
+                    if len(ingredient_prices) >= 2:
+                        first_price = ingredient_prices.iloc[0]['단가']
+                        last_price = ingredient_prices.iloc[-1]['단가']
+                        if first_price > 0:
+                            change_pct = ((last_price - first_price) / first_price) * 100
+                            price_changes.append({
+                                '재료명': ingredient,
+                                '초기단가': first_price,
+                                '최근단가': last_price,
+                                '변동률': change_pct
+                            })
+                
+                if price_changes:
+                    price_change_df = pd.DataFrame(price_changes)
+                    price_change_df = price_change_df.sort_values('변동률', key=abs, ascending=False)
+                    
+                    st.info("가격 변동이 큰 재료 TOP 10")
+                    display_price_change = price_change_df.head(10).copy()
+                    display_price_change['초기단가'] = display_price_change['초기단가'].apply(lambda x: f"{int(x):,}원")
+                    display_price_change['최근단가'] = display_price_change['최근단가'].apply(lambda x: f"{int(x):,}원")
+                    display_price_change['변동률'] = display_price_change['변동률'].apply(lambda x: f"{x:+.1f}%")
+                    st.dataframe(display_price_change, use_container_width=True, hide_index=True)
+                else:
+                    st.info("가격 변동 데이터가 부족합니다.")
+            else:
+                st.info("가격 변동 분석을 위한 데이터가 없습니다.")
+            
+            # 발주 최적화 제안
+            st.markdown("#### 발주 최적화 제안")
+            
+            if not inventory_df.empty and not usage_df.empty:
+                suggestions = []
+                
+                # 1. 과다재고 재료
+                for idx, row in inventory_df.iterrows():
+                    ingredient_name = row['재료명']
+                    current_stock = row.get('현재고', 0)
+                    safety_stock = row.get('안전재고', 0)
+                    
+                    if current_stock > safety_stock * 3:  # 안전재고의 3배 이상
+                        suggestions.append({
+                            '유형': '과다재고',
+                            '재료명': ingredient_name,
+                            '제안': f"현재고({current_stock:,.2f})가 안전재고({safety_stock:,.2f})의 3배 이상입니다. 발주 빈도를 줄이거나 수량을 조정하세요."
+                        })
+                
+                # 2. 회전율이 높은 재료 (발주 빈도 증가 고려)
+                if turnover_data:
+                    high_turnover = [t for t in turnover_data if t['재고회전율'] > 24]  # 연간 24회 이상
+                    for item in high_turnover[:5]:  # 상위 5개만
+                        suggestions.append({
+                            '유형': '발주빈도증가',
+                            '재료명': item['재료명'],
+                            '제안': f"재고 회전율이 높습니다({item['재고회전율']:.1f}회/년). 발주 빈도를 늘려 재고 부족을 방지하세요."
+                        })
+                
+                if suggestions:
+                    suggestion_df = pd.DataFrame(suggestions)
+                    st.dataframe(suggestion_df, use_container_width=True, hide_index=True)
+                else:
+                    st.success("현재 발주 최적화 제안사항이 없습니다.")
+            else:
+                st.info("발주 최적화 제안을 위한 데이터가 부족합니다.")
+        else:
+            st.info("발주 이력과 공급업체 정보가 필요합니다.")
 
 # 주간 리포트 페이지
 elif page == "주간 리포트":
