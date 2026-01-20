@@ -325,30 +325,18 @@ st.markdown("""
         padding: 0 !important;
     }
     
-    /* ========== 현재 매장 타일 박스 (멋진 스타일) ========== */
+    /* ========== 현재 매장 타일 박스 (메인 헤더와 동일한 블랙 테마, 톤 다운) ========== */
     .store-tile {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background: linear-gradient(135deg, #0a0a0a 0%, #151520 30%, #121220 60%, #0d1a2e 100%);
         background-size: 200% 200%;
-        animation: storeGradientShift 6s ease infinite;
-        padding: 1.5rem;
-        border-radius: 16px;
+        animation: gradientShift 10s ease infinite;
+        padding: 1.2rem;
+        border-radius: 12px;
         margin-bottom: 1.5rem;
-        box-shadow: 
-            0 8px 32px rgba(102, 126, 234, 0.4),
-            0 0 40px rgba(118, 75, 162, 0.3),
-            inset 0 0 20px rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 20px rgba(100, 150, 255, 0.1);
         position: relative;
         overflow: hidden;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .store-tile:hover {
-        transform: translateY(-2px);
-        box-shadow: 
-            0 12px 40px rgba(102, 126, 234, 0.5),
-            0 0 60px rgba(118, 75, 162, 0.4),
-            inset 0 0 30px rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.08);
     }
     
     .store-tile::before {
@@ -358,8 +346,8 @@ st.markdown("""
         left: -50%;
         width: 200%;
         height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(102, 126, 234, 0.15) 30%, transparent 70%);
-        animation: storeRotate 15s linear infinite;
+        background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(100, 150, 255, 0.05) 30%, transparent 70%);
+        animation: rotate 25s linear infinite;
     }
     
     .store-tile::after {
@@ -370,65 +358,45 @@ st.markdown("""
         right: 0;
         bottom: 0;
         background: 
-            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.2) 0%, transparent 50%),
-            radial-gradient(circle at 40% 20%, rgba(240, 147, 251, 0.15) 0%, transparent 50%);
-        animation: storeSparkle 3s ease-in-out infinite alternate;
+            radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(100, 150, 255, 0.08) 0%, transparent 50%),
+            radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+        animation: sparkle 5s ease-in-out infinite alternate;
         pointer-events: none;
     }
     
     .store-tile-label {
         position: relative;
         z-index: 1;
-        font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.9);
-        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.7);
+        margin-bottom: 0.4rem;
         font-weight: 500;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
     }
     
     .store-tile-name {
         position: relative;
         z-index: 1;
-        font-size: 1.3rem;
-        font-weight: 700;
+        font-size: 1.15rem;
+        font-weight: 600;
         color: #ffffff;
-        text-shadow: 
-            0 2px 8px rgba(0, 0, 0, 0.3),
-            0 0 20px rgba(255, 255, 255, 0.3);
-        letter-spacing: 0.5px;
-    }
-    
-    @keyframes storeGradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    @keyframes storeRotate {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes storeSparkle {
-        0% { opacity: 0.6; }
-        100% { opacity: 1; }
+        letter-spacing: 0.3px;
     }
     
     @media (max-width: 768px) {
         .store-tile {
             padding: 1rem;
-            border-radius: 12px;
+            border-radius: 10px;
             margin-bottom: 1rem;
         }
         
         .store-tile-label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
         }
         
         .store-tile-name {
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
     }
     
