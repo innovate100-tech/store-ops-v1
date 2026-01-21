@@ -1,0 +1,450 @@
+"""
+메뉴 등록 페이지
+"""
+from src.bootstrap import bootstrap
+import streamlit as st
+import pandas as pd
+import logging
+from src.ui_helpers import render_page_header, render_section_divider, safe_get_row_by_condition, handle_data_error
+from src.ui import render_menu_input, render_menu_batch_input
+from src.storage_supabase import load_csv, save_menu, update_menu, update_menu_category, delete_menu
+
+# 공통 설정 적용
+bootstrap(page_title="Menu Management")
+
+
+def render_menu_management():
+    """메뉴 등록 페이지 렌더링"""
+    render_page_header("메뉴 등록", "🍽️")
+    
+    # 입력 모드 선택 (단일 / 일괄)
+    input_mode = st.radio(
+        "입력 모드",
+        ["단일 입력", "일괄 입력 (여러 메뉴)"],
+        horizontal=True,
+        key="menu_input_mode"
+    )
+    
+    render_section_divider()
+    
+    if input_mode == "단일 입력":
+        # 단일 입력 폼
+        menu_name, price = render_menu_input()
+        
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("💾 저장", type="primary", use_container_width=True):
+                if not menu_name or menu_name.strip() == "":
+                    st.error("메뉴명을 입력해주세요.")
+                elif price <= 0:
+                    st.error("판매가는 0보다 큰 값이어야 합니다.")
+                else:
+                    try:
+                        success, message = save_menu(menu_name, price)
+                        if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 저장): {cache_error}")
+                            st.success(f"✅ 메뉴가 저장되었습니다! ({menu_name}, {price:,}원)")
+                            # 입력 필드 초기화 (session_state로)
+                            if 'menu_name' in st.session_state:
+                                st.session_state.menu_name = ""
+                            if 'menu_price' in st.session_state:
+                                st.session_state.menu_price = 0
+                        else:
+                            st.error(message)
+                    except Exception as e:
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 저장", e)
+                        st.error(error_msg)
+    
+    else:
+        # 일괄 입력 폼
+        menu_data = render_menu_batch_input()
+        
+        # 입력할 메뉴 개수 가져오기
+        menu_count = st.session_state.get("batch_menu_count", 5)
+        
+        if menu_data:
+            render_section_divider()
+            
+            # 입력 요약 표시
+            st.write("**📊 입력 요약**")
+            summary_df = pd.DataFrame(
+                [(name, f"{price:,}원") for name, price in menu_data],
+                columns=['메뉴명', '판매가']
+            )
+            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            
+            st.markdown(f"**총 {len(menu_data)}개 메뉴**")
+            
+            # 버튼 클릭 시 현재 입력값을 직접 읽어오기
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                save_button_clicked = st.button("💾 일괄 저장", type="primary", use_container_width=True)
+            
+            if save_button_clicked:
+                # 버튼 클릭 시 현재 입력된 모든 값 읽기
+                current_menu_data = []
+                for i in range(menu_count):
+                    menu_name_key = f"batch_menu_name_{i}"
+                    price_key = f"batch_menu_price_{i}"
+                    
+                    menu_name = st.session_state.get(menu_name_key, "")
+                    price = st.session_state.get(price_key, 0)
+                    
+                    if menu_name and menu_name.strip() and price > 0:
+                        current_menu_data.append((menu_name.strip(), price))
+                
+                if not current_menu_data:
+                    st.error("⚠️ 저장할 메뉴가 없습니다. 메뉴명과 판매가를 모두 입력해주세요.")
+                else:
+                    errors = []
+                    success_count = 0
+                    
+                    for menu_name, price in current_menu_data:
+                        try:
+                            success, message = save_menu(menu_name, price)
+                            if success:
+                                success_count += 1
+                            else:
+                                errors.append(f"{menu_name}: {message}")
+                        except Exception as e:
+                            errors.append(f"{menu_name}: {e}")
+                    
+                    if errors:
+                        for error in errors:
+                            st.error(error)
+                    
+                    if success_count > 0:
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        try:
+                            st.cache_data.clear()
+                        except Exception as cache_error:
+                            # Phase 1: 예외 처리 개선 - 로깅 추가
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 일괄 저장): {cache_error}")
+                        st.success(f"✅ {success_count}개 메뉴가 저장되었습니다!")
+                        st.balloons()
+                        # 입력 필드 초기화 (session_state로)
+                        for i in range(menu_count):
+                            if f"batch_menu_name_{i}" in st.session_state:
+                                st.session_state[f"batch_menu_name_{i}"] = ""
+                            if f"batch_menu_price_{i}" in st.session_state:
+                                st.session_state[f"batch_menu_price_{i}"] = 0
+    
+    render_section_divider()
+    
+    # 저장된 메뉴 표시 및 수정/삭제
+    # 제목을 화이트 모드에서도 흰색으로 표시
+    st.markdown("""
+    <div style="margin: 2rem 0 1rem 0;">
+        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
+            📋 등록된 메뉴 리스트
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    
+    if not menu_df.empty:
+        # 간단 검색 필터 (메뉴명 부분 일치)
+        search_keyword = st.text_input("메뉴 검색 (메뉴명 일부 입력)", key="menu_search")
+        if search_keyword:
+            menu_df = menu_df[menu_df['메뉴명'].astype(str).str.contains(search_keyword, case=False, na=False)]
+    
+    if not menu_df.empty:
+        # 카테고리 컬럼이 없으면 추가 (기본값: '기타메뉴')
+        if 'category' not in menu_df.columns:
+            menu_df['category'] = '기타메뉴'
+        elif '카테고리' in menu_df.columns:
+            menu_df['category'] = menu_df['카테고리']
+        # 카테고리가 None이거나 빈 값인 경우 기본값 설정
+        menu_df['category'] = menu_df['category'].fillna('기타메뉴')
+        menu_df['category'] = menu_df['category'].replace('', '기타메뉴')
+        
+        # 카테고리 색상 매핑
+        category_colors = {
+            '대표메뉴': '#1e3a8a',      # 진한 파란색
+            '주력메뉴': '#166534',      # 진한 초록색
+            '유인메뉴': '#ea580c',      # 진한 주황색
+            '보조메뉴': '#6b7280',      # 회색
+            '기타메뉴': '#3b82f6'       # 연한 파란색
+        }
+        
+        # 순서 정보를 session_state에 저장 (초기화)
+        menu_order_key = "menu_display_order"
+        if menu_order_key not in st.session_state:
+            # 초기 순서 설정 (메뉴명 기준)
+            menu_names = menu_df['메뉴명'].tolist()
+            st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(menu_names)}
+        
+        # 순서에 따라 정렬
+        menu_df['순서'] = menu_df['메뉴명'].map(st.session_state[menu_order_key])
+        menu_df = menu_df.sort_values('순서').reset_index(drop=True)
+        
+        # 메뉴 번호 매기기
+        menu_df['번호'] = range(1, len(menu_df) + 1)
+        
+        # 메뉴 리스트 표시 (체크박스, 번호, 메뉴명, 판매가, 카테고리, 순서 변경 버튼, 삭제 버튼)
+        st.markdown("**📋 메뉴 목록**")
+        
+        # 선택된 메뉴 인덱스 수집
+        selected_indices = []
+        
+        # 헤더 행
+        header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7, header_col8 = st.columns([0.3, 0.5, 2.5, 1.5, 1.5, 1, 1, 1])
+        with header_col1:
+            st.write("**선택**")
+        with header_col2:
+            st.write("**번호**")
+        with header_col3:
+            st.write("**메뉴명**")
+        with header_col4:
+            st.write("**판매가**")
+        with header_col5:
+            st.write("**카테고리**")
+        with header_col6:
+            st.write("**위로**")
+        with header_col7:
+            st.write("**아래로**")
+        with header_col8:
+            st.write("**삭제**")
+        
+        st.markdown("---")
+        
+        # 카테고리별 배경색 CSS 스타일 정의 (더 진하고 넓게)
+        st.markdown("""
+        <style>
+        .menu-row-wrapper {
+            padding: 1rem 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            border-left: 6px solid;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+        }
+        .menu-row-대표메뉴 {
+            background-color: #1e3a8a80;
+            border-left-color: #1e40af;
+        }
+        .menu-row-주력메뉴 {
+            background-color: #16653480;
+            border-left-color: #15803d;
+        }
+        .menu-row-유인메뉴 {
+            background-color: #ea580c80;
+            border-left-color: #f97316;
+        }
+        .menu-row-보조메뉴 {
+            background-color: #6b728080;
+            border-left-color: #9ca3af;
+        }
+        .menu-row-기타메뉴 {
+            background-color: #3b82f680;
+            border-left-color: #60a5fa;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # 각 메뉴 행
+        for idx, row in menu_df.iterrows():
+            # 카테고리별 배경색 설정
+            category = row.get('category', '기타메뉴')
+            category_class = category if category in category_colors else '기타메뉴'
+            
+            # 행 시작 - 배경색 적용
+            st.markdown(f'<div class="menu-row-wrapper menu-row-{category_class}">', unsafe_allow_html=True)
+            
+            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([0.3, 0.5, 2.5, 1.5, 1.5, 1, 1, 1])
+            
+            with col1:
+                checkbox_key = f"menu_checkbox_{idx}"
+                if st.checkbox("", key=checkbox_key, label_visibility="collapsed"):
+                    selected_indices.append(idx)
+            
+            with col2:
+                st.write(f"**{row['번호']}**")
+            
+            with col3:
+                st.write(f"**{row['메뉴명']}**")
+            
+            with col4:
+                st.write(f"{int(row['판매가']):,}원")
+            
+            with col5:
+                # 카테고리 선택
+                category_options = ['대표메뉴', '주력메뉴', '유인메뉴', '보조메뉴', '기타메뉴']
+                current_category = category if category in category_options else '기타메뉴'
+                category_key = f"category_select_{idx}"
+                new_category = st.selectbox(
+                    "",
+                    category_options,
+                    index=category_options.index(current_category) if current_category in category_options else 4,
+                    key=category_key,
+                    label_visibility="collapsed"
+                )
+                
+                # 카테고리가 변경되었으면 업데이트
+                if new_category != current_category:
+                    try:
+                        success, message = update_menu_category(row['메뉴명'], new_category)
+                        if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as e:
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (카테고리 변경): {e}")
+                            st.success(f"✅ 카테고리가 '{new_category}'로 변경되었습니다.")
+                        else:
+                            st.error(message)
+                    except Exception as e:
+                        st.error(f"카테고리 업데이트 중 오류: {e}")
+            
+            with col6:
+                # 위로 이동 버튼
+                if idx > 0:
+                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 위 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        prev_menu = menu_df.iloc[idx - 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        prev_order = st.session_state[menu_order_key][prev_menu]
+                        st.session_state[menu_order_key][current_menu] = prev_order
+                        st.session_state[menu_order_key][prev_menu] = current_order
+                        # 순서 변경은 session_state만 업데이트, rerun 없이 즉시 반영
+                        st.success("✅ 순서가 변경되었습니다.")
+            
+            with col7:
+                # 아래로 이동 버튼
+                if idx < len(menu_df) - 1:
+                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동", use_container_width=True):
+                        # 순서 변경: 현재 항목과 아래 항목의 순서 교환
+                        current_menu = row['메뉴명']
+                        next_menu = menu_df.iloc[idx + 1]['메뉴명']
+                        current_order = st.session_state[menu_order_key][current_menu]
+                        next_order = st.session_state[menu_order_key][next_menu]
+                        st.session_state[menu_order_key][current_menu] = next_order
+                        st.session_state[menu_order_key][next_menu] = current_order
+                        # 순서 변경은 session_state만 업데이트, rerun 없이 즉시 반영
+                        st.success("✅ 순서가 변경되었습니다.")
+            
+            with col8:
+                # 개별 삭제 버튼
+                if st.button("🗑️", key=f"delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
+                    menu_name = row['메뉴명']
+                    try:
+                        success, message, refs = delete_menu(menu_name)
+                        if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as e:
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 삭제): {e}")
+                            # session_state에서도 제거
+                            if menu_name in st.session_state[menu_order_key]:
+                                del st.session_state[menu_order_key][menu_name]
+                            # 순서 재정렬
+                            remaining_menus = list(st.session_state[menu_order_key].keys())
+                            st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
+                            st.success(f"✅ '{menu_name}' 메뉴가 삭제되었습니다!")
+                        else:
+                            st.error(message)
+                            if refs:
+                                st.info(f"**참조 정보:** {', '.join([f'{k}: {v}개' for k, v in refs.items()])}")
+                    except Exception as e:
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 삭제", e)
+                        st.error(error_msg)
+            
+            # 행 종료
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            if idx < len(menu_df) - 1:
+                st.markdown("---")
+        
+        # 선택된 메뉴 일괄 삭제 버튼
+        if selected_indices:
+            st.markdown("---")
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="delete_selected_menus", use_container_width=True):
+                    errors = []
+                    success_count = 0
+                    
+                    for idx in selected_indices:
+                        menu_name = menu_df.iloc[idx]['메뉴명']
+                        try:
+                            success, message, refs = delete_menu(menu_name)
+                            if success:
+                                success_count += 1
+                                # session_state에서도 제거
+                                if menu_name in st.session_state[menu_order_key]:
+                                    del st.session_state[menu_order_key][menu_name]
+                            else:
+                                errors.append(f"{menu_name}: {message}")
+                        except Exception as e:
+                            errors.append(f"{menu_name}: {e}")
+                    
+                    if errors:
+                        for error in errors:
+                            st.error(error)
+                    
+                    if success_count > 0:
+                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        try:
+                            st.cache_data.clear()
+                        except Exception as e:
+                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 일괄 저장): {e}")
+                        # 순서 재정렬
+                        remaining_menus = list(st.session_state[menu_order_key].keys())
+                        st.session_state[menu_order_key] = {name: idx + 1 for idx, name in enumerate(remaining_menus)}
+                        st.success(f"✅ {success_count}개 메뉴가 삭제되었습니다!")
+        
+        render_section_divider()
+        
+        # 수정 기능
+        render_section_divider()
+        st.markdown("**📝 메뉴 수정**")
+        menu_list = menu_df['메뉴명'].tolist()
+        selected_menu = st.selectbox(
+            "수정할 메뉴 선택",
+            ["선택하세요"] + menu_list,
+            key="menu_edit_select"
+        )
+        
+        if selected_menu != "선택하세요":
+            # Phase 1: 안전한 DataFrame 접근
+            menu_info = safe_get_row_by_condition(menu_df, menu_df['메뉴명'] == selected_menu)
+            
+            if menu_info is None:
+                st.error(f"메뉴 '{selected_menu}'를 찾을 수 없습니다.")
+            else:
+                new_menu_name = st.text_input("메뉴명", value=menu_info.get('메뉴명', ''), key="menu_edit_name")
+                new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info.get('판매가', 0)), step=1000, key="menu_edit_price")
+                if st.button("✅ 수정", key="menu_edit_btn"):
+                    try:
+                        success, message = update_menu(menu_info.get('메뉴명', ''), new_menu_name, new_price)
+                        if success:
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as cache_error:
+                                # Phase 1: 예외 처리 개선 - 로깅 추가
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 수정): {cache_error}")
+                            st.success(f"✅ {message}")
+                        else:
+                            st.error(message)
+                    except Exception as e:
+                        # Phase 3: 에러 메시지 표준화
+                        error_msg = handle_data_error("메뉴 수정", e)
+                        st.error(error_msg)
+    else:
+        st.info("등록된 메뉴가 없습니다.")
+
+
+# Streamlit 멀티페이지에서 직접 실행될 때
+render_menu_management()
