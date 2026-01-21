@@ -6,28 +6,12 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-# 페이지 설정은 최상단에 위치 (다른 st.* 호출 전에)
-st.set_page_config(
-    page_title="황승진 외식경영 의사결정도구",
-    page_icon="🍽️",
-    layout="wide",
-    initial_sidebar_state="expanded",  # 사이드바 항상 열림
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': None
-    }
-)
-
-# 테마 상태 초기화 (기본: 화이트 모드)
-if "theme" not in st.session_state:
-    st.session_state.theme = "light"
+# 공통 설정 적용
+from src.bootstrap import bootstrap
+bootstrap(page_title="App")
 
 # 로그인 체크
-from src.auth import check_login, show_login_page, get_current_store_name, logout, apply_dev_mode_session
-
-# DEV MODE 체크 (로컬 개발용)
-apply_dev_mode_session()
+from src.auth import check_login, show_login_page, get_current_store_name, logout
 
 # 로그인이 안 되어 있으면 로그인 화면 표시
 if not check_login():
@@ -1295,20 +1279,6 @@ if st.session_state.get("theme", "light") == "dark":
         }
     </style>
     """, unsafe_allow_html=True)
-
-# 타이틀 (개선된 디자인)
-st.markdown("""
-<div class="main-header">
-    <h1>
-        <span class="emoji">😎</span>
-        <span class="text-gradient">외식경영 의사결정 시스템 (운영 OS)</span>
-    </h1>
-    <div class="copyright">© 2026 황승진. All rights reserved.</div>
-</div>
-<div class="led-board">
-    <div class="led-text"></div>
-</div>
-""", unsafe_allow_html=True)
 
 # 사이드바 상단: 매장명 및 로그아웃
 with st.sidebar:
