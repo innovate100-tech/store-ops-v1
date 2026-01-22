@@ -600,7 +600,7 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
             'menu_master.csv': 'menu_master',
             'ingredient_master.csv': 'ingredients',
             'recipes.csv': 'recipes',
-            'daily_sales_items.csv': 'daily_sales_items',
+            'daily_sales_items.csv': 'v_daily_sales_items_effective',  # STEP 2: 우선순위 뷰 사용
             'inventory.csv': 'inventory',
             'targets.csv': 'targets',
             'abc_history.csv': 'abc_history',
@@ -612,7 +612,7 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
             'menu_master': 'menu_master',
             'ingredient_master': 'ingredients',
             'recipes': 'recipes',
-            'daily_sales_items': 'daily_sales_items',
+            'daily_sales_items': 'v_daily_sales_items_effective',  # STEP 2: 우선순위 뷰 사용
             'inventory': 'inventory',
             'targets': 'targets',
             'abc_history': 'abc_history',
@@ -623,7 +623,7 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
         actual_table = table_mapping.get(filename, filename.replace('.csv', ''))
         
         # 대용량 테이블 필터 기본값 강제 (최근 90일)
-        large_tables = ['sales', 'daily_close', 'daily_sales_items', 'naver_visitors']
+        large_tables = ['sales', 'daily_close', 'daily_sales_items', 'v_daily_sales_items_effective', 'naver_visitors']
         use_date_filter = actual_table in large_tables
         
         # store_id로 필터링하여 조회 (RLS가 자동으로 적용됨)
@@ -816,7 +816,8 @@ USING (
                 if 'qty' in df.columns:
                     df['사용량'] = df['qty']
             
-            elif actual_table == 'daily_sales_items':
+            elif actual_table == 'v_daily_sales_items_effective':
+                # STEP 2: 뷰 사용 (컬럼명은 동일: date, menu_id, qty)
                 if 'date' in df.columns:
                     df['날짜'] = pd.to_datetime(df['date'])
                 
@@ -1144,20 +1145,23 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
                 }
                 logger.warning(f"Sales conflict detected: {date_str}, existing={existing_total}, new={total_sales}, has_daily_close={has_daily_close}")
         
-        result = supabase.table("sales").upsert({
-            "store_id": store_id,
-            "date": date_str,
-            "card_sales": float(card_sales),
-            "cash_sales": float(cash_sales),
-            "total_sales": float(total_sales)
-        }, on_conflict="store_id,date").execute()
+        # STEP 1: 매출 우선순위 고정 - sales를 SSOT로, daily_close도 동기화
+        # RPC 함수 사용 (트랜잭션 보장)
+        supabase.rpc('save_sales_with_daily_close_sync', {
+            'p_date': date_str,
+            'p_store_id': str(store_id),
+            'p_card_sales': float(card_sales),
+            'p_cash_sales': float(cash_sales),
+            'p_total_sales': float(total_sales)
+        }).execute()
         
-        logger.info(f"Sales saved: {date_str}, {total_sales}")
+        logger.info(f"Sales saved (with daily_close sync): {date_str}, {total_sales}")
         
         # 소프트 무효화 (token bump + 부분 clear)
+        # daily_close도 무효화 (동기화되었으므로)
         soft_invalidate(
             reason=f"save_sales: {date_str}",
-            targets=["sales"]
+            targets=["sales", "daily_close"]
         )
         
         # Phase G: load_monthly_sales_total 캐시도 무효화 (매출 저장 시 월합계도 갱신 필요)
@@ -1410,8 +1414,8 @@ def delete_menu(menu_name, check_references=True):
             if recipe_check.data:
                 references['레시피'] = len(recipe_check.data)
             
-            # 판매 내역 참조 확인
-            sales_check = supabase.table("daily_sales_items").select("id").eq("menu_id", menu_id).execute()
+            # 판매 내역 참조 확인 (뷰 사용)
+            sales_check = supabase.table("v_daily_sales_items_effective").select("menu_id").eq("menu_id", menu_id).limit(1).execute()
             if sales_check.data:
                 references['판매내역'] = len(sales_check.data)
         
@@ -1665,7 +1669,11 @@ def delete_recipe(menu_name, ingredient_name):
 
 
 def save_daily_sales_item(date, menu_name, quantity):
-    """일일 판매 아이템 저장 (같은 날짜/메뉴가 있으면 수량 합산)"""
+    """
+    일일 판매 아이템 저장 (STEP 2: 우선순위 레이어)
+    - overrides 테이블에 upsert (최종값 overwrite, 누적 아님)
+    - 마감보다 우선 적용됨
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1683,23 +1691,33 @@ def save_daily_sales_item(date, menu_name, quantity):
             raise Exception(f"메뉴 '{menu_name}'를 찾을 수 없습니다.")
         menu_id = menu_result.data[0]['id']
         
-        # 기존 데이터 확인
-        existing = supabase.table("daily_sales_items").select("qty").eq("store_id", store_id).eq("date", date_str).eq("menu_id", menu_id).execute()
+        # STEP 2: overrides 테이블에 upsert (최종값, 누적 아님)
+        # updated_by는 현재 사용자 ID (선택적, 없으면 None)
+        user_id = None
+        try:
+            # Supabase 클라이언트에서 현재 사용자 정보 가져오기 (선택적)
+            # auth.users 테이블 접근이 필요하므로 일단 None으로 설정
+            pass
+        except:
+            pass
         
-        if existing.data:
-            # 기존 수량에 추가
-            new_qty = existing.data[0]['qty'] + quantity
-            supabase.table("daily_sales_items").update({"qty": new_qty}).eq("store_id", store_id).eq("date", date_str).eq("menu_id", menu_id).execute()
-        else:
-            # 새로 추가
-            supabase.table("daily_sales_items").insert({
-                "store_id": store_id,
-                "date": date_str,
-                "menu_id": menu_id,
-                "qty": int(quantity)
-            }).execute()
+        supabase.table("daily_sales_items_overrides").upsert({
+            "store_id": store_id,
+            "sale_date": date_str,
+            "menu_id": menu_id,
+            "qty": int(quantity),
+            "updated_by": user_id,
+            "note": f"판매량등록에서 입력 (마감보다 우선)"
+        }, on_conflict="store_id,sale_date,menu_id").execute()
         
-        logger.info(f"Daily sales item saved: {date_str}, {menu_name}, {quantity}")
+        logger.info(f"Daily sales item saved (override): {date_str}, {menu_name}, {quantity}")
+        
+        # 소프트 무효화 (daily_sales_items 관련 캐시)
+        soft_invalidate(
+            reason=f"save_daily_sales_item: {date_str}",
+            targets=["daily_sales_items"]
+        )
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save daily sales item: {e}")

@@ -34,6 +34,27 @@ def render_manager_close():
     # 점장 마감 입력 폼
     date, store, card_sales, cash_sales, total_sales, visitors, sales_items, issues, memo = render_manager_closing_input(menu_list)
     
+    # STEP 3: 선택한 날짜에 판매량 보정(overrides) 존재 여부 확인
+    from src.auth import get_current_store_id, get_supabase_client
+    store_id = get_current_store_id()
+    if store_id and date:
+        try:
+            supabase = get_supabase_client()
+            if supabase:
+                date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                overrides_check = supabase.table("daily_sales_items_overrides")\
+                    .select("menu_id", count="exact")\
+                    .eq("store_id", store_id)\
+                    .eq("sale_date", date_str)\
+                    .limit(1)\
+                    .execute()
+                
+                if overrides_check.count and overrides_check.count > 0:
+                    st.warning(f"⚠️ **판매량 보정이 존재합니다**: 해당 날짜에 판매량등록으로 입력된 값이 {overrides_check.count}개 있습니다. 보정값이 마감 입력보다 우선 적용됩니다.")
+        except Exception as e:
+            # 에러 발생 시 무시 (UI 경고이므로)
+            pass
+    
     st.markdown("---")
     
     # 마감 완료 버튼

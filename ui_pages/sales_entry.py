@@ -11,6 +11,8 @@ from src.ui import render_sales_input, render_sales_batch_input, render_visitor_
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
 
+logger = logging.getLogger(__name__)
+
 # 공통 설정 적용
 bootstrap(page_title="Sales Entry")
 
@@ -24,6 +26,31 @@ if not check_login():
 def render_sales_entry():
     """매출 등록 페이지 렌더링"""
     render_page_header("매출 등록", "💰")
+    
+    # STEP 3: 우선순위 안내
+    st.info("💡 **이 값은 마감 매출보다 우선(최종값) 적용됩니다.** 마감 후에도 매출등록으로 수정한 값이 최종 반영됩니다.")
+    
+    # DB 연결 상태 확인 및 표시 (디버그 모드)
+    from src.auth import is_dev_mode, get_supabase_client, get_current_store_id
+    from src.storage_supabase import _check_supabase_for_dev_mode
+    
+    if is_dev_mode():
+        with st.expander("🔍 DB 연결 상태 (개발 모드)", expanded=False):
+            supabase = _check_supabase_for_dev_mode()
+            store_id = get_current_store_id()
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if supabase:
+                    st.success("✅ Supabase 클라이언트: 연결됨")
+                else:
+                    st.error("❌ Supabase 클라이언트: 연결 실패")
+            
+            with col2:
+                if store_id:
+                    st.success(f"✅ Store ID: {store_id[:8]}...")
+                else:
+                    st.error("❌ Store ID: 없음")
     
     # 저장 후 메시지 표시 (세션 상태에서) - 통합된 세련된 디자인
     if "sales_entry_success_message" in st.session_state:
@@ -149,7 +176,27 @@ def render_sales_entry():
                     elif total_sales <= 0:
                         st.error("매출은 0보다 큰 값이어야 합니다.")
                     else:
-                        # run_write로 통일
+                        # DB 연결 및 store_id 확인
+                        from src.auth import get_supabase_client, get_current_store_id
+                        from src.storage_supabase import _check_supabase_for_dev_mode
+                        
+                        # 1. Supabase 클라이언트 확인
+                        supabase = _check_supabase_for_dev_mode()
+                        if not supabase:
+                            st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
+                            return
+                        
+                        # 2. Store ID 확인
+                        store_id = get_current_store_id()
+                        if not store_id:
+                            st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
+                            return
+                        
+                        # 3. 저장 시도
                         try:
                             # 충돌 확인을 위해 직접 save_sales 호출
                             success, conflict_info = save_sales(date, store, card_sales, cash_sales, total_sales, check_conflict=True)
@@ -185,11 +232,24 @@ def render_sales_entry():
                                 
                                 st.rerun()
                             else:
-                                st.session_state["sales_entry_success_message"] = "❌ 매출 저장에 실패했습니다."
+                                # save_sales가 False를 반환한 경우 (DB 연결 실패 등)
+                                st.session_state["sales_entry_success_message"] = "❌ 매출 저장에 실패했습니다.<br><br>• 데이터베이스 연결을 확인해주세요.<br>• 잠시 후 다시 시도해주세요."
                                 st.session_state["sales_entry_message_type"] = "error"
                                 st.rerun()
                         except Exception as e:
-                            st.session_state["sales_entry_success_message"] = f"❌ 매출 저장 실패: {str(e)}"
+                            # 예외 발생 시 상세한 에러 메시지
+                            error_msg = str(e)
+                            logger.error(f"Sales save error: {error_msg}", exc_info=True)
+                            
+                            # 사용자 친화적인 에러 메시지 구성
+                            if "No store_id found" in error_msg:
+                                user_msg = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
+                            elif "Supabase not available" in error_msg or "Supabase" in error_msg:
+                                user_msg = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 연결 설정을 확인해주세요.<br>• 네트워크 연결을 확인해주세요."
+                            else:
+                                user_msg = f"❌ 매출 저장 실패: {error_msg}<br><br>• 문제가 지속되면 관리자에게 문의해주세요."
+                            
+                            st.session_state["sales_entry_success_message"] = user_msg
                             st.session_state["sales_entry_message_type"] = "error"
                             st.rerun()
         
@@ -218,12 +278,32 @@ def render_sales_entry():
                 col1, col2 = st.columns([1, 4])
                 with col1:
                     if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                        # DB 연결 및 store_id 사전 확인
+                        from src.auth import get_supabase_client, get_current_store_id
+                        from src.storage_supabase import _check_supabase_for_dev_mode
+                        
+                        supabase = _check_supabase_for_dev_mode()
+                        if not supabase:
+                            st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
+                            return
+                        
+                        store_id = get_current_store_id()
+                        if not store_id:
+                            st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
+                            return
+                        
                         errors = []
                         success_count = 0
                         
                         for date, store, card_sales, cash_sales, total_sales in sales_data:
                             if not store or store.strip() == "":
                                 errors.append(f"{date}: 매장명이 없습니다.")
+                            elif total_sales <= 0:
+                                errors.append(f"{date}: 매출은 0보다 큰 값이어야 합니다.")
                             else:
                                 try:
                                     # 충돌 확인을 위해 직접 save_sales 호출
@@ -239,19 +319,26 @@ def render_sales_entry():
                                             else:
                                                 errors.append(f"{date}: ⚠️ 기존 값과 충돌 (기존: {existing:,.0f}원 → 새: {total_sales:,.0f}원, 덮어쓰기됨)")
                                         
-                                        # 캐시 무효화
-                                        from src.storage_supabase import soft_invalidate, load_monthly_sales_total
-                                        soft_invalidate(reason="save_sales_batch", targets=["sales"])
-                                        try:
-                                            load_monthly_sales_total.clear()
-                                        except Exception:
-                                            pass
+                                        # 캐시 무효화 (한 번만)
+                                        if success_count == 0:
+                                            from src.storage_supabase import soft_invalidate, load_monthly_sales_total
+                                            soft_invalidate(reason="save_sales_batch", targets=["sales"])
+                                            try:
+                                                load_monthly_sales_total.clear()
+                                            except Exception:
+                                                pass
                                         
                                         success_count += 1
                                     else:
-                                        errors.append(f"{date}: 저장 실패")
+                                        errors.append(f"{date}: 저장 실패 (DB 연결 오류 가능)")
                                 except Exception as e:
-                                    errors.append(f"{date}: {e}")
+                                    error_msg = str(e)
+                                    if "No store_id found" in error_msg:
+                                        errors.append(f"{date}: 매장 정보 없음")
+                                    elif "Supabase" in error_msg:
+                                        errors.append(f"{date}: DB 연결 실패")
+                                    else:
+                                        errors.append(f"{date}: {error_msg}")
                         
                         # 에러와 경고를 구분하여 표시
                         warnings = [e for e in errors if "⚠️" in e]
