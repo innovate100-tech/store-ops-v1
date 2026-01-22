@@ -964,20 +964,20 @@ def render_home():
     # ========== 섹션 5: 이상 징후 ==========
     try:
         with st.container():
-        st.markdown("### 🔍 이상 징후")
-        
-        if data_level < 2:
+            st.markdown("### 🔍 이상 징후")
+            
+            if data_level < 2:
             st.markdown("""
             <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
                 <p style="color: #856404; margin: 0;">이상 징후 분석을 위해서는 운영 데이터가 필요합니다. 마감을 꾸준히 입력해주세요.</p>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                <p style="color: #0c5460; margin: 0;">이상 징후 분석은 다음 단계에서 추가됩니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                    <p style="color: #0c5460; margin: 0;">이상 징후 분석은 다음 단계에서 추가됩니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
     except Exception:
         pass
     
@@ -986,26 +986,26 @@ def render_home():
     # ========== 섹션 6: 미니 차트 ==========
     try:
         with st.container():
-        st.markdown("### 📈 미니 차트")
-        
-        if data_level == 0:
+            st.markdown("### 📈 미니 차트")
+            
+            if data_level == 0:
             st.markdown("""
             <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
                 <p style="color: #6c757d; margin: 0;">차트를 표시하려면 데이터가 필요합니다. 마감을 입력해주세요.</p>
             </div>
             """, unsafe_allow_html=True)
-        elif data_level == 1:
-            st.markdown("""
-            <div style="padding: 2rem; background: #fff3cd; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
-                <p style="color: #856404; margin: 0;">더 많은 차트를 보려면 마감을 꾸준히 입력해주세요.</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="padding: 2rem; background: #d1ecf1; border-radius: 8px; text-align: center; border: 2px solid #17a2b8;">
-                <p style="color: #0c5460; margin: 0;">미니 차트는 다음 단계에서 추가됩니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            elif data_level == 1:
+                st.markdown("""
+                <div style="padding: 2rem; background: #fff3cd; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
+                    <p style="color: #856404; margin: 0;">더 많은 차트를 보려면 마감을 꾸준히 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 2rem; background: #d1ecf1; border-radius: 8px; text-align: center; border: 2px solid #17a2b8;">
+                    <p style="color: #0c5460; margin: 0;">미니 차트는 다음 단계에서 추가됩니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
     except Exception:
         pass
     
@@ -1014,31 +1014,33 @@ def render_home():
     # ========== 섹션 7: 우리 가게 숫자 구조 ==========
     try:
         with st.container():
-        st.markdown("### 🏪 우리 가게 숫자 구조")
-        
-        if data_level < 3:
+            st.markdown("### 🏪 우리 가게 숫자 구조")
+            
+            if data_level < 3:
             st.markdown("""
             <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
                 <h4 style="color: #856404; margin-bottom: 0.5rem;">재무 구조를 입력하세요</h4>
                 <p style="color: #856404; margin-bottom: 1rem;">비용 구조와 실제 정산을 입력하면 우리 가게의 숫자 구조를 볼 수 있습니다.</p>
             </div>
             """, unsafe_allow_html=True)
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost"):
-                    st.session_state.current_page = "목표 비용구조"
-                    st.rerun()
-            with col2:
-                if st.button("🧾 실제정산", use_container_width=True, key="home_btn_settlement"):
-                    st.session_state.current_page = "실제정산"
-                    st.rerun()
-        else:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
-                <h4 style="color: #155724; margin-bottom: 0.5rem;">우리 가게 숫자 구조가 여기에 표시됩니다</h4>
-                <p style="color: #155724; margin: 0;">숫자 구조 분석은 다음 단계에서 추가됩니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost"):
+                        st.session_state.current_page = "목표 비용구조"
+                        st.rerun()
+                with col2:
+                    if st.button("🧾 실제정산", use_container_width=True, key="home_btn_settlement"):
+                        st.session_state.current_page = "실제정산"
+                        st.rerun()
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                    <h4 style="color: #155724; margin-bottom: 0.5rem;">우리 가게 숫자 구조가 여기에 표시됩니다</h4>
+                    <p style="color: #155724; margin: 0;">숫자 구조 분석은 다음 단계에서 추가됩니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
+    except Exception:
+        pass
     
     render_section_divider()
     
