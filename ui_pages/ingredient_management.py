@@ -13,9 +13,95 @@ from src.storage_supabase import load_csv, save_ingredient, update_ingredient, d
 bootstrap(page_title="Ingredient Management")
 
 
+def _show_ingredient_query_diagnostics():
+    """재료 등록 페이지에서 사용하는 실제 쿼리 정보 출력"""
+    try:
+        from src.auth import get_current_store_id
+        from src.storage_supabase import get_read_client
+        
+        store_id = get_current_store_id()
+        st.write(f"**사용된 store_id:** `{store_id}`")
+        
+        st.divider()
+        st.write("**실제 쿼리 실행 결과:**")
+        
+        # 1. load_csv 호출 테스트
+        st.write("**1. load_csv('ingredient_master.csv') 호출 결과:**")
+        try:
+            ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
+            st.write(f"- Row count: {len(ingredient_df)}")
+            st.write(f"- DataFrame columns: {list(ingredient_df.columns)}")
+            if not ingredient_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(ingredient_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+            st.exception(e)
+        
+        st.divider()
+        
+        # 2. 직접 Supabase 쿼리 테스트 (필터 없이)
+        st.write("**2. 직접 Supabase 쿼리 (ingredients 테이블, 필터 없이):**")
+        try:
+            supabase = get_read_client()
+            if supabase:
+                # 필터 없이 조회
+                result_no_filter = supabase.table("ingredients").select("*").limit(10).execute()
+                st.write(f"- 필터 없이 Row count: {len(result_no_filter.data) if result_no_filter.data else 0}")
+                
+                if result_no_filter.data:
+                    # store_id 목록 확인
+                    store_ids = set([row.get('store_id') for row in result_no_filter.data if row.get('store_id')])
+                    st.write(f"- 발견된 store_id 목록: {list(store_ids)}")
+                    st.write("- 첫 row 샘플:")
+                    st.json(result_no_filter.data[0])
+                
+                st.divider()
+                
+                # store_id 필터로 조회
+                if store_id:
+                    st.write(f"**3. 직접 Supabase 쿼리 (ingredients 테이블, store_id={store_id}):**")
+                    result_with_filter = supabase.table("ingredients").select("*").eq("store_id", store_id).limit(10).execute()
+                    st.write(f"- Row count: {len(result_with_filter.data) if result_with_filter.data else 0}")
+                    st.write(f"- 쿼리 조건: `table('ingredients').select('*').eq('store_id', '{store_id}')`")
+                    
+                    if result_with_filter.data:
+                        st.write("- 첫 row 샘플:")
+                        st.json(result_with_filter.data[0])
+                    else:
+                        st.warning("⚠️ store_id 필터로 조회한 데이터가 비어있습니다.")
+                        
+                        # store_id가 다른 데이터가 있는지 확인
+                        if result_no_filter.data:
+                            st.warning(f"⚠️ 테이블에는 데이터가 있지만, store_id=`{store_id}` 조건으로는 조회되지 않습니다.")
+                            st.info("💡 가능한 원인:")
+                            st.info("1. RLS 정책 문제")
+                            st.info("2. store_id 불일치 (데이터는 다른 store_id로 저장됨)")
+                            st.info("3. 로그인 사용자의 권한 문제")
+                else:
+                    st.error("❌ store_id가 없어서 필터 쿼리를 실행할 수 없습니다.")
+            else:
+                st.error("❌ Supabase 클라이언트를 생성할 수 없습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+            st.exception(e)
+            
+    except Exception as e:
+        st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
+        st.exception(e)
+
+
 def render_ingredient_management():
     """재료 등록 페이지 렌더링"""
     render_page_header("재료 등록", "🥬")
+    
+    # 쿼리 진단 기능 추가
+    with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
+        _show_ingredient_query_diagnostics()
     
     # 재료 입력 폼
     ingredient_result = render_ingredient_input(key_prefix="ingredient_management")

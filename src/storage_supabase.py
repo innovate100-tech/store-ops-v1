@@ -625,11 +625,20 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
                 cutoff_date = (now_kst() - timedelta(days=90)).date()
                 query = query.gte("date", cutoff_date.isoformat())
             
+            # 디버그: 실제 쿼리 정보 로깅 (온라인 환경 진단용)
+            logger.info(f"load_csv({filename}): 테이블={actual_table}, store_id={store_id}, use_date_filter={use_date_filter}")
+            if use_date_filter:
+                logger.info(f"load_csv({filename}): 날짜 필터 적용 (cutoff_date={cutoff_date.isoformat()})")
+            
             # timed_select로 쿼리 실행 및 타이밍 기록
             result = timed_select(
                 f"load_csv({filename})",
                 lambda: query.execute()
             )
+            
+            # 결과 로깅
+            row_count = len(result.data) if result.data else 0
+            logger.info(f"load_csv({filename}): 조회 결과 {row_count}건")
         except Exception as query_error:
             error_msg = str(query_error)
             logger.error(f"Query failed for {actual_table} (store_id: {store_id}): {error_msg}")
@@ -655,40 +664,54 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
             
             return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
         
-        # 데이터가 0건인 경우 디버그 정보 표시
-        if not result.data or len(result.data) == 0:
-            if _is_dev_mode():
+            # 데이터가 0건인 경우 디버그 정보 표시 (온라인 환경에서도 표시)
+            if not result.data or len(result.data) == 0:
+                # 온라인 환경에서도 진단 정보 표시 (항상 표시)
                 import streamlit as st
-                with st.expander(f"ℹ️ 데이터 없음: {filename} (0건)", expanded=False):
-                    st.info(f"**테이블:** {actual_table}")
-                    st.caption(f"**Store ID:** {store_id}")
-                    st.caption("**가능한 원인:**")
-                    st.caption("1. 실제로 데이터가 없는 경우")
-                    st.caption("2. RLS 정책으로 인해 접근 불가")
-                    st.caption("3. store_id 필터 조건 불일치")
-                    st.caption("4. 로그인 상태 문제")
+                with st.expander(f"⚠️ 데이터 없음: {filename} (0건)", expanded=True):
+                    st.error(f"**테이블:** {actual_table}")
+                    st.write(f"**Store ID:** `{store_id}`")
+                    st.write("**실행된 쿼리:**")
+                    if use_date_filter:
+                        st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}').gte('date', '{cutoff_date.isoformat()}')", language="python")
+                    else:
+                        st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}')", language="python")
+                    
+                    st.write("**가능한 원인:**")
+                    st.write("1. 실제로 데이터가 없는 경우")
+                    st.write("2. RLS 정책으로 인해 접근 불가")
+                    st.write("3. store_id 필터 조건 불일치")
+                    st.write("4. 로그인 상태 문제")
                     
                     # 추가 진단: 테이블 존재 여부 확인 (store_id 필터 없이)
-                    # actual_settlement 테이블은 id 컬럼이 없으므로 테스트 생략 (에러 방지)
-                    if actual_table != 'actual_settlement':
-                        try:
-                            # 다른 테이블은 id 컬럼 사용 시도
-                            try:
-                                test_result = supabase.table(actual_table).select("id").limit(1).execute()
-                            except Exception:
-                                # id가 없으면 * 사용
-                                test_result = supabase.table(actual_table).select("*").limit(1).execute()
+                    st.divider()
+                    st.write("**추가 진단: 필터 없이 조회:**")
+                    try:
+                        # 필터 없이 조회 시도
+                        test_result = supabase.table(actual_table).select("*").limit(5).execute()
+                        
+                        if test_result.data:
+                            test_count = len(test_result.data)
+                            st.warning(f"⚠️ 테이블에는 데이터가 있습니다 ({test_count}건), 하지만 store_id={store_id} 조건으로는 조회되지 않습니다.")
                             
-                            if test_result.data:
-                                st.warning(f"⚠️ 테이블에는 데이터가 있지만, store_id={store_id} 조건으로는 조회되지 않습니다.")
-                                st.caption("→ RLS 정책 또는 store_id 불일치 가능성")
-                            else:
-                                st.caption("→ 테이블에 데이터가 없습니다.")
-                        except Exception as test_error:
-                            st.caption(f"→ 테이블 접근 테스트 실패: {str(test_error)}")
-                    else:
-                        # actual_settlement 테이블은 id 컬럼이 없으므로 테스트 생략
-                        st.caption("→ actual_settlement 테이블은 복합 키(store_id, year, month)를 사용합니다.")
+                            # 발견된 store_id 목록
+                            store_ids_found = set([row.get('store_id') for row in test_result.data if row.get('store_id')])
+                            st.write(f"**발견된 store_id 목록:** {list(store_ids_found)}")
+                            
+                            if store_id not in store_ids_found:
+                                st.error(f"❌ 현재 store_id(`{store_id}`)가 발견된 store_id 목록에 없습니다!")
+                                st.info("💡 해결 방법:")
+                                st.info("1. 로그아웃 후 다시 로그인")
+                                st.info("2. user_profiles 테이블에서 store_id 확인")
+                                st.info("3. RLS 정책 확인")
+                            
+                            st.write("**샘플 데이터 (필터 없이):**")
+                            st.json(test_result.data[0])
+                        else:
+                            st.info("→ 테이블에 데이터가 없습니다.")
+                    except Exception as test_error:
+                        st.error(f"❌ 테이블 접근 테스트 실패: {type(test_error).__name__}: {str(test_error)}")
+                        st.code(str(test_error), language="text")
             
             # 데이터가 0건이어도 빈 DataFrame 반환
             elapsed_ms = (time.perf_counter() - start_time) * 1000
