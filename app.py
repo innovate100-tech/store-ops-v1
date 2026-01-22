@@ -30,11 +30,20 @@ def _diagnose_supabase_connection():
     Supabase 연결 및 데이터 조회 진단
     온라인 환경에서 데이터가 비어 보이는 문제 진단용
     """
+    # 닫기 버튼 추가
+    col1, col2 = st.columns([1, 0.1])
+    with col1:
+        st.markdown("### 🔍 Supabase 연결 진단 (온라인 환경)")
+    with col2:
+        if st.button("❌ 닫기", key="close_diagnosis_btn"):
+            st.session_state["_show_supabase_diagnosis"] = False
+            st.rerun()
+    
     try:
         from src.auth import get_supabase_client, get_current_store_id
         
-        # 진단 섹션 표시 (expander로 표시)
-        with st.expander("🔍 Supabase 연결 진단 (온라인 환경)", expanded=True):
+        # 진단 섹션 표시 (expander 없이 직접 표시)
+        with st.container():
             st.write("**현재 로그인 사용자 정보:**")
             
             # 사용자 ID 출력
@@ -94,12 +103,16 @@ def _diagnose_supabase_connection():
                     st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
                     st.code(str(e), language="text")
                 
-            except Exception as e:
-                st.error(f"❌ 클라이언트 생성 실패: {type(e).__name__}: {str(e)}")
-                st.code(str(e), language="text")
-                
+        except Exception as e:
+            st.error(f"❌ 클라이언트 생성 실패: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        st.info("💡 진단 정보를 확인한 후 오른쪽 상단의 '❌ 닫기' 버튼을 클릭하세요.")
+            
     except Exception as e:
         st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
+        st.exception(e)
 
 # Supabase 기반 storage 사용
 from src.storage_supabase import (
@@ -1567,8 +1580,12 @@ page = st.session_state.current_page
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):
-    _diagnose_supabase_connection()
-    st.session_state["_show_supabase_diagnosis"] = False  # 한 번만 표시
+    try:
+        _diagnose_supabase_connection()
+    except Exception as e:
+        st.error(f"진단 기능 실행 중 오류: {e}")
+        st.exception(e)
+    # 플래그는 유지 (사용자가 닫을 때까지 보이도록)
 
 # 점장 마감 페이지
 if page == "점장 마감":

@@ -17,6 +17,98 @@ from src.utils.boot_perf import record_compute_call
 from src.utils.cache_tokens import get_data_version
 from src.auth import get_current_store_id as _get_current_store_id
 
+# 쿼리 진단 함수
+def _show_query_diagnostics():
+    """대시보드 페이지에서 사용하는 실제 쿼리 정보 출력"""
+    try:
+        from src.auth import get_current_store_id, get_supabase_client
+        from src.storage_supabase import get_read_client
+        
+        store_id = get_current_store_id()
+        st.write(f"**사용된 store_id:** `{store_id}`")
+        
+        current_year = current_year_kst()
+        current_month = current_month_kst()
+        st.write(f"**필터 값:** 연도={current_year}, 월={current_month}")
+        
+        st.divider()
+        st.write("**실제 쿼리 실행 결과:**")
+        
+        # 1. load_csv 호출 테스트 (menu_master)
+        st.write("**1. menu_master 테이블 조회:**")
+        try:
+            menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+            st.write(f"- Row count: {len(menu_df)}")
+            if not menu_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(menu_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 2. load_expense_structure 호출 테스트
+        st.write("**2. expense_structure 테이블 조회:**")
+        try:
+            expense_df = load_expense_structure(current_year, current_month)
+            st.write(f"- Row count: {len(expense_df)}")
+            if not expense_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(expense_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 3. 직접 Supabase 쿼리 테스트
+        st.write("**3. 직접 Supabase 쿼리 (menu_master):**")
+        try:
+            supabase = get_read_client()
+            if supabase and store_id:
+                result = supabase.table("menu_master").select("*").eq("store_id", store_id).limit(5).execute()
+                st.write(f"- Row count: {len(result.data) if result.data else 0}")
+                if result.data:
+                    st.write("- 첫 row 샘플:")
+                    st.json(result.data[0])
+                else:
+                    st.warning("⚠️ 데이터가 비어있습니다.")
+            else:
+                st.error("❌ Supabase 클라이언트 또는 store_id가 없습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 4. targets 테이블 조회
+        st.write("**4. targets 테이블 조회:**")
+        try:
+            targets_df = load_csv('targets.csv', default_columns=[
+                '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+                '목표임대료율', '목표기타비용율', '목표순이익률'
+            ])
+            filtered_df = targets_df[(targets_df['연도'] == current_year) & (targets_df['월'] == current_month)]
+            st.write(f"- 전체 Row count: {len(targets_df)}")
+            st.write(f"- 필터링 후 Row count (연도={current_year}, 월={current_month}): {len(filtered_df)}")
+            if not filtered_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(filtered_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 필터링된 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+            
+    except Exception as e:
+        st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
+        st.exception(e)
+
 # perf_span import (fallback 포함)
 try:
     from src.utils.boot_perf import perf_span
@@ -193,6 +285,10 @@ def render_dashboard():
     """통합 대시보드 페이지 렌더링"""
     render_page_header("통합 대시보드", "📊")
     
+    # 쿼리 로그 출력 (DEV 박스)
+    with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
+        _show_query_diagnostics()
+    
     # dev_mode에서 store_id 표시 (선택)
     try:
         from src.auth import is_dev_mode
@@ -204,7 +300,7 @@ def render_dashboard():
         pass
     
     current_year = current_year_kst()
-    current_month = current_month_kst()
+    current_month = current_year_kst()
     
     # ========== 손익분기 매출 vs 목표 매출 비교 ==========
     expense_df = load_expense_structure(current_year, current_month)

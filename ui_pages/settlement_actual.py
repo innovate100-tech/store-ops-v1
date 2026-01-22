@@ -205,6 +205,121 @@ def _load_actual_settlement_with_filter(store_id: str, year: int, month: int):
         return pd.DataFrame()
 
 
+def _show_settlement_query_diagnostics():
+    """실제정산 페이지에서 사용하는 실제 쿼리 정보 출력"""
+    try:
+        from src.auth import get_current_store_id as _get_current_store_id
+        
+        store_id = _get_current_store_id()
+        st.write(f"**사용된 store_id:** `{store_id}`")
+        
+        # 세션 상태에서 선택된 연/월 가져오기
+        current_year = current_year_kst()
+        current_month = current_month_kst()
+        selected_year = st.session_state.get("settlement_actual_settlement_year", current_year)
+        selected_month = st.session_state.get("settlement_actual_settlement_month", current_month)
+        
+        st.write(f"**필터 값:** 연도={selected_year}, 월={selected_month}")
+        
+        st.divider()
+        st.write("**실제 쿼리 실행 결과:**")
+        
+        # 1. _load_sales_with_filter 테스트
+        st.write("**1. sales 테이블 조회 (날짜 범위 필터):**")
+        try:
+            sales_df = _load_sales_with_filter(store_id, selected_year, selected_month)
+            st.write(f"- Row count: {len(sales_df)}")
+            if not sales_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(sales_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 2. _load_actual_settlement_with_filter 테스트
+        st.write("**2. actual_settlement 테이블 조회 (연도/월 필터):**")
+        try:
+            actual_df = _load_actual_settlement_with_filter(store_id, selected_year, selected_month)
+            st.write(f"- Row count: {len(actual_df)}")
+            if not actual_df.empty:
+                st.write("- 첫 row 샘플:")
+                st.json(actual_df.iloc[0].to_dict())
+            else:
+                st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 3. 직접 Supabase 쿼리 테스트 (sales)
+        st.write("**3. 직접 Supabase 쿼리 (sales 테이블):**")
+        try:
+            from src.storage_supabase import get_read_client
+            supabase = get_read_client()
+            if supabase and store_id:
+                # 날짜 범위 계산
+                start_date = dt.datetime(selected_year, selected_month, 1).date()
+                if selected_month == 12:
+                    end_date = dt.datetime(selected_year + 1, 1, 1).date()
+                else:
+                    end_date = dt.datetime(selected_year, selected_month + 1, 1).date()
+                
+                result = supabase.table("sales")\
+                    .select("date, store_id, total_sales")\
+                    .eq("store_id", store_id)\
+                    .gte("date", start_date.isoformat())\
+                    .lt("date", end_date.isoformat())\
+                    .limit(5)\
+                    .execute()
+                
+                st.write(f"- Row count: {len(result.data) if result.data else 0}")
+                st.write(f"- 쿼리 조건: store_id={store_id}, date >= {start_date}, date < {end_date}")
+                if result.data:
+                    st.write("- 첫 row 샘플:")
+                    st.json(result.data[0])
+                else:
+                    st.warning("⚠️ 데이터가 비어있습니다.")
+            else:
+                st.error("❌ Supabase 클라이언트 또는 store_id가 없습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 4. 직접 Supabase 쿼리 테스트 (actual_settlement)
+        st.write("**4. 직접 Supabase 쿼리 (actual_settlement 테이블):**")
+        try:
+            if supabase and store_id:
+                result = supabase.table("actual_settlement")\
+                    .select("*")\
+                    .eq("store_id", store_id)\
+                    .eq("year", selected_year)\
+                    .eq("month", selected_month)\
+                    .limit(5)\
+                    .execute()
+                
+                st.write(f"- Row count: {len(result.data) if result.data else 0}")
+                st.write(f"- 쿼리 조건: store_id={store_id}, year={selected_year}, month={selected_month}")
+                if result.data:
+                    st.write("- 첫 row 샘플:")
+                    st.json(result.data[0])
+                else:
+                    st.warning("⚠️ 데이터가 비어있습니다.")
+        except Exception as e:
+            st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+            
+    except Exception as e:
+        st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
+        st.exception(e)
+
+
 @st.cache_data(ttl=300)  # 5분 캐시 (store_id, year, month, safe_mode 기준)
 def load_actual_settlement_data(store_id: str, year: int, month: int, safe_mode: bool = False):
     """
@@ -458,6 +573,10 @@ def _timed_db_query(query_name, loader_fn, *args, db_query_timings=None, **kwarg
 def render_settlement_actual():
     """실제정산 페이지 렌더링"""
     global _current_step, _render_phase
+    
+    # 쿼리 로그 출력 (DEV 박스) - 최상단에 배치
+    with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
+        _show_settlement_query_diagnostics()
     
     # ========== [RERUN 디버깅] 페이지 진입 카운터 및 run_id 시스템 ==========
     import uuid
