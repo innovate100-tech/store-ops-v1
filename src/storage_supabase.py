@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 import json
+from zoneinfo import ZoneInfo
 from src.utils.time_utils import now_kst, today_kst, current_year_kst, current_month_kst
 
 # auth.py에서 함수 import (is_dev_mode는 _is_dev_mode로 alias하여 이름 충돌 방지)
@@ -2968,9 +2969,6 @@ def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
             return 0
         
         # KST 기준 월 시작/끝 계산
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-        
         KST = ZoneInfo("Asia/Seoul")
         start_kst = datetime(year, month, 1, 0, 0, 0, tzinfo=KST)
         
