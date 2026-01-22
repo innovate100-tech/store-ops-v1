@@ -3009,7 +3009,7 @@ def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
 # Phase F: 실제정산 확정(Final) + 잠금(읽기전용) + 확정 해제
 # ============================================
 
-@st.cache_data(ttl=30, show_spinner=False)  # 30초 캐시
+@st.cache_data(ttl=10, show_spinner=False)  # 10초 캐시 (더 짧게 설정하여 빠른 반영)
 def get_month_settlement_status(store_id: str, year: int, month: int) -> str:
     """
     월별 정산 상태 조회 (draft | final)
@@ -3029,8 +3029,9 @@ def get_month_settlement_status(store_id: str, year: int, month: int) -> str:
             return 'draft'
         
         # status='final'이 1개라도 있으면 'final', 아니면 'draft'
+        # count='exact' 대신 단순 select로 변경 (더 빠름)
         result = supabase.table("actual_settlement_items")\
-            .select("status", count='exact')\
+            .select("status")\
             .eq("store_id", store_id)\
             .eq("year", int(year))\
             .eq("month", int(month))\
@@ -3073,6 +3074,9 @@ def set_month_settlement_status(store_id: str, year: int, month: int, status: st
             return 0
         
         # 월 전체 일괄 업데이트
+        # updated_at은 PostgreSQL의 DEFAULT NOW() 트리거 또는 수동 설정
+        # Supabase는 updated_at 자동 갱신을 지원하지 않으므로 명시적으로 설정
+        from datetime import datetime, timezone
         result = supabase.table("actual_settlement_items")\
             .update({
                 "status": status,

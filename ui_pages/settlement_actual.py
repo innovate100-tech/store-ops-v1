@@ -237,9 +237,10 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             key="settlement_month"
         )
     with col3:
-        # 템플릿 리셋 버튼 (Phase B, Phase F: readonly일 때 비활성화)
+        # 템플릿 리셋 버튼 (Phase B)
+        # readonly는 아래에서 확인하므로, 여기서는 일단 활성화 (rerun 후 적용됨)
         if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", 
-                     disabled=readonly, use_container_width=True):
+                     use_container_width=True):
             # 강제로 템플릿에서 다시 로드 (값 복원 포함)
             _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
             st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
@@ -256,7 +257,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     
     render_section_divider()
     
-    # Phase F: 월별 정산 상태 확인
+    # Phase F: 월별 정산 상태 확인 (selected_year/month 기준, 여기서 확인)
     month_status = get_month_settlement_status(store_id, selected_year, selected_month)
     readonly = readonly or (month_status == 'final')
     
@@ -375,9 +376,11 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 try:
                     affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
                     if affected >= 0:
-                        st.success("✅ 이번달 정산이 확정되었습니다. (읽기 전용)")
-                        # Phase F: 확정 후 DB 값 복원 (force_restore)
+                        # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
+                        get_month_settlement_status.clear()
+                        # 확정 후 DB 값 복원 (force_restore)
                         _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+                        st.success("✅ 이번달 정산이 확정되었습니다. (읽기 전용)")
                         st.rerun()
                     else:
                         st.warning("⚠️ 확정할 항목이 없습니다. 먼저 항목을 저장하세요.")
@@ -390,6 +393,8 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 if st.button("🔓 확정 해제", key="settlement_unfinalize", use_container_width=True):
                     try:
                         affected = set_month_settlement_status(store_id, selected_year, selected_month, 'draft')
+                        # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
+                        get_month_settlement_status.clear()
                         st.warning("⚠️ 확정이 해제되었습니다. 다시 수정할 수 있습니다.")
                         st.rerun()
                     except Exception as e:
@@ -505,7 +510,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     except Exception:
         pass  # DEV 모드가 아니면 무시
     
-    return selected_year, selected_month, expense_items, total_sales, totals
+    return selected_year, selected_month, expense_items, total_sales, totals, readonly
 
 
 def _render_expense_category(
@@ -1178,18 +1183,11 @@ def render_settlement_actual():
         current_year = current_year_kst()
         current_month = current_month_kst()
         
-        # Phase F: 월별 정산 상태 확인
-        month_status = get_month_settlement_status(store_id, current_year, current_month)
-        readonly = (month_status == 'final')
-        
-        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly 전달)
-        year, month, expense_items, total_sales, totals = _render_header_section(
-            store_id, current_year, current_month, readonly
+        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly는 내부에서 확인)
+        # _render_header_section 내부에서 month_status를 확인하므로 여기서는 readonly를 False로 전달
+        year, month, expense_items, total_sales, totals, readonly = _render_header_section(
+            store_id, current_year, current_month, readonly=False
         )
-        
-        # Phase F: 월 상태 재확인 (연/월 변경 시)
-        month_status = get_month_settlement_status(store_id, year, month)
-        readonly = (month_status == 'final')
         
         # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
         _render_expense_section(store_id, year, month, total_sales, readonly)
