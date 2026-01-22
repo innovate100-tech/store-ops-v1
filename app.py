@@ -1572,11 +1572,10 @@ with st.sidebar:
 
 page = st.session_state.current_page
 
-# 홈 placeholder (Phase 2 STEP 3: 기능 없음, 안내만)
+# 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
-    render_page_header("사장 계기판 (홈)", "🏠")
-    st.info("사장 계기판(홈)은 다음 Phase에서 추가됩니다.")
-    st.caption("현재는 **실제정산** / **통합 대시보드**를 이용해 주세요.")
+    from ui_pages.home import render_home
+    render_home()
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):
