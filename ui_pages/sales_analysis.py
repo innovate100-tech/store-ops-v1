@@ -33,7 +33,7 @@ def render_sales_analysis():
         # 사용 가능한 날짜 범위 (오늘 날짜까지 선택 가능)
         min_date = daily_sales_df['날짜'].min().date()
         data_max_date = daily_sales_df['날짜'].max().date()
-        today_date = today_kst().date()
+        today_date = today_kst()  # today_kst()는 이미 date 객체 반환
         max_date = max(data_max_date, today_date)  # 데이터 최대 날짜와 오늘 중 더 큰 값
         
         # 기간 선택 필터 (전역 사용)
