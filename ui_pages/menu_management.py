@@ -22,14 +22,14 @@ def render_menu_management():
         "입력 모드",
         ["단일 입력", "일괄 입력 (여러 메뉴)"],
         horizontal=True,
-        key="menu_input_mode"
+        key="menu_management_menu_input_mode"
     )
     
     render_section_divider()
     
     if input_mode == "단일 입력":
         # 단일 입력 폼
-        menu_name, price = render_menu_input()
+        menu_name, price = render_menu_input(key_prefix="menu_management")
         
         col1, col2 = st.columns([1, 4])
         with col1:
@@ -49,11 +49,11 @@ def render_menu_management():
                                 # Phase 1: 예외 처리 개선 - 로깅 추가
                                 logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 저장): {cache_error}")
                             st.success(f"✅ 메뉴가 저장되었습니다! ({menu_name}, {price:,}원)")
-                            # 입력 필드 초기화 (session_state로)
-                            if 'menu_name' in st.session_state:
-                                st.session_state.menu_name = ""
-                            if 'menu_price' in st.session_state:
-                                st.session_state.menu_price = 0
+                            # 입력 필드 초기화 (session_state로, key_prefix 사용)
+                            if 'menu_management_menu_name' in st.session_state:
+                                st.session_state.menu_management_menu_name = ""
+                            if 'menu_management_menu_price' in st.session_state:
+                                st.session_state.menu_management_menu_price = 0
                         else:
                             st.error(message)
                     except Exception as e:
@@ -63,10 +63,10 @@ def render_menu_management():
     
     else:
         # 일괄 입력 폼
-        menu_data = render_menu_batch_input()
+        menu_data = render_menu_batch_input(key_prefix="menu_management")
         
         # 입력할 메뉴 개수 가져오기
-        menu_count = st.session_state.get("batch_menu_count", 5)
+        menu_count = st.session_state.get("menu_management_batch_menu_count", 5)
         
         if menu_data:
             render_section_divider()
@@ -90,8 +90,8 @@ def render_menu_management():
                 # 버튼 클릭 시 현재 입력된 모든 값 읽기
                 current_menu_data = []
                 for i in range(menu_count):
-                    menu_name_key = f"batch_menu_name_{i}"
-                    price_key = f"batch_menu_price_{i}"
+                    menu_name_key = f"menu_management_batch_menu_name_{i}"
+                    price_key = f"menu_management_batch_menu_price_{i}"
                     
                     menu_name = st.session_state.get(menu_name_key, "")
                     price = st.session_state.get(price_key, 0)
@@ -128,12 +128,12 @@ def render_menu_management():
                             logging.getLogger(__name__).warning(f"캐시 클리어 실패 (메뉴 일괄 저장): {cache_error}")
                         st.success(f"✅ {success_count}개 메뉴가 저장되었습니다!")
                         st.balloons()
-                        # 입력 필드 초기화 (session_state로)
+                        # 입력 필드 초기화 (session_state로, key_prefix 사용)
                         for i in range(menu_count):
-                            if f"batch_menu_name_{i}" in st.session_state:
-                                st.session_state[f"batch_menu_name_{i}"] = ""
-                            if f"batch_menu_price_{i}" in st.session_state:
-                                st.session_state[f"batch_menu_price_{i}"] = 0
+                            if f"menu_management_batch_menu_name_{i}" in st.session_state:
+                                st.session_state[f"menu_management_batch_menu_name_{i}"] = ""
+                            if f"menu_management_batch_menu_price_{i}" in st.session_state:
+                                st.session_state[f"menu_management_batch_menu_price_{i}"] = 0
     
     render_section_divider()
     
@@ -151,7 +151,7 @@ def render_menu_management():
     
     if not menu_df.empty:
         # 간단 검색 필터 (메뉴명 부분 일치)
-        search_keyword = st.text_input("메뉴 검색 (메뉴명 일부 입력)", key="menu_search")
+        search_keyword = st.text_input("메뉴 검색 (메뉴명 일부 입력)", key="menu_management_menu_search")
         if search_keyword:
             menu_df = menu_df[menu_df['메뉴명'].astype(str).str.contains(search_keyword, case=False, na=False)]
     
@@ -175,7 +175,7 @@ def render_menu_management():
         }
         
         # 순서 정보를 session_state에 저장 (초기화)
-        menu_order_key = "menu_display_order"
+        menu_order_key = "menu_management_menu_display_order"
         if menu_order_key not in st.session_state:
             # 초기 순서 설정 (메뉴명 기준)
             menu_names = menu_df['메뉴명'].tolist()
@@ -262,7 +262,7 @@ def render_menu_management():
             col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([0.3, 0.5, 2.5, 1.5, 1.5, 1, 1, 1])
             
             with col1:
-                checkbox_key = f"menu_checkbox_{idx}"
+                checkbox_key = f"menu_management_menu_checkbox_{idx}"
                 if st.checkbox("", key=checkbox_key, label_visibility="collapsed"):
                     selected_indices.append(idx)
             
@@ -279,7 +279,7 @@ def render_menu_management():
                 # 카테고리 선택
                 category_options = ['대표메뉴', '주력메뉴', '유인메뉴', '보조메뉴', '기타메뉴']
                 current_category = category if category in category_options else '기타메뉴'
-                category_key = f"category_select_{idx}"
+                category_key = f"menu_management_category_select_{idx}"
                 new_category = st.selectbox(
                     "",
                     category_options,
@@ -307,7 +307,7 @@ def render_menu_management():
             with col6:
                 # 위로 이동 버튼
                 if idx > 0:
-                    if st.button("⬆️", key=f"move_up_{idx}", help="위로 이동", use_container_width=True):
+                    if st.button("⬆️", key=f"menu_management_move_up_{idx}", help="위로 이동", use_container_width=True):
                         # 순서 변경: 현재 항목과 위 항목의 순서 교환
                         current_menu = row['메뉴명']
                         prev_menu = menu_df.iloc[idx - 1]['메뉴명']
@@ -321,7 +321,7 @@ def render_menu_management():
             with col7:
                 # 아래로 이동 버튼
                 if idx < len(menu_df) - 1:
-                    if st.button("⬇️", key=f"move_down_{idx}", help="아래로 이동", use_container_width=True):
+                    if st.button("⬇️", key=f"menu_management_move_down_{idx}", help="아래로 이동", use_container_width=True):
                         # 순서 변경: 현재 항목과 아래 항목의 순서 교환
                         current_menu = row['메뉴명']
                         next_menu = menu_df.iloc[idx + 1]['메뉴명']
@@ -334,7 +334,7 @@ def render_menu_management():
             
             with col8:
                 # 개별 삭제 버튼
-                if st.button("🗑️", key=f"delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
+                if st.button("🗑️", key=f"menu_management_delete_single_{idx}", help="삭제", use_container_width=True, type="secondary"):
                     menu_name = row['메뉴명']
                     try:
                         success, message, refs = delete_menu(menu_name)
@@ -371,7 +371,7 @@ def render_menu_management():
             st.markdown("---")
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="delete_selected_menus", use_container_width=True):
+                if st.button(f"🗑️ 선택한 {len(selected_indices)}개 삭제", type="primary", key="menu_management_delete_selected_menus", use_container_width=True):
                     errors = []
                     success_count = 0
                     
@@ -413,7 +413,7 @@ def render_menu_management():
         selected_menu = st.selectbox(
             "수정할 메뉴 선택",
             ["선택하세요"] + menu_list,
-            key="menu_edit_select"
+            key="menu_management_menu_edit_select"
         )
         
         if selected_menu != "선택하세요":
@@ -423,9 +423,9 @@ def render_menu_management():
             if menu_info is None:
                 st.error(f"메뉴 '{selected_menu}'를 찾을 수 없습니다.")
             else:
-                new_menu_name = st.text_input("메뉴명", value=menu_info.get('메뉴명', ''), key="menu_edit_name")
-                new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info.get('판매가', 0)), step=1000, key="menu_edit_price")
-                if st.button("✅ 수정", key="menu_edit_btn"):
+                new_menu_name = st.text_input("메뉴명", value=menu_info.get('메뉴명', ''), key="menu_management_menu_edit_name")
+                new_price = st.number_input("판매가 (원)", min_value=0, value=int(menu_info.get('판매가', 0)), step=1000, key="menu_management_menu_edit_price")
+                if st.button("✅ 수정", key="menu_management_menu_edit_btn"):
                     try:
                         success, message = update_menu(menu_info.get('메뉴명', ''), new_menu_name, new_price)
                         if success:
@@ -447,4 +447,5 @@ def render_menu_management():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_menu_management()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_menu_management()

@@ -4,8 +4,9 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import timedelta
 from src.ui_helpers import render_page_header, render_section_divider
+from src.utils.time_utils import today_kst
 from src.storage_supabase import load_csv
 from src.analytics import calculate_menu_cost
 
@@ -57,7 +58,7 @@ def render_sales_analysis():
                 value=max_date,
                 min_value=min_date,
                 max_value=max_date,
-                key="sales_mgmt_end_date"
+                key="sales_analysis_sales_mgmt_end_date"
             )
         
         # 기간 유효성 검사
@@ -280,7 +281,7 @@ def render_sales_analysis():
                     daily_summary = daily_summary.sort_values('날짜')
                     
                     # 최근 7일 vs 최근 30일 비교
-                    today_date = datetime.now().date()
+                    today_date = today_kst()
                     recent_7_days = filtered_sales_df[
                         filtered_sales_df['날짜'].dt.date >= (today_date - timedelta(days=7))
                     ]
@@ -384,4 +385,5 @@ def render_sales_analysis():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_sales_analysis()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_sales_analysis()

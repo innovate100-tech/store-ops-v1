@@ -5,7 +5,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from datetime import datetime
+from datetime import timedelta
+from src.utils.time_utils import today_kst, now_kst, current_year_kst, current_month_kst
 
 
 # 한글 폰트 설정
@@ -20,7 +21,7 @@ def render_sales_input():
     col1, col2 = st.columns(2)
     
     with col1:
-        date = st.date_input("날짜", value=datetime.now().date(), key="sales_date")
+        date = st.date_input("날짜", value=today_kst(), key="sales_date")
         store = st.text_input("매장", value="Plate&Share", key="sales_store")
     
     with col2:
@@ -73,13 +74,13 @@ def render_sales_batch_input():
     with col1:
         start_date = st.date_input(
             "시작일",
-            value=datetime.now().date() - timedelta(days=6),
+            value=today_kst() - timedelta(days=6),
             key="batch_sales_start_date"
         )
     with col2:
         end_date = st.date_input(
             "종료일",
-            value=datetime.now().date(),
+            value=today_kst(),
             key="batch_sales_end_date"
         )
     
@@ -154,13 +155,13 @@ def render_visitor_batch_input():
     with col1:
         start_date = st.date_input(
             "시작일",
-            value=datetime.now().date() - timedelta(days=6),
+            value=today_kst() - timedelta(days=6),
             key="batch_visitor_start_date"
         )
     with col2:
         end_date = st.date_input(
             "종료일",
-            value=datetime.now().date(),
+            value=today_kst(),
             key="batch_visitor_end_date"
         )
     
@@ -206,7 +207,7 @@ def render_visitor_input():
     col1, col2 = st.columns(2)
     
     with col1:
-        date = st.date_input("날짜", value=datetime.now().date(), key="visitor_date")
+        date = st.date_input("날짜", value=today_kst(), key="visitor_date")
     
     with col2:
         visitors = st.number_input(
@@ -220,14 +221,19 @@ def render_visitor_input():
     return date, visitors
 
 
-def render_menu_input():
-    """메뉴 입력 폼 렌더링 (단일 입력)"""
+def render_menu_input(key_prefix="menu"):
+    """
+    메뉴 입력 폼 렌더링 (단일 입력)
+    
+    Args:
+        key_prefix: 위젯 key의 접두사 (기본값: "menu")
+    """
     st.subheader("🍽️ 메뉴 마스터 등록")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        menu_name = st.text_input("메뉴명", key="menu_name")
+        menu_name = st.text_input("메뉴명", key=f"{key_prefix}_menu_name")
     
     with col2:
         price = st.number_input(
@@ -235,14 +241,19 @@ def render_menu_input():
             min_value=0,
             value=0,
             step=1000,
-            key="menu_price"
+            key=f"{key_prefix}_menu_price"
         )
     
     return menu_name, price
 
 
-def render_menu_batch_input():
-    """메뉴 일괄 입력 폼 렌더링 (여러 메뉴)"""
+def render_menu_batch_input(key_prefix="menu"):
+    """
+    메뉴 일괄 입력 폼 렌더링 (여러 메뉴)
+    
+    Args:
+        key_prefix: 위젯 key의 접두사 (기본값: "menu")
+    """
     st.subheader("🍽️ 메뉴 일괄 등록")
     st.info("💡 여러 메뉴를 한 번에 등록할 수 있습니다. 아래에 메뉴명과 판매가를 입력하세요.")
     
@@ -253,7 +264,7 @@ def render_menu_batch_input():
         max_value=20,
         value=5,
         step=1,
-        key="batch_menu_count"
+        key=f"{key_prefix}_batch_menu_count"
     )
     
     st.markdown("---")
@@ -266,7 +277,7 @@ def render_menu_batch_input():
         with col1:
             menu_name = st.text_input(
                 f"메뉴명 {i+1}",
-                key=f"batch_menu_name_{i}"
+                key=f"{key_prefix}_batch_menu_name_{i}"
             )
         with col2:
             price = st.number_input(
@@ -274,7 +285,7 @@ def render_menu_batch_input():
                 min_value=0,
                 value=0,
                 step=1000,
-                key=f"batch_menu_price_{i}"
+                key=f"{key_prefix}_batch_menu_price_{i}"
             )
         
         if menu_name and menu_name.strip() and price > 0:
@@ -330,20 +341,26 @@ def render_correlation_info(correlation):
         st.error("음의 상관관계가 있습니다.")
 
 
-def render_ingredient_input():
-    """재료 입력 폼 렌더링"""
+def render_ingredient_input(key_prefix="ingredient"):
+    """
+    재료 입력 폼 렌더링
+    
+    Args:
+        key_prefix: 위젯 key의 접두사 (기본값: "ingredient")
+                    페이지별로 고유한 key를 생성하기 위해 사용
+    """
     st.subheader("🥬 재료 마스터 등록")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        ingredient_name = st.text_input("재료명", key="ingredient_name")
+        ingredient_name = st.text_input("재료명", key=f"{key_prefix}_ingredient_name")
     
     with col2:
         unit = st.selectbox(
             "기본 단위",
             options=["g", "ml", "ea", "개", "kg", "L"],
-            key="ingredient_unit"
+            key=f"{key_prefix}_ingredient_unit"
         )
     
     with col3:
@@ -353,7 +370,7 @@ def render_ingredient_input():
             value=0.0,
             step=100.0,
             format="%.2f",
-            key="ingredient_unit_price"
+            key=f"{key_prefix}_ingredient_unit_price"
         )
     
     # 발주 단위 설정 (선택사항)
@@ -366,7 +383,7 @@ def render_ingredient_input():
         order_unit = st.selectbox(
             "발주 단위",
             options=["", "g", "ml", "ea", "개", "kg", "L", "박스", "봉지"],
-            key="ingredient_order_unit",
+            key=f"{key_prefix}_ingredient_order_unit",
             help="발주 시 사용할 단위 (비워두면 기본 단위와 동일)"
         )
     
@@ -377,7 +394,7 @@ def render_ingredient_input():
             value=1.0,
             step=0.1,
             format="%.2f",
-            key="ingredient_conversion_rate",
+            key=f"{key_prefix}_ingredient_conversion_rate",
             help="예: 버터 1개 = 500g이면 500 입력"
         )
     
@@ -482,8 +499,7 @@ def render_daily_sales_input(menu_list):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        from datetime import datetime
-        date = st.date_input("날짜", value=datetime.now().date(), key="daily_sales_date")
+        date = st.date_input("날짜", value=today_kst(), key="daily_sales_date")
     
     with col2:
         menu_name = st.selectbox(
@@ -595,10 +611,8 @@ def render_daily_closing_input(menu_list):
     """일일 마감 통합 입력 폼 렌더링"""
     st.subheader("📋 일일 마감 입력")
     
-    from datetime import datetime
-    
     # 날짜 선택 (기본 오늘)
-    selected_date = st.date_input("날짜", value=datetime.now().date(), key="closing_date")
+    selected_date = st.date_input("날짜", value=today_kst(), key="closing_date")
     
     st.markdown("---")
     
@@ -711,7 +725,7 @@ def render_report_input():
     
     with col1:
         # 기본값: 최근 7일
-        default_end = datetime.now().date()
+        default_end = today_kst()
         default_start = default_end - timedelta(days=6)
         start_date = st.date_input("시작일", value=default_start, key="report_start_date")
     
@@ -723,15 +737,13 @@ def render_report_input():
 
 def render_target_input():
     """목표 매출/비용 구조 입력 폼 렌더링"""
-    from datetime import datetime
-    
     st.subheader("🎯 목표 설정")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        year = st.number_input("연도", min_value=2020, max_value=2100, value=datetime.now().year, key="target_year")
-        month = st.number_input("월", min_value=1, max_value=12, value=datetime.now().month, key="target_month")
+        year = st.number_input("연도", min_value=2020, max_value=2100, value=current_year_kst(), key="target_year")
+        month = st.number_input("월", min_value=1, max_value=12, value=current_month_kst(), key="target_month")
         target_sales = st.number_input(
             "월 목표 매출 (원)",
             min_value=0,
@@ -990,13 +1002,11 @@ def render_manager_closing_input(menu_list):
         tuple: (date, store, card_sales, cash_sales, total_sales, visitors, 
                 sales_items, issues, memo)
     """
-    from datetime import datetime
-    
     # 1) 오늘 마감 - 날짜 및 매장
     st.markdown("### 1️⃣ 오늘 마감")
     col1, col2 = st.columns(2)
     with col1:
-        date = st.date_input("📅 날짜", value=datetime.now().date(), key="manager_date")
+        date = st.date_input("📅 날짜", value=today_kst(), key="manager_date")
     with col2:
         store = st.text_input("🏪 매장", value="Plate&Share", key="manager_store")
     

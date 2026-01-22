@@ -16,29 +16,216 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-def get_supabase_client() -> Optional[Client]:
+@st.cache_resource(show_spinner=False)
+def get_anon_client() -> Optional[Client]:
     """
-    Supabase 클라이언트 생성 (anon key + access_token 사용)
+    Supabase 익명 클라이언트 생성 (토큰/로그인 상태 체크 없음)
+    
+    - SUPABASE_URL + SUPABASE_ANON_KEY로 항상 생성 가능
+    - 토큰/로그인 상태 체크 금지
+    - clear_session 호출 금지
+    - 데이터진단 및 단순 조회 테스트용
     
     Returns:
-        Supabase Client 또는 None (DEV MODE일 때)
+        Supabase Client 또는 None (설정 오류 시)
+    """
+    if not SUPABASE_AVAILABLE:
+        logger.error("get_anon_client: supabase-py 패키지가 설치되지 않음")
+        return None
+    
+    try:
+        # Supabase URL과 anon key 가져오기
+        supabase_config = st.secrets.get("supabase", {})
+        url = supabase_config.get("url", "")
+        anon_key = supabase_config.get("anon_key", "")
+        
+        if not url or not anon_key:
+            logger.error("get_anon_client: secrets 로딩 실패 - url 또는 anon_key가 없음")
+            return None
+        
+        # 캐시 키 로깅 (디버깅용)
+        logger.info(f"get_anon_client: 캐시 키 (url={url[:20]}..., key={anon_key[:10]}..., mode=anon)")
+        
+        # 클라이언트 생성 (토큰 설정 없음)
+        client = create_client(url, anon_key)
+        logger.info("get_anon_client: 익명 클라이언트 생성 성공 (캐시됨)")
+        return client
+        
+    except Exception as e:
+        logger.error(f"get_anon_client: 클라이언트 생성 실패 - {repr(e)}")
+        return None
+
+
+@st.cache_resource(show_spinner=False)
+def get_service_client() -> Optional[Client]:
+    """
+    Supabase Service Role 클라이언트 생성 (RLS 우회, DEV MODE 전용)
+    
+    ⚠️ 보안 경고: Service Role Key는 RLS를 우회하므로 프로덕션에서는 절대 사용 금지!
+    
+    - SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY로 생성
+    - RLS 정책을 우회하여 모든 데이터 접근 가능
+    - DEV MODE에서만 사용 (로컬 개발 전용)
+    
+    Returns:
+        Supabase Client 또는 None (설정 오류 또는 프로덕션 환경 시)
+    """
+    if not SUPABASE_AVAILABLE:
+        logger.error("get_service_client: supabase-py 패키지가 설치되지 않음")
+        return None
+    
+    # 프로덕션 환경 체크
+    import os
+    if os.getenv('STREAMLIT_SERVER_ENVIRONMENT') == 'production':
+        logger.error("get_service_client: 프로덕션 환경에서는 service_role_key 사용 금지")
+        return None
+    
+    # DEV MODE 체크
+    if not is_dev_mode():
+        logger.error("get_service_client: DEV MODE가 아니면 service_role_key 사용 금지")
+        return None
+    
+    try:
+        # Supabase URL과 service_role_key 가져오기
+        supabase_config = st.secrets.get("supabase", {})
+        url = supabase_config.get("url", "")
+        service_role_key = supabase_config.get("service_role_key", "")
+        
+        if not url or not service_role_key:
+            logger.warning("get_service_client: secrets 로딩 실패 - url 또는 service_role_key가 없음")
+            return None
+        
+        # 캐시 키 로깅 (디버깅용)
+        logger.info(f"get_service_client: 캐시 키 (url={url[:20]}..., key={service_role_key[:10]}..., mode=service_role)")
+        
+        # 클라이언트 생성
+        client = create_client(url, service_role_key)
+        logger.info("get_service_client: Service Role 클라이언트 생성 성공 (DEV MODE, 캐시됨)")
+        return client
+        
+    except Exception as e:
+        logger.error(f"get_service_client: 클라이언트 생성 실패 - {repr(e)}")
+        return None
+
+
+def get_read_client() -> Optional[Client]:
+    """
+    데이터 조회용 클라이언트 생성 (읽기 전용)
+    
+    우선순위:
+    1. DEV MODE && use_service_role_dev=true && service_role_key 존재 → Service Role Client
+    2. 그 외 → Anon Client
+    
+    ⚠️ 보안: 프로덕션에서는 항상 anon client만 사용됩니다.
+    
+    Returns:
+        Supabase Client (Service Role 또는 Anon) 또는 None
+    """
+    # DEV MODE에서 service_role_key 사용 옵션 확인
+    use_service_role = False
+    if is_dev_mode():
+        try:
+            app_config = st.secrets.get("app", {})
+            use_service_role = app_config.get("use_service_role_dev", False)
+        except Exception:
+            use_service_role = False
+    
+    # Service Role Client 사용 조건:
+    # 1. DEV MODE
+    # 2. use_service_role_dev = true
+    # 3. service_role_key 존재
+    if use_service_role:
+        service_client = get_service_client()
+        if service_client:
+            logger.info("get_read_client: Service Role Client 사용 (DEV MODE)")
+            return service_client
+        else:
+            logger.warning("get_read_client: Service Role Client 생성 실패, Anon Client로 대체")
+    
+    # 기본: Anon Client
+    logger.info("get_read_client: Anon Client 사용")
+    return get_anon_client()
+
+
+def get_read_client_mode() -> str:
+    """
+    현재 사용 중인 read client 모드 반환 (디버깅용)
+    
+    Returns:
+        "anon" 또는 "service_role_dev"
+    """
+    # DEV MODE에서 service_role_key 사용 옵션 확인
+    use_service_role = False
+    if is_dev_mode():
+        try:
+            app_config = st.secrets.get("app", {})
+            use_service_role = app_config.get("use_service_role_dev", False)
+        except Exception:
+            use_service_role = False
+    
+    if use_service_role:
+        # service_role_key 존재 여부 확인
+        try:
+            supabase_config = st.secrets.get("supabase", {})
+            service_role_key = supabase_config.get("service_role_key", "")
+            if service_role_key:
+                return "service_role_dev"
+        except Exception:
+            pass
+    
+    return "anon"
+
+
+@st.cache_resource(show_spinner=False)
+def get_auth_client(reset_session_on_fail: bool = True) -> Optional[Client]:
+    """
+    Supabase 인증 클라이언트 생성 (로그인 세션 필요)
+    
+    - 로그인 세션(토큰)이 있을 때만 생성
+    - 없으면 None 반환 (예외 발생 안 함)
+    
+    Args:
+        reset_session_on_fail: 세션 설정 실패 시 clear_session() 호출 여부 (기본값: True)
+    
+    Returns:
+        Supabase Client 또는 None (DEV MODE 또는 로그인 없음)
     """
     # DEV MODE일 때는 None 반환 (예외 발생 안 함)
     if st.session_state.get('dev_mode', False):
+        logger.info("get_auth_client: DEV MODE - None 반환")
         return None
     
     if not SUPABASE_AVAILABLE:
+        logger.error("get_auth_client: supabase-py 패키지가 설치되지 않음")
         raise ImportError("supabase-py가 설치되지 않았습니다. pip install supabase 실행하세요.")
     
     # Supabase URL과 anon key 가져오기
-    url = st.secrets.get("supabase", {}).get("url", "")
-    anon_key = st.secrets.get("supabase", {}).get("anon_key", "")
+    supabase_config = st.secrets.get("supabase", {})
+    url = supabase_config.get("url", "")
+    anon_key = supabase_config.get("anon_key", "")
     
     if not url or not anon_key:
-        raise ValueError("Supabase URL 또는 anon_key가 설정되지 않았습니다. .streamlit/secrets.toml을 확인하세요.")
+        logger.error("get_auth_client: secrets 로딩 실패 - url 또는 anon_key가 없음")
+        error_msg = "Supabase URL 또는 anon_key가 설정되지 않았습니다."
+        error_msg += "\n\n`.streamlit/secrets.toml` 파일에 다음 형식으로 설정하세요:"
+        error_msg += "\n```toml"
+        error_msg += "\n[supabase]"
+        error_msg += "\nurl = \"https://your-project.supabase.co\""
+        error_msg += "\nanon_key = \"your-anon-key-here\""
+        error_msg += "\n```"
+        raise ValueError(error_msg)
     
     # 클라이언트 생성
-    client = create_client(url, anon_key)
+    try:
+        # 캐시 키 로깅 (디버깅용)
+        access_token_hash = hash(st.session_state.get('access_token', '')) if 'access_token' in st.session_state else None
+        logger.info(f"get_auth_client: 캐시 키 (url={url[:20]}..., key={anon_key[:10]}..., mode=auth, token_hash={access_token_hash})")
+        
+        client = create_client(url, anon_key)
+        logger.info("get_auth_client: 클라이언트 생성 성공 (캐시됨)")
+    except Exception as e:
+        logger.error(f"get_auth_client: HTTP 연결 실패 - {repr(e)}")
+        raise
     
     # 세션에 access_token이 있으면 설정
     if 'access_token' in st.session_state:
@@ -51,6 +238,7 @@ def get_supabase_client() -> Optional[Client]:
                         access_token=access_token,
                         refresh_token=refresh_token
                     )
+                    logger.info("get_auth_client: 세션 설정 성공 (refresh_token 있음)")
                 else:
                     # refresh_token이 없으면 access_token만 설정 시도
                     try:
@@ -58,19 +246,42 @@ def get_supabase_client() -> Optional[Client]:
                             access_token=access_token,
                             refresh_token=''
                         )
+                        logger.info("get_auth_client: 세션 설정 성공 (refresh_token 없음)")
                     except Exception:
-                        # 세션 설정 실패 시 세션 정보 초기화
-                        logger.warning("세션 설정 실패. 세션 정보를 초기화합니다.")
-                        clear_session()
+                        # 세션 설정 실패 시 세션 정보 초기화 (옵션)
+                        logger.warning("get_auth_client: 세션 설정 실패 (refresh_token 없음)")
+                        if reset_session_on_fail:
+                            clear_session(reason="get_auth_client: 세션 설정 실패 (refresh_token 없음)")
+                        else:
+                            logger.warning("reset_session_on_fail=False: 세션 초기화 건너뜀")
             except Exception as e:
                 # 세션 설정 중 에러 발생 시 (토큰 만료 등)
-                logger.warning(f"세션 설정 중 오류 발생: {e}. 세션 정보를 초기화합니다.")
-                # 세션 정보 초기화하여 재로그인 유도
-                clear_session()
+                logger.warning(f"get_auth_client: 세션 설정 중 오류 발생 - {repr(e)}")
+                # 세션 정보 초기화하여 재로그인 유도 (옵션)
+                if reset_session_on_fail:
+                    clear_session(reason=f"get_auth_client: 세션 설정 중 오류 - {str(e)}")
+                else:
+                    logger.warning("reset_session_on_fail=False: 세션 초기화 건너뜀")
                 # 에러를 다시 발생시키지 않고 클라이언트만 반환 (재로그인 필요)
                 pass
+    else:
+        logger.warning("get_auth_client: 토큰 없음 - 로그인 필요")
+        return None
     
     return client
+
+
+def get_supabase_client(reset_session_on_fail: bool = True) -> Optional[Client]:
+    """
+    Supabase 클라이언트 생성 (레거시 호환 - get_auth_client()로 위임)
+    
+    Args:
+        reset_session_on_fail: 세션 설정 실패 시 clear_session() 호출 여부 (기본값: True)
+    
+    Returns:
+        Supabase Client 또는 None (DEV MODE일 때)
+    """
+    return get_auth_client(reset_session_on_fail=reset_session_on_fail)
 
 
 def check_login() -> bool:
@@ -125,7 +336,8 @@ def login(email: str, password: str) -> tuple[bool, str]:
             if not store_id:
                 return False, "매장이 연결되지 않았습니다. 관리자에게 문의하세요."
             
-            st.session_state.store_id = store_id
+            st.session_state.store_id = store_id  # 레거시 호환
+            st.session_state._active_store_id = store_id  # 단일 소스 오브 트루스
             st.session_state.user_role = profile_result.data[0].get('role', 'manager')
             
             logger.info(f"User logged in: {email} (store_id: {store_id})")
@@ -153,11 +365,31 @@ def logout():
     except Exception as e:
         logger.warning(f"Logout error (non-critical): {e}")
     finally:
-        clear_session()
+        clear_session(reason="logout: 사용자 로그아웃")
 
 
-def clear_session():
-    """세션 정보 정리"""
+def clear_session(reason: str = "unknown"):
+    """
+    세션 정보 정리
+    
+    Args:
+        reason: clear_session() 호출 이유 (디버깅용)
+    """
+    # DEV MODE에서는 clear_session() 호출을 경고만 남기고 실제 삭제는 하지 않음
+    # (디버그 ping 등이 세션을 지우는 것을 방지)
+    if st.session_state.get('dev_mode', False):
+        logger.warning(f"DEV MODE: clear_session() 호출 차단됨 (reason: {reason})")
+        # clear_session() 호출 추적 (dev_mode에서는 실제 삭제 안 함)
+        if "_dev_inject_trace" in st.session_state:
+            st.session_state["_dev_inject_trace"].append(f"clear_session() 호출 차단됨 (DEV MODE) - reason: {reason}")
+        return
+    
+    # clear_session() 호출 추적
+    if "_dev_inject_trace" in st.session_state:
+        import traceback
+        call_stack = ''.join(traceback.format_stack()[-3:-1])  # 호출 스택 일부만
+        st.session_state["_dev_inject_trace"].append(f"clear_session() 호출됨 - reason: {reason}, 스택: {call_stack[:200]}")
+    
     if 'user_id' in st.session_state:
         del st.session_state.user_id
     if 'access_token' in st.session_state:
@@ -166,6 +398,8 @@ def clear_session():
         del st.session_state.refresh_token
     if 'store_id' in st.session_state:
         del st.session_state.store_id
+    if '_active_store_id' in st.session_state:
+        del st.session_state._active_store_id
     if 'user_role' in st.session_state:
         del st.session_state.user_role
 
@@ -176,16 +410,22 @@ def apply_dev_mode_session():
     로컬 개발 시 로그인 없이 앱을 사용하기 위한 더미 세션 값 설정
     
     ⚠️ 프로덕션 환경에서는 자동으로 비활성화됩니다.
+    ⚠️ 세션당 1회만 실행 (플래그로 보호)
     
     Returns:
         bool: DEV MODE 활성화 여부
     """
+    # 세션당 1회만 실행
+    if st.session_state.get("_dev_mode_applied", False):
+        return st.session_state.get("dev_mode", False)
+    
     try:
         # 프로덕션 환경 체크
         import os
         # Streamlit Cloud 환경 변수 체크
         if os.getenv('STREAMLIT_SERVER_ENVIRONMENT') == 'production':
             logger.info("프로덕션 환경 감지: DEV MODE 비활성화")
+            st.session_state["_dev_mode_applied"] = True
             return False
         
         # 로컬 환경에서만 DEV MODE 허용
@@ -195,6 +435,7 @@ def apply_dev_mode_session():
             dev_store_id = st.secrets.get("app", {}).get("dev_store_id", "")
             
             if not dev_store_id:
+                # bootstrap 내부에서 st.stop() 호출 금지 - 에러만 표시
                 st.error("""
                 **DEV MODE 오류:**
                 
@@ -207,18 +448,26 @@ def apply_dev_mode_session():
                 dev_store_id = "your-store-id-here"
                 ```
                 """)
-                st.stop()
+                # st.stop() 대신 False 반환 (bootstrap이 끝까지 실행되도록)
+                logger.error("DEV MODE: dev_store_id가 설정되지 않음")
                 return False
             
             # DEV MODE 세션 값 설정
             st.session_state.user_id = "dev-user"
             st.session_state.access_token = "dev"
             st.session_state.refresh_token = "dev"
-            st.session_state.store_id = dev_store_id
+            st.session_state.store_id = dev_store_id  # 레거시 호환
+            st.session_state._active_store_id = dev_store_id  # 단일 소스 오브 트루스
             st.session_state.user_role = "manager"
             st.session_state.dev_mode = True
+            st.session_state["_dev_mode_applied"] = True  # 플래그 설정
             
-            logger.info(f"DEV MODE activated (store_id: {dev_store_id})")
+            # auto_login_dev 옵션 확인 (새로고침 시 자동 로그인)
+            auto_login = st.secrets.get("app", {}).get("auto_login_dev", True)  # 기본값: True
+            if auto_login:
+                st.session_state["_auto_logged_in"] = True
+            
+            logger.info(f"DEV MODE activated (store_id: {dev_store_id}, auto_login_dev: {auto_login})")
             return True
         
         return False
@@ -236,37 +485,130 @@ def get_current_store_id() -> str:
     """
     현재 로그인한 사용자의 store_id 반환
     
+    우선순위:
+    1. st.session_state["_active_store_id"] (단일 소스 오브 트루스)
+    2. st.session_state["store_id"] (레거시 호환)
+    3. st.session_state["current_store_id"]
+    4. (dev_mode일 때만) st.secrets["app"]["dev_store_id"]
+    
+    dev_mode에서 _active_store_id가 None이면 자동으로 dev_store_id를 주입합니다.
+    
     Returns:
-        str: store_id (UUID)
+        str: store_id (UUID) 또는 None
     """
-    return st.session_state.get('store_id')
+    # 우선순위 1: st.session_state["_active_store_id"] (단일 소스 오브 트루스)
+    store_id = st.session_state.get('_active_store_id')
+    if store_id:
+        return store_id
+    
+    # 우선순위 2: st.session_state["store_id"] (레거시 호환)
+    store_id = st.session_state.get('store_id')
+    if store_id:
+        return store_id
+    
+    # 우선순위 3: st.session_state["current_store_id"]
+    store_id = st.session_state.get('current_store_id')
+    if store_id:
+        return store_id
+    
+    # 우선순위 4: (dev_mode일 때만) st.secrets["app"]["dev_store_id"]
+    if is_dev_mode():
+        try:
+            dev_store_id = st.secrets.get("app", {}).get("dev_store_id", "")
+            if dev_store_id:
+                # _active_store_id가 None이면 강제 주입 (bootstrap 호출 누락 대비)
+                if not st.session_state.get('_active_store_id'):
+                    st.session_state["_active_store_id"] = dev_store_id  # 단일 소스 오브 트루스
+                    st.session_state["store_id"] = dev_store_id  # 레거시 호환
+                    st.session_state["_dev_store_id_injected_at"] = "get_current_store_id"
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"DEV MODE: dev_store_id 강제 주입됨 (get_current_store_id): {dev_store_id}")
+                return dev_store_id
+        except Exception:
+            pass
+    
+    return None
+
+
+def ensure_store_context():
+    """
+    Store 컨텍스트 가드: store_id가 없으면 명확히 차단
+    
+    - dev_mode: st.warning + 필요한 설정 안내
+    - prod_mode: st.error + st.stop()
+    
+    Returns:
+        str: store_id (있으면), None (없으면)
+    """
+    store_id = get_current_store_id()
+    
+    if not store_id:
+        if is_dev_mode():
+            st.warning("""
+            **⚠️ Store 컨텍스트 없음 (DEV MODE)**
+            
+            `.streamlit/secrets.toml` 파일에 다음을 설정하세요:
+            ```toml
+            [app]
+            dev_mode = true
+            dev_store_id = "your-store-id-here"
+            ```
+            
+            또는 로그인하여 store_id를 설정하세요.
+            """)
+        else:
+            st.error("""
+            **❌ Store 컨텍스트 없음**
+            
+            로그인이 필요합니다. 페이지를 새로고침하거나 로그인 페이지로 이동하세요.
+            """)
+            st.stop()
+    
+    return store_id
 
 
 def get_current_store_name() -> str:
     """
     현재 로그인한 사용자의 매장명 반환
+    세션 캐시 사용으로 DB 조회 최소화
     
     Returns:
         str: 매장명
     """
+    # 세션 캐시 확인
+    if '_cached_store_name' in st.session_state:
+        return st.session_state['_cached_store_name']
+    
     # DEV MODE일 때는 Supabase를 호출하지 않고 기본값 반환
     if is_dev_mode():
-        return "DEV MODE (로컬 개발)"
+        store_name = "DEV MODE (로컬 개발)"
+        st.session_state['_cached_store_name'] = store_name
+        return store_name
     
     store_id = get_current_store_id()
     if not store_id:
-        return "매장 정보 없음"
+        store_name = "매장 정보 없음"
+        st.session_state['_cached_store_name'] = store_name
+        return store_name
     
     try:
         client = get_supabase_client()
         result = client.table("stores").select("name").eq("id", store_id).execute()
         
         if result.data:
-            return result.data[0]['name']
-        return "매장 정보 없음"
+            store_name = result.data[0]['name']
+        else:
+            store_name = "매장 정보 없음"
+        
+        # 세션 캐시에 저장
+        st.session_state['_cached_store_name'] = store_name
+        return store_name
     except Exception as e:
         logger.error(f"Failed to get store name: {e}")
-        return "매장 정보 없음"
+        store_name = "매장 정보 없음"
+        st.session_state['_cached_store_name'] = store_name
+        return store_name
 
 
 def show_login_page():

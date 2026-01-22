@@ -18,7 +18,7 @@ def render_ingredient_management():
     render_page_header("재료 등록", "🥬")
     
     # 재료 입력 폼
-    ingredient_result = render_ingredient_input()
+    ingredient_result = render_ingredient_input(key_prefix="ingredient_management")
     if len(ingredient_result) == 5:
         ingredient_name, unit, unit_price, order_unit, conversion_rate = ingredient_result
     else:
@@ -71,11 +71,11 @@ def render_ingredient_management():
                         except Exception as e:
                             logging.getLogger(__name__).warning(f"캐시 클리어 실패 (재료 저장): {e}")
                         st.success(f"✅ 재료가 저장되었습니다! ({ingredient_name}, {unit_display})")
-                        # 입력 필드 초기화 (session_state로)
-                        if 'ingredient_name' in st.session_state:
-                            st.session_state.ingredient_name = ""
-                        if 'ingredient_unit_price' in st.session_state:
-                            st.session_state.ingredient_unit_price = 0.0
+                        # 입력 필드 초기화 (session_state로, key_prefix 사용)
+                        if 'ingredient_management_ingredient_name' in st.session_state:
+                            st.session_state.ingredient_management_ingredient_name = ""
+                        if 'ingredient_management_ingredient_unit_price' in st.session_state:
+                            st.session_state.ingredient_management_ingredient_unit_price = 0.0
                     else:
                         st.error(message)
                 except Exception as e:
@@ -99,7 +99,7 @@ def render_ingredient_management():
     
     if not ingredient_df.empty:
         # 간단 검색 필터 (재료명 부분 일치)
-        ing_search = st.text_input("재료 검색 (재료명 일부 입력)", key="ingredient_search")
+        ing_search = st.text_input("재료 검색 (재료명 일부 입력)", key="ingredient_management_ingredient_search")
         if ing_search:
             ingredient_df = ingredient_df[ingredient_df['재료명'].astype(str).str.contains(ing_search, case=False, na=False)]
     
@@ -325,4 +325,5 @@ def render_ingredient_management():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_ingredient_management()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_ingredient_management()

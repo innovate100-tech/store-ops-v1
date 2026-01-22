@@ -4,15 +4,44 @@ auth.uid() 기반 RLS로 보안 적용
 """
 import pandas as pd
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 import json
+from src.utils.time_utils import now_kst, today_kst, current_year_kst, current_month_kst
 
-# auth.py에서 함수 import
-from src.auth import get_supabase_client, get_current_store_id
+# auth.py에서 함수 import (is_dev_mode는 _is_dev_mode로 alias하여 이름 충돌 방지)
+from src.auth import get_supabase_client, get_current_store_id, get_read_client, get_read_client_mode, is_dev_mode as _is_dev_mode
 import streamlit as st
+import time
+from functools import wraps
+
+# boot_perf에서 데이터 호출 계측 함수 import
+try:
+    from src.utils.boot_perf import record_data_call
+except ImportError:
+    # boot_perf가 없을 때를 대비한 fallback
+    def record_data_call(name: str, ms: float, rows: int = None, source: str = None):
+        pass
+
+# cache_tokens에서 버전 토큰 함수 import
+try:
+    from src.utils.cache_tokens import bump_data_version, bump_versions
+except ImportError:
+    # cache_tokens가 없을 때를 대비한 fallback
+    def bump_data_version(name: str):
+        pass
+    def bump_versions(names: List[str]):
+        pass
 
 logger = logging.getLogger(__name__)
+
+# 쿼리 타이밍 로그 저장 (개발모드에서만)
+_query_timing_log = []
+_MAX_QUERY_LOG = 50  # 최대 저장할 쿼리 로그 개수
+
+# 캐시 MISS 로그 저장 (개발모드에서만)
+_cache_miss_log = []
+_MAX_CACHE_LOG = 50  # 최대 저장할 캐시 MISS 로그 개수
 
 
 def setup_logger():
@@ -27,6 +56,139 @@ def setup_logger():
 
 
 setup_logger()
+
+
+# ============================================
+# Client Mode & Query Timing Functions
+# ============================================
+
+def get_client_mode() -> str:
+    """
+    현재 사용 중인 DB 클라이언트 모드 반환
+    
+    Returns:
+        "anon" / "auth" / "service_role_dev"
+    """
+    try:
+        return get_read_client_mode()
+    except Exception:
+        return "unknown"
+
+
+def timed_select(query_name: str, query_func, *args, **kwargs):
+    """
+    Supabase select 쿼리를 실행하고 타이밍을 기록하는 헬퍼
+    
+    Args:
+        query_name: 쿼리 이름 (로그에 표시될 이름)
+        query_func: 실행할 쿼리 함수 (예: lambda: supabase.table("menu_master").select("*").execute())
+        *args, **kwargs: query_func에 전달할 인자
+    
+    Returns:
+        쿼리 실행 결과
+    """
+    global _query_timing_log  # 함수 최상단에 global 선언
+    start_time = time.time()
+    try:
+        result = query_func(*args, **kwargs)
+        elapsed_ms = (time.time() - start_time) * 1000
+        row_count = len(result.data) if result.data else 0
+        
+        # 개발모드에서만 로그 저장
+        if _is_dev_mode():
+            _query_timing_log.append({
+                "query_name": query_name,
+                "ms": round(elapsed_ms, 2),
+                "rows": row_count,
+                "timestamp": time.time()
+            })
+            # 최대 개수 제한
+            if len(_query_timing_log) > _MAX_QUERY_LOG:
+                _query_timing_log[:] = _query_timing_log[-_MAX_QUERY_LOG:]
+        
+        logger.debug(f"Query '{query_name}': {elapsed_ms:.2f}ms, {row_count} rows")
+        return result
+    except Exception as e:
+        elapsed_ms = (time.time() - start_time) * 1000
+        logger.error(f"Query '{query_name}' failed after {elapsed_ms:.2f}ms: {e}")
+        if _is_dev_mode():
+            _query_timing_log.append({
+                "query_name": f"{query_name} (ERROR)",
+                "ms": round(elapsed_ms, 2),
+                "rows": 0,
+                "timestamp": time.time(),
+                "error": str(e)
+            })
+        raise
+
+
+def get_query_timing_log() -> list:
+    """
+    쿼리 타이밍 로그 반환 (개발모드에서만)
+    
+    Returns:
+        최근 쿼리 로그 리스트
+    """
+    if _is_dev_mode():
+        return _query_timing_log.copy()
+    return []
+
+
+def clear_query_timing_log():
+    """쿼리 타이밍 로그 초기화"""
+    global _query_timing_log
+    _query_timing_log = []
+
+
+def _log_cache_miss(function_name: str, **kwargs):
+    """
+    캐시 MISS 로그 기록 (개발모드에서만)
+    
+    Args:
+        function_name: 함수 이름 (예: "load_csv", "load_expense_structure")
+        **kwargs: 캐시 키에 포함된 파라미터들 (filename, store_id, client_mode, year, month 등)
+    """
+    try:
+        if _is_dev_mode():
+            global _cache_miss_log
+            # 민감 정보 제거
+            safe_kwargs = {}
+            for key, value in kwargs.items():
+                if key in ['store_id', 'client_mode', 'filename', 'year', 'month']:
+                    # store_id는 일부만 표시 (보안)
+                    if key == 'store_id' and value:
+                        safe_kwargs[key] = f"{str(value)[:8]}..." if len(str(value)) > 8 else str(value)
+                    else:
+                        safe_kwargs[key] = value
+            
+            _cache_miss_log.append({
+                "function": function_name,
+                "timestamp": time.time(),
+                "params": safe_kwargs
+            })
+            # 최대 개수 제한
+            if len(_cache_miss_log) > _MAX_CACHE_LOG:
+                _cache_miss_log = _cache_miss_log[-_MAX_CACHE_LOG:]
+    except Exception:
+        pass  # 로그 실패해도 계속 진행
+
+
+def get_cache_miss_log() -> list:
+    """
+    캐시 MISS 로그 반환 (개발모드에서만)
+    
+    Returns:
+        최근 캐시 MISS 로그 리스트
+    """
+    if _is_dev_mode():
+        return _cache_miss_log.copy()
+    return []
+
+
+def clear_cache_miss_log():
+    """캐시 MISS 로그 초기화"""
+    global _cache_miss_log
+    _cache_miss_log = []
 
 
 # ============================================
@@ -52,7 +214,11 @@ def _get_id_by_name(supabase, table_name: str, name_column: str, name_value: str
         if store_id:
             query = query.eq("store_id", store_id)
         query = query.eq(name_column, name_value)
-        result = query.execute()
+        # timed_select로 쿼리 실행 및 타이밍 기록
+        result = timed_select(
+            f"_get_id_by_name({table_name}.{name_column}={name_value})",
+            lambda: query.execute()
+        )
         if result.data:
             return result.data[0]['id']
         return None
@@ -76,7 +242,12 @@ def _check_duplicate(supabase, table_name: str, name_column: str, name_value: st
         bool: 중복이면 True
     """
     try:
-        result = supabase.table(table_name).select("id").eq("store_id", store_id).eq(name_column, name_value).execute()
+        query = supabase.table(table_name).select("id").eq("store_id", store_id).eq(name_column, name_value)
+        # timed_select로 쿼리 실행 및 타이밍 기록
+        result = timed_select(
+            f"_check_duplicate({table_name}.{name_column}={name_value})",
+            lambda: query.execute()
+        )
         return len(result.data) > 0
     except Exception:
         return False
@@ -99,6 +270,255 @@ def _check_supabase_for_dev_mode():
     if not supabase:
         raise Exception("Supabase not available")
     return supabase
+
+
+# ============================================
+# Session Cache Utilities (세션 캐시 유틸)
+# ============================================
+
+def get_session_df(key: str, loader_fn, *args, **kwargs):
+    """
+    세션 캐시 기반 데이터 로드 유틸
+    세션당 1회만 로드하여 중복 로드를 원천 차단
+    
+    Args:
+        key: 세션 캐시 키 (예: "ss_menu_master_df")
+        loader_fn: 데이터 로드 함수 (예: load_csv)
+        *args, **kwargs: loader_fn에 전달할 인자
+    
+    Returns:
+        pandas.DataFrame
+    """
+    # 세션 캐시에 있으면 즉시 반환 (렌더 중 매번 덮어쓰기 방지)
+    if key in st.session_state:
+        if _is_dev_mode():
+            logger.debug(f"Session cache HIT: {key}")
+        return st.session_state[key]
+    
+    # 세션 캐시에 없으면 로드 후 저장 (없을 때만 1회 세팅)
+    if _is_dev_mode():
+        logger.debug(f"Session cache MISS: {key} (로딩 중...)")
+    
+    try:
+        df = loader_fn(*args, **kwargs)
+        # 렌더 중 매번 덮어쓰기 방지: 없을 때만 저장
+        if key not in st.session_state:
+            st.session_state[key] = df
+            if _is_dev_mode():
+                logger.debug(f"Session cache SET: {key} ({len(df)} rows)")
+        return df
+    except Exception as e:
+        logger.error(f"Session cache load failed for {key}: {e}")
+        # 오류 시 빈 DataFrame 반환 (없을 때만 저장)
+        empty_df = pd.DataFrame()
+        if key not in st.session_state:
+            st.session_state[key] = empty_df
+        return empty_df
+
+
+def clear_session_cache(*keys: str):
+    """
+    세션 캐시 무효화 (저장/수정/삭제 후 호출)
+    
+    Args:
+        *keys: 삭제할 세션 캐시 키들 (예: "ss_menu_master_df", "ss_ingredient_master_df")
+    """
+    for key in keys:
+        if key in st.session_state:
+            del st.session_state[key]
+            if _is_dev_mode():
+                logger.debug(f"Session cache CLEARED: {key}")
+
+
+def hard_clear_all(reason: str = "unknown"):
+    """
+    전체 캐시 강제 무효화 (비상/디버깅용)
+    
+    Args:
+        reason: clear 이유 (디버깅용)
+    """
+    try:
+        # @st.cache_data 캐시 전체 무효화
+        load_csv.clear()
+        load_expense_structure.clear()
+        load_key_menus.clear()
+        
+        # dashboard.py의 compute 캐시도 무효화
+        try:
+            import ui_pages.dashboard as dashboard_module
+            if hasattr(dashboard_module, 'compute_merged_sales_visitors'):
+                dashboard_module.compute_merged_sales_visitors.clear()
+            if hasattr(dashboard_module, 'compute_monthly_summary'):
+                dashboard_module.compute_monthly_summary.clear()
+            if hasattr(dashboard_module, 'compute_menu_sales_summary'):
+                dashboard_module.compute_menu_sales_summary.clear()
+        except Exception:
+            pass
+        
+        # 세션 캐시 전체 정리 (ss_로 시작하는 키들)
+        keys_to_remove = [key for key in st.session_state.keys() if key.startswith('ss_')]
+        for key in keys_to_remove:
+            del st.session_state[key]
+        
+        # LAST_INVALIDATION 기록
+        try:
+            from src.utils.boot_perf import record_invalidation
+            record_invalidation(reason=reason, targets=["ALL"], mode="hard")
+        except Exception:
+            pass
+        
+        if _is_dev_mode():
+            logger.warning(f"HARD CLEAR ALL: {reason}")
+    except Exception as e:
+        logger.error(f"hard_clear_all 실패: {e}")
+
+
+def soft_invalidate(reason: str, targets: List[str], session_keys: List[str] = None):
+    """
+    소프트 무효화: token bump + 부분 캐시 clear
+    
+    Args:
+        reason: 무효화 이유 (디버깅용)
+        targets: 무효화할 데이터 타입 리스트 (예: ["sales", "visitors", "menus"])
+        session_keys: 무효화할 세션 캐시 키 리스트 (선택, None이면 targets 기반으로 자동 결정)
+    """
+    try:
+        # 1. 버전 토큰 증가
+        from src.utils.cache_tokens import bump_versions
+        bump_versions(targets)
+        
+        # 2. read 캐시 부분 clear (targets 기반)
+        # targets 매핑: 어떤 데이터 타입이 어떤 로더에 영향을 주는지
+        cache_mapping = {
+            "sales": ["load_csv"],  # sales.csv
+            "visitors": ["load_csv"],  # naver_visitors.csv
+            "menus": ["load_csv"],  # menu_master.csv
+            "recipes": ["load_csv"],  # recipes.csv
+            "ingredients": ["load_csv"],  # ingredient_master.csv
+            "cost": ["load_expense_structure"],  # expense_structure
+            "expense_structure": ["load_expense_structure"],
+        }
+        
+        loaders_to_clear = set()
+        for target in targets:
+            if target in cache_mapping:
+                loaders_to_clear.update(cache_mapping[target])
+        
+        # 실제 clear 실행
+        if "load_csv" in loaders_to_clear:
+            load_csv.clear()
+        if "load_expense_structure" in loaders_to_clear:
+            load_expense_structure.clear()
+        if "load_key_menus" in loaders_to_clear or "menus" in targets:
+            load_key_menus.clear()
+        
+        # 3. 세션 캐시 부분 clear
+        if session_keys is None:
+            # targets 기반으로 자동 결정
+            session_key_mapping = {
+                "sales": ["ss_sales_df"],
+                "visitors": ["ss_visitors_df"],
+                "menus": ["ss_menu_master_df"],
+                "recipes": ["ss_recipes_df"],
+                "ingredients": ["ss_ingredient_master_df"],
+                "cost": ["ss_expense_structure_df"],
+                "expense_structure": ["ss_expense_structure_df"],
+                "inventory": ["ss_inventory_df"],
+            }
+            session_keys = []
+            for target in targets:
+                if target in session_key_mapping:
+                    session_keys.extend(session_key_mapping[target])
+        
+        for key in session_keys:
+            if key in st.session_state:
+                del st.session_state[key]
+                if _is_dev_mode():
+                    logger.debug(f"Session cache CLEARED: {key}")
+        
+        # 4. LAST_INVALIDATION 기록
+        try:
+            from src.utils.boot_perf import record_invalidation
+            record_invalidation(reason=reason, targets=targets, mode="soft")
+        except Exception:
+            pass
+        
+        if _is_dev_mode():
+            logger.info(f"SOFT INVALIDATE: {reason}, targets={targets}")
+    except Exception as e:
+        logger.error(f"soft_invalidate 실패: {e}")
+        # 실패 시 안전을 위해 hard clear로 폴백 (dev_mode에서만)
+        if _is_dev_mode() and st.session_state.get("force_hard_clear", False):
+            hard_clear_all(reason=f"soft_invalidate 실패 후 폴백: {reason}")
+
+
+def _clear_cache_and_session(affected_keys: List[str]):
+    """
+    캐시 클리어 및 세션 캐시 무효화 헬퍼 함수 (레거시 호환)
+    
+    Args:
+        affected_keys: 무효화할 세션 캐시 키 리스트
+    """
+    # force_hard_clear 플래그 확인 (dev_mode에서만)
+    if _is_dev_mode() and st.session_state.get("force_hard_clear", False):
+        hard_clear_all(reason="force_hard_clear 플래그 활성화")
+        return
+    
+    # 기본 동작: soft_invalidate로 전환
+    # affected_keys에서 targets 추론 (키 이름 기반)
+    targets = []
+    if any("menu" in key.lower() for key in affected_keys):
+        targets.append("menus")
+    if any("recipe" in key.lower() for key in affected_keys):
+        targets.append("recipes")
+    if any("ingredient" in key.lower() for key in affected_keys):
+        targets.append("ingredients")
+    if any("expense" in key.lower() for key in affected_keys):
+        targets.append("cost")
+        targets.append("expense_structure")
+    
+    if targets:
+        soft_invalidate(reason="레거시 _clear_cache_and_session 호출", targets=targets, session_keys=affected_keys)
+    else:
+        # targets를 추론할 수 없으면 안전을 위해 hard clear (dev_mode에서만 경고)
+        if _is_dev_mode():
+            logger.warning(f"_clear_cache_and_session: targets 추론 실패, hard clear 실행. affected_keys={affected_keys}")
+        hard_clear_all(reason="targets 추론 실패")
+
+
+def invalidate_read_caches(table_name: str = None):
+    """
+    읽기 전용 캐시 무효화 (write 후 호출)
+    
+    Args:
+        table_name: 무효화할 테이블명 (None이면 전체 무효화)
+    """
+    try:
+        if table_name is None:
+            # 전체 캐시 무효화
+            load_csv.clear()
+            load_expense_structure.clear()
+            load_key_menus.clear()
+        else:
+            # 특정 테이블만 무효화 (필요시 구현)
+            # 현재는 전체 무효화만 지원
+            load_csv.clear()
+            load_expense_structure.clear()
+            load_key_menus.clear()
+        
+        # dashboard.py의 compute 캐시도 무효화
+        try:
+            import ui_pages.dashboard as dashboard_module
+            if hasattr(dashboard_module, 'compute_merged_sales_visitors'):
+                dashboard_module.compute_merged_sales_visitors.clear()
+            if hasattr(dashboard_module, 'compute_monthly_summary'):
+                dashboard_module.compute_monthly_summary.clear()
+            if hasattr(dashboard_module, 'compute_menu_sales_summary'):
+                dashboard_module.compute_menu_sales_summary.clear()
+        except Exception:
+            pass  # dashboard 모듈이 없거나 함수가 없으면 무시
+    except Exception:
+        pass
 
 
 # ============================================
@@ -129,34 +549,36 @@ def _get_cache_ttl(filename: str) -> int:
 # 파일명에 따라 적절한 TTL을 사용하도록 주석으로 가이드 제공
 # 실제 구현은 기존 load_csv 함수를 유지하되, TTL을 300초(5분)로 조정하여 균형 유지
 
-@st.cache_data(ttl=300)  # Phase 3: 균형잡힌 TTL (5분) - 마스터와 트랜잭션 데이터의 중간값
-def load_csv(filename: str, default_columns: Optional[List[str]] = None):
+def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_columns: Optional[List[str]] = None):
     """
-    테이블에서 데이터 로드 (CSV 호환 인터페이스)
-    
-    Args:
-        filename: CSV 파일명 (예: "sales.csv") -> 테이블명으로 매핑
-        default_columns: 기본 컬럼 리스트
-    
-    Returns:
-        pandas.DataFrame
+    캐시된 load_csv 내부 구현 (store_id와 client_mode를 캐시 키에 포함)
+    이 함수가 실행되면 캐시 MISS임을 의미
     """
-    # Supabase 클라이언트 초기화
+    # 데이터 호출 계측 시작
+    start_time = time.perf_counter()
+    
+    # 캐시 MISS 로그 기록 (이 함수가 실행되었다는 것은 캐시가 MISS였다는 의미)
+    _log_cache_miss("load_csv", filename=filename, store_id=store_id, client_mode=client_mode)
+    
+    # Supabase 조회용 클라이언트 사용 (DEV MODE에서 service_role_key 사용 가능)
     try:
-        supabase = get_supabase_client()
+        supabase = get_read_client()
     except Exception as e:
-        # 환경 변수/네트워크/SSL 문제 등으로 클라이언트 생성 실패 시,
-        # 앱 전체가 죽지 않도록 빈 DataFrame을 반환하고 로그만 남긴다.
         logger.error(f"Supabase client init failed in load_csv('{filename}'): {e}")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_csv({filename}) [ERROR]", elapsed_ms, rows=0, source="supabase")
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
 
     if not supabase:
         logger.warning(f"Supabase not available, returning empty DataFrame for {filename}")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_csv({filename}) [NO_CLIENT]", elapsed_ms, rows=0, source="supabase")
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
     
-    store_id = get_current_store_id()
     if not store_id:
         logger.warning(f"No store_id found, returning empty DataFrame for {filename}")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_csv({filename}) [NO_STORE_ID]", elapsed_ms, rows=0, source="supabase")
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
     
     try:
@@ -189,8 +611,89 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
         
         actual_table = table_mapping.get(filename, filename.replace('.csv', ''))
         
+        # 대용량 테이블 필터 기본값 강제 (최근 90일)
+        large_tables = ['sales', 'daily_close', 'daily_sales_items', 'naver_visitors']
+        use_date_filter = actual_table in large_tables
+        
         # store_id로 필터링하여 조회 (RLS가 자동으로 적용됨)
-        result = supabase.table(actual_table).select("*").eq("store_id", store_id).execute()
+        try:
+            query = supabase.table(actual_table).select("*").eq("store_id", store_id)
+            
+            # 대용량 테이블은 최근 90일 필터 강제 적용
+            if use_date_filter:
+                from datetime import timedelta
+                cutoff_date = (now_kst() - timedelta(days=90)).date()
+                query = query.gte("date", cutoff_date.isoformat())
+            
+            # timed_select로 쿼리 실행 및 타이밍 기록
+            result = timed_select(
+                f"load_csv({filename})",
+                lambda: query.execute()
+            )
+        except Exception as query_error:
+            error_msg = str(query_error)
+            logger.error(f"Query failed for {actual_table} (store_id: {store_id}): {error_msg}")
+            
+            # 개발 모드에서만 디버그 정보 표시
+            if _is_dev_mode():
+                import streamlit as st
+                with st.expander(f"⚠️ 데이터 로드 실패: {filename}", expanded=False):
+                    st.error(f"**테이블 조회 실패:** {actual_table}")
+                    st.caption(f"**Store ID:** {store_id}")
+                    st.caption(f"**에러:** {error_msg}")
+                    
+                    # 에러 타입별 안내
+                    if "RLS" in error_msg or "policy" in error_msg.lower() or "permission" in error_msg.lower():
+                        st.warning("💡 **RLS 정책 문제 가능성**")
+                        st.caption("RLS 정책이 올바르게 설정되어 있는지 확인하세요.")
+                    elif "JWT" in error_msg or "token" in error_msg.lower() or "authentication" in error_msg.lower():
+                        st.warning("💡 **인증 문제 가능성**")
+                        st.caption("로그인 상태를 확인하거나 다시 로그인하세요.")
+                    elif "network" in error_msg.lower() or "connection" in error_msg.lower():
+                        st.warning("💡 **네트워크 연결 문제 가능성**")
+                        st.caption("인터넷 연결을 확인하세요.")
+            
+            return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
+        
+        # 데이터가 0건인 경우 디버그 정보 표시
+        if not result.data or len(result.data) == 0:
+            if _is_dev_mode():
+                import streamlit as st
+                with st.expander(f"ℹ️ 데이터 없음: {filename} (0건)", expanded=False):
+                    st.info(f"**테이블:** {actual_table}")
+                    st.caption(f"**Store ID:** {store_id}")
+                    st.caption("**가능한 원인:**")
+                    st.caption("1. 실제로 데이터가 없는 경우")
+                    st.caption("2. RLS 정책으로 인해 접근 불가")
+                    st.caption("3. store_id 필터 조건 불일치")
+                    st.caption("4. 로그인 상태 문제")
+                    
+                    # 추가 진단: 테이블 존재 여부 확인 (store_id 필터 없이)
+                    # actual_settlement 테이블은 id 컬럼이 없으므로 테스트 생략 (에러 방지)
+                    if actual_table != 'actual_settlement':
+                        try:
+                            # 다른 테이블은 id 컬럼 사용 시도
+                            try:
+                                test_result = supabase.table(actual_table).select("id").limit(1).execute()
+                            except Exception:
+                                # id가 없으면 * 사용
+                                test_result = supabase.table(actual_table).select("*").limit(1).execute()
+                            
+                            if test_result.data:
+                                st.warning(f"⚠️ 테이블에는 데이터가 있지만, store_id={store_id} 조건으로는 조회되지 않습니다.")
+                                st.caption("→ RLS 정책 또는 store_id 불일치 가능성")
+                            else:
+                                st.caption("→ 테이블에 데이터가 없습니다.")
+                        except Exception as test_error:
+                            st.caption(f"→ 테이블 접근 테스트 실패: {str(test_error)}")
+                    else:
+                        # actual_settlement 테이블은 id 컬럼이 없으므로 테스트 생략
+                        st.caption("→ actual_settlement 테이블은 복합 키(store_id, year, month)를 사용합니다.")
+            
+            # 데이터가 0건이어도 빈 DataFrame 반환
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            record_data_call(f"load_csv({filename})", elapsed_ms, rows=0, source="supabase")
+            return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
         
         if result.data:
             df = pd.DataFrame(result.data)
@@ -421,7 +924,76 @@ def load_csv(filename: str, default_columns: Optional[List[str]] = None):
         return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
 
 
-@st.cache_data(ttl=300)  # 5분 캐시 (마스터 데이터)
+# 캐시 적용 (store_id와 client_mode를 캐시 키에 포함)
+# 주의: 데코레이터 레벨에서 is_dev_mode() 호출 시 모듈 로드 시점에 session_state가 없어 캐시가 재생성됨
+# 따라서 TTL을 고정값(300초)으로 설정하여 캐시 안정성 확보
+@st.cache_data(ttl=300)  # 5분 캐시 (고정값으로 설정하여 캐시 안정성 확보)
+def load_csv(filename: str, default_columns: Optional[List[str]] = None, store_id: str = None, client_mode: str = None):
+    """
+    테이블에서 데이터 로드 (CSV 호환 인터페이스)
+    캐시 키에 store_id와 client_mode를 포함하여 매장별/클라이언트별로 캐시 분리
+    
+    Args:
+        filename: CSV 파일명 (예: "sales.csv") -> 테이블명으로 매핑
+        default_columns: 기본 컬럼 리스트
+        store_id: store_id (None이면 get_current_store_id() 사용)
+        client_mode: client_mode (None이면 get_read_client_mode() 사용, 캐시 키에 포함)
+    
+    Returns:
+        pandas.DataFrame
+    """
+    # 세션 캐시 키 매핑 (마스터 데이터만 세션 캐시 사용)
+    session_cache_keys = {
+        'menu_master.csv': 'ss_menu_master_df',
+        'ingredient_master.csv': 'ss_ingredient_master_df',
+        'inventory.csv': 'ss_inventory_df',
+        'recipes.csv': 'ss_recipes_df',
+        'targets.csv': 'ss_targets_df',
+        # 파일명 없이 테이블명으로 직접 호출 가능
+        'menu_master': 'ss_menu_master_df',
+        'ingredient_master': 'ss_ingredient_master_df',
+        'inventory': 'ss_inventory_df',
+        'recipes': 'ss_recipes_df',
+        'targets': 'ss_targets_df',
+    }
+    
+    # 세션 캐시 키 확인
+    session_key = session_cache_keys.get(filename)
+    if session_key and session_key in st.session_state:
+        # 세션 캐시에 있으면 즉시 반환
+        if _is_dev_mode():
+            logger.debug(f"load_csv: Session cache HIT for {filename}")
+        df = st.session_state[session_key]
+        # 캐시 히트도 계측 (매우 빠름)
+        record_data_call(f"load_csv({filename})", 0.1, rows=len(df), source="session_cache")
+        return df
+    
+    # store_id와 client_mode를 캐시 키에 명시적으로 포함하기 위해 가져오기
+    if store_id is None:
+        store_id = get_current_store_id()
+    if client_mode is None:
+        try:
+            client_mode = get_read_client_mode()
+        except Exception:
+            client_mode = "unknown"
+    
+    if not store_id:
+        logger.warning(f"No store_id found, returning empty DataFrame for {filename}")
+        return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
+    
+    # @st.cache_data 캐시 또는 DB 조회
+    df = _load_csv_impl(filename, store_id, client_mode, default_columns)
+    
+    # 세션 캐시에 저장 (마스터 데이터만)
+    if session_key:
+        st.session_state[session_key] = df
+        if _is_dev_mode():
+            logger.debug(f"load_csv: Session cache SET for {filename} ({len(df)} rows)")
+    
+    return df
+
+
+@st.cache_data(ttl=300)  # 5분 캐시 (마스터 데이터, 고정값으로 설정하여 캐시 안정성 확보)
 def load_key_menus() -> List[str]:
     """핵심 메뉴 목록 로드 (is_core=True인 메뉴들)"""
     supabase = get_supabase_client()
@@ -471,6 +1043,22 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
         }, on_conflict="store_id,date").execute()
         
         logger.info(f"Sales saved: {date_str}, {total_sales}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_sales: {date_str}",
+            targets=["sales"]
+        )
+        
+        # S5: 매출 저장 직후 스냅샷 (dev_mode에서만)
+        try:
+            from src.auth import is_dev_mode
+            if is_dev_mode():
+                from src.utils.boot_perf import snapshot_current_metrics
+                snapshot_current_metrics("S5: 매출 저장 직후 rerun")
+        except Exception:
+            pass
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save sales: {e}")
@@ -497,6 +1085,13 @@ def save_visitor(date, visitors):
         }, on_conflict="store_id,date").execute()
         
         logger.info(f"Visitor saved: {date_str}, {visitors}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_visitor: {date_str}",
+            targets=["visitors"]
+        )
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save visitor: {e}")
@@ -530,6 +1125,14 @@ def save_menu(menu_name, price):
         }).execute()
         
         logger.info(f"Menu saved: {menu_name}, {price}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_menu: {menu_name}",
+            targets=["menus", "recipes"],
+            session_keys=['ss_menu_master_df', 'ss_recipes_df']
+        )
+        
         return True, "저장 성공"
     except Exception as e:
         logger.error(f"Failed to save menu: {e}")
@@ -581,6 +1184,13 @@ def update_menu(old_menu_name, new_menu_name, new_price, category=None, expected
         supabase.table("menu_master").update(update_data).eq("id", menu_id).execute()
         
         logger.info(f"Menu updated: {old_menu_name} -> {new_menu_name}")
+        
+        # 캐시 클리어 (데이터 변경 후)
+        try:
+            load_csv.clear()
+        except Exception:
+            pass
+        
         return True, "수정 성공"
     except Exception as e:
         logger.error(f"Failed to update menu: {e}")
@@ -611,6 +1221,14 @@ def update_menu_category(menu_name, category):
         }).eq("id", menu_id).execute()
         
         logger.info(f"Menu category updated: {menu_name} -> {category}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"update_menu_category: {menu_name}",
+            targets=["menus"],
+            session_keys=['ss_menu_master_df']
+        )
+        
         return True, "카테고리 수정 성공"
     except Exception as e:
         logger.error(f"Failed to update menu category: {e}")
@@ -688,6 +1306,14 @@ def delete_menu(menu_name, check_references=True):
         # 삭제
         supabase.table("menu_master").delete().eq("id", menu_id).execute()
         logger.info(f"Menu deleted: {menu_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_menu: {menu_name}",
+            targets=["menus", "recipes"],
+            session_keys=['ss_menu_master_df', 'ss_recipes_df']
+        )
+        
         return True, "삭제 성공", None
     except Exception as e:
         logger.error(f"Failed to delete menu: {e}")
@@ -725,6 +1351,14 @@ def save_ingredient(ingredient_name, unit, unit_price, order_unit=None, conversi
         result = supabase.table("ingredients").insert(insert_data).execute()
         
         logger.info(f"Ingredient saved: {ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_ingredient: {ingredient_name}",
+            targets=["ingredients", "recipes", "cost"],
+            session_keys=['ss_ingredient_master_df', 'ss_recipes_df', 'ss_inventory_df']
+        )
+        
         return True, "저장 성공"
     except Exception as e:
         logger.error(f"Failed to save ingredient: {e}")
@@ -762,6 +1396,14 @@ def update_ingredient(old_ingredient_name, new_ingredient_name, new_unit, new_un
         }).eq("id", ing_id).execute()
         
         logger.info(f"Ingredient updated: {old_ingredient_name} -> {new_ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"update_ingredient: {old_ingredient_name}",
+            targets=["ingredients", "recipes", "cost"],
+            session_keys=['ss_ingredient_master_df', 'ss_recipes_df', 'ss_inventory_df']
+        )
+        
         return True, "수정 성공"
     except Exception as e:
         logger.error(f"Failed to update ingredient: {e}")
@@ -805,6 +1447,14 @@ def delete_ingredient(ingredient_name, check_references=True):
         # 삭제
         supabase.table("ingredients").delete().eq("id", ing_id).execute()
         logger.info(f"Ingredient deleted: {ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_ingredient: {ingredient_name}",
+            targets=["ingredients", "recipes", "cost"],
+            session_keys=['ss_ingredient_master_df', 'ss_recipes_df', 'ss_inventory_df']
+        )
+        
         return True, "삭제 성공", None
     except Exception as e:
         logger.error(f"Failed to delete ingredient: {e}")
@@ -843,6 +1493,14 @@ def save_recipe(menu_name, ingredient_name, quantity):
         }, on_conflict="store_id,menu_id,ingredient_id").execute()
         
         logger.info(f"Recipe saved: {menu_name} - {ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_recipe: {menu_name}-{ingredient_name}",
+            targets=["recipes", "cost"],
+            session_keys=['ss_recipes_df']
+        )
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save recipe: {e}")
@@ -876,6 +1534,14 @@ def delete_recipe(menu_name, ingredient_name):
         supabase.table("recipes").delete().eq("store_id", store_id).eq("menu_id", menu_id).eq("ingredient_id", ingredient_id).execute()
         
         logger.info(f"Recipe deleted: {menu_name} - {ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_recipe: {menu_name}-{ingredient_name}",
+            targets=["recipes", "cost"],
+            session_keys=['ss_recipes_df']
+        )
+        
         return True, "삭제 성공"
     except Exception as e:
         logger.error(f"Failed to delete recipe: {e}")
@@ -950,6 +1616,14 @@ def save_inventory(ingredient_name, current_stock, safety_stock):
         }, on_conflict="store_id,ingredient_id").execute()
         
         logger.info(f"Inventory saved: {ingredient_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_inventory: {ingredient_name}",
+            targets=["inventory"],
+            session_keys=['ss_inventory_df']
+        )
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save inventory: {e}")
@@ -1154,6 +1828,12 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         
         logger.info(f"Daily close saved (transactional): {date_str}")
         
+        # 캐시 클리어 (데이터 변경 후)
+        try:
+            load_csv.clear()
+        except Exception:
+            pass
+        
         # ========== 재고 자동 차감 기능 ==========
         # 판매된 메뉴의 레시피를 기반으로 재료 사용량 계산 후 재고 차감
         # 주의: 재고 차감은 트랜잭션 외부에서 실행 (마감 저장과 독립적)
@@ -1234,6 +1914,13 @@ def delete_sales(date, store=None):
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
         supabase.table("sales").delete().eq("store_id", store_id).eq("date", date_str).execute()
         logger.info(f"Sales deleted: {date_str}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_sales: {date_str}",
+            targets=["sales"]
+        )
+        
         return True, "삭제 성공"
     except Exception as e:
         logger.error(f"Failed to delete sales: {e}")
@@ -1254,6 +1941,13 @@ def delete_visitor(date):
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
         supabase.table("naver_visitors").delete().eq("store_id", store_id).eq("date", date_str).execute()
         logger.info(f"Visitor deleted: {date_str}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_visitor: {date_str}",
+            targets=["visitors"]
+        )
+        
         return True, "삭제 성공"
     except Exception as e:
         logger.error(f"Failed to delete visitor: {e}")
@@ -1282,6 +1976,23 @@ def save_expense_item(year, month, category, item_name, amount, notes=None):
         }).execute()
         
         logger.info(f"Expense item saved: {year}-{month}, {category}, {item_name}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"save_expense_item: {year}-{month}",
+            targets=["cost", "expense_structure"],
+            session_keys=['ss_expense_structure_df']
+        )
+        
+        # S6: 비용 저장 직후 스냅샷 (dev_mode에서만)
+        try:
+            from src.auth import is_dev_mode
+            if is_dev_mode():
+                from src.utils.boot_perf import snapshot_current_metrics
+                snapshot_current_metrics("S6: 비용 저장 직후 rerun")
+        except Exception:
+            pass
+        
         return True
     except Exception as e:
         logger.error(f"Failed to save expense item: {e}")
@@ -1302,7 +2013,7 @@ def update_expense_item(expense_id, item_name, amount, notes=None):
         update_data = {
             "item_name": item_name,
             "amount": float(amount),
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()  # DB 저장은 UTC
         }
         if notes is not None:
             update_data["notes"] = notes
@@ -1314,6 +2025,23 @@ def update_expense_item(expense_id, item_name, amount, notes=None):
             .execute()
         
         logger.info(f"Expense item updated: {expense_id}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"update_expense_item: {expense_id}",
+            targets=["cost", "expense_structure"],
+            session_keys=['ss_expense_structure_df']
+        )
+        
+        # S6: 비용 저장 직후 스냅샷 (dev_mode에서만)
+        try:
+            from src.auth import is_dev_mode
+            if is_dev_mode():
+                from src.utils.boot_perf import snapshot_current_metrics
+                snapshot_current_metrics("S6: 비용 저장 직후 rerun")
+        except Exception:
+            pass
+        
         return True, "수정 성공"
     except Exception as e:
         logger.error(f"Failed to update expense item: {e}")
@@ -1333,39 +2061,208 @@ def delete_expense_item(expense_id):
     try:
         supabase.table("expense_structure").delete().eq("id", expense_id).eq("store_id", store_id).execute()
         logger.info(f"Expense item deleted: {expense_id}")
+        
+        # 소프트 무효화 (token bump + 부분 clear)
+        soft_invalidate(
+            reason=f"delete_expense_item: {expense_id}",
+            targets=["cost", "expense_structure"],
+            session_keys=['ss_expense_structure_df']
+        )
+        
         return True, "삭제 성공"
     except Exception as e:
         logger.error(f"Failed to delete expense item: {e}")
         raise
 
 
-@st.cache_data(ttl=60)  # 1분 캐시 (비용구조는 자주 변경될 수 있으므로 짧게)
-def load_expense_structure(year, month):
-    """비용구조 데이터 로드 (특정 연도/월)"""
-    supabase = _check_supabase_for_dev_mode()
-    if not supabase:
+def _load_expense_structure_impl(year, month, store_id: str, client_mode: str, bypass_cache: bool = False):
+    """
+    load_expense_structure 내부 구현 (캐시 우회 옵션)
+    이 함수가 실행되면 캐시 MISS임을 의미 (bypass_cache=True일 때는 제외)
+    """
+    # 데이터 호출 계측 시작
+    start_time = time.perf_counter()
+    
+    # 캐시 MISS 로그 기록 (bypass_cache가 False일 때만, 즉 캐시를 사용하려고 했을 때만)
+    if not bypass_cache:
+        _log_cache_miss("load_expense_structure", year=year, month=month, store_id=store_id, client_mode=client_mode)
+    
+    # 조회용 클라이언트 사용 (DEV MODE에서 service_role_key 사용 가능)
+    try:
+        supabase = get_read_client()
+    except Exception as e:
+        logger.error(f"Supabase client init failed in load_expense_structure: {e}")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_expense_structure({year}-{month}) [ERROR]", elapsed_ms, rows=0, source="supabase")
         return pd.DataFrame()
     
-    store_id = get_current_store_id()
-    if not store_id:
+    if not supabase:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_expense_structure({year}-{month}) [NO_CLIENT]", elapsed_ms, rows=0, source="supabase")
         return pd.DataFrame()
+    
+    # store_id는 이미 파라미터로 받았지만, 검증용으로 다시 확인
+    if not store_id:
+        store_id = get_current_store_id()
+        if not store_id:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            record_data_call(f"load_expense_structure({year}-{month}) [NO_STORE_ID]", elapsed_ms, rows=0, source="supabase")
+            return pd.DataFrame()
+    
+    # 개발모드 디버그 정보 수집
+    debug_info = {}
+    try:
+        from src.auth import get_read_client_mode
+        if _is_dev_mode():
+            debug_info['store_id'] = store_id
+            debug_info['client_mode'] = get_read_client_mode()
+            
+            # Supabase URL 추출 (프로젝트 식별용, 앞부분만)
+            try:
+                supabase_url = st.secrets.get("supabase", {}).get("url", "")
+                if supabase_url:
+                    # https://xxxx.supabase.co 에서 xxxx 부분만 추출
+                    import re
+                    match = re.search(r'https://([^.]+)\.supabase\.co', supabase_url)
+                    if match:
+                        debug_info['supabase_project'] = match.group(1)
+                    else:
+                        debug_info['supabase_project'] = "unknown"
+                else:
+                    debug_info['supabase_project'] = "not_configured"
+            except Exception:
+                debug_info['supabase_project'] = "error"
+            
+            # 쿼리 필터 조건 수집
+            debug_info['filters'] = [
+                f"store_id={store_id}",
+                f"year={int(year)}",
+                f"month={int(month)}"
+            ]
+    except Exception:
+        pass
     
     try:
-        result = supabase.table("expense_structure")\
+        # 쿼리 빌드
+        query = supabase.table("expense_structure")\
             .select("*")\
             .eq("store_id", store_id)\
             .eq("year", int(year))\
-            .eq("month", int(month))\
-            .execute()
+            .eq("month", int(month))
+        
+        # timed_select로 쿼리 실행 및 타이밍 기록
+        result = timed_select(
+            f"load_expense_structure(year={year}, month={month})",
+            lambda: query.execute()
+        )
+        
+        # 개발모드 디버그 정보 출력
+        if debug_info:
+            try:
+                import streamlit as st
+                with st.expander("🔍 DEBUG: expense_structure 조회", expanded=False):
+                    st.write(f"**CURRENT STORE ID:** {debug_info.get('store_id', 'N/A')}")
+                    st.write(f"**DB CLIENT MODE:** {debug_info.get('client_mode', 'N/A')}")
+                    st.write(f"**Supabase 프로젝트:** {debug_info.get('supabase_project', 'N/A')}")
+                    st.write("**쿼리 필터 조건:**")
+                    for filter_cond in debug_info.get('filters', []):
+                        st.caption(f"  - {filter_cond}")
+                    
+                    st.write("**쿼리 직후 결과:**")
+                    row_count = len(result.data) if result.data else 0
+                    st.write(f"  - row_count: {row_count}")
+                    if result.data and len(result.data) > 0:
+                        st.write("  - data[:3]:")
+                        import json
+                        # 민감한 정보 제거하고 표시
+                        display_data = []
+                        for item in result.data[:3]:
+                            safe_item = {k: v for k, v in item.items() if k not in ['id', 'store_id']}
+                            display_data.append(safe_item)
+                        st.json(display_data)
+                    else:
+                        st.caption("  (데이터 없음)")
+                    
+                    # 캐시 상태 표시
+                    if bypass_cache:
+                        st.caption("  ⚠️ 캐시 우회 모드로 실행됨")
+                    else:
+                        st.caption("  ℹ️ 캐시 적용됨 (캐시 우회하려면 사이드바 토글 사용)")
+            except Exception:
+                pass  # 디버그 출력 실패해도 계속 진행
         
         if result.data:
             df = pd.DataFrame(result.data)
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            record_data_call(f"load_expense_structure({year}-{month})", elapsed_ms, rows=len(df), source="supabase")
             return df
         else:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            record_data_call(f"load_expense_structure({year}-{month})", elapsed_ms, rows=0, source="supabase")
             return pd.DataFrame(columns=['id', 'category', 'item_name', 'amount', 'notes'])
     except Exception as e:
         logger.error(f"Failed to load expense structure: {e}")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_expense_structure({year}-{month}) [EXCEPTION]", elapsed_ms, rows=0, source="supabase")
+        # 에러도 디버그에 표시
+        if debug_info:
+            try:
+                import streamlit as st
+                with st.expander("🔍 DEBUG: expense_structure 조회", expanded=False):
+                    st.error(f"**쿼리 실행 실패:** {str(e)}")
+            except Exception:
+                pass
         return pd.DataFrame()
+
+
+@st.cache_data(ttl=60)  # 1분 캐시 (비용구조는 자주 변경될 수 있으므로 짧게, 고정값으로 설정하여 캐시 안정성 확보)
+def load_expense_structure(year, month, store_id: str = None, client_mode: str = None):
+    """
+    비용구조 데이터 로드 (특정 연도/월)
+    세션 캐시 우선 사용 (현재 연도/월만) → 없으면 @st.cache_data 캐시 사용 → 없으면 DB 조회
+    """
+    from datetime import datetime
+    
+    # 현재 연도/월과 일치하면 세션 캐시 확인 (KST 기준)
+    current_year = current_year_kst()
+    current_month = current_month_kst()
+    if year == current_year and month == current_month:
+        session_key = 'ss_expense_structure_df'
+        if session_key in st.session_state:
+            if _is_dev_mode():
+                logger.debug(f"load_expense_structure: Session cache HIT for {year}-{month}")
+            df = st.session_state[session_key]
+            # 캐시 히트도 계측 (매우 빠름)
+            record_data_call(f"load_expense_structure({year}-{month})", 0.1, rows=len(df), source="session_cache")
+            return df
+    
+    # store_id와 client_mode를 캐시 키에 명시적으로 포함하기 위해 가져오기
+    if store_id is None:
+        store_id = get_current_store_id()
+    if client_mode is None:
+        try:
+            client_mode = get_read_client_mode()
+        except Exception:
+            client_mode = "unknown"
+    
+    # 개발모드에서 캐시 우회 옵션 확인
+    bypass_cache = False
+    try:
+        if _is_dev_mode():
+            bypass_cache = st.session_state.get("_bypass_cache_expense_structure", False)
+    except Exception:
+        pass
+    
+    # @st.cache_data 캐시 또는 DB 조회
+    df = _load_expense_structure_impl(year, month, store_id, client_mode, bypass_cache=bypass_cache)
+    
+    # 현재 연도/월이면 세션 캐시에 저장
+    if year == current_year and month == current_month:
+        st.session_state['ss_expense_structure_df'] = df
+        if _is_dev_mode():
+            logger.debug(f"load_expense_structure: Session cache SET for {year}-{month} ({len(df)} rows)")
+    
+    return df
 
 
 @st.cache_data(ttl=60)  # 1분 캐시

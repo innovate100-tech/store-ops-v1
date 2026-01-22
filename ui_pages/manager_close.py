@@ -136,4 +136,5 @@ def render_manager_close():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_manager_close()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_manager_close()

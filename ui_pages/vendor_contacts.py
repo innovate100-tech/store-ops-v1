@@ -21,15 +21,15 @@ def render_vendor_contacts():
     with st.expander("➕ 협력사 추가", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
-            partner_name = st.text_input("업체명", key="partner_name")
-            partner_contact = st.text_input("담당자", key="partner_contact")
+            partner_name = st.text_input("업체명", key="vendor_contacts_partner_name")
+            partner_contact = st.text_input("담당자", key="vendor_contacts_partner_contact")
         with col2:
-            partner_phone = st.text_input("연락처", key="partner_phone", placeholder="010-0000-0000")
-            partner_type = st.selectbox("유형", ["재료 공급", "배달", "기타"], key="partner_type")
+            partner_phone = st.text_input("연락처", key="vendor_contacts_partner_phone", placeholder="010-0000-0000")
+            partner_type = st.selectbox("유형", ["재료 공급", "배달", "기타"], key="vendor_contacts_partner_type")
         
-        partner_memo = st.text_area("메모", key="partner_memo", placeholder="거래 내역, 특이사항 등")
+        partner_memo = st.text_area("메모", key="vendor_contacts_partner_memo", placeholder="거래 내역, 특이사항 등")
         
-        if st.button("추가", key="partner_add", type="primary"):
+        if st.button("추가", key="vendor_contacts_partner_add", type="primary"):
             if partner_name and partner_phone:
                 new_partner = {
                     'id': len(st.session_state.partners) + 1,
@@ -70,4 +70,5 @@ def render_vendor_contacts():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_vendor_contacts()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_vendor_contacts()

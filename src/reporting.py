@@ -149,7 +149,8 @@ def generate_weekly_report(
     period_text = f"기간: {start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')}"
     story.append(Paragraph(period_text, styles['Normal']))
     story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(f"생성일시: {datetime.now().strftime('%Y년 %m월 %d일 %H:%M')}", styles['Normal']))
+    from src.utils.time_utils import now_kst
+    story.append(Paragraph(f"생성일시: {now_kst().strftime('%Y년 %m월 %d일 %H:%M')} (KST)", styles['Normal']))
     story.append(Spacer(1, 1*cm))
     
     # 1. 매출 정보

@@ -22,6 +22,22 @@ def render_page_header(title, icon="📋"):
         </h2>
     </div>
     """, unsafe_allow_html=True)
+    
+    # 개발모드에서만 DB CLIENT MODE 표시
+    try:
+        from src.storage_supabase import get_client_mode
+        from src.auth import is_dev_mode
+        
+        if is_dev_mode():
+            client_mode = get_client_mode()
+            if client_mode == "service_role_dev":
+                st.info(f"🔧 **DB CLIENT MODE: service_role_dev** (DEV MODE 전용, RLS 우회)")
+            elif client_mode == "anon":
+                st.caption(f"🔧 **DB CLIENT MODE: anon** (일반 모드)")
+            else:
+                st.caption(f"🔧 **DB CLIENT MODE: {client_mode}**")
+    except Exception:
+        pass  # 표시 실패해도 페이지는 계속 동작
 
 
 def render_section_header(title, icon="📋"):

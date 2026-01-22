@@ -21,19 +21,19 @@ def render_staff_contacts():
     with st.expander("➕ 직원 추가", expanded=False):
         col1, col2, col3 = st.columns(3)
         with col1:
-            emp_name = st.text_input("이름", key="emp_name")
+            emp_name = st.text_input("이름", key="staff_contacts_emp_name")
         with col2:
-            emp_role = st.text_input("역할", key="emp_role", placeholder="예: 주방장, 서버 등")
+            emp_role = st.text_input("역할", key="staff_contacts_emp_role", placeholder="예: 주방장, 서버 등")
         with col3:
-            emp_phone = st.text_input("연락처", key="emp_phone", placeholder="010-0000-0000")
+            emp_phone = st.text_input("연락처", key="staff_contacts_emp_phone", placeholder="010-0000-0000")
         
         col4, col5 = st.columns(2)
         with col4:
-            emp_worktime = st.text_input("근무시간", key="emp_worktime", placeholder="예: 평일 09:00-18:00")
+            emp_worktime = st.text_input("근무시간", key="staff_contacts_emp_worktime", placeholder="예: 평일 09:00-18:00")
         with col5:
             st.write("")
             st.write("")
-            if st.button("추가", key="emp_add", type="primary"):
+            if st.button("추가", key="staff_contacts_emp_add", type="primary"):
                 if emp_name and emp_phone:
                     new_emp = {
                         'id': len(st.session_state.employees) + 1,
@@ -63,7 +63,7 @@ def render_staff_contacts():
                 if emp['worktime']:
                     st.caption(f"⏰ {emp['worktime']}")
             with col4:
-                if st.button("🗑️", key=f"del_emp_{idx}", help="삭제"):
+                if st.button("🗑️", key=f"staff_contacts_del_emp_{idx}", help="삭제"):
                     st.session_state.employees.pop(idx)
                     st.rerun()
             st.markdown("---")
@@ -71,5 +71,6 @@ def render_staff_contacts():
         st.info("등록된 직원이 없습니다. 직원을 추가해주세요.")
 
 
-# Streamlit 멀티페이지에서 직접 실행될 때
-render_staff_contacts()
+# app.py에서 호출되므로 여기서는 호출하지 않음
+# (Streamlit 멀티페이지에서 직접 실행될 때만 필요하면 주석 해제)
+# render_staff_contacts()

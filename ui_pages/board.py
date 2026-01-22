@@ -3,8 +3,8 @@
 """
 from src.bootstrap import bootstrap
 import streamlit as st
-from datetime import datetime
 from src.ui_helpers import render_page_header
+from src.utils.time_utils import now_kst
 from src.auth import get_current_store_name
 
 # 공통 설정 적용
@@ -21,16 +21,16 @@ def render_board():
     
     # 게시글 작성
     with st.expander("✏️ 새 게시글 작성", expanded=False):
-        post_title = st.text_input("제목", key="board_title")
-        post_content = st.text_area("내용", key="board_content", height=200)
-        if st.button("작성", key="board_submit", type="primary"):
+        post_title = st.text_input("제목", key="board_board_title")
+        post_content = st.text_area("내용", key="board_board_content", height=200)
+        if st.button("작성", key="board_board_submit", type="primary"):
             if post_title and post_content:
                 new_post = {
                     'id': len(st.session_state.board_posts) + 1,
                     'title': post_title,
                     'content': post_content,
                     'author': get_current_store_name(),
-                    'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    'date': now_kst().strftime('%Y-%m-%d %H:%M'),
                 }
                 st.session_state.board_posts.insert(0, new_post)
                 st.success("게시글이 작성되었습니다!")
@@ -55,4 +55,5 @@ def render_board():
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
-render_board()
+# 주석 처리: app.py에서만 렌더되도록 함 (중복 호출 방지)
+# render_board()

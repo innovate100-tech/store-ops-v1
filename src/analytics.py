@@ -565,9 +565,9 @@ def target_gap_analysis(sales_df, targets_df, cost_df, year, month, daily_sales_
     days_in_month = monthrange(year, month)[1]
     daily_target = target_sales / days_in_month
     
-    # 현재 일수 (오늘까지)
-    from datetime import datetime
-    today = datetime.now()
+    # 현재 일수 (오늘까지) - KST 기준
+    from src.utils.time_utils import now_kst
+    today = now_kst()
     if today.year == year and today.month == month:
         current_day = today.day
     else:

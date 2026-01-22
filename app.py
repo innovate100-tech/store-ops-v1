@@ -5,6 +5,12 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import sys
+import os
+
+# 전역 UI 베이스 주입 (최상단, 모든 렌더링 전에 실행)
+from src.ui.theme_manager import inject_global_ui
+inject_global_ui()
 
 # 공통 설정 적용
 from src.bootstrap import bootstrap
@@ -1282,6 +1288,12 @@ if st.session_state.get("theme", "light") == "dark":
 
 # 사이드바 상단: 매장명 및 로그아웃
 with st.sidebar:
+    # 좌측 패널 전체 래퍼 시작 (좌측 컬럼 최상단)
+    st.markdown('<div class="ps-leftpanel">', unsafe_allow_html=True)
+    
+    # 커스텀 사이드바 루트 컨테이너 시작
+    st.markdown('<div class="ps-sidebar">', unsafe_allow_html=True)
+    
     store_name = get_current_store_name()
     
     st.markdown(f"""
@@ -1463,32 +1475,38 @@ with st.sidebar:
             st.rerun()
         except Exception as e:
             st.error(f"캐시 클리어 중 오류: {e}")
+    
+    # 커스텀 사이드바 루트 컨테이너 종료
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 좌측 패널 전체 래퍼 종료
+    st.markdown('</div>', unsafe_allow_html=True)
 
 page = st.session_state.current_page
 
 # 점장 마감 페이지
 if page == "점장 마감":
-    from pages.manager_close import render_manager_close
+    from ui_pages.manager_close import render_manager_close
     render_manager_close()
 
 # 매출 등록 페이지
 elif page == "매출 등록":
-    from pages.sales_entry import render_sales_entry
+    from ui_pages.sales_entry import render_sales_entry
     render_sales_entry()
 
 # 매출 관리 페이지 (분석 전용)
 elif page == "매출 관리":
-    from pages.sales_management import render_sales_management
+    from ui_pages.sales_management import render_sales_management
     render_sales_management()
 
 # 메뉴 등록 페이지
 elif page == "메뉴 등록":
-    from pages.menu_management import render_menu_management
+    from ui_pages.menu_management import render_menu_management
     render_menu_management()
 
 # 재료 등록 페이지
 elif page == "재료 등록":
-    from pages.ingredient_management import render_ingredient_management
+    from ui_pages.ingredient_management import render_ingredient_management
     render_ingredient_management()
 
 # 레시피 등록 페이지
@@ -2068,37 +2086,37 @@ elif page == "레시피 등록":
 
 # 원가 파악 페이지
 elif page == "원가 파악":
-    from pages.cost_overview import render_cost_overview
+    from ui_pages.cost_overview import render_cost_overview
     render_cost_overview()
 
 # 실제 정산 페이지
 elif page == "실제정산":
-    from pages.settlement_actual import render_settlement_actual
+    from ui_pages.settlement_actual import render_settlement_actual
     render_settlement_actual()
 
 # 판매 관리 페이지
 elif page == "판매 관리":
-    from pages.sales_analysis import render_sales_analysis
+    from ui_pages.sales_analysis import render_sales_analysis
     render_sales_analysis()
 
 # 판매량 등록 페이지
 elif page == "판매량 등록":
-    from pages.sales_volume_entry import render_sales_volume_entry
+    from ui_pages.sales_volume_entry import render_sales_volume_entry
     render_sales_volume_entry()
 
 # 재료 사용량 집계 페이지
 elif page == "재료 사용량 집계":
-    from pages.ingredient_usage_summary import render_ingredient_usage_summary
+    from ui_pages.ingredient_usage_summary import render_ingredient_usage_summary
     render_ingredient_usage_summary()
 
 # 발주 관리 페이지
 elif page == "발주 관리":
-    from pages.order_management import render_order_management
+    from ui_pages.order_management import render_order_management
     render_order_management()
 
 # 주간 리포트 페이지
 elif page == "주간 리포트":
-    from pages.weekly_report import render_weekly_report
+    from ui_pages.weekly_report import render_weekly_report
     render_weekly_report()
 
 # 통합 대시보드 페이지
@@ -2511,7 +2529,12 @@ elif page == "통합 대시보드":
                     if '방문자수' in display_df_dashboard.columns:
                         display_df_dashboard['방문자수'] = display_df_dashboard['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
                 
-                st.dataframe(display_df_dashboard, use_container_width=True, hide_index=True)
+                # 표 렌더링 (원래 st.dataframe 사용)
+                st.dataframe(
+                    display_df_dashboard,
+                    use_container_width=True,
+                    hide_index=True
+                )
             
             st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
             
@@ -2552,6 +2575,7 @@ elif page == "통합 대시보드":
                 display_monthly['월별객단가'] = display_monthly['월별객단가'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
                 display_monthly['전월대비'] = display_monthly['전월대비'].apply(lambda x: f"{x:+.1f}%" if pd.notna(x) else "-")
                 
+                # 표 렌더링 (원래 st.dataframe 사용)
                 st.dataframe(
                     display_monthly[['연도', '월', '영업일수', '월총매출', '일평균매출', '월총방문자', '월별객단가', '전월대비']],
                     use_container_width=True,
@@ -3753,7 +3777,7 @@ elif page == "목표 비용구조" or page == "비용구조":
 
 # 목표 매출구조 페이지
 elif page == "목표 매출구조":
-    from pages.target_sales_structure import render_target_sales_structure
+    from ui_pages.target_sales_structure import render_target_sales_structure
     render_target_sales_structure()
 
 # 매출구조 페이지 (목표 매출구조와 동일)
@@ -3894,15 +3918,15 @@ elif page == "매출구조":
 
 # 직원 연락망 페이지
 elif page == "직원 연락망":
-    from pages.staff_contacts import render_staff_contacts
+    from ui_pages.staff_contacts import render_staff_contacts
     render_staff_contacts()
 
 # 협력사 연락망 페이지
 elif page == "협력사 연락망":
-    from pages.vendor_contacts import render_vendor_contacts
+    from ui_pages.vendor_contacts import render_vendor_contacts
     render_vendor_contacts()
 
 # 게시판 페이지
 elif page == "게시판":
-    from pages.board import render_board
+    from ui_pages.board import render_board
     render_board()
