@@ -25,6 +25,55 @@ def render_sales_entry():
     """매출 등록 페이지 렌더링"""
     render_page_header("매출 등록", "💰")
     
+    # 저장 후 메시지 표시 (세션 상태에서)
+    if "sales_entry_success_message" in st.session_state:
+        msg = st.session_state["sales_entry_success_message"]
+        msg_type = st.session_state.get("sales_entry_message_type", "success")
+        
+        # 메시지를 큰 박스로 표시 (더 눈에 띄게)
+        if msg_type == "success":
+            st.markdown("""
+            <div style="padding: 1rem; background-color: #d4edda; border: 2px solid #28a745; border-radius: 0.5rem; margin: 1rem 0;">
+                <h3 style="color: #155724; margin: 0 0 0.5rem 0;">✅ 매출 저장 완료!</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            st.success(msg)
+            try:
+                st.toast("✅ 매출 저장 완료!", icon="✅")
+            except:
+                pass  # st.toast가 없는 버전일 수 있음
+        elif msg_type == "warning":
+            st.markdown("""
+            <div style="padding: 1rem; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 0.5rem; margin: 1rem 0;">
+                <h3 style="color: #856404; margin: 0 0 0.5rem 0;">⚠️ 충돌 감지</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            st.warning(msg)
+            try:
+                st.toast("⚠️ 충돌 감지", icon="⚠️")
+            except:
+                pass
+        elif msg_type == "error":
+            st.markdown("""
+            <div style="padding: 1rem; background-color: #f8d7da; border: 2px solid #dc3545; border-radius: 0.5rem; margin: 1rem 0;">
+                <h3 style="color: #721c24; margin: 0 0 0.5rem 0;">❌ 저장 실패</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            st.error(msg)
+            try:
+                st.toast("❌ 저장 실패", icon="❌")
+            except:
+                pass
+        
+        # 닫기 버튼 추가
+        if st.button("✕ 닫기", key="close_sales_message", use_container_width=False):
+            del st.session_state["sales_entry_success_message"]
+            if "sales_entry_message_type" in st.session_state:
+                del st.session_state["sales_entry_message_type"]
+            st.rerun()
+        
+        render_section_divider()
+    
     # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
     category = st.radio(
         "카테고리",
@@ -73,49 +122,54 @@ def render_sales_entry():
                                 except Exception:
                                     pass
                                 
-                                # 충돌이 있으면 경고 표시
+                                # 메시지 구성
                                 if conflict_info:
                                     existing = conflict_info.get('existing_total_sales', 0)
                                     has_daily_close = conflict_info.get('has_daily_close', False)
                                     
                                     if has_daily_close:
                                         daily_close_total = conflict_info.get('daily_close_total_sales', 0)
-                                        # 토스트 알림 (더 눈에 띄게)
-                                        st.toast("⚠️ 마감보고와 충돌 감지", icon="⚠️")
-                                        st.warning(f"""
-                                        **⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!**
-                                        
-                                        - 마감보고 매출: **{daily_close_total:,.0f}원**
-                                        - 기존 매출등록 값: **{existing:,.0f}원**
-                                        - 새로 입력한 값: **{total_sales:,.0f}원**
-                                        
-                                        → **새 값으로 덮어쓰기되었습니다.**
-                                        """)
+                                        message = f"""
+**⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!**
+
+- 마감보고 매출: **{daily_close_total:,.0f}원**
+- 기존 매출등록 값: **{existing:,.0f}원**
+- 새로 입력한 값: **{total_sales:,.0f}원**
+
+→ **새 값으로 덮어쓰기되었습니다.**
+
+✅ **매출이 저장되었습니다!** (날짜: {date}, 매장: {store}, 총매출: {total_sales:,}원)
+                                        """
+                                        st.session_state["sales_entry_success_message"] = message
+                                        st.session_state["sales_entry_message_type"] = "warning"
                                     else:
-                                        # 토스트 알림
-                                        st.toast("⚠️ 기존 값과 충돌", icon="⚠️")
-                                        st.warning(f"""
-                                        **⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!**
-                                        
-                                        - 기존 값: **{existing:,.0f}원**
-                                        - 새 값: **{total_sales:,.0f}원**
-                                        
-                                        → **새 값으로 덮어쓰기되었습니다.**
-                                        """)
-                                
-                                # 성공 메시지 (토스트 + 일반 메시지)
-                                st.toast(f"✅ 매출 저장 완료! ({total_sales:,}원)", icon="✅")
-                                st.success(f"✅ **매출이 저장되었습니다!**")
-                                st.info(f"📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: **{total_sales:,}원**")
+                                        message = f"""
+**⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!**
+
+- 기존 값: **{existing:,.0f}원**
+- 새 값: **{total_sales:,.0f}원**
+
+→ **새 값으로 덮어쓰기되었습니다.**
+
+✅ **매출이 저장되었습니다!** (날짜: {date}, 매장: {store}, 총매출: {total_sales:,}원)
+                                        """
+                                        st.session_state["sales_entry_success_message"] = message
+                                        st.session_state["sales_entry_message_type"] = "warning"
+                                else:
+                                    # 성공 메시지
+                                    message = f"✅ **매출이 저장되었습니다!**\n\n📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: **{total_sales:,}원**"
+                                    st.session_state["sales_entry_success_message"] = message
+                                    st.session_state["sales_entry_message_type"] = "success"
                                 
                                 st.rerun()
                             else:
-                                st.toast("❌ 저장 실패", icon="❌")
-                                st.error("❌ 매출 저장에 실패했습니다.")
+                                st.session_state["sales_entry_success_message"] = "❌ 매출 저장에 실패했습니다."
+                                st.session_state["sales_entry_message_type"] = "error"
+                                st.rerun()
                         except Exception as e:
-                            st.toast("❌ 저장 실패", icon="❌")
-                            st.error(f"❌ 매출 저장 실패: {str(e)}")
-                            st.exception(e)
+                            st.session_state["sales_entry_success_message"] = f"❌ 매출 저장 실패: {str(e)}"
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
         
         else:
             # 일괄 입력 폼
@@ -181,22 +235,37 @@ def render_sales_entry():
                         warnings = [e for e in errors if "⚠️" in e]
                         real_errors = [e for e in errors if "⚠️" not in e]
                         
+                        # 메시지 구성
+                        message_parts = []
+                        
                         if warnings:
-                            st.warning(f"⚠️ **{len(warnings)}건의 충돌이 감지되었습니다:**")
+                            message_parts.append(f"⚠️ **{len(warnings)}건의 충돌이 감지되었습니다:**")
                             for warning in warnings:
-                                st.warning(warning)
+                                message_parts.append(f"- {warning}")
                         
                         if real_errors:
-                            st.error(f"❌ **{len(real_errors)}건의 오류가 발생했습니다:**")
+                            message_parts.append(f"\n❌ **{len(real_errors)}건의 오류가 발생했습니다:**")
                             for error in real_errors:
-                                st.error(error)
+                                message_parts.append(f"- {error}")
                         
                         if success_count > 0:
-                            # 토스트 알림
-                            st.toast(f"✅ {success_count}일의 매출 저장 완료!", icon="✅")
-                            st.success(f"✅ **{success_count}일의 매출이 저장되었습니다!**")
+                            message_parts.append(f"\n✅ **{success_count}일의 매출이 저장되었습니다!**")
+                            message = "\n".join(message_parts)
+                            
+                            if warnings:
+                                st.session_state["sales_entry_success_message"] = message
+                                st.session_state["sales_entry_message_type"] = "warning"
+                            else:
+                                st.session_state["sales_entry_success_message"] = message
+                                st.session_state["sales_entry_message_type"] = "success"
+                            
                             st.balloons()
                             st.rerun()  # 일괄 저장 완료 후 한 번만 rerun
+                        elif real_errors:
+                            message = "\n".join(message_parts)
+                            st.session_state["sales_entry_success_message"] = message
+                            st.session_state["sales_entry_message_type"] = "error"
+                            st.rerun()
                         elif not real_errors and not warnings:
                             st.info("💡 저장할 데이터가 없습니다.")
     
