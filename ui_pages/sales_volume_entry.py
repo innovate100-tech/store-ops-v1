@@ -16,6 +16,18 @@ def render_sales_volume_entry():
     """판매량 등록 페이지 렌더링"""
     render_page_header("판매량 등록", "📦")
     
+    # 저장 직후 알림 (rerun 후에도 유지)
+    if st.session_state.get("sales_volume_entry_success"):
+        msg = st.session_state.pop("sales_volume_entry_success", None)
+        verify_msg = st.session_state.pop("sales_volume_entry_verify", None)
+        st.success(msg)
+        st.balloons()
+        if verify_msg:
+            st.info(verify_msg)
+        if st.button("닫기", key="sales_volume_entry_close_msg"):
+            st.rerun()
+        render_section_divider()
+    
     # STEP 1: 우선순위 안내
     st.info("✅ **이 입력은 마감 입력보다 우선 적용되는 최종 판매량입니다(보정/이관용).**")
     
@@ -82,12 +94,11 @@ def render_sales_volume_entry():
                             st.error(msg)
                     
                     if success_count > 0:
-                        st.success("✅ 최종 판매량이 저장되었습니다(마감 입력보다 우선 적용).")
-                        st.balloons()
+                        st.session_state["sales_volume_entry_success"] = "✅ 최종 판매량이 저장되었습니다(마감 입력보다 우선 적용)."
                         if is_dev_mode():
                             store_id = get_current_store_id()
                             if store_id and verify_overrides_saved(store_id, sales_date, success_count):
-                                st.info("🔧 override 저장 확인됨 (DEV)")
+                                st.session_state["sales_volume_entry_verify"] = "🔧 override 저장 확인됨 (DEV)"
                         st.rerun()
 
 
