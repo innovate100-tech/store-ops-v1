@@ -25,6 +25,15 @@ def render_sales_management():
     """매출 관리 페이지 렌더링"""
     render_page_header("매출 관리", "📊")
     
+    # 매출 새로고침 버튼 (캐시 무효화)
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🔄 매출 새로고침", key="sales_refresh", use_container_width=True):
+            # load_csv 캐시 무효화
+            load_csv.clear()
+            st.success("✅ 매출 데이터를 새로고침했습니다.")
+            st.rerun()
+    
     # 데이터 로드
     sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
     visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
