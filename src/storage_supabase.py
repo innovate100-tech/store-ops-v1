@@ -622,6 +622,21 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
         
         actual_table = table_mapping.get(filename, filename.replace('.csv', ''))
         
+        # STEP 2: 뷰가 없을 경우 fallback (안정성 우선)
+        # v_daily_sales_items_effective 뷰가 없으면 기존 daily_sales_items 테이블 사용
+        is_view_fallback = False
+        if actual_table == 'v_daily_sales_items_effective':
+            try:
+                # 뷰 존재 여부 확인 (간단한 쿼리로 테스트)
+                test_result = supabase.table("v_daily_sales_items_effective").select("date").limit(1).execute()
+                # 성공하면 뷰 사용
+                logger.info("v_daily_sales_items_effective 뷰 사용 중")
+            except Exception as e:
+                # 뷰가 없거나 에러 발생 시 기존 테이블로 fallback
+                logger.warning(f"v_daily_sales_items_effective 뷰를 사용할 수 없습니다. daily_sales_items로 fallback: {e}")
+                actual_table = 'daily_sales_items'
+                is_view_fallback = True
+        
         # 대용량 테이블 필터 기본값 강제 (최근 90일)
         large_tables = ['sales', 'daily_close', 'daily_sales_items', 'v_daily_sales_items_effective', 'naver_visitors']
         use_date_filter = actual_table in large_tables
@@ -675,8 +690,8 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
             
             return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
         
-            # 데이터가 0건인 경우 디버그 정보 표시 (온라인 환경에서도 표시)
-            if not result.data or len(result.data) == 0:
+        # 데이터가 0건인 경우 디버그 정보 표시 (온라인 환경에서도 표시)
+        if not result.data or len(result.data) == 0:
                 # 온라인 환경에서도 진단 정보 표시 (항상 표시)
                 import streamlit as st
                 with st.expander(f"⚠️ 데이터 없음: {filename} (0건)", expanded=True):
@@ -817,7 +832,23 @@ USING (
                     df['사용량'] = df['qty']
             
             elif actual_table == 'v_daily_sales_items_effective':
-                # STEP 2: 뷰 사용 (컬럼명은 동일: date, menu_id, qty)
+                # STEP 2: 뷰 사용 (컬럼명: date, menu_id, qty)
+                if 'date' in df.columns:
+                    df['날짜'] = pd.to_datetime(df['date'])
+                
+                if 'menu_id' in df.columns:
+                    menu_ids = df['menu_id'].dropna().unique().tolist()
+                    if menu_ids:
+                        menu_result = supabase.table("menu_master").select("id,name").in_("id", menu_ids).execute()
+                        menu_map = {m['id']: m['name'] for m in menu_result.data}
+                        df['메뉴명'] = df['menu_id'].map(menu_map)
+                
+                if 'qty' in df.columns:
+                    df['판매수량'] = df['qty']
+            
+            elif actual_table == 'daily_sales_items' and is_view_fallback:
+                # STEP 2: fallback (기존 daily_sales_items 테이블 사용)
+                # 컬럼명은 date, menu_id, qty
                 if 'date' in df.columns:
                     df['날짜'] = pd.to_datetime(df['date'])
                 
