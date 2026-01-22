@@ -31,6 +31,9 @@ def render_sales_entry():
         msg_type = st.session_state.get("sales_entry_message_type", "success")
         
         # 통합된 세련된 알림 박스 (하나로 통합)
+        # msg는 이미 HTML 형식으로 저장되어 있으므로 그대로 사용
+        msg_html = str(msg)
+        
         if msg_type == "success":
             st.markdown(f"""
             <div style="
@@ -46,7 +49,7 @@ def render_sales_entry():
                     <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">매출 저장 완료</h3>
                 </div>
                 <div style="font-size: 0.95rem; line-height: 1.6; color: #f0fdf4;">
-                    {msg.replace(chr(10), '<br>')}
+                    {msg_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -69,7 +72,7 @@ def render_sales_entry():
                     <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">충돌 감지</h3>
                 </div>
                 <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb;">
-                    {msg.replace(chr(10), '<br>')}
+                    {msg_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -92,7 +95,7 @@ def render_sales_entry():
                     <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">저장 실패</h3>
                 </div>
                 <div style="font-size: 0.95rem; line-height: 1.6; color: #fef2f2;">
-                    {msg.replace(chr(10), '<br>')}
+                    {msg_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -170,10 +173,10 @@ def render_sales_entry():
                                         message = f"""⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!<br><br>• 마감보고 매출: <strong>{daily_close_total:,.0f}원</strong><br>• 기존 매출등록 값: <strong>{existing:,.0f}원</strong><br>• 새로 입력한 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
                                         st.session_state["sales_entry_success_message"] = message
                                         st.session_state["sales_entry_message_type"] = "warning"
-                                else:
-                                    message = f"""⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다.<br><br>• 기존 값: <strong>{existing:,.0f}원</strong><br>• 새 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
-                                    st.session_state["sales_entry_success_message"] = message
-                                    st.session_state["sales_entry_message_type"] = "warning"
+                                    else:
+                                        message = f"""⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다.<br><br>• 기존 값: <strong>{existing:,.0f}원</strong><br>• 새 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                        st.session_state["sales_entry_success_message"] = message
+                                        st.session_state["sales_entry_message_type"] = "warning"
                                 else:
                                     # 성공 메시지 (간결하고 가독성 있게)
                                     message = f"""✅ 매출이 저장되었습니다!<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
