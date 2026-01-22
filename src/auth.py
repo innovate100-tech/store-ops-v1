@@ -4,6 +4,7 @@ Supabase 인증 모듈
 """
 import streamlit as st
 import logging
+import os
 
 try:
     from supabase import create_client, Client
@@ -21,7 +22,8 @@ def get_anon_client() -> Optional[Client]:
     """
     Supabase 익명 클라이언트 생성 (토큰/로그인 상태 체크 없음)
     
-    - SUPABASE_URL + SUPABASE_ANON_KEY로 항상 생성 가능
+    - st.secrets["supabase"]["url"] + st.secrets["supabase"]["anon_key"] 우선 사용
+    - 없으면 os.getenv("SUPABASE_URL") / os.getenv("SUPABASE_ANON_KEY") fallback
     - 토큰/로그인 상태 체크 금지
     - clear_session 호출 금지
     - 데이터진단 및 단순 조회 테스트용
@@ -34,13 +36,23 @@ def get_anon_client() -> Optional[Client]:
         return None
     
     try:
-        # Supabase URL과 anon key 가져오기
-        supabase_config = st.secrets.get("supabase", {})
-        url = supabase_config.get("url", "")
-        anon_key = supabase_config.get("anon_key", "")
+        # Supabase URL과 anon key 가져오기 (st.secrets 우선, 없으면 os.getenv fallback)
+        try:
+            url = st.secrets["supabase"]["url"]
+            anon_key = st.secrets["supabase"]["anon_key"]
+            logger.info("get_anon_client: st.secrets에서 설정 로드 성공")
+        except (KeyError, AttributeError):
+            # st.secrets에 없으면 os.getenv로 fallback
+            url = os.getenv("SUPABASE_URL", "")
+            anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+            if url and anon_key:
+                logger.info("get_anon_client: os.getenv에서 설정 로드 성공 (fallback)")
+            else:
+                logger.error("get_anon_client: secrets 및 환경변수 모두 로딩 실패")
+                return None
         
         if not url or not anon_key:
-            logger.error("get_anon_client: secrets 로딩 실패 - url 또는 anon_key가 없음")
+            logger.error("get_anon_client: url 또는 anon_key가 비어있음")
             return None
         
         # 캐시 키 로깅 (디버깅용)
@@ -63,7 +75,8 @@ def get_service_client() -> Optional[Client]:
     
     ⚠️ 보안 경고: Service Role Key는 RLS를 우회하므로 프로덕션에서는 절대 사용 금지!
     
-    - SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY로 생성
+    - st.secrets["supabase"]["url"] + st.secrets["supabase"]["service_role_key"] 우선 사용
+    - 없으면 os.getenv("SUPABASE_URL") / os.getenv("SUPABASE_SERVICE_ROLE_KEY") fallback
     - RLS 정책을 우회하여 모든 데이터 접근 가능
     - DEV MODE에서만 사용 (로컬 개발 전용)
     
@@ -75,7 +88,6 @@ def get_service_client() -> Optional[Client]:
         return None
     
     # 프로덕션 환경 체크
-    import os
     if os.getenv('STREAMLIT_SERVER_ENVIRONMENT') == 'production':
         logger.error("get_service_client: 프로덕션 환경에서는 service_role_key 사용 금지")
         return None
@@ -86,13 +98,23 @@ def get_service_client() -> Optional[Client]:
         return None
     
     try:
-        # Supabase URL과 service_role_key 가져오기
-        supabase_config = st.secrets.get("supabase", {})
-        url = supabase_config.get("url", "")
-        service_role_key = supabase_config.get("service_role_key", "")
+        # Supabase URL과 service_role_key 가져오기 (st.secrets 우선, 없으면 os.getenv fallback)
+        try:
+            url = st.secrets["supabase"]["url"]
+            service_role_key = st.secrets["supabase"]["service_role_key"]
+            logger.info("get_service_client: st.secrets에서 설정 로드 성공")
+        except (KeyError, AttributeError):
+            # st.secrets에 없으면 os.getenv로 fallback
+            url = os.getenv("SUPABASE_URL", "")
+            service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+            if url and service_role_key:
+                logger.info("get_service_client: os.getenv에서 설정 로드 성공 (fallback)")
+            else:
+                logger.warning("get_service_client: secrets 및 환경변수 모두 로딩 실패 - url 또는 service_role_key가 없음")
+                return None
         
         if not url or not service_role_key:
-            logger.warning("get_service_client: secrets 로딩 실패 - url 또는 service_role_key가 없음")
+            logger.warning("get_service_client: url 또는 service_role_key가 비어있음")
             return None
         
         # 캐시 키 로깅 (디버깅용)
@@ -181,6 +203,8 @@ def get_auth_client(reset_session_on_fail: bool = True) -> Optional[Client]:
     """
     Supabase 인증 클라이언트 생성 (로그인 세션 필요)
     
+    - st.secrets["supabase"]["url"] + st.secrets["supabase"]["anon_key"] 우선 사용
+    - 없으면 os.getenv("SUPABASE_URL") / os.getenv("SUPABASE_ANON_KEY") fallback
     - 로그인 세션(토큰)이 있을 때만 생성
     - 없으면 None 반환 (예외 발생 안 함)
     
@@ -197,23 +221,53 @@ def get_auth_client(reset_session_on_fail: bool = True) -> Optional[Client]:
     
     if not SUPABASE_AVAILABLE:
         logger.error("get_auth_client: supabase-py 패키지가 설치되지 않음")
-        raise ImportError("supabase-py가 설치되지 않았습니다. pip install supabase 실행하세요.")
+        error_msg = "❌ Supabase 클라이언트 생성 실패\n\n"
+        error_msg += "`supabase-py` 패키지가 설치되지 않았습니다.\n\n"
+        error_msg += "다음 명령어로 설치하세요:\n"
+        error_msg += "```bash\npip install supabase\n```"
+        st.error(error_msg)
+        st.stop()
+        return None
     
-    # Supabase URL과 anon key 가져오기
-    supabase_config = st.secrets.get("supabase", {})
-    url = supabase_config.get("url", "")
-    anon_key = supabase_config.get("anon_key", "")
+    # Supabase URL과 anon key 가져오기 (st.secrets 우선, 없으면 os.getenv fallback)
+    try:
+        url = st.secrets["supabase"]["url"]
+        anon_key = st.secrets["supabase"]["anon_key"]
+        logger.info("get_auth_client: st.secrets에서 설정 로드 성공")
+    except (KeyError, AttributeError):
+        # st.secrets에 없으면 os.getenv로 fallback
+        url = os.getenv("SUPABASE_URL", "")
+        anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+        if url and anon_key:
+            logger.info("get_auth_client: os.getenv에서 설정 로드 성공 (fallback)")
+        else:
+            logger.error("get_auth_client: secrets 및 환경변수 모두 로딩 실패 - url 또는 anon_key가 없음")
+            error_msg = "❌ Supabase 클라이언트 생성 실패\n\n"
+            error_msg += "Supabase URL 또는 anon_key가 설정되지 않았습니다.\n\n"
+            error_msg += "**Streamlit Secrets 설정 방법:**\n"
+            error_msg += "`.streamlit/secrets.toml` 파일에 다음 형식으로 설정하세요:\n"
+            error_msg += "```toml\n"
+            error_msg += "[supabase]\n"
+            error_msg += "url = \"https://your-project.supabase.co\"\n"
+            error_msg += "anon_key = \"your-anon-key-here\"\n"
+            error_msg += "```\n\n"
+            error_msg += "**또는 환경변수 설정:**\n"
+            error_msg += "```bash\n"
+            error_msg += "export SUPABASE_URL=\"https://your-project.supabase.co\"\n"
+            error_msg += "export SUPABASE_ANON_KEY=\"your-anon-key-here\"\n"
+            error_msg += "```"
+            st.error(error_msg)
+            st.stop()
+            return None
     
     if not url or not anon_key:
-        logger.error("get_auth_client: secrets 로딩 실패 - url 또는 anon_key가 없음")
-        error_msg = "Supabase URL 또는 anon_key가 설정되지 않았습니다."
-        error_msg += "\n\n`.streamlit/secrets.toml` 파일에 다음 형식으로 설정하세요:"
-        error_msg += "\n```toml"
-        error_msg += "\n[supabase]"
-        error_msg += "\nurl = \"https://your-project.supabase.co\""
-        error_msg += "\nanon_key = \"your-anon-key-here\""
-        error_msg += "\n```"
-        raise ValueError(error_msg)
+        logger.error("get_auth_client: url 또는 anon_key가 비어있음")
+        error_msg = "❌ Supabase 클라이언트 생성 실패\n\n"
+        error_msg += "Supabase URL 또는 anon_key가 비어있습니다.\n\n"
+        error_msg += "`.streamlit/secrets.toml` 파일 또는 환경변수를 확인하세요."
+        st.error(error_msg)
+        st.stop()
+        return None
     
     # 클라이언트 생성
     try:
@@ -224,8 +278,13 @@ def get_auth_client(reset_session_on_fail: bool = True) -> Optional[Client]:
         client = create_client(url, anon_key)
         logger.info("get_auth_client: 클라이언트 생성 성공 (캐시됨)")
     except Exception as e:
-        logger.error(f"get_auth_client: HTTP 연결 실패 - {repr(e)}")
-        raise
+        logger.error(f"get_auth_client: 클라이언트 생성 실패 - {repr(e)}")
+        error_msg = "❌ Supabase 클라이언트 생성 실패\n\n"
+        error_msg += f"오류: {str(e)}\n\n"
+        error_msg += "Supabase URL과 anon_key가 올바른지 확인하세요."
+        st.error(error_msg)
+        st.stop()
+        return None
     
     # 세션에 access_token이 있으면 설정
     if 'access_token' in st.session_state:
@@ -313,6 +372,14 @@ def login(email: str, password: str) -> tuple[bool, str]:
     """
     try:
         client = get_supabase_client()
+        
+        # client 생성 실패 시 방어 코드
+        if client is None:
+            error_msg = "❌ Supabase 클라이언트를 생성할 수 없습니다.\n\n"
+            error_msg += "Supabase 설정을 확인하세요."
+            st.error(error_msg)
+            st.stop()
+            return False, "Supabase 클라이언트 생성 실패"
         
         # 로그인 시도
         response = client.auth.sign_in_with_password({
