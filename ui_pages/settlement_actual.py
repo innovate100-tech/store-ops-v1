@@ -5,7 +5,11 @@ UI 구조 + 상태관리 + 자동 계산 + 고정비 개념 + 템플릿 관리
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
+import logging
 from src.utils.time_utils import current_year_kst, current_month_kst
+
+# Phase G: 로깅 설정
+logger = logging.getLogger(__name__)
 from src.ui_helpers import render_section_divider
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
@@ -299,14 +303,23 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             st.caption(f"💡 sales 월합계(자동): {auto_sales:,.0f}원")
     with sales_col2:
         # Phase D: 매출 불러오기 버튼 (Phase F: readonly일 때 비활성화)
+        # Phase G: 캐시 무효화 후 즉시 재조회
         if st.button("🔄 매출 불러오기", key=f"settlement_load_sales_{selected_year}_{selected_month}", 
                      disabled=readonly, use_container_width=True):
-            # sales에서 다시 계산
-            auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
-            st.session_state[auto_sales_key] = auto_sales
-            st.session_state[total_sales_key] = auto_sales
-            st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
-            st.rerun()
+            try:
+                # Phase G: 캐시 무효화
+                load_monthly_sales_total.clear()
+                # Phase G: 최신값 재조회 (캐시 우회)
+                auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
+                # Phase G: session_state 갱신
+                st.session_state[auto_sales_key] = auto_sales
+                st.session_state[total_sales_key] = auto_sales
+                st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
+                st.rerun()
+            except Exception as e:
+                # Phase G: 예외 발생 시 기존 값 유지, 에러 메시지 표시
+                st.error(f"❌ 매출 불러오기 실패: {str(e)}")
+                logger.error(f"Failed to reload monthly sales: {e}", exc_info=True)
     with sales_col3:
         # Phase D: 자동값으로 되돌리기 버튼 (Phase F: readonly일 때 비활성화)
         if st.button("↩️ 자동값으로", key=f"settlement_reset_sales_{selected_year}_{selected_month}", 
