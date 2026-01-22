@@ -560,6 +560,16 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
     # 캐시 MISS 로그 기록 (이 함수가 실행되었다는 것은 캐시가 MISS였다는 의미)
     _log_cache_miss("load_csv", filename=filename, store_id=store_id, client_mode=client_mode)
     
+    # 가드: 온라인에서는 anon으로 read 금지 (DEV에서만 허용)
+    if client_mode == "anon" and not _is_dev_mode():
+        error_msg = f"❌ 보안 위반: 온라인 환경에서 anon 클라이언트로 데이터 조회 시도 (filename: {filename})"
+        logger.error(error_msg)
+        st.error(error_msg)
+        st.warning("💡 로그인 상태를 확인하세요. 로그아웃 후 다시 로그인해 주세요.")
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        record_data_call(f"load_csv({filename}) [SECURITY_BLOCK]", elapsed_ms, rows=0, source="supabase")
+        return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
+    
     # Supabase 조회용 클라이언트 사용 (DEV MODE에서 service_role_key 사용 가능)
     try:
         supabase = get_read_client()
@@ -2267,6 +2277,25 @@ def _load_expense_structure_impl(year, month, store_id: str, client_mode: str, b
 @st.cache_data(ttl=60)  # 1분 캐시 (비용구조는 자주 변경될 수 있으므로 짧게, 고정값으로 설정하여 캐시 안정성 확보)
 def load_expense_structure(year, month, store_id: str = None, client_mode: str = None):
     """
+    비용 구조 데이터 로드
+    
+    Args:
+        year: 연도
+        month: 월
+        store_id: store_id (None이면 get_current_store_id() 사용)
+        client_mode: client_mode (None이면 get_read_client_mode() 사용)
+    """
+    # 가드: 온라인에서는 anon으로 read 금지 (DEV에서만 허용)
+    if client_mode is None:
+        client_mode = get_read_client_mode()
+    
+    if client_mode == "anon" and not _is_dev_mode():
+        error_msg = f"❌ 보안 위반: 온라인 환경에서 anon 클라이언트로 데이터 조회 시도 (load_expense_structure)"
+        logger.error(error_msg)
+        st.error(error_msg)
+        st.warning("💡 로그인 상태를 확인하세요. 로그아웃 후 다시 로그인해 주세요.")
+        return {}
+    """
     비용구조 데이터 로드 (특정 연도/월)
     세션 캐시 우선 사용 (현재 연도/월만) → 없으면 @st.cache_data 캐시 사용 → 없으면 DB 조회
     """
@@ -2293,6 +2322,14 @@ def load_expense_structure(year, month, store_id: str = None, client_mode: str =
             client_mode = get_read_client_mode()
         except Exception:
             client_mode = "unknown"
+    
+    # 가드: 온라인에서는 anon으로 read 금지 (DEV에서만 허용)
+    if client_mode == "anon" and not _is_dev_mode():
+        error_msg = f"❌ 보안 위반: 온라인 환경에서 anon 클라이언트로 데이터 조회 시도 (load_expense_structure)"
+        logger.error(error_msg)
+        st.error(error_msg)
+        st.warning("💡 로그인 상태를 확인하세요. 로그아웃 후 다시 로그인해 주세요.")
+        return pd.DataFrame()
     
     # 개발모드에서 캐시 우회 옵션 확인
     bypass_cache = False

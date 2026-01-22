@@ -20,6 +20,28 @@ def _show_ingredient_query_diagnostics():
         from src.storage_supabase import get_read_client
         
         store_id = get_current_store_id()
+        
+        # 현재 클라이언트 모드 및 토큰 상태 표시 (항상 표시)
+        from src.auth import get_read_client_mode
+        client_mode = get_read_client_mode()
+        has_token = 'access_token' in st.session_state and bool(st.session_state.get('access_token'))
+        has_user_id = 'user_id' in st.session_state and bool(st.session_state.get('user_id'))
+        is_dev = st.session_state.get('dev_mode', False)
+        
+        st.write("**🔐 인증 상태 (항상 표시):**")
+        st.write(f"- **클라이언트 모드:** `{client_mode}`")
+        st.write(f"- **토큰 존재:** {has_token}")
+        st.write(f"- **User ID 존재:** {has_user_id}")
+        st.write(f"- **DEV MODE:** {is_dev}")
+        
+        if client_mode == "anon" and not is_dev:
+            st.error("❌ **경고:** 온라인 환경에서 anon 클라이언트를 사용 중입니다. 로그인 상태를 확인하세요.")
+        elif client_mode == "auth":
+            st.success("✅ **정상:** Auth 클라이언트를 사용 중입니다.")
+        elif client_mode == "service_role_dev":
+            st.warning("⚠️ **DEV MODE:** Service Role 클라이언트를 사용 중입니다 (RLS 우회).")
+        
+        st.divider()
         st.write(f"**사용된 store_id:** `{store_id}`")
         
         st.divider()
@@ -155,8 +177,70 @@ def _show_ingredient_query_diagnostics():
         
         st.divider()
         
-        # 5. 대체 테이블명 시도 (테이블명 불일치 확인)
-        st.write("**5. 대체 테이블명 테스트 (테이블명 불일치 확인):**")
+        # 5. 인증 토큰 및 클라이언트 상태 확인
+        st.write("**5. 인증 토큰 및 클라이언트 상태 확인:**")
+        try:
+            from src.auth import get_read_client_mode, get_auth_client
+            
+            # 토큰 상태 확인
+            has_access_token = 'access_token' in st.session_state and bool(st.session_state.get('access_token'))
+            has_refresh_token = 'refresh_token' in st.session_state and bool(st.session_state.get('refresh_token'))
+            has_user_id = 'user_id' in st.session_state and bool(st.session_state.get('user_id'))
+            
+            st.write(f"- `access_token` 존재: {has_access_token}")
+            st.write(f"- `refresh_token` 존재: {has_refresh_token}")
+            st.write(f"- `user_id` 존재: {has_user_id}")
+            
+            if has_access_token:
+                token_preview = str(st.session_state.access_token)[:20] + "..." if len(str(st.session_state.access_token)) > 20 else str(st.session_state.access_token)
+                st.write(f"- `access_token` 미리보기: `{token_preview}`")
+            
+            # 클라이언트 모드 확인
+            client_mode = get_read_client_mode()
+            st.write(f"- **현재 클라이언트 모드:** `{client_mode}`")
+            
+            if client_mode == "anon":
+                st.warning("⚠️ Anon Client를 사용 중입니다. 로그인 토큰이 설정되지 않았을 수 있습니다.")
+                if not has_access_token:
+                    st.error("❌ `access_token`이 없습니다. 로그인 상태를 확인하세요.")
+                else:
+                    st.warning("💡 `access_token`은 있지만 `get_read_client()`가 Anon Client를 반환했습니다.")
+                    st.info("**가능한 원인:**")
+                    st.info("1. `get_read_client()`의 캐시 문제 (토큰 설정 전에 캐시됨)")
+                    st.info("2. `get_auth_client()` 호출 실패")
+            
+            # Auth Client 직접 테스트
+            st.divider()
+            st.write("**6. Auth Client 직접 테스트:**")
+            try:
+                auth_client = get_auth_client(reset_session_on_fail=False)
+                if auth_client:
+                    # Auth Client로 ingredients 조회 테스트
+                    auth_result = auth_client.table("ingredients").select("*").eq("store_id", store_id).limit(5).execute()
+                    st.write(f"- Auth Client로 조회한 Row count: {len(auth_result.data) if auth_result.data else 0}")
+                    
+                    if auth_result.data:
+                        st.success("✅ **Auth Client로는 데이터 조회 성공!**")
+                        st.write("- 샘플 데이터:")
+                        st.json(auth_result.data[0])
+                        st.warning("💡 `get_read_client()`가 Anon Client를 반환하는 것이 문제입니다.")
+                        st.info("**해결 방법:**")
+                        st.info("1. `get_read_client()`의 캐시를 초기화하거나")
+                        st.info("2. `storage_supabase.py`에서 `get_auth_client()`를 직접 사용")
+                    else:
+                        st.warning("⚠️ Auth Client로도 데이터가 조회되지 않습니다.")
+            except Exception as e:
+                st.error(f"❌ Auth Client 테스트 실패: {type(e).__name__}: {str(e)}")
+                st.code(str(e), language="text")
+            
+        except Exception as e:
+            st.error(f"❌ 인증 상태 확인 실패: {type(e).__name__}: {str(e)}")
+            st.code(str(e), language="text")
+        
+        st.divider()
+        
+        # 7. 대체 테이블명 시도 (테이블명 불일치 확인)
+        st.write("**7. 대체 테이블명 테스트 (테이블명 불일치 확인):**")
         if supabase and store_id:
             alternative_table_names = ['ingredient', 'ingredient_master', 'ingredients_master']
             for alt_name in alternative_table_names:

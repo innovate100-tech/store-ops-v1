@@ -167,6 +167,7 @@ def get_service_client() -> Optional[Client]:
         return None
 
 
+@st.cache_resource(show_spinner=False)
 def get_read_client() -> Optional[Client]:
     """
     데이터 조회용 클라이언트 생성 (읽기 전용)
@@ -178,6 +179,7 @@ def get_read_client() -> Optional[Client]:
     
     ⚠️ 보안: 프로덕션에서는 항상 anon client만 사용됩니다.
     ⚠️ 중요: 로그인된 사용자의 경우 토큰이 자동으로 설정되어 RLS 정책이 적용됩니다.
+    ⚠️ 캐시: 토큰이 캐시 키에 포함되어 토큰 변경 시 새 클라이언트가 생성됩니다.
     
     Returns:
         Supabase Client (Service Role / Auth / Anon) 또는 None
@@ -204,7 +206,11 @@ def get_read_client() -> Optional[Client]:
             logger.warning("get_read_client: Service Role Client 생성 실패, Auth/Anon Client로 대체")
     
     # 로그인 토큰이 있으면 Auth Client 사용 (토큰이 설정되어 RLS 정책 적용)
-    if 'access_token' in st.session_state and st.session_state.access_token:
+    # 단일화된 조건: token + user_id 모두 존재
+    has_token = 'access_token' in st.session_state and bool(st.session_state.get('access_token'))
+    has_user_id = 'user_id' in st.session_state and bool(st.session_state.get('user_id'))
+    
+    if has_token and has_user_id:
         try:
             auth_client = get_auth_client(reset_session_on_fail=False)
             logger.info("get_read_client: Auth Client 사용 (로그인 토큰 설정됨)")
@@ -222,7 +228,7 @@ def get_read_client_mode() -> str:
     현재 사용 중인 read client 모드 반환 (디버깅용)
     
     Returns:
-        "anon" 또는 "service_role_dev"
+        "anon", "auth", 또는 "service_role_dev"
     """
     # DEV MODE에서 service_role_key 사용 옵션 확인
     use_service_role = False
@@ -242,6 +248,13 @@ def get_read_client_mode() -> str:
                 return "service_role_dev"
         except Exception:
             pass
+    
+    # 로그인 토큰이 있으면 "auth" 반환 (단일화된 조건: token + user_id 모두 존재)
+    has_token = 'access_token' in st.session_state and bool(st.session_state.get('access_token'))
+    has_user_id = 'user_id' in st.session_state and bool(st.session_state.get('user_id'))
+    
+    if has_token and has_user_id:
+        return "auth"
     
     return "anon"
 
@@ -487,6 +500,13 @@ def logout():
     except Exception as e:
         logger.warning(f"Logout error (non-critical): {e}")
     finally:
+        # 캐시 리소스 전체 클리어 (클라이언트 캐시 무효화)
+        try:
+            st.cache_resource.clear()
+            logger.info("logout: st.cache_resource.clear() 호출 완료")
+        except Exception as e:
+            logger.warning(f"logout: st.cache_resource.clear() 실패 (non-critical): {e}")
+        
         clear_session(reason="logout: 사용자 로그아웃")
 
 
