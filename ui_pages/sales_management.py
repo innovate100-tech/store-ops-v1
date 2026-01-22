@@ -8,8 +8,9 @@ from datetime import timedelta
 from calendar import monthrange
 from src.ui_helpers import render_page_header, render_section_divider, safe_get_value
 from src.utils.time_utils import current_year_kst, current_month_kst, today_kst
-from src.storage_supabase import load_csv
+from src.storage_supabase import load_csv, load_monthly_sales_total
 from src.analytics import merge_sales_visitors, calculate_correlation
+from src.auth import get_current_store_id
 
 # 공통 설정 적용
 bootstrap(page_title="Sales Management")
@@ -82,7 +83,9 @@ def render_sales_management():
         (merged_df['날짜'].dt.month == current_month)
     ].copy() if not merged_df.empty else pd.DataFrame()
     
-    month_total_sales = month_data['총매출'].sum() if not month_data.empty and '총매출' in month_data.columns else 0
+    # 월매출: SSOT 함수 사용 (헌법 준수)
+    store_id = get_current_store_id()
+    month_total_sales = load_monthly_sales_total(store_id, current_year, current_month) if store_id else 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
     
     if not merged_df.empty:
@@ -168,7 +171,10 @@ def render_sales_management():
         with col1:
             st.write("**전월 대비**")
             if not prev_month_data.empty and not month_data.empty:
-                prev_sales = prev_month_data['총매출'].sum() if '총매출' in prev_month_data.columns else 0
+                # 전월 매출: SSOT 함수 사용
+                prev_year = current_year if current_month > 1 else current_year - 1
+                prev_month = current_month - 1 if current_month > 1 else 12
+                prev_sales = load_monthly_sales_total(store_id, prev_year, prev_month) if store_id else 0
                 prev_visitors = prev_month_data['방문자수'].sum() if '방문자수' in prev_month_data.columns else 0
                 
                 sales_change = month_total_sales - prev_sales
@@ -184,7 +190,8 @@ def render_sales_management():
         with col2:
             st.write("**작년 동월 대비**")
             if not last_year_month_data.empty and not month_data.empty:
-                last_year_sales = last_year_month_data['총매출'].sum() if '총매출' in last_year_month_data.columns else 0
+                # 작년 동월 매출: SSOT 함수 사용
+                last_year_sales = load_monthly_sales_total(store_id, current_year - 1, current_month) if store_id else 0
                 last_year_visitors = last_year_month_data['방문자수'].sum() if '방문자수' in last_year_month_data.columns else 0
                 
                 sales_change = month_total_sales - last_year_sales
@@ -433,11 +440,34 @@ def render_sales_management():
             recent_6m_data['연도'] = recent_6m_data['날짜'].dt.year
             recent_6m_data['월'] = recent_6m_data['날짜'].dt.month
             
-            monthly_summary = recent_6m_data.groupby(['연도', '월']).agg({
-                '총매출': ['sum', 'mean', 'count'],
-                '방문자수': ['sum', 'mean']
+            # 방문자 데이터는 CSV 기반 집계 유지
+            visitors_summary = recent_6m_data.groupby(['연도', '월']).agg({
+                '방문자수': ['sum', 'mean', 'count']
             }).reset_index()
-            monthly_summary.columns = ['연도', '월', '월총매출', '일평균매출', '영업일수', '월총방문자', '일평균방문자']
+            visitors_summary.columns = ['연도', '월', '월총방문자', '일평균방문자', '영업일수']
+            
+            # 월매출: SSOT 함수로 각 월별 조회
+            unique_months = recent_6m_data[['연도', '월']].drop_duplicates().sort_values(['연도', '월'], ascending=[False, False])
+            monthly_sales_list = []
+            for _, row in unique_months.iterrows():
+                year = int(row['연도'])
+                month = int(row['월'])
+                sales_total = load_monthly_sales_total(store_id, year, month) if store_id else 0
+                # 일평균 매출 계산을 위해 영업일수 필요 (visitors_summary에서 가져옴)
+                visitors_row = visitors_summary[(visitors_summary['연도'] == year) & (visitors_summary['월'] == month)]
+                days_count = int(visitors_row['영업일수'].iloc[0]) if not visitors_row.empty else 0
+                avg_daily_sales = sales_total / days_count if days_count > 0 else 0
+                monthly_sales_list.append({
+                    '연도': year,
+                    '월': month,
+                    '월총매출': sales_total,
+                    '일평균매출': avg_daily_sales
+                })
+            
+            sales_summary = pd.DataFrame(monthly_sales_list)
+            
+            # 방문자와 매출 데이터 병합
+            monthly_summary = pd.merge(visitors_summary, sales_summary, on=['연도', '월'], how='outer')
             monthly_summary['월별객단가'] = monthly_summary['월총매출'] / monthly_summary['월총방문자']
             monthly_summary = monthly_summary.sort_values(['연도', '월'], ascending=[False, False])
             

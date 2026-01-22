@@ -142,7 +142,8 @@ from src.storage_supabase import (
     delete_expense_item,
     load_expense_structure,
     load_expense_structure_range,
-    copy_expense_structure_from_previous_month
+    copy_expense_structure_from_previous_month,
+    load_monthly_sales_total
 )
 from src.auth import get_supabase_client, get_current_store_id
 from src.analytics import (
@@ -2538,7 +2539,10 @@ elif page == "통합 대시보드":
             (merged_df_dashboard['날짜'].dt.month == current_month)
         ].copy() if not merged_df_dashboard.empty else pd.DataFrame()
         
-        month_total_sales_dashboard = month_data_dashboard['총매출'].sum() if not month_data_dashboard.empty and '총매출' in month_data_dashboard.columns else 0
+        # 월매출: SSOT 함수 사용 (헌법 준수)
+        from src.auth import get_current_store_id
+        store_id_dashboard = get_current_store_id()
+        month_total_sales_dashboard = load_monthly_sales_total(store_id_dashboard, current_year, current_month) if store_id_dashboard else 0
         month_total_visitors_dashboard = month_data_dashboard['방문자수'].sum() if not month_data_dashboard.empty and '방문자수' in month_data_dashboard.columns else 0
         
         # 목표 매출 확인
@@ -2658,11 +2662,34 @@ elif page == "통합 대시보드":
                 recent_6m_data['연도'] = recent_6m_data['날짜'].dt.year
                 recent_6m_data['월'] = recent_6m_data['날짜'].dt.month
                 
-                monthly_summary = recent_6m_data.groupby(['연도', '월']).agg({
-                    '총매출': ['sum', 'mean', 'count'],
-                    '방문자수': ['sum', 'mean']
+                # 방문자 데이터는 CSV 기반 집계 유지
+                visitors_summary = recent_6m_data.groupby(['연도', '월']).agg({
+                    '방문자수': ['sum', 'mean', 'count']
                 }).reset_index()
-                monthly_summary.columns = ['연도', '월', '월총매출', '일평균매출', '영업일수', '월총방문자', '일평균방문자']
+                visitors_summary.columns = ['연도', '월', '월총방문자', '일평균방문자', '영업일수']
+                
+                # 월매출: SSOT 함수로 각 월별 조회 (헌법 준수)
+                unique_months = recent_6m_data[['연도', '월']].drop_duplicates().sort_values(['연도', '월'], ascending=[False, False])
+                monthly_sales_list = []
+                for _, row in unique_months.iterrows():
+                    year = int(row['연도'])
+                    month = int(row['월'])
+                    sales_total = load_monthly_sales_total(store_id_dashboard, year, month) if store_id_dashboard else 0
+                    # 일평균 매출 계산을 위해 영업일수 필요
+                    visitors_row = visitors_summary[(visitors_summary['연도'] == year) & (visitors_summary['월'] == month)]
+                    days_count = int(visitors_row['영업일수'].iloc[0]) if not visitors_row.empty else 0
+                    avg_daily_sales = sales_total / days_count if days_count > 0 else 0
+                    monthly_sales_list.append({
+                        '연도': year,
+                        '월': month,
+                        '월총매출': sales_total,
+                        '일평균매출': avg_daily_sales
+                    })
+                
+                sales_summary = pd.DataFrame(monthly_sales_list)
+                
+                # 방문자와 매출 데이터 병합
+                monthly_summary = pd.merge(visitors_summary, sales_summary, on=['연도', '월'], how='outer')
                 monthly_summary['월별객단가'] = monthly_summary['월총매출'] / monthly_summary['월총방문자']
                 monthly_summary = monthly_summary.sort_values(['연도', '월'], ascending=[False, False])
                 
