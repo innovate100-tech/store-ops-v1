@@ -5,7 +5,8 @@ from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header, render_section_divider
 from src.utils.time_utils import today_kst
-from src.storage_supabase import load_csv, save_daily_sales_item
+from src.storage_supabase import load_csv, save_daily_sales_item, verify_overrides_saved
+from src.auth import get_current_store_id, is_dev_mode
 
 # 공통 설정 적용
 bootstrap(page_title="Sales Volume Entry")
@@ -81,8 +82,12 @@ def render_sales_volume_entry():
                             st.error(msg)
                     
                     if success_count > 0:
-                        st.success(f"✅ {sales_date} 기준 {success_count}개 메뉴의 판매 내역이 저장되었습니다.")
+                        st.success("✅ 최종 판매량이 저장되었습니다(마감 입력보다 우선 적용).")
                         st.balloons()
+                        if is_dev_mode():
+                            store_id = get_current_store_id()
+                            if store_id and verify_overrides_saved(store_id, sales_date, success_count):
+                                st.info("🔧 override 저장 확인됨 (DEV)")
                         st.rerun()
 
 

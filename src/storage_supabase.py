@@ -1703,13 +1703,16 @@ def delete_recipe(menu_name, ingredient_name):
 
 def save_daily_sales_item(date, menu_name, quantity):
     """
-    일일 판매 아이템 저장 (STEP 2: 우선순위 레이어)
-    - overrides 테이블에 upsert (최종값 overwrite, 누적 아님)
-    - 마감보다 우선 적용됨
+    일일 판매 아이템 저장 (override 레이어)
+    - daily_sales_items_overrides에 UPSERT (최종값 overwrite, 누적 금지)
+    - 마감보다 우선 적용. daily_sales_items에는 쓰지 않음.
     """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        return False
+        raise Exception(
+            "DEV MODE에서는 Supabase를 사용하지 않습니다. "
+            "판매량등록 저장을 하려면 DEV MODE를 끄거나 Supabase 연결을 확인하세요."
+        )
     
     store_id = get_current_store_id()
     if not store_id:
@@ -1718,43 +1721,65 @@ def save_daily_sales_item(date, menu_name, quantity):
     try:
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
         
-        # 메뉴 ID 찾기
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
         if not menu_result.data:
             raise Exception(f"메뉴 '{menu_name}'를 찾을 수 없습니다.")
         menu_id = menu_result.data[0]['id']
         
-        # STEP 2: overrides 테이블에 upsert (최종값, 누적 아님)
-        # updated_by는 현재 사용자 ID (선택적, 없으면 None)
-        user_id = None
+        updated_by = None
         try:
-            # Supabase 클라이언트에서 현재 사용자 정보 가져오기 (선택적)
-            # auth.users 테이블 접근이 필요하므로 일단 None으로 설정
-            pass
-        except:
+            session = supabase.auth.get_session()
+            if session and getattr(session, "user", None):
+                u = getattr(session.user, "id", None)
+                if u:
+                    updated_by = u
+        except Exception:
             pass
         
-        supabase.table("daily_sales_items_overrides").upsert({
+        payload = {
             "store_id": store_id,
             "sale_date": date_str,
             "menu_id": menu_id,
             "qty": int(quantity),
-            "updated_by": user_id,
-            "note": f"판매량등록에서 입력 (마감보다 우선)"
-        }, on_conflict="store_id,sale_date,menu_id").execute()
+            "note": None,
+        }
+        if updated_by is not None:
+            payload["updated_by"] = updated_by
+        
+        supabase.table("daily_sales_items_overrides").upsert(
+            payload,
+            on_conflict="store_id,sale_date,menu_id",
+        ).execute()
         
         logger.info(f"Daily sales item saved (override): {date_str}, {menu_name}, {quantity}")
         
-        # 소프트 무효화 (daily_sales_items 관련 캐시)
         soft_invalidate(
             reason=f"save_daily_sales_item: {date_str}",
-            targets=["daily_sales_items"]
+            targets=["daily_sales_items"],
         )
         
         return True
     except Exception as e:
         logger.error(f"Failed to save daily sales item: {e}")
         raise
+
+
+def verify_overrides_saved(store_id: str, sale_date, expected_count: int) -> bool:
+    """
+    저장 직후 overrides에 동일 (store_id, sale_date) 건수가 expected_count 이상인지 확인.
+    DEV 모드 검증용. 조회 실패 시 False 반환.
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase or not store_id:
+            return False
+        date_str = sale_date.strftime('%Y-%m-%d') if hasattr(sale_date, 'strftime') else str(sale_date)
+        r = supabase.table("daily_sales_items_overrides").select("menu_id", count="exact").eq("store_id", store_id).eq("sale_date", date_str).execute()
+        n = r.count if hasattr(r, 'count') and r.count is not None else (len(r.data) if r.data else 0)
+        return n >= expected_count
+    except Exception as e:
+        logger.debug(f"verify_overrides_saved failed: {e}")
+        return False
 
 
 def save_inventory(ingredient_name, current_stock, safety_stock):
