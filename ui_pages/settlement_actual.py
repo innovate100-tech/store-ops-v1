@@ -22,7 +22,9 @@ from src.storage_supabase import (
     load_csv,
     load_expense_structure,
     get_month_settlement_status,
-    set_month_settlement_status
+    set_month_settlement_status,
+    load_available_settlement_months,
+    load_monthly_settlement_snapshot
 )
 
 # 공통 설정 적용
@@ -1209,11 +1211,201 @@ def _render_analysis_section(store_id: str, year: int, month: int, expense_items
     _render_scorecard(scorecard, True)
 
 
+def _load_settlement_history(store_id: str, limit: int = 6) -> list:
+    """
+    Phase H: 월별 히스토리 데이터 로드
+    
+    Returns:
+        list: [
+            {
+                'year': int,
+                'month': int,
+                'status': str,
+                'total_sales': int,
+                'total_cost': float,
+                'operating_profit': float,
+                'profit_margin': float,
+                'grade': str  # 'GOOD' | 'WARN' | 'BAD' | None
+            },
+            ...
+        ]
+    """
+    try:
+        # 사용 가능한 월 목록 조회
+        months = load_available_settlement_months(store_id, limit=limit)
+        
+        if not months:
+            return []
+        
+        history = []
+        for year, month in months:
+            # 스냅샷 로드
+            snapshot = load_monthly_settlement_snapshot(store_id, year, month)
+            
+            # Phase H: 성적표 평가 (간단 버전)
+            # 목표 데이터 로드
+            targets = _load_targets_for_month(store_id, year, month)
+            grade = None
+            
+            if targets['has_targets']:
+                # 목표 정규화
+                normalized_targets = _normalize_targets(
+                    targets['target_expense_structure'],
+                    snapshot['total_sales'],
+                    targets['target_sales']
+                )
+                
+                # 간단 평가: 총비용/이익 기준
+                target_total_cost = sum(normalized_targets[cat]['amount'] for cat in normalized_targets.keys())
+                actual_total_cost = snapshot['total_cost']
+                cost_diff = actual_total_cost - target_total_cost
+                
+                target_profit = targets['target_sales'] - target_total_cost
+                actual_profit = snapshot['operating_profit']
+                profit_diff = actual_profit - target_profit
+                
+                # 평가: 이익 기준 우선, 비용 기준 보조
+                if profit_diff >= 0:
+                    grade = 'GOOD'  # 🟢
+                elif profit_diff >= -target_profit * 0.1:  # 10% 이내
+                    grade = 'WARN'  # 🟡
+                else:
+                    grade = 'BAD'  # 🔴
+            
+            history.append({
+                'year': year,
+                'month': month,
+                'status': snapshot['status'],
+                'total_sales': snapshot['total_sales'],
+                'total_cost': snapshot['total_cost'],
+                'operating_profit': snapshot['operating_profit'],
+                'profit_margin': snapshot['profit_margin'],
+                'grade': grade
+            })
+        
+        return history
+    except Exception as e:
+        logger.error(f"Failed to load settlement history: {e}")
+        return []
+
+
+def _render_settlement_history(store_id: str):
+    """Phase H: 월별 히스토리 섹션 렌더링"""
+    render_section_divider()
+    st.markdown("### 📊 월별 성적 히스토리")
+    
+    # 히스토리 로드
+    history = _load_settlement_history(store_id, limit=6)
+    
+    if not history:
+        st.info("💡 아직 작성된 실제정산 내역이 없습니다.")
+        return
+    
+    # 표 데이터 준비
+    table_data = []
+    for row in history:
+        year = row['year']
+        month = row['month']
+        status_emoji = "🟢 확정" if row['status'] == 'final' else "🟡 작성중"
+        
+        # 성적 아이콘
+        if row['grade'] == 'GOOD':
+            grade_emoji = "🟢"
+        elif row['grade'] == 'WARN':
+            grade_emoji = "🟡"
+        elif row['grade'] == 'BAD':
+            grade_emoji = "🔴"
+        else:
+            grade_emoji = "⚪"  # 목표 없음
+        
+        table_data.append({
+            '월': f"{year}-{month:02d}",
+            '매출': f"{row['total_sales']:,.0f}원",
+            '총비용': f"{row['total_cost']:,.0f}원",
+            '영업이익': f"{row['operating_profit']:,.0f}원",
+            '이익률': f"{row['profit_margin']:.1f}%",
+            '상태': status_emoji,
+            '성적': grade_emoji,
+            '_year': year,  # 내부용
+            '_month': month  # 내부용
+        })
+    
+    # 표 렌더링
+    if table_data:
+        # DataFrame 생성
+        df = pd.DataFrame(table_data)
+        display_df = df[['월', '매출', '총비용', '영업이익', '이익률', '상태', '성적']].copy()
+        
+        # 표 표시
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True
+        )
+        
+        # 각 행에 "보기" 버튼 추가
+        st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
+        st.markdown("**월별 상세 보기:**")
+        
+        cols = st.columns(min(len(table_data), 6))  # 최대 6개 열
+        for idx, row in enumerate(table_data):
+            col_idx = idx % 6
+            with cols[col_idx]:
+                year = row['_year']
+                month = row['_month']
+                if st.button(
+                    f"{year}-{month:02d}",
+                    key=f"history_view_{year}_{month}",
+                    use_container_width=True
+                ):
+                    # Phase H: 월 이동
+                    st.session_state['settlement_year'] = year
+                    st.session_state['settlement_month'] = month
+                    st.rerun()
+        
+        # 더 보기 버튼 (선택)
+        if len(history) >= 6:
+            if st.button("📅 더 보기 (최근 24개월)", key="history_more"):
+                # 24개월 로드
+                history_24 = _load_settlement_history(store_id, limit=24)
+                if history_24:
+                    table_data_24 = []
+                    for row in history_24:
+                        year = row['year']
+                        month = row['month']
+                        status_emoji = "🟢 확정" if row['status'] == 'final' else "🟡 작성중"
+                        
+                        if row['grade'] == 'GOOD':
+                            grade_emoji = "🟢"
+                        elif row['grade'] == 'WARN':
+                            grade_emoji = "🟡"
+                        elif row['grade'] == 'BAD':
+                            grade_emoji = "🔴"
+                        else:
+                            grade_emoji = "⚪"
+                        
+                        table_data_24.append({
+                            '월': f"{year}-{month:02d}",
+                            '매출': f"{row['total_sales']:,.0f}원",
+                            '총비용': f"{row['total_cost']:,.0f}원",
+                            '영업이익': f"{row['operating_profit']:,.0f}원",
+                            '이익률': f"{row['profit_margin']:.1f}%",
+                            '상태': status_emoji,
+                            '성적': grade_emoji,
+                            '_year': year,
+                            '_month': month
+                        })
+                    
+                    df_24 = pd.DataFrame(table_data_24)
+                    display_df_24 = df_24[['월', '매출', '총비용', '영업이익', '이익률', '상태', '성적']].copy()
+                    st.dataframe(display_df_24, use_container_width=True, hide_index=True)
+
+
 def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
-        st.caption("✅ Settlement Phase F ACTIVE")
+        st.caption("✅ Settlement Phase H ACTIVE")
         
         # 인증 및 store_id 확인 (Phase B)
         user_id, store_id = require_auth_and_store()
@@ -1250,6 +1442,9 @@ def render_settlement_actual():
         
         # 분석 영역 (Phase E: 성적표)
         _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
+        
+        # Phase H: 월별 히스토리 섹션
+        _render_settlement_history(store_id)
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시

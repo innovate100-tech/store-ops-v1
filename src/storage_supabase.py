@@ -3102,3 +3102,176 @@ def set_month_settlement_status(store_id: str, year: int, month: int, status: st
     except Exception as e:
         logger.error(f"Failed to set month settlement status: {e}")
         raise
+
+
+# ============================================
+# Phase H: 실제정산 월별 히스토리
+# ============================================
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_available_settlement_months(store_id: str, limit: int = 12) -> list:
+    """
+    실제정산이 작성된 월 목록 조회 (최신순)
+    
+    Args:
+        store_id: 매장 ID
+        limit: 최대 개수 (기본값: 12)
+    
+    Returns:
+        list: [(year, month), ...] 최신순
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return []
+        
+        # actual_settlement_items에서 year, month distinct 조회
+        result = supabase.table("actual_settlement_items")\
+            .select("year, month")\
+            .eq("store_id", store_id)\
+            .order("year", desc=True)\
+            .order("month", desc=True)\
+            .execute()
+        
+        if not result.data:
+            return []
+        
+        # distinct 처리 (set 사용)
+        seen = set()
+        months = []
+        for row in result.data:
+            year = int(row.get('year', 0))
+            month = int(row.get('month', 0))
+            if year > 0 and month > 0:
+                key = (year, month)
+                if key not in seen:
+                    seen.add(key)
+                    months.append(key)
+                    if len(months) >= limit:
+                        break
+        
+        logger.info(f"Available settlement months loaded: {len(months)} months for store {store_id}")
+        return months
+    except Exception as e:
+        logger.error(f"Failed to load available settlement months: {e}")
+        return []
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_monthly_settlement_snapshot(store_id: str, year: int, month: int) -> dict:
+    """
+    월별 실제정산 스냅샷 (히스토리용 경량 데이터)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        dict: {
+            'status': 'draft' | 'final',
+            'total_sales': int,
+            'total_cost': float,
+            'operating_profit': float,
+            'profit_margin': float,
+            'expense_items': dict  # 계산용
+        }
+    """
+    try:
+        # Phase F: 상태 조회
+        month_status = get_month_settlement_status(store_id, year, month)
+        
+        # Phase D: 매출 조회
+        total_sales = load_monthly_sales_total(store_id, year, month)
+        
+        # Phase H: 비용 항목 로드 (히스토리용 경량)
+        # 템플릿 + 저장된 값만 로드 (세션 상태 사용 안 함)
+        expense_items = {}
+        templates = load_cost_item_templates(store_id)
+        saved_items = load_actual_settlement_items(store_id, year, month)
+        
+        # saved_items를 template_id 기준으로 dict로 변환
+        saved_dict = {}
+        for saved in saved_items:
+            template_id = saved.get('template_id')
+            if template_id:
+                saved_dict[template_id] = saved
+        
+        # 템플릿을 카테고리별로 그룹화
+        for template in templates:
+            if not template.get('is_active', True):
+                continue
+            
+            category = template.get('category')
+            if not category:
+                continue
+            
+            if category not in expense_items:
+                expense_items[category] = []
+            
+            template_id = template.get('id')
+            saved = saved_dict.get(template_id, {})
+            
+            # input_type 추론
+            saved_amount = saved.get('amount')
+            saved_percent = saved.get('percent')
+            has_amount = saved_amount is not None and float(saved_amount or 0) > 0
+            has_percent = saved_percent is not None and float(saved_percent or 0) > 0
+            
+            if has_amount and not has_percent:
+                input_type = 'amount'
+            elif has_percent and not has_amount:
+                input_type = 'rate'
+            elif has_amount and has_percent:
+                input_type = 'amount'  # amount 우선
+            else:
+                # 기본값: 카테고리별 기본값 (임차료/재료비/인건비/공과금/부가세&카드수수료)
+                input_type = 'amount'
+            
+            item = {
+                'template_id': template_id,
+                'item_name': template.get('item_name', ''),
+                'input_type': input_type,
+                'amount': int(saved_amount or 0) if input_type == 'amount' else 0,
+                'rate': float(saved_percent or 0.0) if input_type == 'rate' else 0.0,
+            }
+            expense_items[category].append(item)
+        
+        # Phase H: 총계 계산 (기존 로직 재사용)
+        # _calculate_totals 함수를 직접 호출할 수 없으므로 동일한 로직 구현
+        category_totals = {}
+        for cat, items in expense_items.items():
+            category_total = 0.0
+            for item in items:
+                input_type = item.get('input_type', 'amount')
+                if input_type == 'amount':
+                    used_amount = float(item.get('amount', 0))
+                else:
+                    rate = item.get('rate', 0.0)
+                    used_amount = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
+                category_total += used_amount
+            category_totals[cat] = category_total
+        
+        total_cost = sum(category_totals.values())
+        operating_profit = float(total_sales) - total_cost
+        profit_margin = (operating_profit / float(total_sales) * 100) if total_sales > 0 else 0.0
+        
+        return {
+            'status': month_status,
+            'total_sales': total_sales,
+            'total_cost': total_cost,
+            'operating_profit': operating_profit,
+            'profit_margin': profit_margin,
+            'expense_items': expense_items,  # 성적표 평가용
+        }
+    except Exception as e:
+        logger.error(f"Failed to load monthly settlement snapshot: {e}")
+        return {
+            'status': 'draft',
+            'total_sales': 0,
+            'total_cost': 0.0,
+            'operating_profit': 0.0,
+            'profit_margin': 0.0,
+            'expense_items': {},
+        }
