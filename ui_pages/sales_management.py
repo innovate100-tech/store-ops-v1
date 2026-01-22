@@ -84,7 +84,11 @@ def render_sales_management():
     ].copy() if not merged_df.empty else pd.DataFrame()
     
     # 월매출: SSOT 함수 사용 (헌법 준수)
-    store_id = get_current_store_id()
+    try:
+        store_id = get_current_store_id()
+    except Exception:
+        store_id = None
+    
     month_total_sales = load_monthly_sales_total(store_id, current_year, current_month) if store_id else 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
     

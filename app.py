@@ -2534,7 +2534,10 @@ elif page == "통합 대시보드":
         
         # 월매출: SSOT 함수 사용 (헌법 준수)
         from src.auth import get_current_store_id
-        store_id_dashboard = get_current_store_id()
+        try:
+            store_id_dashboard = get_current_store_id()
+        except Exception:
+            store_id_dashboard = None
         month_total_sales_dashboard = load_monthly_sales_total(store_id_dashboard, current_year, current_month) if store_id_dashboard else 0
         month_total_visitors_dashboard = month_data_dashboard['방문자수'].sum() if not month_data_dashboard.empty and '방문자수' in month_data_dashboard.columns else 0
         
