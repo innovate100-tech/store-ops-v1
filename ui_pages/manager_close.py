@@ -21,9 +21,17 @@ def render_manager_close():
     """점장 마감 페이지 렌더링"""
     render_page_header("점장 마감", "📋")
     
+    # STEP 1: 공식 입력 안내 박스
     st.markdown("""
-    <div class="info-box">
-        <strong>⏱️ 목표:</strong> 하루 1번, 1분 안에 입력하고 끝내는 간단한 마감 입력 화면입니다.
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                border-radius: 12px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+            <span style="font-size: 1.5rem; margin-right: 0.5rem;">📘</span>
+            <h3 style="color: white; margin: 0; font-size: 1.2rem; font-weight: 600;">점장마감은 이 날짜의 공식 기록입니다</h3>
+        </div>
+        <div style="font-size: 0.95rem; line-height: 1.6; color: #f0f0f0; margin-top: 0.5rem;">
+            매출·판매량·방문자 기준으로 이 날짜의 공식 입력 루트입니다.
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -34,14 +42,30 @@ def render_manager_close():
     # 점장 마감 입력 폼
     date, store, card_sales, cash_sales, total_sales, visitors, sales_items, issues, memo = render_manager_closing_input(menu_list)
     
-    # STEP 3: 선택한 날짜에 판매량 보정(overrides) 존재 여부 확인
+    # STEP 1: 선택한 날짜에 이미 마감 기록이 있는지 확인
     from src.auth import get_current_store_id, get_supabase_client
     store_id = get_current_store_id()
+    has_daily_close = False
     if store_id and date:
         try:
             supabase = get_supabase_client()
             if supabase:
                 date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                
+                # daily_close 존재 여부 확인
+                daily_close_check = supabase.table("daily_close")\
+                    .select("id", count="exact")\
+                    .eq("store_id", store_id)\
+                    .eq("date", date_str)\
+                    .limit(1)\
+                    .execute()
+                
+                has_daily_close = daily_close_check.count and daily_close_check.count > 0
+                
+                if has_daily_close:
+                    st.info("ℹ️ **이미 마감된 날짜입니다.** 수정 시 기존 마감 기록이 갱신됩니다.")
+                
+                # 판매량 보정(overrides) 존재 여부 확인
                 overrides_check = supabase.table("daily_sales_items_overrides")\
                     .select("menu_id", count="exact")\
                     .eq("store_id", store_id)\
@@ -60,7 +84,8 @@ def render_manager_close():
     # 마감 완료 버튼
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("✅ 마감 완료", type="primary", use_container_width=True, key="manager_close_btn"):
+        button_label = "✅ 마감 완료" if not has_daily_close else "✅ 마감 수정 저장"
+        if st.button(button_label, type="primary", use_container_width=True, key="manager_close_btn"):
             errors = []
             
             if not store or store.strip() == "":
@@ -79,7 +104,10 @@ def render_manager_close():
                     
                     # 저장 결과에 따라 메시지 표시
                     if result:
-                        st.success("✅ 마감이 완료되었습니다! 데이터가 저장되었습니다.")
+                        if has_daily_close:
+                            st.success("✅ 공식 마감 저장 완료! 기존 마감 기록이 갱신되었습니다.")
+                        else:
+                            st.success("✅ 공식 마감 저장 완료! 데이터가 저장되었습니다.")
                     else:
                         # DEV MODE 등에서 저장되지 않은 경우
                         st.warning("⚠️ DEV MODE: 마감 정보는 표시되지만 실제 데이터는 저장되지 않았습니다.")

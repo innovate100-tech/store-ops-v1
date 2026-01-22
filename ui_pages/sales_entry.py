@@ -25,10 +25,18 @@ if not check_login():
 
 def render_sales_entry():
     """매출 등록 페이지 렌더링"""
-    render_page_header("매출 등록", "💰")
+    render_page_header("🛠 매출 보정 / 과거 매출 입력", "💰")
     
-    # STEP 3: 우선순위 안내
-    st.info("💡 **이 값은 마감 매출보다 우선(최종값) 적용됩니다.** 마감 후에도 매출등록으로 수정한 값이 최종 반영됩니다.")
+    # STEP 3: 보정/이관 성격 안내
+    st.markdown("""
+    <div style="padding: 1.2rem; background: #fff3cd; border-left: 4px solid #ffc107; 
+                border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem;">🛠 보정 도구</div>
+        <div style="color: #856404; font-size: 0.95rem; line-height: 1.6;">
+            일반적인 매출 입력은 점장마감을 사용하세요. 이 화면은 과거 매출 입력 및 보정용입니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # DB 연결 상태 확인 및 표시 (디버그 모드)
     from src.auth import is_dev_mode, get_supabase_client, get_current_store_id
@@ -168,9 +176,30 @@ def render_sales_entry():
             # 단일 입력 폼
             date, store, card_sales, cash_sales, total_sales = render_sales_input()
             
+            # STEP 3: 선택한 날짜에 마감 존재 여부 확인 및 안내
+            store_id = get_current_store_id()
+            has_daily_close = False
+            if store_id and date:
+                try:
+                    supabase = get_supabase_client()
+                    if supabase:
+                        date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                        daily_close_check = supabase.table("daily_close")\
+                            .select("id", count="exact")\
+                            .eq("store_id", store_id)\
+                            .eq("date", date_str)\
+                            .limit(1)\
+                            .execute()
+                        has_daily_close = daily_close_check.count and daily_close_check.count > 0
+                except Exception:
+                    pass
+            
+            if has_daily_close:
+                st.warning("⚠️ **이 날짜는 이미 점장마감이 존재합니다.** 여기서 수정한 매출은 통계에 즉시 반영되지만, 마감 화면의 기록과는 다를 수 있습니다.")
+            
             col1, col2 = st.columns([1, 4])
             with col1:
-                if st.button("💾 저장", type="primary", use_container_width=True):
+                if st.button("💾 매출 보정 저장", type="primary", use_container_width=True):
                     if not store or store.strip() == "":
                         st.error("매장명을 입력해주세요.")
                     elif total_sales <= 0:
@@ -217,16 +246,16 @@ def render_sales_entry():
                                     
                                     if has_daily_close:
                                         daily_close_total = conflict_info.get('daily_close_total_sales', 0)
-                                        message = f"""⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!<br><br>• 마감보고 매출: <strong>{daily_close_total:,.0f}원</strong><br>• 기존 매출등록 값: <strong>{existing:,.0f}원</strong><br>• 새로 입력한 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                        message = f"""⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!<br><br>• 마감보고 매출: <strong>{daily_close_total:,.0f}원</strong><br>• 기존 매출등록 값: <strong>{existing:,.0f}원</strong><br>• 새로 입력한 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출 보정 저장 완료!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
                                         st.session_state["sales_entry_success_message"] = message
                                         st.session_state["sales_entry_message_type"] = "warning"
                                     else:
-                                        message = f"""⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다.<br><br>• 기존 값: <strong>{existing:,.0f}원</strong><br>• 새 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                        message = f"""⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다.<br><br>• 기존 값: <strong>{existing:,.0f}원</strong><br>• 새 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출 보정 저장 완료!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
                                         st.session_state["sales_entry_success_message"] = message
                                         st.session_state["sales_entry_message_type"] = "warning"
                                 else:
                                     # 성공 메시지 (간결하고 가독성 있게)
-                                    message = f"""✅ 매출이 저장되었습니다!<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                    message = f"""✅ 매출 보정 저장 완료!<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
                                     st.session_state["sales_entry_success_message"] = message
                                     st.session_state["sales_entry_message_type"] = "success"
                                 
@@ -277,7 +306,7 @@ def render_sales_entry():
                 
                 col1, col2 = st.columns([1, 4])
                 with col1:
-                    if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                    if st.button("💾 매출 보정 일괄 저장", type="primary", use_container_width=True):
                         # DB 연결 및 store_id 사전 확인
                         from src.auth import get_supabase_client, get_current_store_id
                         from src.storage_supabase import _check_supabase_for_dev_mode
@@ -358,7 +387,7 @@ def render_sales_entry():
                                 message_parts.append(f"- {error}")
                         
                         if success_count > 0:
-                            message_parts.append(f"\n✅ **{success_count}일의 매출이 저장되었습니다!**")
+                            message_parts.append(f"\n✅ **{success_count}일의 매출 보정이 저장되었습니다!**")
                             message = "\n".join(message_parts)
                             
                             if warnings:

@@ -14,7 +14,18 @@ bootstrap(page_title="Sales Volume Entry")
 
 def render_sales_volume_entry():
     """판매량 등록 페이지 렌더링"""
-    render_page_header("판매량 등록", "📦")
+    render_page_header("🛠 판매량 보정 / 과거 입력", "📦")
+    
+    # STEP 2: 보정 도구 안내
+    st.markdown("""
+    <div style="padding: 1.2rem; background: #fff3cd; border-left: 4px solid #ffc107; 
+                border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem;">🛠 보정 도구</div>
+        <div style="color: #856404; font-size: 0.95rem; line-height: 1.6;">
+            이 화면은 점장마감 이후 판매량 수정, 과거 데이터 입력용입니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # 저장 직후 알림 (rerun 후에도 유지)
     if st.session_state.get("sales_volume_entry_success"):
@@ -27,9 +38,6 @@ def render_sales_volume_entry():
         if st.button("닫기", key="sales_volume_entry_close_msg"):
             st.rerun()
         render_section_divider()
-    
-    # STEP 1: 우선순위 안내
-    st.info("✅ **이 입력은 마감 입력보다 우선 적용되는 최종 판매량입니다(보정/이관용).**")
     
     # 메뉴 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -48,6 +56,30 @@ def render_sales_volume_entry():
                 value=today_kst(),
                 key="sales_volume_entry_daily_sales_full_date",
             )
+        
+        # STEP 2: 선택한 날짜에 마감 존재 여부 확인 및 안내
+        from src.auth import get_current_store_id, get_supabase_client
+        store_id = get_current_store_id()
+        has_daily_close = False
+        if store_id and sales_date:
+            try:
+                supabase = get_supabase_client()
+                if supabase:
+                    date_str = sales_date.strftime('%Y-%m-%d') if hasattr(sales_date, 'strftime') else str(sales_date)
+                    daily_close_check = supabase.table("daily_close")\
+                        .select("id", count="exact")\
+                        .eq("store_id", store_id)\
+                        .eq("date", date_str)\
+                        .limit(1)\
+                        .execute()
+                    has_daily_close = daily_close_check.count and daily_close_check.count > 0
+            except Exception:
+                pass
+        
+        if has_daily_close:
+            st.success("✅ **이 날짜는 이미 마감되었습니다.** 여기에 입력한 값이 최종 판매량으로 적용됩니다.")
+        else:
+            st.warning("⚠️ **이 날짜는 아직 마감되지 않았습니다.** 이후 점장마감을 하면 기본 판매량이 다시 생성됩니다.")
         
         st.markdown("---")
         st.write("**선택한 날짜의 각 메뉴별 판매 수량을 한 번에 입력하세요. (0은 미판매)**")
@@ -74,9 +106,12 @@ def render_sales_volume_entry():
         
         render_section_divider()
         
+        # STEP 2: 저장 버튼 근처 고정 문구
+        st.info("💡 **이 입력은 점장마감 판매량보다 우선 적용됩니다.**")
+        
         save_col, _ = st.columns([1, 3])
         with save_col:
-            if st.button("💾 일괄 저장", type="primary", use_container_width=True, key="sales_volume_entry_daily_sales_full_save"):
+            if st.button("💾 판매량 보정 저장", type="primary", use_container_width=True, key="sales_volume_entry_daily_sales_full_save"):
                 if not sales_items:
                     st.error("저장할 판매 내역이 없습니다. 한 개 이상의 메뉴에 판매 수량을 입력해주세요.")
                 else:
@@ -94,7 +129,7 @@ def render_sales_volume_entry():
                             st.error(msg)
                     
                     if success_count > 0:
-                        st.session_state["sales_volume_entry_success"] = "✅ 최종 판매량이 저장되었습니다(마감 입력보다 우선 적용)."
+                        st.session_state["sales_volume_entry_success"] = "✅ 판매량 보정 저장 완료! (마감 입력보다 우선 적용)"
                         if is_dev_mode():
                             store_id = get_current_store_id()
                             if store_id and verify_overrides_saved(store_id, sales_date, success_count):
