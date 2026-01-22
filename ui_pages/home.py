@@ -7,9 +7,10 @@ from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header, render_section_divider
 from src.auth import get_current_store_id, get_supabase_client
-from src.storage_supabase import load_monthly_sales_total
+from src.storage_supabase import load_monthly_sales_total, load_expense_structure, load_csv
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
+import pandas as pd
 
 # 공통 설정 적용
 bootstrap(page_title="Home Dashboard")
@@ -627,6 +628,166 @@ def get_anomaly_signals(store_id: str) -> list:
         
     except Exception as e:
         return []
+
+
+def get_store_financial_structure(store_id: str, target_year: int, target_month: int) -> dict:
+    """
+    우리 가게 숫자 구조 데이터 조회
+    
+    우선순위:
+    1. actual_settlement (해당 월 final 존재 시)
+    2. expense_structure + targets
+    3. 없으면 None
+    
+    Returns:
+        dict: {
+            "source": "actual" | "target" | "none",
+            "fixed_cost": int,
+            "variable_ratio": float (0~1),
+            "break_even_sales": int,
+            "example_table": [{"sales": int, "profit": int, "margin": float}, ...] or None
+        }
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
+        
+        # 1순위: actual_settlement 조회 (final 상태 확인)
+        try:
+            settlement_result = supabase.table("actual_settlement")\
+                .select("actual_sales, actual_cost, actual_profit, profit_margin")\
+                .eq("store_id", store_id)\
+                .eq("year", target_year)\
+                .eq("month", target_month)\
+                .limit(1)\
+                .execute()
+            
+            if settlement_result.data and len(settlement_result.data) > 0:
+                row = settlement_result.data[0]
+                actual_sales = float(row.get('actual_sales', 0) or 0)
+                actual_cost = float(row.get('actual_cost', 0) or 0)
+                actual_profit = float(row.get('actual_profit', 0) or 0)
+                
+                if actual_sales > 0:
+                    # actual_settlement에서 고정비/변동비 추론
+                    # actual_cost = fixed_cost + (actual_sales * variable_ratio)
+                    # actual_profit = actual_sales - actual_cost
+                    # variable_ratio = (actual_cost - fixed_cost) / actual_sales
+                    # 하지만 actual_settlement에는 고정비/변동비 구분이 없으므로
+                    # expense_structure를 참조하거나, 간단히 비율로 계산
+                    
+                    # 간단 버전: actual_cost를 기준으로 변동비율 추정
+                    # 실제로는 expense_structure를 함께 조회해야 정확함
+                    # 여기서는 간단히: variable_ratio = actual_cost / actual_sales (전체 비용 비율)
+                    variable_ratio = actual_cost / actual_sales if actual_sales > 0 else 0.0
+                    fixed_cost = 0  # actual_settlement만으로는 고정비 추정 불가
+                    
+                    # expense_structure에서 고정비 가져오기
+                    expense_df = load_expense_structure(target_year, target_month, store_id)
+                    if not expense_df.empty:
+                        fixed_categories = ['임차료', '인건비', '공과금']
+                        fixed_cost = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+                        
+                        variable_categories = ['재료비', '부가세&카드수수료']
+                        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+                        if not variable_df.empty:
+                            variable_ratio = variable_df['amount'].sum() / 100.0  # %를 소수로 변환
+                    
+                    # 손익분기점 계산
+                    break_even_sales = 0
+                    if fixed_cost > 0 and variable_ratio < 1 and (1 - variable_ratio) > 0:
+                        break_even_sales = int(fixed_cost / (1 - variable_ratio))
+                    
+                    # example_table 생성
+                    example_table = None
+                    if break_even_sales > 0:
+                        example_sales = [
+                            max(int(break_even_sales * 0.8), 0),
+                            break_even_sales,
+                            int(break_even_sales * 1.2),
+                            int(break_even_sales * 1.5)
+                        ]
+                        example_table = []
+                        for sales in example_sales:
+                            if sales > 0:
+                                profit = sales - fixed_cost - (sales * variable_ratio)
+                                margin = (profit / sales * 100) if sales > 0 else 0.0
+                                example_table.append({
+                                    "sales": sales,
+                                    "profit": int(profit),
+                                    "margin": round(margin, 1)
+                                })
+                    
+                    return {
+                        "source": "actual",
+                        "fixed_cost": int(fixed_cost),
+                        "variable_ratio": variable_ratio,
+                        "break_even_sales": break_even_sales,
+                        "example_table": example_table
+                    }
+        except Exception:
+            pass
+        
+        # 2순위: expense_structure + targets
+        try:
+            expense_df = load_expense_structure(target_year, target_month, store_id)
+            
+            if expense_df.empty:
+                return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
+            
+            # 고정비 계산
+            fixed_categories = ['임차료', '인건비', '공과금']
+            fixed_cost = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+            
+            # 변동비율 계산
+            variable_categories = ['재료비', '부가세&카드수수료']
+            variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+            variable_cost_rate = 0.0
+            if not variable_df.empty:
+                variable_cost_rate = variable_df['amount'].sum()  # % 단위
+            
+            variable_ratio = variable_cost_rate / 100.0 if variable_cost_rate > 0 else 0.0
+            
+            # 손익분기점 계산
+            break_even_sales = 0
+            if fixed_cost > 0 and variable_ratio < 1 and (1 - variable_ratio) > 0:
+                break_even_sales = int(fixed_cost / (1 - variable_ratio))
+            
+            # example_table 생성
+            example_table = None
+            if break_even_sales > 0:
+                example_sales = [
+                    max(int(break_even_sales * 0.8), 0),
+                    break_even_sales,
+                    int(break_even_sales * 1.2),
+                    int(break_even_sales * 1.5)
+                ]
+                example_table = []
+                for sales in example_sales:
+                    if sales > 0:
+                        profit = sales - fixed_cost - (sales * variable_ratio)
+                        margin = (profit / sales * 100) if sales > 0 else 0.0
+                        example_table.append({
+                            "sales": sales,
+                            "profit": int(profit),
+                            "margin": round(margin, 1)
+                        })
+            
+            return {
+                "source": "target",
+                "fixed_cost": int(fixed_cost),
+                "variable_ratio": variable_ratio,
+                "break_even_sales": break_even_sales,
+                "example_table": example_table
+            }
+        except Exception:
+            pass
+        
+        return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
+        
+    except Exception as e:
+        return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
 
 
 def check_actual_settlement_exists(store_id: str, year: int, month: int) -> bool:
@@ -1267,29 +1428,123 @@ def render_home():
         with st.container():
             st.markdown("### 🏪 우리 가게 숫자 구조")
             
-            if data_level < 3:
+            # 이번 달 정보
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            current_year = now_kst.year
+            current_month = now_kst.month
+            
+            # 숫자 구조 데이터 조회
+            try:
+                structure = get_store_financial_structure(store_id, current_year, current_month)
+                
+                if structure["source"] == "none":
+                    # 데이터 없을 때
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                        <h4 style="color: #856404; margin-bottom: 0.5rem;">아직 우리 가게의 숫자 구조가 만들어지지 않았습니다</h4>
+                        <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">목표 비용구조 또는 실제 정산을 먼저 입력하면 자동으로 생성됩니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost"):
+                            st.session_state.current_page = "목표 비용구조"
+                            st.rerun()
+                    with col2:
+                        if st.button("🧾 실제정산", use_container_width=True, key="home_btn_settlement"):
+                            st.session_state.current_page = "실제정산"
+                            st.rerun()
+                else:
+                    # 데이터 있을 때
+                    fixed_cost = structure["fixed_cost"]
+                    variable_ratio = structure["variable_ratio"]
+                    break_even = structure["break_even_sales"]
+                    example_table = structure["example_table"]
+                    source_label = "이번 달 실제 정산 기준" if structure["source"] == "actual" else "현재 목표 구조 기준"
+                    
+                    # 상단 요약 카드 3개
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">고정비</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{fixed_cost:,}원</div>
+                            <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.2rem;">/월</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col2:
+                        variable_pct = int(variable_ratio * 100)
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">변동비율</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{variable_pct}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col3:
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">손익분기점 매출</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{break_even:,}원</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 한 줄 구조 문장
+                    if break_even > 0:
+                        margin_per_100k = int((100000 * (1 - variable_ratio)))
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8; margin-top: 1rem;">
+                            <p style="color: #0c5460; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                                이 가게는 매출 <strong>{break_even:,}원</strong>부터 흑자가 시작되고,<br>
+                                매출이 10만 원 늘면 약 <strong>{margin_per_100k:,}원</strong>이 남는 구조입니다.
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 미니 테이블
+                    if example_table and len(example_table) > 0:
+                        st.markdown("---")
+                        st.markdown("#### 📊 매출 구간별 예상 이익")
+                        
+                        # 최대 3행만 표시
+                        display_table = example_table[:3]
+                        
+                        for item in display_table:
+                            sales = item["sales"]
+                            profit = item["profit"]
+                            margin = item["margin"]
+                            profit_color = "#28a745" if profit >= 0 else "#dc3545"
+                            st.markdown(f"""
+                            <div style="padding: 0.8rem; background: #f8f9fa; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {profit_color};">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="font-weight: 600; color: #495057;">매출 {sales:,}원</div>
+                                    <div style="text-align: right;">
+                                        <div style="font-weight: 600; color: {profit_color};">{profit:,}원</div>
+                                        <div style="font-size: 0.85rem; color: #6c757d;">이익률 {margin}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # 출처 배지
+                    st.caption(f"📌 {source_label}")
+                    
+            except Exception as e:
                 st.markdown("""
                 <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                    <h4 style="color: #856404; margin-bottom: 0.5rem;">재무 구조를 입력하세요</h4>
-                    <p style="color: #856404; margin-bottom: 1rem;">비용 구조와 실제 정산을 입력하면 우리 가게의 숫자 구조를 볼 수 있습니다.</p>
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">숫자 구조를 불러오는 중 오류가 발생했습니다</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">목표 비용구조 또는 실제 정산을 먼저 입력해주세요.</p>
                 </div>
                 """, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost"):
+                    if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost_error"):
                         st.session_state.current_page = "목표 비용구조"
                         st.rerun()
                 with col2:
-                    if st.button("🧾 실제정산", use_container_width=True, key="home_btn_settlement"):
+                    if st.button("🧾 실제정산", use_container_width=True, key="home_btn_settlement_error"):
                         st.session_state.current_page = "실제정산"
                         st.rerun()
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
-                    <h4 style="color: #155724; margin-bottom: 0.5rem;">우리 가게 숫자 구조가 여기에 표시됩니다</h4>
-                    <p style="color: #155724; margin: 0;">숫자 구조 분석은 다음 단계에서 추가됩니다.</p>
-                </div>
-                """, unsafe_allow_html=True)
     except Exception:
         pass
     
