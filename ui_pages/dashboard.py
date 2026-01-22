@@ -309,29 +309,51 @@ def compute_menu_sales_summary(
     return summary_df
 
 
-def render_dashboard():
-    """통합 대시보드 페이지 렌더링"""
-    render_page_header("통합 대시보드", "📊")
-    
-    # 쿼리 로그 출력 (DEV 박스)
-    with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
-        _show_query_diagnostics()
-    
-    # dev_mode에서 store_id 표시 (선택)
-    try:
-        from src.auth import is_dev_mode
-        if is_dev_mode():
-            store_id_debug = _get_current_store_id() or "default"
-            with st.sidebar.expander("🔧 디버그 정보", expanded=False):
-                st.caption(f"store_id: {store_id_debug}")
-    except Exception:
-        pass
-    
+# ========== 리팩토링된 헬퍼 함수들 ==========
+
+def _create_dashboard_context():
+    """대시보드 공통 컨텍스트 생성"""
+    store_id = _get_current_store_id() or "default"
     current_year = current_year_kst()
-    current_month = current_year_kst()
+    current_month = current_month_kst()
     
-    # ========== 손익분기 매출 vs 목표 매출 비교 ==========
-    expense_df = load_expense_structure(current_year, current_month)
+    return {
+        'store_id': store_id,
+        'year': current_year,
+        'month': current_month,
+    }
+
+
+def _load_dashboard_data(ctx):
+    """대시보드에 필요한 모든 데이터 로드"""
+    expense_df = load_expense_structure(ctx['year'], ctx['month'])
+    targets_df = load_csv('targets.csv', default_columns=[
+        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+        '목표임대료율', '목표기타비용율', '목표순이익률'
+    ])
+    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+    visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
+    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
+    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    
+    return {
+        'expense_df': expense_df,
+        'targets_df': targets_df,
+        'sales_df': sales_df,
+        'visitors_df': visitors_df,
+        'menu_df': menu_df,
+        'daily_sales_df': daily_sales_df,
+        'recipe_df': recipe_df,
+        'ingredient_df': ingredient_df,
+    }
+
+
+def _compute_dashboard_metrics(ctx, raw_data):
+    """대시보드 메트릭 계산 (손익분기점, 매출 통합, 집계 등)"""
+    expense_df = raw_data['expense_df']
+    targets_df = raw_data['targets_df']
     
     # 고정비 계산 (임차료, 인건비, 공과금)
     fixed_costs = 0
@@ -354,60 +376,195 @@ def render_dashboard():
         if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
             breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
     
-    # 목표 매출 로드
-    targets_df = load_csv('targets.csv', default_columns=[
-        '연도', '월', '목표매출', '목표원가율', '목표인건비율',
-        '목표임대료율', '목표기타비용율', '목표순이익률'
-    ])
-    
+    # 목표 매출
     target_sales = 0
     if not targets_df.empty:
-        target_row = targets_df[(targets_df['연도'] == current_year) & (targets_df['월'] == current_month)]
-        # Phase 1: 안전한 DataFrame 접근
+        target_row = targets_df[(targets_df['연도'] == ctx['year']) & (targets_df['월'] == ctx['month'])]
         target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
     
     # 평일/주말 비율 (기본값: 70/30)
     weekday_ratio = 70.0
     weekend_ratio = 30.0
     
+    # 일일 손익분기 매출 계산
+    weekday_daily_breakeven = None
+    weekend_daily_breakeven = None
+    weekday_daily_target = 0
+    weekend_daily_target = 0
+    weekday_daily_fixed = 0
+    weekend_daily_fixed = 0
+    weekday_daily_target_profit = 0
+    weekend_daily_target_profit = 0
+    target_profit = 0
+    
     if breakeven_sales is not None and breakeven_sales > 0:
-        # 일일 손익분기 매출 계산
         weekday_daily_breakeven = (breakeven_sales * weekday_ratio / 100) / 22
         weekend_daily_breakeven = (breakeven_sales * weekend_ratio / 100) / 8
         
-        # 일일 목표 매출 계산
-        weekday_daily_target = 0
-        weekend_daily_target = 0
         if target_sales > 0:
             weekday_daily_target = (target_sales * weekday_ratio / 100) / 22
             weekend_daily_target = (target_sales * weekend_ratio / 100) / 8
         
-        # 일일 고정비 계산
         weekday_monthly_fixed = fixed_costs * (22 / 30)
         weekend_monthly_fixed = fixed_costs * (8 / 30)
         weekday_daily_fixed = weekday_monthly_fixed / 22
         weekend_daily_fixed = weekend_monthly_fixed / 8
         
-        # 변동비율 소수점 변환
         variable_rate_decimal = variable_cost_rate / 100
-        
-        # 일일 영업이익 계산
-        weekday_daily_breakeven_profit = 0
-        weekend_daily_breakeven_profit = 0
-        
-        weekday_daily_target_profit = 0
-        weekend_daily_target_profit = 0
         if target_sales > 0:
             weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
             weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
-        
-        # 추정 영업이익 계산
-        breakeven_profit = 0
-        target_profit = 0
-        if target_sales > 0:
             target_profit = (target_sales * (1 - variable_rate_decimal)) - fixed_costs
+    
+    # 매출 데이터 통합 및 집계
+    v_sales = get_data_version("sales")
+    v_visitors = get_data_version("visitors")
+    start_date = dt.date(2020, 1, 1)
+    end_date = today_kst()
+    
+    t0 = time.perf_counter()
+    merged_df = compute_merged_sales_visitors(ctx['store_id'], start_date, end_date, v_sales, v_visitors)
+    t1 = time.perf_counter()
+    record_compute_call("dashboard: merge_sales_visitors", (t1 - t0) * 1000, 
+                      rows_in=len(raw_data['sales_df']) + len(raw_data['visitors_df']), 
+                      rows_out=len(merged_df), note="cached_token")
+    
+    # 날짜 컬럼을 datetime으로 변환
+    if not merged_df.empty and '날짜' in merged_df.columns:
+        merged_df['날짜'] = pd.to_datetime(merged_df['날짜'])
+    
+    # 이번달 데이터 필터링
+    month_data = merged_df[
+        (merged_df['날짜'].dt.year == ctx['year']) & 
+        (merged_df['날짜'].dt.month == ctx['month'])
+    ].copy() if not merged_df.empty else pd.DataFrame()
+    
+    month_total_sales = month_data['총매출'].sum() if not month_data.empty and '총매출' in month_data.columns else 0
+    month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
+    
+    # 월별 요약 (최근 6개월)
+    today = today_kst()
+    six_months_ago = today - timedelta(days=180)
+    
+    t0 = time.perf_counter()
+    monthly_summary = compute_monthly_summary(ctx['store_id'], six_months_ago, today, v_sales, v_visitors)
+    t1 = time.perf_counter()
+    if not monthly_summary.empty:
+        record_compute_call("dashboard: monthly_summary_groupby", (t1 - t0) * 1000,
+                          rows_in=len(merged_df), rows_out=len(monthly_summary), note="cached_token")
+    
+    # 메뉴별 판매 집계
+    start_of_month = dt.date(ctx['year'], ctx['month'], 1)
+    if ctx['month'] < 12:
+        next_month_first = dt.date(ctx['year'], ctx['month'] + 1, 1)
+        days_in_month = (next_month_first - timedelta(days=1)).day
+    else:
+        days_in_month = 31
+    end_of_month = dt.date(ctx['year'], ctx['month'], days_in_month)
+    
+    v_menus = get_data_version("menus")
+    v_cost = get_data_version("cost")
+    
+    menu_sales_summary = pd.DataFrame()
+    if not raw_data['daily_sales_df'].empty:
+        daily_sales_df = raw_data['daily_sales_df'].copy()
+        daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
+        filtered_sales_df = daily_sales_df[
+            (daily_sales_df['날짜'].dt.date >= start_of_month) & 
+            (daily_sales_df['날짜'].dt.date <= end_of_month)
+        ].copy()
         
-        # 손익분기 매출 vs 목표 매출 비교 섹션
+        if not filtered_sales_df.empty:
+            t0 = time.perf_counter()
+            menu_sales_summary = compute_menu_sales_summary(ctx['store_id'], start_of_month, end_of_month, v_sales, v_menus, v_cost)
+            t1 = time.perf_counter()
+            record_compute_call("dashboard: menu_sales_summary", (t1 - t0) * 1000,
+                              rows_in=len(filtered_sales_df), rows_out=len(menu_sales_summary), note="cached_token")
+    
+    return {
+        'fixed_costs': fixed_costs,
+        'variable_cost_rate': variable_cost_rate,
+        'breakeven_sales': breakeven_sales,
+        'target_sales': target_sales,
+        'weekday_ratio': weekday_ratio,
+        'weekend_ratio': weekend_ratio,
+        'weekday_daily_breakeven': weekday_daily_breakeven,
+        'weekend_daily_breakeven': weekend_daily_breakeven,
+        'weekday_daily_target': weekday_daily_target,
+        'weekend_daily_target': weekend_daily_target,
+        'weekday_daily_fixed': weekday_daily_fixed,
+        'weekend_daily_fixed': weekend_daily_fixed,
+        'weekday_daily_target_profit': weekday_daily_target_profit,
+        'weekend_daily_target_profit': weekend_daily_target_profit,
+        'target_profit': target_profit,
+        'merged_df': merged_df,
+        'month_data': month_data,
+        'month_total_sales': month_total_sales,
+        'month_total_visitors': month_total_visitors,
+        'monthly_summary': monthly_summary,
+        'menu_sales_summary': menu_sales_summary,
+    }
+
+
+def _render_dashboard_diagnostics(ctx):
+    """대시보드 진단 정보 렌더링"""
+    with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
+        _show_query_diagnostics()
+    
+    # dev_mode에서 store_id 표시 (선택)
+    try:
+        from src.auth import is_dev_mode
+        if is_dev_mode():
+            store_id_debug = ctx['store_id'] or "default"
+            with st.sidebar.expander("🔧 디버그 정보", expanded=False):
+                st.caption(f"store_id: {store_id_debug}")
+    except Exception:
+        pass
+
+
+def render_dashboard():
+    """통합 대시보드 페이지 렌더링 (조립 함수)"""
+    render_page_header("통합 대시보드", "📊")
+    
+    # 공통 컨텍스트 생성
+    ctx = _create_dashboard_context()
+    
+    # 진단 정보 표시
+    _render_dashboard_diagnostics(ctx)
+    
+    # 데이터 로드
+    raw_data = _load_dashboard_data(ctx)
+    
+    # 메트릭 계산
+    metrics = _compute_dashboard_metrics(ctx, raw_data)
+    
+    # UI 섹션 렌더링
+    _render_breakeven_section(ctx, metrics, raw_data)
+    _render_sales_sections(ctx, metrics, raw_data)
+    _render_menu_sections(ctx, metrics, raw_data)
+
+
+def _render_breakeven_section(ctx, metrics, raw_data):
+    """손익분기점 관련 UI 섹션 렌더링"""
+    breakeven_sales = metrics['breakeven_sales']
+    if breakeven_sales is None or breakeven_sales <= 0:
+        st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
+        return
+    
+    fixed_costs = metrics['fixed_costs']
+    variable_cost_rate = metrics['variable_cost_rate']
+    target_sales = metrics['target_sales']
+    target_profit = metrics['target_profit']
+    weekday_ratio = metrics['weekday_ratio']
+    weekend_ratio = metrics['weekend_ratio']
+    weekday_daily_breakeven = metrics['weekday_daily_breakeven']
+    weekend_daily_breakeven = metrics['weekend_daily_breakeven']
+    weekday_daily_target = metrics['weekday_daily_target']
+    weekend_daily_target = metrics['weekend_daily_target']
+    weekday_daily_target_profit = metrics['weekday_daily_target_profit']
+    weekend_daily_target_profit = metrics['weekend_daily_target_profit']
+    
+    # 손익분기 매출 vs 목표 매출 비교 섹션
         st.markdown("""
         <div style="margin: 1rem 0 0.5rem 0;">
             <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
@@ -612,82 +769,53 @@ def render_dashboard():
                     </div>
                     """, unsafe_allow_html=True)
         
-        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+
+
+def _render_sales_sections(ctx, metrics, raw_data):
+    """매출 관련 UI 섹션 렌더링"""
+    merged_df = metrics['merged_df']
+    month_data = metrics['month_data']
+    month_total_sales = metrics['month_total_sales']
+    month_total_visitors = metrics['month_total_visitors']
+    monthly_summary = metrics['monthly_summary']
+    targets_df = raw_data['targets_df']
+    
+    # 목표 매출 확인
+    target_sales_dashboard = 0
+    target_row_dashboard = targets_df[
+        (targets_df['연도'] == ctx['year']) & 
+        (targets_df['월'] == ctx['month'])
+    ]
+    if not target_row_dashboard.empty:
+        target_sales_dashboard = float(safe_get_value(target_row_dashboard, '목표매출', 0))
+    
+    if not merged_df.empty:
+        # 1. 이번달 요약
+        st.markdown("""
+        <div style="margin: 1rem 0 0.5rem 0;">
+            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
+                📊 이번달 요약
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # ========== 매출 관리 항목들 ==========
-        # 매출 데이터 로드
-        sales_df_dashboard = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
-        visitors_df_dashboard = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
-        targets_df_dashboard = load_csv('targets.csv', default_columns=[
-            '연도', '월', '목표매출', '목표원가율', '목표인건비율',
-            '목표임대료율', '목표기타비용율', '목표순이익률'
-        ])
-        
-        # 매출과 방문자 데이터 통합 (캐시된 함수 사용, version_token 기반)
-        store_id = _get_current_store_id() or "default"
-        v_sales = get_data_version("sales")
-        v_visitors = get_data_version("visitors")
-        
-        # 날짜 범위 설정 (전체 데이터 사용)
-        start_date = dt.date(2020, 1, 1)  # 충분히 이른 날짜
-        end_date = today_kst()
-        
-        t0 = time.perf_counter()
-        merged_df_dashboard = compute_merged_sales_visitors(store_id, start_date, end_date, v_sales, v_visitors)
-        t1 = time.perf_counter()
-        record_compute_call("dashboard: merge_sales_visitors", (t1 - t0) * 1000, 
-                          rows_in=len(sales_df_dashboard) + len(visitors_df_dashboard), 
-                          rows_out=len(merged_df_dashboard), note="cached_token")
-        
-        # 날짜 컬럼을 datetime으로 변환
-        if not merged_df_dashboard.empty and '날짜' in merged_df_dashboard.columns:
-            merged_df_dashboard['날짜'] = pd.to_datetime(merged_df_dashboard['날짜'])
-        
-        # 이번달 데이터 필터링
-        month_data_dashboard = merged_df_dashboard[
-            (merged_df_dashboard['날짜'].dt.year == current_year) & 
-            (merged_df_dashboard['날짜'].dt.month == current_month)
-        ].copy() if not merged_df_dashboard.empty else pd.DataFrame()
-        
-        month_total_sales_dashboard = month_data_dashboard['총매출'].sum() if not month_data_dashboard.empty and '총매출' in month_data_dashboard.columns else 0
-        month_total_visitors_dashboard = month_data_dashboard['방문자수'].sum() if not month_data_dashboard.empty and '방문자수' in month_data_dashboard.columns else 0
-        
-        # 목표 매출 확인
-        target_sales_dashboard = 0
-        target_row_dashboard = targets_df_dashboard[
-            (targets_df_dashboard['연도'] == current_year) & 
-            (targets_df_dashboard['월'] == current_month)
-        ]
-        if not target_row_dashboard.empty:
-            target_sales_dashboard = float(safe_get_value(target_row_dashboard, '목표매출', 0))
-        
-        if not merged_df_dashboard.empty:
-            # 1. 이번달 요약
-            st.markdown("""
-            <div style="margin: 1rem 0 0.5rem 0;">
-                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
-                    📊 이번달 요약
-                </h3>
-            </div>
-            """, unsafe_allow_html=True)
+        if not month_data.empty:
+            month_avg_daily_sales = month_total_sales / len(month_data) if len(month_data) > 0 else 0
+            month_avg_daily_visitors = month_total_visitors / len(month_data) if len(month_data) > 0 else 0
+            avg_customer_value = month_total_sales / month_total_visitors if month_total_visitors > 0 else 0
             
-            if not month_data_dashboard.empty:
-                month_avg_daily_sales = month_total_sales_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
-                month_avg_daily_visitors = month_total_visitors_dashboard / len(month_data_dashboard) if len(month_data_dashboard) > 0 else 0
-                avg_customer_value = month_total_sales_dashboard / month_total_visitors_dashboard if month_total_visitors_dashboard > 0 else 0
-                
-                col1, col2, col3, col4, col5 = st.columns(5)
-                with col1:
-                    st.metric("이번달 누적 매출", f"{month_total_sales_dashboard:,.0f}원")
-                with col2:
-                    st.metric("평균 일일 매출", f"{month_avg_daily_sales:,.0f}원")
-                with col3:
-                    st.metric("이번달 총 방문자", f"{int(month_total_visitors_dashboard):,}명")
-                with col4:
-                    st.metric("평균 객단가", f"{avg_customer_value:,.0f}원")
-                with col5:
-                    # 목표 달성률 계산
-                    target_achievement = (month_total_sales_dashboard / target_sales_dashboard * 100) if target_sales_dashboard > 0 else None
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric("이번달 누적 매출", f"{month_total_sales:,.0f}원")
+            with col2:
+                st.metric("평균 일일 매출", f"{month_avg_daily_sales:,.0f}원")
+            with col3:
+                st.metric("이번달 총 방문자", f"{int(month_total_visitors):,}명")
+            with col4:
+                st.metric("평균 객단가", f"{avg_customer_value:,.0f}원")
+            with col5:
+                target_achievement = (month_total_sales / target_sales_dashboard * 100) if target_sales_dashboard > 0 else None
                     if target_achievement is not None:
                         st.metric("목표 달성률", f"{target_achievement:.1f}%", 
                                 f"{target_achievement - 100:.1f}%p" if target_achievement != 100 else "0%p")
@@ -763,20 +891,6 @@ def render_dashboard():
             </div>
             """, unsafe_allow_html=True)
             
-            # 최근 6개월 데이터 (캐시된 함수 사용, version_token 기반)
-            today_dashboard = today_kst()
-            six_months_ago = today_dashboard - timedelta(days=180)
-            store_id = _get_current_store_id() or "default"
-            v_sales = get_data_version("sales")
-            v_visitors = get_data_version("visitors")
-            
-            t0 = time.perf_counter()
-            monthly_summary = compute_monthly_summary(store_id, six_months_ago, today_dashboard, v_sales, v_visitors)
-            t1 = time.perf_counter()
-            if not monthly_summary.empty:
-                record_compute_call("dashboard: monthly_summary_groupby", (t1 - t0) * 1000,
-                                  rows_in=len(merged_df_dashboard), rows_out=len(monthly_summary), note="cached_token")
-            
             if not monthly_summary.empty:
                 
                 display_monthly = monthly_summary.head(6).copy()
@@ -797,92 +911,79 @@ def render_dashboard():
                     resizable=True
                 )
         
-        st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+
+
+def _render_menu_sections(ctx, metrics, raw_data):
+    """메뉴/ABC 분석 관련 UI 섹션 렌더링"""
+    menu_sales_summary = metrics['menu_sales_summary']
+    daily_sales_df = raw_data['daily_sales_df']
+    menu_df = raw_data['menu_df']
+    recipe_df = raw_data['recipe_df']
+    ingredient_df = raw_data['ingredient_df']
+    
+    # 판매 ABC 분석
+    st.markdown("""
+    <div style="margin: 1rem 0 0.5rem 0;">
+        <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
+            📊 판매 ABC 분석
+        </h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if not daily_sales_df.empty and not menu_df.empty:
+        daily_sales_df_copy = daily_sales_df.copy()
+        daily_sales_df_copy['날짜'] = pd.to_datetime(daily_sales_df_copy['날짜'])
         
-        # ========== 판매 ABC 분석 ==========
-        st.markdown("""
-        <div style="margin: 1rem 0 0.5rem 0;">
-            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
-                📊 판매 ABC 분석
-            </h3>
-        </div>
-        """, unsafe_allow_html=True)
+        start_of_month = dt.date(ctx['year'], ctx['month'], 1)
+        if ctx['month'] < 12:
+            next_month_first = dt.date(ctx['year'], ctx['month'] + 1, 1)
+            days_in_month = (next_month_first - timedelta(days=1)).day
+        else:
+            days_in_month = 31
+        end_of_month = dt.date(ctx['year'], ctx['month'], days_in_month)
         
-        # ABC 분석 자동 실행
-        # 판매 데이터 로드
-        menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-        daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-        ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+        filtered_sales_df = daily_sales_df_copy[
+            (daily_sales_df_copy['날짜'].dt.date >= start_of_month) & 
+            (daily_sales_df_copy['날짜'].dt.date <= end_of_month)
+        ].copy()
         
-        if not daily_sales_df.empty and not menu_df.empty:
-            # 날짜 변환
-            daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
+        if not filtered_sales_df.empty and not menu_sales_summary.empty:
+            total_revenue = menu_sales_summary['매출'].sum()
             
-            # 이번 달 데이터 필터링 (KST 기준)
-            start_of_month = dt.date(current_year, current_month, 1)
-            # 월의 마지막 날 계산
-            if current_month < 12:
-                next_month_first = dt.date(current_year, current_month + 1, 1)
-                days_in_month = (next_month_first - timedelta(days=1)).day
-            else:
-                days_in_month = 31
-            end_of_month = dt.date(current_year, current_month, days_in_month)
-            
-            filtered_sales_df = daily_sales_df[
-                (daily_sales_df['날짜'].dt.date >= start_of_month) & 
-                (daily_sales_df['날짜'].dt.date <= end_of_month)
-            ].copy()
-            
-            if not filtered_sales_df.empty:
-                # 메뉴별 판매 집계 및 조인 (캐시된 함수 사용, version_token 기반)
-                store_id = _get_current_store_id() or "default"
-                v_sales = get_data_version("sales")
-                v_menus = get_data_version("menus")
-                v_cost = get_data_version("cost")
+            if total_revenue > 0:
+                # ABC 분석
+                summary_df = menu_sales_summary.sort_values('매출', ascending=False).copy()
+                summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
+                summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
+                
+                # ABC 등급 부여
+                def assign_abc_grade(cumulative_ratio):
+                    if cumulative_ratio <= 70:
+                        return 'A'
+                    elif cumulative_ratio <= 90:
+                        return 'B'
+                    else:
+                        return 'C'
                 
                 t0 = time.perf_counter()
-                summary_df = compute_menu_sales_summary(store_id, start_of_month, end_of_month, v_sales, v_menus, v_cost)
+                summary_df['ABC 등급'] = summary_df['누계 비율(%)'].apply(assign_abc_grade)
                 t1 = time.perf_counter()
-                record_compute_call("dashboard: menu_sales_summary", (t1 - t0) * 1000,
-                                  rows_in=len(filtered_sales_df), rows_out=len(summary_df), note="cached_token")
+                record_compute_call("dashboard: abc_grade_apply", (t1 - t0) * 1000,
+                                  rows_in=len(summary_df), rows_out=len(summary_df))
                 
-                # 총 매출 계산
-                total_revenue = summary_df['매출'].sum()
-                
-                if total_revenue > 0:
-                    # ABC 분석
-                    summary_df = summary_df.sort_values('매출', ascending=False)
-                    summary_df['비율(%)'] = (summary_df['매출'] / total_revenue * 100).round(2)
-                    summary_df['누계 비율(%)'] = summary_df['비율(%)'].cumsum().round(2)
-                    
-                    # ABC 등급 부여
-                    def assign_abc_grade(cumulative_ratio):
-                        if cumulative_ratio <= 70:
-                            return 'A'
-                        elif cumulative_ratio <= 90:
-                            return 'B'
-                        else:
-                            return 'C'
-                    
-                    t0 = time.perf_counter()
-                    summary_df['ABC 등급'] = summary_df['누계 비율(%)'].apply(assign_abc_grade)
-                    t1 = time.perf_counter()
-                    record_compute_call("dashboard: abc_grade_apply", (t1 - t0) * 1000,
-                                      rows_in=len(summary_df), rows_out=len(summary_df))
-                    
-                    # ABC 등급별 통계
-                    t0 = time.perf_counter()
-                    abc_stats = summary_df.groupby('ABC 등급').agg({
-                        '메뉴명': 'count',
-                        '매출': 'sum',
-                        '판매수량': 'sum'
-                    }).reset_index()
-                    t1 = time.perf_counter()
-                    record_compute_call("dashboard: abc_stats_groupby", (t1 - t0) * 1000,
-                                      rows_in=len(summary_df), rows_out=len(abc_stats))
-                    abc_stats.columns = ['ABC 등급', '메뉴 수', '총 매출', '총 판매수량']
-                    abc_stats['매출 비율(%)'] = (abc_stats['총 매출'] / total_revenue * 100).round(2)
+                # ABC 등급별 통계
+                t0 = time.perf_counter()
+                abc_stats = summary_df.groupby('ABC 등급').agg({
+                    '메뉴명': 'count',
+                    '매출': 'sum',
+                    '판매수량': 'sum'
+                }).reset_index()
+                t1 = time.perf_counter()
+                record_compute_call("dashboard: abc_stats_groupby", (t1 - t0) * 1000,
+                                  rows_in=len(summary_df), rows_out=len(abc_stats))
+                abc_stats.columns = ['ABC 등급', '메뉴 수', '총 매출', '총 판매수량']
+                abc_stats['매출 비율(%)'] = (abc_stats['총 매출'] / total_revenue * 100).round(2)
                     
                     # ABC 등급별 통계 카드
                     col1, col2, col3 = st.columns(3)
@@ -948,98 +1049,87 @@ def render_dashboard():
                     hide_index=True
                     )
                     
-                    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+                st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+                
+                # 재료 사용량 TOP 10
+                usage_df = calculate_ingredient_usage(filtered_sales_df, recipe_df)
+                
+                if not usage_df.empty and not ingredient_df.empty:
+                    usage_df = pd.merge(
+                        usage_df,
+                        ingredient_df[['재료명', '단가']],
+                        on='재료명',
+                        how='left'
+                    )
+                    usage_df['단가'] = usage_df['단가'].fillna(0)
+                    usage_df['총사용단가'] = usage_df['총사용량'] * usage_df['단가']
                     
-                    # ========== 재료 사용량 TOP 10 ==========
-                    # 재료 사용량 계산
-                    usage_df = calculate_ingredient_usage(filtered_sales_df, recipe_df)
+                    t0 = time.perf_counter()
+                    ingredient_summary = (
+                        usage_df
+                        .groupby('재료명')[['총사용량', '총사용단가']]
+                        .sum()
+                        .reset_index()
+                    )
+                    t1 = time.perf_counter()
+                    record_compute_call("dashboard: ingredient_summary_groupby", (t1 - t0) * 1000,
+                                      rows_in=len(usage_df), rows_out=len(ingredient_summary))
                     
-                    if not usage_df.empty and not ingredient_df.empty:
-                        # 재료 단가와 조인하여 총 사용 단가 계산
-                        usage_df = pd.merge(
-                            usage_df,
-                            ingredient_df[['재료명', '단가']],
-                            on='재료명',
-                            how='left'
+                    ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
+                    total_cost = ingredient_summary['총사용단가'].sum()
+                    
+                    if total_cost > 0:
+                        ingredient_summary['비율(%)'] = (ingredient_summary['총사용단가'] / total_cost * 100).round(2)
+                        ingredient_summary['누적 비율(%)'] = ingredient_summary['비율(%)'].cumsum().round(2)
+                        
+                        def assign_abc_grade_ingredient(cumulative_ratio):
+                            if cumulative_ratio <= 70:
+                                return 'A'
+                            elif cumulative_ratio <= 90:
+                                return 'B'
+                            else:
+                                return 'C'
+                        
+                        ingredient_summary['ABC 등급'] = ingredient_summary['누적 비율(%)'].apply(assign_abc_grade_ingredient)
+                        
+                        st.markdown("""
+                        <div style="margin: 1rem 0 0.5rem 0;">
+                            <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
+                                📦 재료 사용 단가 TOP 10
+                            </h3>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        top10_ingredients = ingredient_summary.head(10).copy()
+                        top10_ingredients.insert(0, '순위', range(1, len(top10_ingredients) + 1))
+                        
+                        display_top10_ingredients = top10_ingredients.copy()
+                        display_top10_ingredients['총 사용량'] = display_top10_ingredients['총사용량'].apply(lambda x: f"{x:,.2f}")
+                        display_top10_ingredients['총 사용단가'] = display_top10_ingredients['총사용단가'].apply(lambda x: f"{int(x):,}원")
+                        display_top10_ingredients['비율(%)'] = display_top10_ingredients['비율(%)'].apply(lambda x: f"{x:.2f}%")
+                        display_top10_ingredients['누적 비율(%)'] = display_top10_ingredients['누적 비율(%)'].apply(lambda x: f"{x:.2f}%")
+                        
+                        st.dataframe(
+                            display_top10_ingredients[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']],
+                            use_container_width=True,
+                            hide_index=True
                         )
-                        usage_df['단가'] = usage_df['단가'].fillna(0)
-                        usage_df['총사용단가'] = usage_df['총사용량'] * usage_df['단가']
                         
-                        # 재료별 총 사용량/총 사용 단가 집계
-                        t0 = time.perf_counter()
-                        ingredient_summary = (
-                            usage_df
-                            .groupby('재료명')[['총사용량', '총사용단가']]
-                            .sum()
-                            .reset_index()
-                        )
-                        t1 = time.perf_counter()
-                        record_compute_call("dashboard: ingredient_summary_groupby", (t1 - t0) * 1000,
-                                          rows_in=len(usage_df), rows_out=len(ingredient_summary))
-                        
-                        # 사용 단가 기준으로 정렬
-                        ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
-                        
-                        # 총 사용단가 합계 계산
-                        total_cost = ingredient_summary['총사용단가'].sum()
-                        
-                        if total_cost > 0:
-                            # 비율 및 누적 비율 계산
-                            ingredient_summary['비율(%)'] = (ingredient_summary['총사용단가'] / total_cost * 100).round(2)
-                            ingredient_summary['누적 비율(%)'] = ingredient_summary['비율(%)'].cumsum().round(2)
-                            
-                            # ABC 등급 부여
-                            def assign_abc_grade_ingredient(cumulative_ratio):
-                                if cumulative_ratio <= 70:
-                                    return 'A'
-                                elif cumulative_ratio <= 90:
-                                    return 'B'
-                                else:
-                                    return 'C'
-                            
-                            ingredient_summary['ABC 등급'] = ingredient_summary['누적 비율(%)'].apply(assign_abc_grade_ingredient)
-                            
-                            st.markdown("""
-                            <div style="margin: 1rem 0 0.5rem 0;">
-                                <h3 style="color: #ffffff; font-weight: 600; margin: 0; font-size: 1.2rem;">
-                                    📦 재료 사용 단가 TOP 10
-                                </h3>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # TOP 10 재료
-                            top10_ingredients = ingredient_summary.head(10).copy()
-                            top10_ingredients.insert(0, '순위', range(1, len(top10_ingredients) + 1))
-                            
-                            # 표시용 포맷팅
-                            display_top10_ingredients = top10_ingredients.copy()
-                            display_top10_ingredients['총 사용량'] = display_top10_ingredients['총사용량'].apply(lambda x: f"{x:,.2f}")
-                            display_top10_ingredients['총 사용단가'] = display_top10_ingredients['총사용단가'].apply(lambda x: f"{int(x):,}원")
-                            display_top10_ingredients['비율(%)'] = display_top10_ingredients['비율(%)'].apply(lambda x: f"{x:.2f}%")
-                            display_top10_ingredients['누적 비율(%)'] = display_top10_ingredients['누적 비율(%)'].apply(lambda x: f"{x:.2f}%")
-                            
-                            st.dataframe(
-                                display_top10_ingredients[['순위', '재료명', '총 사용량', '총 사용단가', '비율(%)', '누적 비율(%)', 'ABC 등급']],
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                            
-                            # TOP 10 총합계
-                            top10_total = top10_ingredients['총사용단가'].sum()
-                            st.markdown(f"""
-                            <div style="background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem;">
-                                <span style="color: #ffffff; font-size: 0.9rem; font-weight: 600;">
-                                    💰 TOP 10 총 사용단가 합계: {int(top10_total):,}원
-                                </span>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                    st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
-                    
-                    # ========== 레시피 검색 및 수정 ==========
-                    recipe_df_dashboard = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-                    
-                    if not recipe_df_dashboard.empty:
+                        top10_total = top10_ingredients['총사용단가'].sum()
+                        st.markdown(f"""
+                        <div style="background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem;">
+                            <span style="color: #ffffff; font-size: 0.9rem; font-weight: 600;">
+                                💰 TOP 10 총 사용단가 합계: {int(top10_total):,}원
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                st.markdown('<div style="margin: 0.75rem 0;"></div>', unsafe_allow_html=True)
+                
+                # 레시피 검색 및 수정
+                recipe_df_dashboard = raw_data['recipe_df']
+                
+                if not recipe_df_dashboard.empty:
                         # 레시피가 있는 메뉴 목록 추출
                         menus_with_recipes = recipe_df_dashboard['메뉴명'].unique().tolist()
                         
@@ -1086,7 +1176,7 @@ def render_dashboard():
                                 try:
                                     from src.auth import get_supabase_client
                                     supabase = get_supabase_client()
-                                    store_id = _get_current_store_id()
+                                    store_id = ctx['store_id']
                                     if supabase and store_id:
                                         menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
                                         if menu_result.data and menu_result.data[0].get('cooking_method'):
@@ -1174,9 +1264,6 @@ def render_dashboard():
                                     """, unsafe_allow_html=True)
                                 else:
                                     st.info("조리방법이 등록되지 않았습니다.")
-                    
-    else:
-        st.info("손익분기 매출을 계산하려면 목표 비용구조 페이지에서 고정비와 변동비율을 입력해주세요.")
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
