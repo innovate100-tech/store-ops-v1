@@ -103,9 +103,9 @@ def _diagnose_supabase_connection():
                     st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
                     st.code(str(e), language="text")
                 
-        except Exception as e:
-            st.error(f"❌ 클라이언트 생성 실패: {type(e).__name__}: {str(e)}")
-            st.code(str(e), language="text")
+            except Exception as e:
+                st.error(f"❌ 클라이언트 생성 실패: {type(e).__name__}: {str(e)}")
+                st.code(str(e), language="text")
         
         st.divider()
         st.info("💡 진단 정보를 확인한 후 오른쪽 상단의 '❌ 닫기' 버튼을 클릭하세요.")
