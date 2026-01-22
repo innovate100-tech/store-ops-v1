@@ -1393,84 +1393,77 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # 사이드바 네비게이션 - 카테고리별로 구분
-    # 메뉴 항목들을 카테고리별로 정의 (사장 중심 구조)
+    # 사이드바 네비게이션 - 카테고리별 구분 (Phase 2: 사장 중심 구조/용어 통일)
+    # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경
     menu_categories = {
-        "🏠 홈 (추후)": [
-            # 추후 홈 페이지 추가 예정
+        "🏠 사장 계기판": [
+            ("홈", "홈"),
         ],
-        "📋 점장 마감": [
-            ("점장 마감", "📋"),
+        "📋 오늘 마감": [
+            ("점장 마감", "점장 마감"),
         ],
-        "🛒 운영": [
-            ("발주 관리", "🛒"),
-            ("재료 사용량 집계", "📈"),
+        "🛒 운영(내일 장사 준비)": [
+            ("발주", "발주 관리"),
+            ("재료 사용", "재료 사용량 집계"),
         ],
-        "📊 운영 분석": [
-            ("통합 대시보드", "📊"),
-            ("매출 관리", "📊"),
-            ("판매 관리", "📦"),
-            ("원가 파악", "💰"),
+        "📊 분석(원인 찾기)": [
+            ("통합 대시보드", "통합 대시보드"),
+            ("매출", "매출 관리"),
+            ("판매", "판매 관리"),
+            ("원가", "원가 파악"),
         ],
-        "🧾 성적표": [
-            ("목표 비용구조", "💳"),
-            ("목표 매출구조", "📈"),
-            ("실제정산", "🧾"),
-            ("주간 리포트", "📄"),
+        "🧾 성적표(월간)": [
+            ("목표 비용", "목표 비용구조"),
+            ("목표 매출", "목표 매출구조"),
+            ("실제정산", "실제정산"),
+            ("주간 리포트", "주간 리포트"),
         ],
-        "⚙️ 관리/보정": [
-            ("매출 등록", "💰"),
-            ("판매량 등록", "📦"),
-            ("메뉴 등록", "🍽️"),
-            ("재료 등록", "🥬"),
-            ("레시피 등록", "📝"),
-            ("직원 연락망", "👤"),
-            ("협력사 연락망", "🤝"),
-            ("게시판", "📌"),
-        ]
+        "⚙️ 관리/보정(예외)": [
+            ("매출 보정", "매출 등록"),
+            ("판매량 보정", "판매량 등록"),
+            ("메뉴", "메뉴 등록"),
+            ("재료", "재료 등록"),
+            ("레시피", "레시피 등록"),
+            ("직원", "직원 연락망"),
+            ("협력사", "협력사 연락망"),
+            ("게시판", "게시판"),
+        ],
     }
     
-    # 선택된 페이지 확인
-    if 'current_page' not in st.session_state:
+    if "current_page" not in st.session_state:
         st.session_state.current_page = "점장 마감"
     
-    # 모든 메뉴 항목 추출 (순서 유지)
-    all_menu_items = []
-    all_menu_options = []
+    selected_page_key = st.session_state.current_page
     
-    for category_name, items in menu_categories.items():
-        for menu_name, icon in items:
-            all_menu_items.append((menu_name, icon))
-            all_menu_options.append(f"{icon} {menu_name}")
-    
-    # 카테고리별로 헤더와 메뉴를 함께 표시
-    # 각 카테고리의 메뉴를 버튼으로 표시하여 카테고리별 구분이 명확하게 보이도록 함
-    selected_menu_text = st.session_state.current_page
-    
-    for category_name, items in menu_categories.items():
-        # 카테고리 헤더
-        st.sidebar.markdown(f"""
-        <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
-                {category_name}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 카테고리 내 각 메뉴를 버튼으로 표시
-        for menu_name, icon in items:
-            # 현재 선택된 메뉴인지 확인
-            is_selected = (selected_menu_text == menu_name)
-            button_type = "primary" if is_selected else "secondary"
-            
-            if st.sidebar.button(
-                f"{icon} {menu_name}",
-                key=f"menu_btn_{menu_name}",
+    def _render_menu_buttons(items, sidebar_target):
+        for label, key in items:
+            is_selected = selected_page_key == key
+            btn = sidebar_target.button(
+                label,
+                key=f"menu_btn_{key}",
                 use_container_width=True,
-                type=button_type
-            ):
-                st.session_state.current_page = menu_name
+                type="primary" if is_selected else "secondary",
+            )
+            if btn:
+                st.session_state.current_page = key
                 st.rerun()
+    
+    for category_name, items in menu_categories.items():
+        if not items:
+            continue
+        is_management = category_name == "⚙️ 관리/보정(예외)"
+        if is_management:
+            with st.sidebar.expander("⚙️ 관리/보정(예외)", expanded=False):
+                _render_menu_buttons(items, st)
+        else:
+            st.sidebar.markdown(f"""
+            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                    {category_name}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            _render_menu_buttons(items, st.sidebar)
     
     # 사이드바 하단: 테마 설정 (모든 메뉴 카테고리 아래에 배치)
     st.sidebar.markdown("---")
@@ -1578,6 +1571,12 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
 
 page = st.session_state.current_page
+
+# 홈 placeholder (Phase 2 STEP 3: 기능 없음, 안내만)
+if page == "홈":
+    render_page_header("사장 계기판 (홈)", "🏠")
+    st.info("사장 계기판(홈)은 다음 Phase에서 추가됩니다.")
+    st.caption("현재는 **실제정산** / **통합 대시보드**를 이용해 주세요.")
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):
