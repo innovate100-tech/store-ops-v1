@@ -69,7 +69,10 @@ BEGIN
     
     -- 4. daily_sales_items 저장 (호환성)
     -- sales_items가 JSONB 배열인 경우 파싱하여 저장
-    IF p_sales_items IS NOT NULL AND jsonb_array_length(p_sales_items) > 0 THEN
+    -- 안전성: jsonb_typeof로 배열인지 확인 후 jsonb_array_length 호출 (스칼라 오류 방지)
+    IF p_sales_items IS NOT NULL 
+       AND jsonb_typeof(p_sales_items) = 'array' 
+       AND jsonb_array_length(p_sales_items) > 0 THEN
         -- 기존 항목 삭제
         DELETE FROM daily_sales_items
         WHERE store_id = p_store_id AND date = p_date;
