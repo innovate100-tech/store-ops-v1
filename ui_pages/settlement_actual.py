@@ -4,6 +4,7 @@ UI 구조 + 상태관리 + 자동 계산 + 고정비 개념 + 템플릿 관리
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import pandas as pd
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.ui_helpers import render_section_divider
 from src.ui.guards import require_auth_and_store
@@ -13,7 +14,9 @@ from src.storage_supabase import (
     soft_delete_cost_item_template,
     load_actual_settlement_items,
     upsert_actual_settlement_item,
-    load_monthly_sales_total
+    load_monthly_sales_total,
+    load_csv,
+    load_expense_structure
 )
 
 # 공통 설정 적용
@@ -732,11 +735,360 @@ def _render_expense_section(store_id: str, year: int, month: int, total_sales: i
         st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
 
-def _render_analysis_section():
-    """분석 영역 (임시)"""
+def _load_targets_for_month(store_id: str, year: int, month: int):
+    """
+    Phase E: 목표 데이터 로드 (매출 + 비용구조)
+    
+    Returns:
+        dict: {
+            'target_sales': int,
+            'target_expense_structure': pd.DataFrame,
+            'has_targets': bool
+        }
+    """
+    try:
+        # 목표 매출 로드
+        targets_df = load_csv('targets.csv', default_columns=[
+            '연도', '월', '목표매출', '목표원가율', '목표인건비율',
+            '목표임대료율', '목표기타비용율', '목표순이익률'
+        ])
+        
+        target_sales = 0
+        if not targets_df.empty:
+            target_row = targets_df[(targets_df['연도'] == year) & (targets_df['월'] == month)]
+            if not target_row.empty:
+                target_sales = int(target_row.iloc[0].get('목표매출', 0) or 0)
+        
+        # 목표 비용구조 로드
+        expense_df = load_expense_structure(year, month, store_id=store_id)
+        
+        has_targets = target_sales > 0 or (not expense_df.empty)
+        
+        return {
+            'target_sales': target_sales,
+            'target_expense_structure': expense_df,
+            'has_targets': has_targets
+        }
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to load targets: {e}")
+        return {
+            'target_sales': 0,
+            'target_expense_structure': pd.DataFrame(),
+            'has_targets': False
+        }
+
+
+def _normalize_targets(target_expense_df, total_sales: int, target_sales: int):
+    """
+    Phase E: 목표 값 정규화 (금액/비율 둘 다 만들기)
+    
+    Args:
+        target_expense_df: expense_structure DataFrame
+        total_sales: 실제 매출 (목표 금액 계산용)
+        target_sales: 목표 매출
+    
+    Returns:
+        dict: 카테고리별 목표 값
+        {
+            '임차료': {'amount': int, 'rate': float},
+            ...
+        }
+    """
+    import pandas as pd
+    
+    categories = ['임차료', '인건비', '재료비', '공과금', '부가세&카드수수료']
+    normalized = {cat: {'amount': 0, 'rate': 0.0} for cat in categories}
+    
+    if target_expense_df.empty:
+        return normalized
+    
+    # 카테고리별 합산
+    for category in categories:
+        cat_df = target_expense_df[target_expense_df['category'] == category]
+        if not cat_df.empty:
+            total_amount = float(cat_df['amount'].sum())
+            
+            if category in ['재료비', '부가세&카드수수료']:
+                # 변동비: amount가 비율(%)로 저장됨
+                normalized[category]['rate'] = total_amount
+                # 금액으로 변환 (target_sales 기준)
+                if target_sales > 0:
+                    normalized[category]['amount'] = int(target_sales * total_amount / 100)
+            else:
+                # 고정비: amount가 금액(원)으로 저장됨
+                normalized[category]['amount'] = int(total_amount)
+                # 비율로 변환 (target_sales 기준)
+                if target_sales > 0:
+                    normalized[category]['rate'] = (total_amount / target_sales * 100)
+    
+    return normalized
+
+
+def _compute_scorecard(expense_items: dict, totals: dict, total_sales: int, 
+                       target_sales: int, target_expense: dict):
+    """
+    Phase E: 성적표 계산 (실제 vs 목표 비교)
+    
+    Returns:
+        dict: 성적표 데이터
+    """
+    # 실제 카테고리별 금액/비율 계산
+    actual_by_category = {}
+    for category, items in expense_items.items():
+        category_total = totals['category_totals'].get(category, 0.0)
+        actual_rate = (category_total / total_sales * 100) if total_sales > 0 else 0.0
+        
+        actual_by_category[category] = {
+            'amount': int(category_total),
+            'rate': actual_rate
+        }
+    
+    # 목표 vs 실제 비교
+    comparisons = {}
+    for category in ['임차료', '인건비', '재료비', '공과금', '부가세&카드수수료']:
+        actual = actual_by_category[category]
+        target = target_expense.get(category, {'amount': 0, 'rate': 0.0})
+        
+        diff_amount = actual['amount'] - target['amount']
+        diff_rate = actual['rate'] - target['rate']
+        
+        # 평가 등급 (비용은 낮을수록 좋음)
+        if category in ['재료비', '부가세&카드수수료']:
+            # 변동비: 비율 기준
+            if diff_rate <= 0:
+                grade = 'GOOD'  # 🟢
+            elif diff_rate <= 5.0:
+                grade = 'WARN'  # 🟡
+            else:
+                grade = 'BAD'  # 🔴
+        else:
+            # 고정비: 금액 기준
+            if diff_amount <= 0:
+                grade = 'GOOD'  # 🟢
+            elif diff_amount <= target['amount'] * 0.05:  # 5% 초과
+                grade = 'WARN'  # 🟡
+            else:
+                grade = 'BAD'  # 🔴
+        
+        comparisons[category] = {
+            'actual_amount': actual['amount'],
+            'target_amount': target['amount'],
+            'diff_amount': diff_amount,
+            'actual_rate': actual['rate'],
+            'target_rate': target['rate'],
+            'diff_rate': diff_rate,
+            'grade': grade
+        }
+    
+    # 총비용 비교
+    actual_total_cost = totals['total_cost']
+    target_total_cost = sum(target_expense[cat]['amount'] for cat in target_expense.keys())
+    actual_total_cost_rate = (actual_total_cost / total_sales * 100) if total_sales > 0 else 0.0
+    target_total_cost_rate = (target_total_cost / target_sales * 100) if target_sales > 0 else 0.0
+    
+    # 영업이익 비교
+    actual_profit = totals['operating_profit']
+    target_profit = target_sales - target_total_cost
+    actual_profit_rate = totals['profit_margin']
+    target_profit_rate = (target_profit / target_sales * 100) if target_sales > 0 else 0.0
+    
+    # 매출 달성률
+    sales_achievement = (total_sales / target_sales * 100) if target_sales > 0 else 0.0
+    
+    return {
+        'comparisons': comparisons,
+        'total_cost': {
+            'actual': actual_total_cost,
+            'target': target_total_cost,
+            'actual_rate': actual_total_cost_rate,
+            'target_rate': target_total_cost_rate
+        },
+        'profit': {
+            'actual': actual_profit,
+            'target': target_profit,
+            'actual_rate': actual_profit_rate,
+            'target_rate': target_profit_rate
+        },
+        'sales': {
+            'actual': total_sales,
+            'target': target_sales,
+            'achievement': sales_achievement
+        }
+    }
+
+
+def _render_scorecard(scorecard: dict, has_targets: bool):
+    """
+    Phase E: 성적표 UI 렌더링
+    """
     render_section_divider()
-    st.markdown("### 📊 분석")
-    st.info("분석 기능은 추후 구현 예정입니다.")
+    st.markdown("### 📊 이번 달 성적표 (목표 대비)")
+    
+    if not has_targets:
+        st.info("💡 이번 달 목표가 설정되지 않았습니다. **목표비용구조** 및 **목표매출구조** 페이지에서 먼저 설정하세요.")
+        return
+    
+    # 요약 카드
+    sales = scorecard['sales']
+    total_cost = scorecard['total_cost']
+    profit = scorecard['profit']
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        achievement_emoji = "🟢" if sales['achievement'] >= 100 else "🟡" if sales['achievement'] >= 90 else "🔴"
+        st.metric(
+            "목표 매출 달성률",
+            f"{sales['achievement']:.1f}%",
+            delta=f"{sales['actual'] - sales['target']:,.0f}원",
+            delta_color="normal" if sales['achievement'] >= 100 else "inverse"
+        )
+    with col2:
+        cost_diff_rate = total_cost['actual_rate'] - total_cost['target_rate']
+        cost_emoji = "🟢" if cost_diff_rate <= 0 else "🟡" if cost_diff_rate <= 5.0 else "🔴"
+        st.metric(
+            "총비용률",
+            f"{total_cost['actual_rate']:.1f}%",
+            delta=f"{cost_diff_rate:+.1f}%p",
+            delta_color="normal" if cost_diff_rate <= 0 else "inverse"
+        )
+    with col3:
+        profit_diff = profit['actual'] - profit['target']
+        profit_emoji = "🟢" if profit_diff >= 0 else "🟡" if profit_diff >= -profit['target'] * 0.1 else "🔴"
+        st.metric(
+            "영업이익",
+            f"{profit['actual']:,.0f}원",
+            delta=f"{profit_diff:+,.0f}원",
+            delta_color="normal" if profit_diff >= 0 else "inverse"
+        )
+    with col4:
+        profit_diff_rate = profit['actual_rate'] - profit['target_rate']
+        st.metric(
+            "이익률",
+            f"{profit['actual_rate']:.1f}%",
+            delta=f"{profit_diff_rate:+.1f}%p",
+            delta_color="normal" if profit_diff_rate >= 0 else "inverse"
+        )
+    
+    # 한 줄 코멘트
+    comments = []
+    if sales['achievement'] < 100:
+        comments.append(f"매출은 목표 대비 {100 - sales['achievement']:.1f}% 미달")
+    elif sales['achievement'] > 100:
+        comments.append(f"매출은 목표 대비 +{sales['achievement'] - 100:.1f}% 초과")
+    
+    for category, comp in scorecard['comparisons'].items():
+        if comp['grade'] == 'BAD':
+            if category in ['재료비', '부가세&카드수수료']:
+                comments.append(f"{category}율이 +{comp['diff_rate']:.1f}%p로 초과")
+            else:
+                comments.append(f"{category}이 +{comp['diff_amount']:,.0f}원으로 초과")
+    
+    if comments:
+        st.info("💬 " + ", ".join(comments) + "했습니다.")
+    
+    # 5대 항목 비교 테이블
+    st.markdown("#### 📋 카테고리별 비교")
+    import pandas as pd
+    
+    table_data = []
+    for category in ['임차료', '인건비', '재료비', '공과금', '부가세&카드수수료']:
+        comp = scorecard['comparisons'][category]
+        grade_emoji = {'GOOD': '🟢', 'WARN': '🟡', 'BAD': '🔴'}[comp['grade']]
+        
+        table_data.append({
+            '항목': category,
+            '실제(원)': f"{comp['actual_amount']:,}",
+            '목표(원)': f"{comp['target_amount']:,}",
+            '차이(원)': f"{comp['diff_amount']:+,}",
+            '실제(%)': f"{comp['actual_rate']:.2f}",
+            '목표(%)': f"{comp['target_rate']:.2f}",
+            '차이(%p)': f"{comp['diff_rate']:+.2f}",
+            '평가': grade_emoji
+        })
+    
+    df = pd.DataFrame(table_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    
+    # 문제 원인 TOP 3
+    st.markdown("#### ⚠️ 문제 원인 TOP 3")
+    
+    # 초과 기여도 계산 (양수만)
+    issues = []
+    for category, comp in scorecard['comparisons'].items():
+        if comp['grade'] in ['WARN', 'BAD']:
+            if category in ['재료비', '부가세&카드수수료']:
+                contribution = comp['diff_rate']  # 비율 기준
+            else:
+                contribution = comp['diff_amount']  # 금액 기준
+            
+            if contribution > 0:
+                issues.append({
+                    'category': category,
+                    'contribution': contribution,
+                    'comp': comp
+                })
+    
+    # 기여도 큰 순으로 정렬
+    issues.sort(key=lambda x: x['contribution'], reverse=True)
+    
+    if issues:
+        hints = {
+            '재료비': '원가 누수(폐기/서비스) 또는 단가 상승을 점검하세요.',
+            '인건비': '인건비 효율(시간당 매출)을 개선하세요.',
+            '임차료': '임대료 재협상 또는 공간 활용도를 높이세요.',
+            '공과금': '에너지 효율 개선을 검토하세요.',
+            '부가세&카드수수료': '카드 수수료 할인 제도를 활용하세요.'
+        }
+        
+        for i, issue in enumerate(issues[:3], 1):
+            comp = issue['comp']
+            category = issue['category']
+            hint = hints.get(category, '해당 항목의 효율을 개선하세요.')
+            
+            with st.container():
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    st.markdown(f"**{i}. {category}**")
+                    st.markdown(f"{'🟡' if comp['grade'] == 'WARN' else '🔴'}")
+                with col2:
+                    if category in ['재료비', '부가세&카드수수료']:
+                        st.write(f"비율 초과: +{comp['diff_rate']:.2f}%p")
+                    else:
+                        st.write(f"금액 초과: +{comp['diff_amount']:,}원")
+                    st.caption(f"💡 {hint}")
+    else:
+        st.success("🎉 모든 항목이 목표 범위 내에 있습니다!")
+
+
+def _render_analysis_section(store_id: str, year: int, month: int, expense_items: dict, totals: dict, total_sales: int):
+    """분석 영역 (Phase E: 성적표)"""
+    # 목표 데이터 로드
+    targets = _load_targets_for_month(store_id, year, month)
+    
+    if not targets['has_targets']:
+        _render_scorecard({}, False)
+        return
+    
+    # 목표 정규화
+    normalized_targets = _normalize_targets(
+        targets['target_expense_structure'],
+        total_sales,
+        targets['target_sales']
+    )
+    
+    # 성적표 계산
+    scorecard = _compute_scorecard(
+        expense_items,
+        totals,
+        total_sales,
+        targets['target_sales'],
+        normalized_targets
+    )
+    
+    # 성적표 렌더링
+    _render_scorecard(scorecard, True)
 
 
 def render_settlement_actual():
@@ -769,8 +1121,8 @@ def render_settlement_actual():
         # 비용 입력 영역 (템플릿 저장/삭제 포함)
         _render_expense_section(store_id, year, month, total_sales)
         
-        # 분석 영역
-        _render_analysis_section()
+        # 분석 영역 (Phase E: 성적표)
+        _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시
