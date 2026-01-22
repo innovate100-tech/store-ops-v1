@@ -1,28 +1,101 @@
 """
-실제정산 페이지 (Phase A+ - UI/UX 뼈대)
-DB 연결 없이 UI 구조 + 상태관리 + 자동 계산 + 고정비 개념 구현
+실제정산 페이지 (Phase B - 템플릿 저장/자동 로드)
+UI 구조 + 상태관리 + 자동 계산 + 고정비 개념 + 템플릿 관리
 """
 from src.bootstrap import bootstrap
 import streamlit as st
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.ui_helpers import render_section_divider
+from src.ui.guards import require_auth_and_store
+from src.storage_supabase import (
+    load_cost_item_templates,
+    save_cost_item_template,
+    soft_delete_cost_item_template
+)
 
 # 공통 설정 적용
 bootstrap(page_title="Settlement Actual")
 
 
-def _initialize_expense_items(year: int, month: int):
-    """비용 항목 초기화 (session_state)"""
+def _load_templates_to_session_state(store_id: str, year: int, month: int, force: bool = False):
+    """
+    템플릿을 session_state로 로드
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+        force: True면 기존 session_state를 덮어씀
+    
+    Returns:
+        dict: expense_items 구조
+    """
     key = f"settlement_expense_items_{year}_{month}"
-    if key not in st.session_state:
-        st.session_state[key] = {
-            '임차료': [],
-            '인건비': [],
-            '재료비': [],
-            '공과금': [],
-            '부가세&카드수수료': [],
+    
+    # force=False이고 이미 존재하면 덮어쓰지 않음
+    if not force and key in st.session_state:
+        return st.session_state[key]
+    
+    # 템플릿 로드
+    templates = load_cost_item_templates(store_id)
+    
+    # 카테고리별로 그룹화
+    expense_items = {
+        '임차료': [],
+        '인건비': [],
+        '재료비': [],
+        '공과금': [],
+        '부가세&카드수수료': [],
+    }
+    
+    for template in templates:
+        category = template.get('category')
+        if category not in expense_items:
+            continue
+        
+        # 템플릿에서 항목 생성 (amount는 0, rate는 0.0)
+        item = {
+            'name': template.get('item_name', ''),
+            'template_id': template.get('id'),  # 나중에 업데이트 시 사용
         }
-    return st.session_state[key]
+        
+        # item_type에 따라 amount 또는 rate 설정
+        item_type = template.get('item_type', 'normal')
+        if category in ['재료비', '부가세&카드수수료']:
+            # 매출연동: rate 사용
+            item['rate'] = 0.0
+        else:
+            # 고정비: amount 사용
+            item['amount'] = 0
+        
+        expense_items[category].append(item)
+    
+    # session_state에 저장
+    st.session_state[key] = expense_items
+    return expense_items
+
+
+def _initialize_expense_items(store_id: str, year: int, month: int, force: bool = False):
+    """
+    비용 항목 초기화 (템플릿에서 로드 또는 session_state 반환)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+        force: True면 템플릿에서 강제로 다시 로드
+    
+    Returns:
+        dict: expense_items 구조
+    """
+    key = f"settlement_expense_items_{year}_{month}"
+    
+    # force=False이고 이미 존재하면 그대로 반환
+    if not force and key in st.session_state:
+        return st.session_state[key]
+    
+    # 템플릿에서 로드
+    return _load_templates_to_session_state(store_id, year, month, force=True)
 
 
 def _get_total_sales(year: int, month: int) -> float:
@@ -66,7 +139,7 @@ def _calculate_totals(expense_items: dict, total_sales: float) -> dict:
     }
 
 
-def _render_header_section(year: int, month: int):
+def _render_header_section(store_id: str, year: int, month: int):
     """상단 영역: 연/월 선택, KPI 카드, 상태 배지"""
     # 연/월 선택
     col1, col2, col3 = st.columns([2, 2, 2])
@@ -87,9 +160,14 @@ def _render_header_section(year: int, month: int):
             key="settlement_month"
         )
     with col3:
-        st.write("")  # 빈 공간
+        # 템플릿 리셋 버튼 (Phase B)
+        if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", use_container_width=True):
+            # 강제로 템플릿에서 다시 로드
+            _initialize_expense_items(store_id, selected_year, selected_month, force=True)
+            st.success("✅ 템플릿을 다시 불러왔습니다. (현재 입력한 금액/비율은 유지됩니다)")
+            st.rerun()
     
-    # 연/월이 변경되면 rerun
+    # 연/월이 변경되면 rerun (템플릿 자동 로드)
     if selected_year != year or selected_month != month:
         st.rerun()
     
@@ -108,7 +186,7 @@ def _render_header_section(year: int, month: int):
     _set_total_sales(selected_year, selected_month, total_sales_input)
     
     # KPI 카드
-    expense_items = _initialize_expense_items(selected_year, selected_month)
+    expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
     total_sales = _get_total_sales(selected_year, selected_month)
     totals = _calculate_totals(expense_items, total_sales)
     
@@ -148,6 +226,7 @@ def _render_header_section(year: int, month: int):
 
 
 def _render_expense_category(
+    store_id: str,
     category: str,
     category_info: dict,
     items: list,
@@ -155,7 +234,7 @@ def _render_expense_category(
     year: int,
     month: int
 ):
-    """비용 카테고리별 입력 UI"""
+    """비용 카테고리별 입력 UI (Phase B: 템플릿 저장/삭제 포함)"""
     is_linked = category_info['type'] == 'linked'  # 매출연동 여부
     
     # 카테고리 헤더
@@ -200,11 +279,6 @@ def _render_expense_category(
                     value=item.get('name', ''),
                     key=item_name_key
                 )
-                # 실시간 업데이트
-                if item_name != item.get('name', ''):
-                    expense_items = _initialize_expense_items(year, month)
-                    if idx < len(expense_items[category]):
-                        expense_items[category][idx]['name'] = item_name
             with col2:
                 if is_linked:
                     # 매출연동: 비율 입력
@@ -220,9 +294,9 @@ def _render_expense_category(
                     )
                     calculated = (total_sales * rate / 100) if total_sales > 0 else 0.0
                     st.caption(f"→ {calculated:,.0f}원")
-                    # 실시간 업데이트
+                    # 비율 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
                     if rate != item.get('rate', 0.0):
-                        expense_items = _initialize_expense_items(year, month)
+                        expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['rate'] = rate
                 else:
@@ -236,17 +310,56 @@ def _render_expense_category(
                         format="%d",
                         key=amount_key
                     )
-                    # 실시간 업데이트
+                    # 금액 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
                     if amount != item.get('amount', 0):
-                        expense_items = _initialize_expense_items(year, month)
+                        expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['amount'] = amount
             with col3:
-                if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", help="삭제"):
-                    expense_items = _initialize_expense_items(year, month)
-                    if idx < len(expense_items[category]):
-                        expense_items[category].pop(idx)
-                    st.rerun()
+                col_save, col_delete = st.columns(2)
+                with col_save:
+                    # 항목명 수정 시 템플릿 업데이트 버튼 (Phase B)
+                    if st.button("💾", key=f"settlement_save_{category}_{idx}_{year}_{month}", help="템플릿 저장"):
+                        expense_items = _initialize_expense_items(store_id, year, month)
+                        if idx < len(expense_items[category]):
+                            current_item = expense_items[category][idx]
+                            old_name = current_item.get('name', '')
+                            # 위젯에서 최신 값 가져오기
+                            new_name = st.session_state.get(item_name_key, old_name)
+                            
+                            if new_name.strip() and new_name != old_name:
+                                try:
+                                    item_type = 'percent' if is_linked else 'normal'
+                                    save_cost_item_template(
+                                        store_id, category, new_name.strip(),
+                                        item_type=item_type, sort_order=idx
+                                    )
+                                    # 기존 항목명이 있고 다르면 soft delete
+                                    if old_name and old_name != new_name.strip():
+                                        soft_delete_cost_item_template(store_id, category, old_name)
+                                    expense_items[category][idx]['name'] = new_name.strip()
+                                    st.caption("✅ 템플릿 업데이트됨")
+                                except Exception as e:
+                                    st.error(f"템플릿 업데이트 실패: {e}")
+                        st.rerun()
+                with col_delete:
+                    if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", help="삭제"):
+                        expense_items = _initialize_expense_items(store_id, year, month)
+                        if idx < len(expense_items[category]):
+                            item_to_delete = expense_items[category][idx]
+                            item_name_to_delete = item_to_delete.get('name', '')
+                            
+                            # Soft delete (Phase B)
+                            if item_name_to_delete:
+                                try:
+                                    soft_delete_cost_item_template(store_id, category, item_name_to_delete)
+                                    st.caption("✅ 템플릿에서 삭제됨")
+                                except Exception as e:
+                                    st.error(f"템플릿 삭제 실패: {e}")
+                            
+                            # session_state에서도 제거
+                            expense_items[category].pop(idx)
+                        st.rerun()
     
     # 새 항목 추가
     st.markdown("---")
@@ -280,7 +393,21 @@ def _render_expense_category(
     with add_col3:
         if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
             if new_name.strip():
-                expense_items = _initialize_expense_items(year, month)
+                expense_items = _initialize_expense_items(store_id, year, month)
+                
+                # 템플릿에 저장 (Phase B)
+                try:
+                    item_type = 'percent' if is_linked else 'normal'
+                    sort_order = len(expense_items[category])  # 현재 항목 수를 sort_order로 사용
+                    save_cost_item_template(
+                        store_id, category, new_name.strip(),
+                        item_type=item_type, sort_order=sort_order
+                    )
+                    st.caption("✅ 템플릿에 저장됨")
+                except Exception as e:
+                    st.error(f"템플릿 저장 실패: {e}")
+                
+                # session_state에 추가
                 new_item = {'name': new_name.strip()}
                 if is_linked:
                     new_item['rate'] = new_value
@@ -292,11 +419,11 @@ def _render_expense_category(
                 st.error("항목명을 입력해주세요.")
 
 
-def _render_expense_section(year: int, month: int, total_sales: float):
+def _render_expense_section(store_id: str, year: int, month: int, total_sales: float):
     """비용 입력 영역"""
     st.markdown("### 💸 비용 입력")
     
-    expense_items = _initialize_expense_items(year, month)
+    expense_items = _initialize_expense_items(store_id, year, month)
     
     # 카테고리 정의
     categories = {
@@ -330,6 +457,7 @@ def _render_expense_section(year: int, month: int, total_sales: float):
     # 각 카테고리 렌더링
     for category, info in categories.items():
         _render_expense_category(
+            store_id,
             category,
             info,
             expense_items[category],
@@ -348,10 +476,13 @@ def _render_analysis_section():
 
 
 def render_settlement_actual():
-    """실제정산 페이지 렌더링 (Phase A+)"""
+    """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
-        st.caption("✅ Settlement Phase A+ ACTIVE")
+        st.caption("✅ Settlement Phase B ACTIVE")
+        
+        # 인증 및 store_id 확인 (Phase B)
+        user_id, store_id = require_auth_and_store()
         
         # 페이지 제목
         st.markdown("""
@@ -366,13 +497,13 @@ def render_settlement_actual():
         current_year = current_year_kst()
         current_month = current_month_kst()
         
-        # 상단 영역 (연/월 선택, KPI 카드)
+        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼)
         year, month, expense_items, total_sales, totals = _render_header_section(
-            current_year, current_month
+            store_id, current_year, current_month
         )
         
-        # 비용 입력 영역
-        _render_expense_section(year, month, total_sales)
+        # 비용 입력 영역 (템플릿 저장/삭제 포함)
+        _render_expense_section(store_id, year, month, total_sales)
         
         # 분석 영역
         _render_analysis_section()
@@ -382,10 +513,12 @@ def render_settlement_actual():
         st.error(f"❌ 실제정산 페이지 로드 중 오류가 발생했습니다: {str(e)}")
         st.exception(e)
         st.info("""
-        **Phase A+ 실제정산 페이지**
+        **Phase B 실제정산 페이지**
         
         - 연/월 선택
         - 총매출 입력
         - 비용 입력 (5개 카테고리)
         - 자동 계산 (총비용, 영업이익, 이익률)
+        - 템플릿 저장/자동 로드
+        - Soft Delete
         """)

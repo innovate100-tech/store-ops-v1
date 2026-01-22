@@ -2723,3 +2723,120 @@ def update_order_status(order_id, status, actual_delivery_date=None):
     except Exception as e:
         logger.error(f"Failed to update order status: {e}")
         raise
+
+
+# ============================================
+# Phase B: 실제정산 비용 항목 템플릿 관리
+# ============================================
+
+def load_cost_item_templates(store_id: str):
+    """
+    비용 항목 템플릿 로드 (is_active=true만)
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        list: 템플릿 항목 리스트 (category, item_name, item_type, is_recurring, recurring_value, sort_order)
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return []
+        
+        result = supabase.table("cost_item_templates")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .eq("is_active", True)\
+            .order("category")\
+            .order("sort_order")\
+            .order("item_name")\
+            .execute()
+        
+        logger.info(f"Loaded {len(result.data) if result.data else 0} cost item templates")
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to load cost item templates: {e}")
+        return []
+
+
+def save_cost_item_template(
+    store_id: str,
+    category: str,
+    item_name: str,
+    item_type: str = 'normal',
+    is_recurring: bool = False,
+    recurring_value: float = 0.0,
+    sort_order: int = 0
+):
+    """
+    비용 항목 템플릿 저장/업데이트 (upsert)
+    
+    Args:
+        store_id: 매장 ID
+        category: 카테고리 (임차료, 인건비, 재료비, 공과금, 부가세&카드수수료)
+        item_name: 항목명
+        item_type: 항목 유형 ('normal' | 'fixed' | 'percent')
+        is_recurring: 반복 여부
+        recurring_value: 반복 값
+        sort_order: 정렬 순서
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return False
+        
+        # upsert (store_id, category, item_name 기준)
+        supabase.table("cost_item_templates").upsert({
+            "store_id": store_id,
+            "category": category,
+            "item_name": item_name,
+            "item_type": item_type,
+            "is_recurring": is_recurring,
+            "recurring_value": float(recurring_value),
+            "sort_order": int(sort_order),
+            "is_active": True
+        }, on_conflict="store_id,category,item_name").execute()
+        
+        logger.info(f"Cost item template saved: {category} - {item_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save cost item template: {e}")
+        raise
+
+
+def soft_delete_cost_item_template(store_id: str, category: str, item_name: str):
+    """
+    비용 항목 템플릿 Soft Delete (is_active=false로 업데이트)
+    
+    Args:
+        store_id: 매장 ID
+        category: 카테고리
+        item_name: 항목명
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return False
+        
+        supabase.table("cost_item_templates")\
+            .update({"is_active": False})\
+            .eq("store_id", store_id)\
+            .eq("category", category)\
+            .eq("item_name", item_name)\
+            .execute()
+        
+        logger.info(f"Cost item template soft deleted: {category} - {item_name}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to soft delete cost item template: {e}")
+        raise
