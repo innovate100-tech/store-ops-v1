@@ -775,10 +775,124 @@ def get_close_count(store_id: str) -> int:
         return 0
 
 
-def get_today_one_action(store_id: str, level: int) -> dict:
+def is_auto_coach_mode(store_id: str) -> bool:
+    """
+    자동 코치 모드 활성화 여부 확인 (온보딩 미션 100% 달성)
+    
+    Returns:
+        bool: 자동 코치 모드 활성화 여부
+    """
+    try:
+        menu_count = get_menu_count(store_id)
+        close_count = get_close_count(store_id)
+        KST = ZoneInfo("Asia/Seoul")
+        now_kst = datetime.now(KST)
+        has_settlement = check_actual_settlement_exists(store_id, now_kst.year, now_kst.month)
+        
+        mission1_complete = menu_count >= 3
+        mission2_complete = close_count >= 3
+        mission3_complete = has_settlement
+        
+        return mission1_complete and mission2_complete and mission3_complete
+    except Exception:
+        return False
+
+
+def get_coach_summary(store_id: str) -> str:
+    """
+    코치 요약 문장 생성 (자동 코치 모드용)
+    기존 데이터를 활용한 룰 기반 문장
+    
+    Returns:
+        str: 코치 요약 문장
+    """
+    try:
+        problems = get_problems_top3(store_id)
+        good_points = get_good_points_top3(store_id)
+        signals = get_anomaly_signals(store_id)
+        
+        # 문제 수와 이상 징후 수
+        problem_count = len([p for p in problems if "데이터를 불러올 수 없습니다" not in p.get("text", "") and "아직 분석할 데이터가 충분하지 않습니다" not in p.get("text", "")])
+        signal_count = len(signals)
+        
+        # 매출 감소 관련 문제 확인
+        has_sales_decline = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
+        
+        # 마감 공백 문제 확인
+        has_close_gap = any("마감" in p.get("text", "") and ("공백" in p.get("text", "") or "누락" in p.get("text", "") or "없는 날" in p.get("text", "")) for p in problems)
+        
+        # 좋은 점 확인
+        has_good_sales = any("매출" in g.get("text", "") and ("증가" in g.get("text", "") or "최고" in g.get("text", "")) for g in good_points)
+        has_good_close = any("마감" in g.get("text", "") for g in good_points)
+        
+        # 문장 생성 (우선순위 기반)
+        if has_sales_decline and signal_count > 0:
+            return "최근 매출이 떨어지고 있어, 원인 점검이 필요한 상태입니다."
+        elif has_sales_decline:
+            return "이번 달은 매출 흐름이 불안정하여 관리가 필요합니다."
+        elif has_close_gap:
+            return "마감 데이터가 끊겨 있어, 가게 상태 파악이 어려운 상황입니다."
+        elif problem_count > 0 and signal_count > 0:
+            return "이번 달은 변동성이 증가하고 있어, 원인 추적이 필요한 상태입니다."
+        elif has_good_sales and has_good_close:
+            return "이번 달은 구조가 안정적이고, 운영 리듬도 잘 유지되고 있습니다."
+        elif has_good_sales:
+            return "이번 달은 매출 흐름이 양호하고, 운영이 안정적으로 진행되고 있습니다."
+        elif problem_count == 0 and signal_count == 0:
+            return "이번 달은 전반적으로 안정적인 상태를 유지하고 있습니다."
+        else:
+            return "이번 달 가게 상태를 점검 중입니다."
+            
+    except Exception:
+        return "이번 달 가게 상태를 확인 중입니다."
+
+
+def get_month_status_summary(store_id: str, year: int, month: int) -> str:
+    """
+    이번 달 가게 상태 한 줄 요약
+    
+    Returns:
+        str: 상태 요약 문장
+    """
+    try:
+        problems = get_problems_top3(store_id)
+        signals = get_anomaly_signals(store_id)
+        has_settlement = check_actual_settlement_exists(store_id, year, month)
+        
+        problem_count = len([p for p in problems if "데이터를 불러올 수 없습니다" not in p.get("text", "") and "아직 분석할 데이터가 충분하지 않습니다" not in p.get("text", "")])
+        signal_count = len(signals)
+        
+        # 매출 관련 확인
+        monthly_sales = 0
+        try:
+            monthly_sales = load_monthly_sales_total(store_id, year, month)
+        except:
+            pass
+        
+        if problem_count == 0 and signal_count == 0 and has_settlement:
+            if monthly_sales > 0:
+                return "이번 달은 '구조 안정 + 운영 리듬 양호' 상태입니다."
+            else:
+                return "이번 달은 '데이터 수집 중' 상태입니다."
+        elif problem_count > 0 or signal_count > 0:
+            if has_settlement:
+                return "이번 달은 '변동성 증가, 원인 추적 필요' 상태입니다."
+            else:
+                return "이번 달은 '관리 필요, 데이터 보완 필요' 상태입니다."
+        elif has_settlement:
+            return "이번 달은 '매출은 유지, 이익은 관리 필요' 상태입니다."
+        else:
+            return "이번 달은 '데이터 수집 중' 상태입니다."
+            
+    except Exception:
+        return "이번 달 상태를 확인 중입니다."
+
+
+def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False) -> dict:
     """
     오늘 하나만 추천 액션 결정 (룰 기반)
     미션 진행률을 고려하여 추천
+    자동 코치 모드일 때는 멘트 강화
     
     Returns:
         dict: {
@@ -843,12 +957,31 @@ def get_today_one_action(store_id: str, level: int) -> dict:
                 }
             else:
                 # B) 운영 메모가 있으면
-                return {
-                    "title": "판매 흐름 3분 점검",
-                    "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.",
-                    "button_label": "📦 판매 관리 보러가기",
-                    "target_page": "판매 관리"
-                }
+                if is_coach_mode:
+                    # 코치 모드: 멘트 강화
+                    problems = get_problems_top3(store_id)
+                    has_sales_issue = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
+                    if has_sales_issue:
+                        return {
+                            "title": "판매 흐름 점검",
+                            "reason": "최근 매출이 흔들리고 있어, 오늘은 판매 흐름을 3분만 점검해보세요.",
+                            "button_label": "📦 판매 관리 보러가기",
+                            "target_page": "판매 관리"
+                        }
+                    else:
+                        return {
+                            "title": "판매 흐름 점검",
+                            "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.",
+                            "button_label": "📦 판매 관리 보러가기",
+                            "target_page": "판매 관리"
+                        }
+                else:
+                    return {
+                        "title": "판매 흐름 3분 점검",
+                        "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.",
+                        "button_label": "📦 판매 관리 보러가기",
+                        "target_page": "판매 관리"
+                    }
         
         elif level == 3:
             # actual_settlement(이번 달) 존재 여부 확인
@@ -864,12 +997,20 @@ def get_today_one_action(store_id: str, level: int) -> dict:
                 }
             else:
                 # B) actual_settlement(이번 달) 데이터가 있으면
-                return {
-                    "title": "숫자 구조 10초 복습",
-                    "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다.",
-                    "button_label": "💳 목표 비용구조 보기",
-                    "target_page": "목표 비용구조"
-                }
+                if is_coach_mode:
+                    return {
+                        "title": "숫자 구조 복습",
+                        "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다. 오늘은 10초만 복습해보세요.",
+                        "button_label": "💳 목표 비용구조 보기",
+                        "target_page": "목표 비용구조"
+                    }
+                else:
+                    return {
+                        "title": "숫자 구조 10초 복습",
+                        "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다.",
+                        "button_label": "💳 목표 비용구조 보기",
+                        "target_page": "목표 비용구조"
+                    }
         
         else:
             return fallback
@@ -1168,6 +1309,24 @@ def render_home():
     }
     
     st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
+    
+    # 자동 코치 모드 확인
+    is_coach_mode = is_auto_coach_mode(store_id)
+    
+    # STEP 4-5: 자동 코치 모드 최초 진입 시 환영 메시지
+    if is_coach_mode:
+        if 'coach_mode_welcomed' not in st.session_state:
+            st.success("🎉 자동 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
+            st.session_state.coach_mode_welcomed = True
+    
+    # STEP 4-1: 코치 요약 문장 (자동 코치 모드일 때만)
+    if is_coach_mode:
+        try:
+            coach_summary = get_coach_summary(store_id)
+            st.markdown(f"**📋 이번 달 우리 가게 코치 요약**\n\n{coach_summary}")
+            st.markdown("<br>", unsafe_allow_html=True)
+        except Exception:
+            pass
     
     render_section_divider()
     
@@ -1493,10 +1652,14 @@ def render_home():
     # ========== 섹션 3: 오늘 하나만 ==========
     try:
         with st.container():
-            st.markdown("### 🎯 오늘 하나만 (매일 1개 추천)")
+            # STEP 4-2: 자동 코치 모드일 때 제목 변경
+            if is_coach_mode:
+                st.markdown("### 🎯 오늘 코치의 한 가지 제안")
+            else:
+                st.markdown("### 🎯 오늘 하나만 (매일 1개 추천)")
             
             # 추천 액션 결정
-            action = get_today_one_action(store_id, data_level)
+            action = get_today_one_action(store_id, data_level, is_coach_mode)
             
             # 추천 카드 표시
             st.markdown(f"""
@@ -1550,9 +1713,21 @@ def render_home():
                             st.rerun()
                     else:
                         for idx, problem in enumerate(problems, 1):
+                            problem_text = problem['text']
+                            # STEP 4-3: 행동 연결 문장 추가 (자동 코치 모드일 때만)
+                            guide_text = ""
+                            if is_coach_mode:
+                                if "매출" in problem_text and ("감소" in problem_text or "떨어" in problem_text):
+                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                                elif "마감" in problem_text and ("공백" in problem_text or "누락" in problem_text or "없는 날" in problem_text):
+                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                                elif "메뉴" in problem_text and "50%" in problem_text:
+                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
+                            
                             st.markdown(f"""
                             <div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;">
-                                <div style="font-weight: 600; color: #721c24; margin-bottom: 0.3rem;">{idx}. {problem['text']}</div>
+                                <div style="font-weight: 600; color: #721c24; margin-bottom: 0.3rem;">{idx}. {problem_text}</div>
+                                {guide_text}
                             </div>
                             """, unsafe_allow_html=True)
                             if st.button(f"보러가기", key=f"home_btn_problem_{idx}", use_container_width=True):
@@ -1617,12 +1792,24 @@ def render_home():
                     """, unsafe_allow_html=True)
                 else:
                     for idx, signal in enumerate(signals, 1):
+                        signal_text = signal['text']
+                        # STEP 4-3: 행동 연결 문장 추가 (자동 코치 모드일 때만)
+                        guide_text = ""
+                        if is_coach_mode:
+                            if "매출" in signal_text and ("감소" in signal_text or "떨어" in signal_text):
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                            elif "마감" in signal_text and ("누락" in signal_text or "없습니다" in signal_text):
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                            elif "판매량" in signal_text or "판매" in signal_text:
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
+                        
                         st.markdown(f"""
                         <div style="padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
                             <div style="display: flex; align-items: center; margin-bottom: 0.3rem;">
                                 <span style="font-size: 1.2rem; margin-right: 0.5rem;">{signal['icon']}</span>
-                                <div style="font-weight: 600; color: #856404; flex: 1;">{signal['text']}</div>
+                                <div style="font-weight: 600; color: #856404; flex: 1;">{signal_text}</div>
                             </div>
+                            {guide_text}
                         </div>
                         """, unsafe_allow_html=True)
                         if st.button(f"보러가기", key=f"home_btn_anomaly_{idx}", use_container_width=True):
@@ -1664,6 +1851,21 @@ def render_home():
                 """, unsafe_allow_html=True)
     except Exception:
         pass
+    
+    render_section_divider()
+    
+    # ========== STEP 4-4: 이번 달 가게 상태 한 줄 요약 (자동 코치 모드일 때만) ==========
+    if is_coach_mode:
+        try:
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            current_year = now_kst.year
+            current_month = now_kst.month
+            status_summary = get_month_status_summary(store_id, current_year, current_month)
+            st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{status_summary}")
+            st.markdown("<br>", unsafe_allow_html=True)
+        except Exception:
+            pass
     
     render_section_divider()
     
