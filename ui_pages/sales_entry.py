@@ -25,52 +25,90 @@ def render_sales_entry():
     """매출 등록 페이지 렌더링"""
     render_page_header("매출 등록", "💰")
     
-    # 저장 후 메시지 표시 (세션 상태에서)
+    # 저장 후 메시지 표시 (세션 상태에서) - 통합된 세련된 디자인
     if "sales_entry_success_message" in st.session_state:
         msg = st.session_state["sales_entry_success_message"]
         msg_type = st.session_state.get("sales_entry_message_type", "success")
         
-        # 메시지를 큰 박스로 표시 (더 눈에 띄게)
+        # 통합된 세련된 알림 박스 (하나로 통합)
         if msg_type == "success":
-            st.markdown("""
-            <div style="padding: 1rem; background-color: #d4edda; border: 2px solid #28a745; border-radius: 0.5rem; margin: 1rem 0;">
-                <h3 style="color: #155724; margin: 0 0 0.5rem 0;">✅ 매출 저장 완료!</h3>
+            st.markdown(f"""
+            <div style="
+                padding: 1.5rem; 
+                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                border-radius: 12px; 
+                margin: 1rem 0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                color: #ffffff;
+            ">
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">✅</span>
+                    <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">매출 저장 완료</h3>
+                </div>
+                <div style="font-size: 0.95rem; line-height: 1.6; color: #f0fdf4;">
+                    {msg.replace(chr(10), '<br>')}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.success(msg)
             try:
                 st.toast("✅ 매출 저장 완료!", icon="✅")
             except:
-                pass  # st.toast가 없는 버전일 수 있음
+                pass
         elif msg_type == "warning":
-            st.markdown("""
-            <div style="padding: 1rem; background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 0.5rem; margin: 1rem 0;">
-                <h3 style="color: #856404; margin: 0 0 0.5rem 0;">⚠️ 충돌 감지</h3>
+            st.markdown(f"""
+            <div style="
+                padding: 1.5rem; 
+                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                border-radius: 12px; 
+                margin: 1rem 0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                color: #ffffff;
+            ">
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">⚠️</span>
+                    <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">충돌 감지</h3>
+                </div>
+                <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb;">
+                    {msg.replace(chr(10), '<br>')}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.warning(msg)
             try:
                 st.toast("⚠️ 충돌 감지", icon="⚠️")
             except:
                 pass
         elif msg_type == "error":
-            st.markdown("""
-            <div style="padding: 1rem; background-color: #f8d7da; border: 2px solid #dc3545; border-radius: 0.5rem; margin: 1rem 0;">
-                <h3 style="color: #721c24; margin: 0 0 0.5rem 0;">❌ 저장 실패</h3>
+            st.markdown(f"""
+            <div style="
+                padding: 1.5rem; 
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                border-radius: 12px; 
+                margin: 1rem 0;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                color: #ffffff;
+            ">
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">❌</span>
+                    <h3 style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 600;">저장 실패</h3>
+                </div>
+                <div style="font-size: 0.95rem; line-height: 1.6; color: #fef2f2;">
+                    {msg.replace(chr(10), '<br>')}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.error(msg)
             try:
                 st.toast("❌ 저장 실패", icon="❌")
             except:
                 pass
         
-        # 닫기 버튼 추가
-        if st.button("✕ 닫기", key="close_sales_message", use_container_width=False):
-            del st.session_state["sales_entry_success_message"]
-            if "sales_entry_message_type" in st.session_state:
-                del st.session_state["sales_entry_message_type"]
-            st.rerun()
+        # 닫기 버튼 (더 세련된 스타일)
+        col1, col2, col3 = st.columns([4, 1, 4])
+        with col2:
+            if st.button("✕ 닫기", key="close_sales_message", use_container_width=True, type="secondary"):
+                del st.session_state["sales_entry_success_message"]
+                if "sales_entry_message_type" in st.session_state:
+                    del st.session_state["sales_entry_message_type"]
+                st.rerun()
         
         render_section_divider()
     
@@ -129,35 +167,16 @@ def render_sales_entry():
                                     
                                     if has_daily_close:
                                         daily_close_total = conflict_info.get('daily_close_total_sales', 0)
-                                        message = f"""
-**⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!**
-
-- 마감보고 매출: **{daily_close_total:,.0f}원**
-- 기존 매출등록 값: **{existing:,.0f}원**
-- 새로 입력한 값: **{total_sales:,.0f}원**
-
-→ **새 값으로 덮어쓰기되었습니다.**
-
-✅ **매출이 저장되었습니다!** (날짜: {date}, 매장: {store}, 총매출: {total_sales:,}원)
-                                        """
-                                        st.session_state["sales_entry_success_message"] = message
-                                        st.session_state["sales_entry_message_type"] = "warning"
-                                    else:
-                                        message = f"""
-**⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!**
-
-- 기존 값: **{existing:,.0f}원**
-- 새 값: **{total_sales:,.0f}원**
-
-→ **새 값으로 덮어쓰기되었습니다.**
-
-✅ **매출이 저장되었습니다!** (날짜: {date}, 매장: {store}, 총매출: {total_sales:,}원)
-                                        """
+                                        message = f"""⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!<br><br>• 마감보고 매출: <strong>{daily_close_total:,.0f}원</strong><br>• 기존 매출등록 값: <strong>{existing:,.0f}원</strong><br>• 새로 입력한 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
                                         st.session_state["sales_entry_success_message"] = message
                                         st.session_state["sales_entry_message_type"] = "warning"
                                 else:
-                                    # 성공 메시지
-                                    message = f"✅ **매출이 저장되었습니다!**\n\n📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: **{total_sales:,}원**"
+                                    message = f"""⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다.<br><br>• 기존 값: <strong>{existing:,.0f}원</strong><br>• 새 값: <strong>{total_sales:,.0f}원</strong><br><br>→ 새 값으로 덮어쓰기되었습니다.<br><br>✅ 매출이 저장되었습니다!<br>📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                    st.session_state["sales_entry_success_message"] = message
+                                    st.session_state["sales_entry_message_type"] = "warning"
+                                else:
+                                    # 성공 메시지 (간결하고 가독성 있게)
+                                    message = f"""✅ 매출이 저장되었습니다!<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
                                     st.session_state["sales_entry_success_message"] = message
                                     st.session_state["sales_entry_message_type"] = "success"
                                 
