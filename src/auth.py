@@ -173,12 +173,14 @@ def get_read_client() -> Optional[Client]:
     
     우선순위:
     1. DEV MODE && use_service_role_dev=true && service_role_key 존재 → Service Role Client
-    2. 그 외 → Anon Client
+    2. 로그인 토큰이 있으면 → Auth Client (토큰 설정됨)
+    3. 그 외 → Anon Client
     
     ⚠️ 보안: 프로덕션에서는 항상 anon client만 사용됩니다.
+    ⚠️ 중요: 로그인된 사용자의 경우 토큰이 자동으로 설정되어 RLS 정책이 적용됩니다.
     
     Returns:
-        Supabase Client (Service Role 또는 Anon) 또는 None
+        Supabase Client (Service Role / Auth / Anon) 또는 None
     """
     # DEV MODE에서 service_role_key 사용 옵션 확인
     use_service_role = False
@@ -199,10 +201,19 @@ def get_read_client() -> Optional[Client]:
             logger.info("get_read_client: Service Role Client 사용 (DEV MODE)")
             return service_client
         else:
-            logger.warning("get_read_client: Service Role Client 생성 실패, Anon Client로 대체")
+            logger.warning("get_read_client: Service Role Client 생성 실패, Auth/Anon Client로 대체")
     
-    # 기본: Anon Client
-    logger.info("get_read_client: Anon Client 사용")
+    # 로그인 토큰이 있으면 Auth Client 사용 (토큰이 설정되어 RLS 정책 적용)
+    if 'access_token' in st.session_state and st.session_state.access_token:
+        try:
+            auth_client = get_auth_client(reset_session_on_fail=False)
+            logger.info("get_read_client: Auth Client 사용 (로그인 토큰 설정됨)")
+            return auth_client
+        except Exception as e:
+            logger.warning(f"get_read_client: Auth Client 생성 실패, Anon Client로 대체 - {e}")
+    
+    # 기본: Anon Client (토큰 없음)
+    logger.info("get_read_client: Anon Client 사용 (토큰 없음)")
     return get_anon_client()
 
 
