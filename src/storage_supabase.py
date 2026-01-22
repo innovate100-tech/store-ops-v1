@@ -1110,6 +1110,12 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
             targets=["sales"]
         )
         
+        # Phase G: load_monthly_sales_total 캐시도 무효화 (매출 저장 시 월합계도 갱신 필요)
+        try:
+            load_monthly_sales_total.clear()
+        except Exception:
+            pass  # 함수가 없거나 에러 발생 시 무시
+        
         # S5: 매출 저장 직후 스냅샷 (dev_mode에서만)
         try:
             from src.auth import is_dev_mode

@@ -31,6 +31,12 @@ def render_sales_management():
         if st.button("🔄 매출 새로고침", key="sales_refresh", use_container_width=True):
             # load_csv 캐시 무효화
             load_csv.clear()
+            # load_monthly_sales_total 캐시도 무효화
+            try:
+                from src.storage_supabase import load_monthly_sales_total
+                load_monthly_sales_total.clear()
+            except Exception:
+                pass
             st.success("✅ 매출 데이터를 새로고침했습니다.")
             st.rerun()
     
