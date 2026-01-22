@@ -708,10 +708,36 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
                             st.write("**샘플 데이터 (필터 없이):**")
                             st.json(test_result.data[0])
                         else:
-                            st.info("→ 테이블에 데이터가 없습니다.")
+                            st.error("❌ 필터 없이 조회해도 데이터가 없습니다!")
+                            st.warning("💡 이것은 RLS 정책이 모든 데이터 접근을 차단하고 있다는 의미입니다.")
+                            st.info("**확인 사항:**")
+                            st.info("1. Supabase Dashboard → Authentication → Policies")
+                            st.info(f"2. `{actual_table}` 테이블의 SELECT 정책 확인")
+                            st.info("3. RLS 정책이 현재 사용자(`auth.uid()`)에게 데이터 접근을 허용하는지 확인")
+                            st.info("4. 정책 예시:")
+                            st.code("""
+-- 예시: store_id 기반 RLS 정책
+CREATE POLICY "Users can view their store data"
+ON ingredients FOR SELECT
+USING (
+  store_id IN (
+    SELECT store_id FROM user_profiles 
+    WHERE id = auth.uid()
+  )
+);
+                            """, language="sql")
                     except Exception as test_error:
-                        st.error(f"❌ 테이블 접근 테스트 실패: {type(test_error).__name__}: {str(test_error)}")
+                        error_msg = str(test_error)
+                        st.error(f"❌ 테이블 접근 테스트 실패: {type(test_error).__name__}: {error_msg}")
                         st.code(str(test_error), language="text")
+                        
+                        # RLS 관련 에러 확인
+                        if "permission" in error_msg.lower() or "policy" in error_msg.lower() or "RLS" in error_msg:
+                            st.error("🚨 RLS 정책 문제로 보입니다!")
+                            st.info("**해결 방법:**")
+                            st.info(f"1. Supabase Dashboard에서 `{actual_table}` 테이블의 RLS 정책 확인")
+                            st.info("2. SELECT 정책이 필요합니다")
+                            st.info("3. 정책에서 `auth.uid()`와 `store_id`를 올바르게 연결해야 합니다")
             
             # 데이터가 0건이어도 빈 DataFrame 반환
             elapsed_ms = (time.perf_counter() - start_time) * 1000

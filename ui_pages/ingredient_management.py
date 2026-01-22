@@ -23,6 +23,21 @@ def _show_ingredient_query_diagnostics():
         st.write(f"**사용된 store_id:** `{store_id}`")
         
         st.divider()
+        st.write("**테이블명 매핑 확인:**")
+        
+        # 테이블명 매핑 정보 표시
+        table_mapping = {
+            'ingredient_master.csv': 'ingredients',
+            'menu_master.csv': 'menu_master',
+            'recipes.csv': 'recipes',
+            'inventory.csv': 'inventory',
+            'targets.csv': 'targets',
+            'sales.csv': 'sales',
+            'actual_settlement.csv': 'actual_settlement',
+        }
+        st.write(f"**앱에서 사용하는 매핑:** `ingredient_master.csv` → `{table_mapping.get('ingredient_master.csv', 'N/A')}`")
+        
+        st.divider()
         st.write("**실제 쿼리 실행 결과:**")
         
         # 1. load_csv 호출 테스트
@@ -45,42 +60,64 @@ def _show_ingredient_query_diagnostics():
         
         # 2. 직접 Supabase 쿼리 테스트 (필터 없이)
         st.write("**2. 직접 Supabase 쿼리 (ingredients 테이블, 필터 없이):**")
+        supabase = None
+        result_no_filter = None
         try:
             supabase = get_read_client()
             if supabase:
                 # 필터 없이 조회
-                result_no_filter = supabase.table("ingredients").select("*").limit(10).execute()
-                st.write(f"- 필터 없이 Row count: {len(result_no_filter.data) if result_no_filter.data else 0}")
-                
-                if result_no_filter.data:
-                    # store_id 목록 확인
-                    store_ids = set([row.get('store_id') for row in result_no_filter.data if row.get('store_id')])
-                    st.write(f"- 발견된 store_id 목록: {list(store_ids)}")
-                    st.write("- 첫 row 샘플:")
-                    st.json(result_no_filter.data[0])
+                try:
+                    result_no_filter = supabase.table("ingredients").select("*").limit(10).execute()
+                    st.write(f"- 필터 없이 Row count: {len(result_no_filter.data) if result_no_filter.data else 0}")
+                    
+                    if result_no_filter.data:
+                        # store_id 목록 확인
+                        store_ids = set([row.get('store_id') for row in result_no_filter.data if row.get('store_id')])
+                        st.write(f"- 발견된 store_id 목록: {list(store_ids)}")
+                        st.write("- 첫 row 샘플:")
+                        st.json(result_no_filter.data[0])
+                    else:
+                        st.warning("⚠️ 필터 없이 조회해도 데이터가 없습니다.")
+                except Exception as e:
+                    error_msg = str(e)
+                    st.error(f"❌ 필터 없이 조회 실패: {type(e).__name__}: {error_msg}")
+                    st.code(str(e), language="text")
+                    
+                    # 테이블명 오류 확인
+                    if "relation" in error_msg.lower() or "does not exist" in error_msg.lower() or "table" in error_msg.lower():
+                        st.error("🚨 테이블명 불일치 가능성!")
+                        st.warning(f"💡 `ingredients` 테이블이 존재하지 않을 수 있습니다.")
+                        st.info("**확인 사항:**")
+                        st.info("1. Supabase Dashboard에서 실제 테이블명 확인")
+                        st.info("2. 테이블명이 `ingredients`가 아닐 수 있음 (예: `ingredient`, `ingredient_master` 등)")
+                        st.info("3. `src/storage_supabase.py`의 `table_mapping`에서 매핑 확인")
                 
                 st.divider()
                 
                 # store_id 필터로 조회
                 if store_id:
                     st.write(f"**3. 직접 Supabase 쿼리 (ingredients 테이블, store_id={store_id}):**")
-                    result_with_filter = supabase.table("ingredients").select("*").eq("store_id", store_id).limit(10).execute()
-                    st.write(f"- Row count: {len(result_with_filter.data) if result_with_filter.data else 0}")
-                    st.write(f"- 쿼리 조건: `table('ingredients').select('*').eq('store_id', '{store_id}')`")
-                    
-                    if result_with_filter.data:
-                        st.write("- 첫 row 샘플:")
-                        st.json(result_with_filter.data[0])
-                    else:
-                        st.warning("⚠️ store_id 필터로 조회한 데이터가 비어있습니다.")
+                    try:
+                        result_with_filter = supabase.table("ingredients").select("*").eq("store_id", store_id).limit(10).execute()
+                        st.write(f"- Row count: {len(result_with_filter.data) if result_with_filter.data else 0}")
+                        st.write(f"- 쿼리 조건: `table('ingredients').select('*').eq('store_id', '{store_id}')`")
                         
-                        # store_id가 다른 데이터가 있는지 확인
-                        if result_no_filter.data:
-                            st.warning(f"⚠️ 테이블에는 데이터가 있지만, store_id=`{store_id}` 조건으로는 조회되지 않습니다.")
-                            st.info("💡 가능한 원인:")
-                            st.info("1. RLS 정책 문제")
-                            st.info("2. store_id 불일치 (데이터는 다른 store_id로 저장됨)")
-                            st.info("3. 로그인 사용자의 권한 문제")
+                        if result_with_filter.data:
+                            st.write("- 첫 row 샘플:")
+                            st.json(result_with_filter.data[0])
+                        else:
+                            st.warning("⚠️ store_id 필터로 조회한 데이터가 비어있습니다.")
+                            
+                            # store_id가 다른 데이터가 있는지 확인
+                            if result_no_filter and result_no_filter.data:
+                                st.warning(f"⚠️ 테이블에는 데이터가 있지만, store_id=`{store_id}` 조건으로는 조회되지 않습니다.")
+                                st.info("💡 가능한 원인:")
+                                st.info("1. RLS 정책 문제")
+                                st.info("2. store_id 불일치 (데이터는 다른 store_id로 저장됨)")
+                                st.info("3. 로그인 사용자의 권한 문제")
+                    except Exception as e:
+                        st.error(f"❌ store_id 필터 조회 실패: {type(e).__name__}: {str(e)}")
+                        st.code(str(e), language="text")
                 else:
                     st.error("❌ store_id가 없어서 필터 쿼리를 실행할 수 없습니다.")
             else:
@@ -89,6 +126,54 @@ def _show_ingredient_query_diagnostics():
             st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
             st.code(str(e), language="text")
             st.exception(e)
+        
+        st.divider()
+        
+        # 4. 다른 테이블로 비교 테스트 (menu_master)
+        st.write("**4. 비교 테스트: menu_master 테이블 조회:**")
+        try:
+            if supabase and store_id:
+                # menu_master도 같은 방식으로 조회
+                menu_result = supabase.table("menu_master").select("*").eq("store_id", store_id).limit(5).execute()
+                st.write(f"- menu_master Row count: {len(menu_result.data) if menu_result.data else 0}")
+                
+                if menu_result.data:
+                    st.success("✅ menu_master는 조회 성공!")
+                    st.write("- menu_master 샘플:")
+                    st.json(menu_result.data[0])
+                    st.info("💡 menu_master는 조회되는데 ingredients는 안 되면, ingredients 테이블명 불일치 또는 RLS 정책 문제일 수 있습니다.")
+                else:
+                    st.warning("⚠️ menu_master도 조회되지 않습니다. 전체적인 RLS 정책 문제일 수 있습니다.")
+        except Exception as e:
+            error_msg = str(e)
+            st.error(f"❌ 비교 테스트 실패: {type(e).__name__}: {error_msg}")
+            st.code(str(e), language="text")
+            
+            # 테이블명 오류 확인
+            if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
+                st.error("🚨 menu_master 테이블도 존재하지 않을 수 있습니다!")
+        
+        st.divider()
+        
+        # 5. 대체 테이블명 시도 (테이블명 불일치 확인)
+        st.write("**5. 대체 테이블명 테스트 (테이블명 불일치 확인):**")
+        if supabase and store_id:
+            alternative_table_names = ['ingredient', 'ingredient_master', 'ingredients_master']
+            for alt_name in alternative_table_names:
+                try:
+                    alt_result = supabase.table(alt_name).select("*").eq("store_id", store_id).limit(1).execute()
+                    if alt_result.data and len(alt_result.data) > 0:
+                        st.success(f"✅ **`{alt_name}` 테이블 발견!** (데이터 {len(alt_result.data)}건)")
+                        st.warning(f"💡 실제 테이블명이 `{alt_name}`일 수 있습니다. `src/storage_supabase.py`의 `table_mapping`을 확인하세요.")
+                        st.write(f"- 샘플 데이터:")
+                        st.json(alt_result.data[0])
+                        break
+                except Exception as e:
+                    error_msg = str(e)
+                    if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
+                        st.write(f"- `{alt_name}`: 테이블 없음")
+                    else:
+                        st.write(f"- `{alt_name}`: 에러 - {type(e).__name__}")
             
     except Exception as e:
         st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
