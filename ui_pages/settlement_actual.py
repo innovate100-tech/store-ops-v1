@@ -224,6 +224,21 @@ def _calculate_totals(expense_items: dict, total_sales: int) -> dict:
 
 def _render_header_section(store_id: str, year: int, month: int, readonly: bool = False):
     """상단 영역: 연/월 선택, KPI 카드, 상태 배지 (Phase F: readonly 지원)"""
+    # Phase H: 히스토리에서 이동한 경우 위젯 키를 강제로 변경하여 새 위젯으로 인식
+    # 위젯이 이미 생성되어 있으면 세션 상태 변경만으로는 업데이트 안 됨
+    widget_key_suffix = ""
+    if "settlement_force_widget_update" in st.session_state:
+        # 타임스탬프를 추가하여 새로운 위젯으로 인식
+        import time
+        widget_key_suffix = f"_{int(time.time())}"
+        # 플래그 제거 (한 번만 적용)
+        del st.session_state["settlement_force_widget_update"]
+        # 네비게이션 플래그도 제거
+        if "settlement_navigate_to_year" in st.session_state:
+            del st.session_state["settlement_navigate_to_year"]
+        if "settlement_navigate_to_month" in st.session_state:
+            del st.session_state["settlement_navigate_to_month"]
+    
     # 연/월 선택
     col1, col2, col3 = st.columns([2, 2, 2])
     with col1:
@@ -232,7 +247,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             min_value=2020,
             max_value=2100,
             value=year,
-            key="settlement_year"
+            key=f"settlement_year{widget_key_suffix}"
         )
     with col2:
         selected_month = st.number_input(
@@ -240,7 +255,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             min_value=1,
             max_value=12,
             value=month,
-            key="settlement_month"
+            key=f"settlement_month{widget_key_suffix}"
         )
     with col3:
         # 템플릿 리셋 버튼 (Phase B)
@@ -1420,25 +1435,25 @@ def render_settlement_actual():
         </div>
         """, unsafe_allow_html=True)
         
-        # 현재 연/월 (세션 상태에서 선택된 값이 있으면 사용, 없으면 현재 월 사용)
         # Phase H: 히스토리에서 이동한 경우 우선 처리
+        # 플래그가 있으면 해당 연/월을 사용하고, 위젯 키를 강제로 변경하기 위한 플래그 설정
         if "settlement_navigate_to_year" in st.session_state:
             initial_year = st.session_state["settlement_navigate_to_year"]
-            # 플래그 제거 (한 번만 적용)
-            del st.session_state["settlement_navigate_to_year"]
-        elif "settlement_year" in st.session_state:
-            initial_year = st.session_state["settlement_year"]
-        else:
-            initial_year = current_year_kst()
-        
-        if "settlement_navigate_to_month" in st.session_state:
             initial_month = st.session_state["settlement_navigate_to_month"]
-            # 플래그 제거 (한 번만 적용)
-            del st.session_state["settlement_navigate_to_month"]
-        elif "settlement_month" in st.session_state:
-            initial_month = st.session_state["settlement_month"]
+            # Phase H: 위젯 키를 강제로 변경하기 위한 플래그 설정
+            # 플래그는 _render_header_section에서 확인 후 삭제
+            st.session_state["settlement_force_widget_update"] = True
         else:
-            initial_month = current_month_kst()
+            # 현재 연/월 (세션 상태에서 선택된 값이 있으면 사용, 없으면 현재 월 사용)
+            if "settlement_year" in st.session_state:
+                initial_year = st.session_state["settlement_year"]
+            else:
+                initial_year = current_year_kst()
+            
+            if "settlement_month" in st.session_state:
+                initial_month = st.session_state["settlement_month"]
+            else:
+                initial_month = current_month_kst()
         
         # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly는 내부에서 확인)
         # _render_header_section 내부에서 month_status를 확인하므로 여기서는 readonly를 False로 전달
