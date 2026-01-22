@@ -24,6 +24,83 @@ if not check_login():
     show_login_page()
     st.stop()
 
+# Supabase 연결 진단 함수
+def _diagnose_supabase_connection():
+    """
+    Supabase 연결 및 데이터 조회 진단
+    온라인 환경에서 데이터가 비어 보이는 문제 진단용
+    """
+    try:
+        from src.auth import get_supabase_client, get_current_store_id
+        
+        # 진단 섹션 표시 (expander로 표시)
+        with st.expander("🔍 Supabase 연결 진단 (온라인 환경)", expanded=True):
+            st.write("**현재 로그인 사용자 정보:**")
+            
+            # 사용자 ID 출력
+            user_id = st.session_state.get('user_id', 'N/A')
+            st.write(f"- User ID: `{user_id}`")
+            
+            # Store ID 출력
+            store_id = get_current_store_id()
+            st.write(f"- Store ID: `{store_id}`")
+            
+            st.divider()
+            st.write("**테이블 조회 테스트:**")
+            
+            try:
+                client = get_supabase_client()
+                
+                # 대표 테이블 1: stores
+                st.write("**1. stores 테이블 조회:**")
+                try:
+                    result = client.table("stores").select("*").limit(1).execute()
+                    st.write(f"✅ 성공: {len(result.data)}건 조회됨")
+                    if result.data:
+                        st.json(result.data[0])
+                    else:
+                        st.warning("⚠️ 데이터가 비어있습니다.")
+                except Exception as e:
+                    st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+                    st.code(str(e), language="text")
+                
+                st.divider()
+                
+                # 대표 테이블 2: menu_master
+                st.write("**2. menu_master 테이블 조회:**")
+                try:
+                    result = client.table("menu_master").select("*").limit(1).execute()
+                    st.write(f"✅ 성공: {len(result.data)}건 조회됨")
+                    if result.data:
+                        st.json(result.data[0])
+                    else:
+                        st.warning("⚠️ 데이터가 비어있습니다.")
+                except Exception as e:
+                    st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+                    st.code(str(e), language="text")
+                
+                st.divider()
+                
+                # 추가: user_profiles 조회
+                st.write("**3. user_profiles 테이블 조회 (현재 사용자):**")
+                try:
+                    result = client.table("user_profiles").select("*").eq("id", user_id).limit(1).execute()
+                    st.write(f"✅ 성공: {len(result.data)}건 조회됨")
+                    if result.data:
+                        st.json(result.data[0])
+                    else:
+                        st.warning("⚠️ 사용자 프로필이 없습니다.")
+                except Exception as e:
+                    st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
+                    st.code(str(e), language="text")
+                
+            except Exception as e:
+                st.error(f"❌ 클라이언트 생성 실패: {type(e).__name__}: {str(e)}")
+                st.code(str(e), language="text")
+                
+    except Exception as e:
+        st.error(f"진단 중 오류 발생: {type(e).__name__}: {str(e)}")
+
 # Supabase 기반 storage 사용
 from src.storage_supabase import (
     load_csv,
@@ -1421,6 +1498,10 @@ with st.sidebar:
     
     st.sidebar.markdown("**🔍 데이터 진단**")
     
+    if st.sidebar.button("🔍 Supabase 연결 진단", use_container_width=True, key="sidebar_supabase_diagnosis_btn"):
+        st.session_state["_show_supabase_diagnosis"] = True
+        st.rerun()
+    
     if st.sidebar.button("🔍 데이터 연결 상태 확인", use_container_width=True, key="sidebar_data_check_btn"):
         try:
             from src.auth import get_supabase_client, get_current_store_id
@@ -1483,6 +1564,11 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
 
 page = st.session_state.current_page
+
+# Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
+if st.session_state.get("_show_supabase_diagnosis", False):
+    _diagnose_supabase_connection()
+    st.session_state["_show_supabase_diagnosis"] = False  # 한 번만 표시
 
 # 점장 마감 페이지
 if page == "점장 마감":
