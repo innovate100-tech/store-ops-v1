@@ -30,6 +30,9 @@ def render_sales_management():
     store_id = None
     try:
         store_id = get_current_store_id()
+        # get_current_store_id()가 None을 반환할 수 있으므로 확인
+        if store_id is None:
+            store_id = None
     except Exception:
         store_id = None
     
@@ -106,7 +109,14 @@ def render_sales_management():
         month_data = pd.DataFrame()
     
     # 월매출: SSOT 함수 사용 (헌법 준수)
-    month_total_sales = load_monthly_sales_total(store_id, current_year, current_month) if store_id else 0
+    # store_id가 None이 아니고 문자열인 경우에만 호출
+    if store_id and isinstance(store_id, str):
+        try:
+            month_total_sales = load_monthly_sales_total(store_id, current_year, current_month)
+        except Exception:
+            month_total_sales = 0
+    else:
+        month_total_sales = 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
     
     if not merged_df.empty:
@@ -195,7 +205,13 @@ def render_sales_management():
                 # 전월 매출: SSOT 함수 사용
                 prev_year = current_year if current_month > 1 else current_year - 1
                 prev_month = current_month - 1 if current_month > 1 else 12
-                prev_sales = load_monthly_sales_total(store_id, prev_year, prev_month) if store_id else 0
+                if store_id and isinstance(store_id, str):
+                    try:
+                        prev_sales = load_monthly_sales_total(store_id, prev_year, prev_month)
+                    except Exception:
+                        prev_sales = 0
+                else:
+                    prev_sales = 0
                 prev_visitors = prev_month_data['방문자수'].sum() if '방문자수' in prev_month_data.columns else 0
                 
                 sales_change = month_total_sales - prev_sales
@@ -212,7 +228,13 @@ def render_sales_management():
             st.write("**작년 동월 대비**")
             if not last_year_month_data.empty and not month_data.empty:
                 # 작년 동월 매출: SSOT 함수 사용
-                last_year_sales = load_monthly_sales_total(store_id, current_year - 1, current_month) if store_id else 0
+                if store_id and isinstance(store_id, str):
+                    try:
+                        last_year_sales = load_monthly_sales_total(store_id, current_year - 1, current_month)
+                    except Exception:
+                        last_year_sales = 0
+                else:
+                    last_year_sales = 0
                 last_year_visitors = last_year_month_data['방문자수'].sum() if '방문자수' in last_year_month_data.columns else 0
                 
                 sales_change = month_total_sales - last_year_sales
@@ -473,7 +495,13 @@ def render_sales_management():
             for _, row in unique_months.iterrows():
                 year = int(row['연도'])
                 month = int(row['월'])
-                sales_total = load_monthly_sales_total(store_id, year, month) if store_id else 0
+                if store_id and isinstance(store_id, str):
+                    try:
+                        sales_total = load_monthly_sales_total(store_id, year, month)
+                    except Exception:
+                        sales_total = 0
+                else:
+                    sales_total = 0
                 # 일평균 매출 계산을 위해 영업일수 필요 (visitors_summary에서 가져옴)
                 visitors_row = visitors_summary[(visitors_summary['연도'] == year) & (visitors_summary['월'] == month)]
                 days_count = int(visitors_row['영업일수'].iloc[0]) if not visitors_row.empty else 0
