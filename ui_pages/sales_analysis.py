@@ -18,6 +18,13 @@ def render_sales_analysis():
     """판매 관리 페이지 렌더링"""
     render_page_header("판매 관리", "📦")
     
+    col_refresh, _ = st.columns([1, 4])
+    with col_refresh:
+        if st.button("🔄 판매 데이터 새로고침", key="sales_analysis_refresh", use_container_width=True):
+            load_csv.clear()
+            st.success("✅ 판매 데이터를 새로고침했습니다.")
+            st.rerun()
+    
     # 메뉴 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])

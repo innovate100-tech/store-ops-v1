@@ -56,18 +56,20 @@ CREATE INDEX IF NOT EXISTS idx_overrides_menu
 -- ------------------------------------------------------------------------------
 -- STEP 2: DDL — v_daily_sales_items_effective 뷰 생성
 -- base = daily_sales_items (date), override = overrides (sale_date)
+-- FULL OUTER JOIN: 마감에 메뉴 수량 없이 판매량등록만 한 경우(override만 존재)도 포함
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE VIEW public.v_daily_sales_items_effective AS
 SELECT
-    b.store_id,
-    b.date,   -- base용 날짜 (앱에서 'date'로 조회)
-    b.menu_id,
-    COALESCE(o.qty, b.qty) AS qty
+    COALESCE(b.store_id, o.store_id)   AS store_id,
+    COALESCE(b.date, o.sale_date)      AS date,
+    COALESCE(b.menu_id, o.menu_id)     AS menu_id,
+    COALESCE(o.qty, b.qty, 0)          AS qty
 FROM public.daily_sales_items b
-LEFT JOIN public.daily_sales_items_overrides o
-    ON o.store_id = b.store_id
-   AND o.sale_date = b.date
-   AND o.menu_id = b.menu_id;
+FULL OUTER JOIN public.daily_sales_items_overrides o
+    ON b.store_id = o.store_id
+   AND b.date = o.sale_date
+   AND b.menu_id = o.menu_id
+WHERE COALESCE(o.qty, b.qty, 0) > 0;
 
 
 -- ------------------------------------------------------------------------------
