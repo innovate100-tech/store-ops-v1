@@ -5,6 +5,7 @@ Supabase 인증 모듈
 import streamlit as st
 import logging
 import os
+import traceback
 
 try:
     from supabase import create_client, Client
@@ -65,6 +66,24 @@ def get_anon_client() -> Optional[Client]:
         
     except Exception as e:
         logger.error(f"get_anon_client: 클라이언트 생성 실패 - {repr(e)}")
+        # 상세 디버그 정보 출력
+        st.error(f"❌ Supabase 익명 클라이언트 생성 실패: {type(e).__name__}: {e}")
+        st.code(traceback.format_exc(), language="python")
+        
+        # 디버그 정보 (값 노출 없이)
+        debug_info = {
+            "has_secrets_supabase": "supabase" in st.secrets if hasattr(st, 'secrets') else False,
+            "has_url": ("supabase" in st.secrets and "url" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "has_anon_key": ("supabase" in st.secrets and "anon_key" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "url_starts_https": str(url).startswith("https://") if url else False,
+            "url_len": len(str(url)) if url else 0,
+            "anon_key_len": len(str(anon_key)) if anon_key else 0,
+            "has_env_url": bool(os.getenv("SUPABASE_URL")),
+            "has_env_anon_key": bool(os.getenv("SUPABASE_ANON_KEY")),
+        }
+        st.write("**디버그 정보:**")
+        st.json(debug_info)
+        st.stop()
         return None
 
 
@@ -127,6 +146,24 @@ def get_service_client() -> Optional[Client]:
         
     except Exception as e:
         logger.error(f"get_service_client: 클라이언트 생성 실패 - {repr(e)}")
+        # 상세 디버그 정보 출력
+        st.error(f"❌ Supabase Service Role 클라이언트 생성 실패: {type(e).__name__}: {e}")
+        st.code(traceback.format_exc(), language="python")
+        
+        # 디버그 정보 (값 노출 없이)
+        debug_info = {
+            "has_secrets_supabase": "supabase" in st.secrets if hasattr(st, 'secrets') else False,
+            "has_url": ("supabase" in st.secrets and "url" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "has_service_role_key": ("supabase" in st.secrets and "service_role_key" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "url_starts_https": str(url).startswith("https://") if url else False,
+            "url_len": len(str(url)) if url else 0,
+            "service_role_key_len": len(str(service_role_key)) if service_role_key else 0,
+            "has_env_url": bool(os.getenv("SUPABASE_URL")),
+            "has_env_service_role_key": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+        }
+        st.write("**디버그 정보:**")
+        st.json(debug_info)
+        st.stop()
         return None
 
 
@@ -279,10 +316,23 @@ def get_auth_client(reset_session_on_fail: bool = True) -> Optional[Client]:
         logger.info("get_auth_client: 클라이언트 생성 성공 (캐시됨)")
     except Exception as e:
         logger.error(f"get_auth_client: 클라이언트 생성 실패 - {repr(e)}")
-        error_msg = "❌ Supabase 클라이언트 생성 실패\n\n"
-        error_msg += f"오류: {str(e)}\n\n"
-        error_msg += "Supabase URL과 anon_key가 올바른지 확인하세요."
-        st.error(error_msg)
+        # 상세 디버그 정보 출력
+        st.error(f"❌ Supabase 인증 클라이언트 생성 실패: {type(e).__name__}: {e}")
+        st.code(traceback.format_exc(), language="python")
+        
+        # 디버그 정보 (값 노출 없이)
+        debug_info = {
+            "has_secrets_supabase": "supabase" in st.secrets if hasattr(st, 'secrets') else False,
+            "has_url": ("supabase" in st.secrets and "url" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "has_anon_key": ("supabase" in st.secrets and "anon_key" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+            "url_starts_https": str(url).startswith("https://") if url else False,
+            "url_len": len(str(url)) if url else 0,
+            "anon_key_len": len(str(anon_key)) if anon_key else 0,
+            "has_env_url": bool(os.getenv("SUPABASE_URL")),
+            "has_env_anon_key": bool(os.getenv("SUPABASE_ANON_KEY")),
+        }
+        st.write("**디버그 정보:**")
+        st.json(debug_info)
         st.stop()
         return None
     
@@ -375,9 +425,31 @@ def login(email: str, password: str) -> tuple[bool, str]:
         
         # client 생성 실패 시 방어 코드
         if client is None:
-            error_msg = "❌ Supabase 클라이언트를 생성할 수 없습니다.\n\n"
-            error_msg += "Supabase 설정을 확인하세요."
-            st.error(error_msg)
+            st.error("❌ Supabase 클라이언트를 생성할 수 없습니다.")
+            
+            # 디버그 정보 출력
+            try:
+                url = st.secrets["supabase"]["url"] if (hasattr(st, 'secrets') and "supabase" in st.secrets and "url" in st.secrets["supabase"]) else os.getenv("SUPABASE_URL", "")
+                anon_key = st.secrets["supabase"]["anon_key"] if (hasattr(st, 'secrets') and "supabase" in st.secrets and "anon_key" in st.secrets["supabase"]) else os.getenv("SUPABASE_ANON_KEY", "")
+            except (KeyError, AttributeError):
+                url = os.getenv("SUPABASE_URL", "")
+                anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+            
+            debug_info = {
+                "has_secrets_supabase": "supabase" in st.secrets if hasattr(st, 'secrets') else False,
+                "has_url": ("supabase" in st.secrets and "url" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+                "has_anon_key": ("supabase" in st.secrets and "anon_key" in st.secrets["supabase"]) if (hasattr(st, 'secrets') and "supabase" in st.secrets) else False,
+                "url_starts_https": str(url).startswith("https://") if url else False,
+                "url_len": len(str(url)) if url else 0,
+                "anon_key_len": len(str(anon_key)) if anon_key else 0,
+                "has_env_url": bool(os.getenv("SUPABASE_URL")),
+                "has_env_anon_key": bool(os.getenv("SUPABASE_ANON_KEY")),
+                "SUPABASE_AVAILABLE": SUPABASE_AVAILABLE,
+            }
+            st.write("**디버그 정보:**")
+            st.json(debug_info)
+            st.write("\n**get_auth_client()가 None을 반환했습니다.**")
+            st.write("위의 디버그 정보를 확인하고, Supabase 설정을 점검하세요.")
             st.stop()
             return False, "Supabase 클라이언트 생성 실패"
         
