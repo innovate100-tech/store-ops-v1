@@ -3003,3 +3003,98 @@ def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
     except Exception as e:
         logger.error(f"Failed to load monthly sales total: {e}")
         return 0
+
+
+# ============================================
+# Phase F: 실제정산 확정(Final) + 잠금(읽기전용) + 확정 해제
+# ============================================
+
+@st.cache_data(ttl=30, show_spinner=False)  # 30초 캐시
+def get_month_settlement_status(store_id: str, year: int, month: int) -> str:
+    """
+    월별 정산 상태 조회 (draft | final)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        str: 'draft' 또는 'final'
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return 'draft'
+        
+        # status='final'이 1개라도 있으면 'final', 아니면 'draft'
+        result = supabase.table("actual_settlement_items")\
+            .select("status", count='exact')\
+            .eq("store_id", store_id)\
+            .eq("year", int(year))\
+            .eq("month", int(month))\
+            .eq("status", "final")\
+            .limit(1)\
+            .execute()
+        
+        # final이 1개라도 있으면 'final'
+        if result.data and len(result.data) > 0:
+            logger.info(f"Month settlement status: {year}-{month} = final")
+            return 'final'
+        else:
+            logger.info(f"Month settlement status: {year}-{month} = draft")
+            return 'draft'
+    except Exception as e:
+        logger.error(f"Failed to get month settlement status: {e}")
+        return 'draft'  # 에러 시 기본값은 draft
+
+
+def set_month_settlement_status(store_id: str, year: int, month: int, status: str) -> int:
+    """
+    월별 정산 상태 설정 (draft | final)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+        status: 'draft' 또는 'final'
+    
+    Returns:
+        int: 업데이트된 row count
+    """
+    if status not in ['draft', 'final']:
+        raise ValueError(f"Invalid status: {status}. Must be 'draft' or 'final'")
+    
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return 0
+        
+        # 월 전체 일괄 업데이트
+        result = supabase.table("actual_settlement_items")\
+            .update({
+                "status": status,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })\
+            .eq("store_id", store_id)\
+            .eq("year", int(year))\
+            .eq("month", int(month))\
+            .execute()
+        
+        affected_count = len(result.data) if result.data else 0
+        logger.info(f"Month settlement status updated: {year}-{month} = {status}, affected={affected_count} rows")
+        
+        # 캐시 무효화
+        try:
+            get_month_settlement_status.clear()
+            # load_actual_settlement_items는 함수가 아니므로 직접 clear 불가
+            # 대신 캐시 키 기반으로 무효화 (필요 시)
+        except Exception:
+            pass
+        
+        return affected_count
+    except Exception as e:
+        logger.error(f"Failed to set month settlement status: {e}")
+        raise

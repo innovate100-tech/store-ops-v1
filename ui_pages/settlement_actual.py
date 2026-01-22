@@ -16,7 +16,9 @@ from src.storage_supabase import (
     upsert_actual_settlement_item,
     load_monthly_sales_total,
     load_csv,
-    load_expense_structure
+    load_expense_structure,
+    get_month_settlement_status,
+    set_month_settlement_status
 )
 
 # 공통 설정 적용
@@ -214,8 +216,8 @@ def _calculate_totals(expense_items: dict, total_sales: int) -> dict:
     }
 
 
-def _render_header_section(store_id: str, year: int, month: int):
-    """상단 영역: 연/월 선택, KPI 카드, 상태 배지"""
+def _render_header_section(store_id: str, year: int, month: int, readonly: bool = False):
+    """상단 영역: 연/월 선택, KPI 카드, 상태 배지 (Phase F: readonly 지원)"""
     # 연/월 선택
     col1, col2, col3 = st.columns([2, 2, 2])
     with col1:
@@ -235,8 +237,9 @@ def _render_header_section(store_id: str, year: int, month: int):
             key="settlement_month"
         )
     with col3:
-        # 템플릿 리셋 버튼 (Phase B)
-        if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", use_container_width=True):
+        # 템플릿 리셋 버튼 (Phase B, Phase F: readonly일 때 비활성화)
+        if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", 
+                     disabled=readonly, use_container_width=True):
             # 강제로 템플릿에서 다시 로드 (값 복원 포함)
             _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
             st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
@@ -253,7 +256,11 @@ def _render_header_section(store_id: str, year: int, month: int):
     
     render_section_divider()
     
-    # 총매출 입력 (Phase D: sales 자동 불러오기)
+    # Phase F: 월별 정산 상태 확인
+    month_status = get_month_settlement_status(store_id, selected_year, selected_month)
+    readonly = readonly or (month_status == 'final')
+    
+    # 총매출 입력 (Phase D: sales 자동 불러오기, Phase F: readonly 지원)
     st.markdown("### 📊 이번 달 성적표")
     
     # Phase D: sales에서 월매출 자동 계산
@@ -271,7 +278,7 @@ def _render_header_section(store_id: str, year: int, month: int):
         # 자동값으로 초기화
         st.session_state[total_sales_key] = auto_sales
     
-    # Phase D: 매출 불러오기 버튼
+    # Phase D: 매출 불러오기 버튼 (Phase F: readonly 지원)
     sales_col1, sales_col2, sales_col3 = st.columns([3, 1, 1])
     with sales_col1:
         total_sales_input = st.number_input(
@@ -280,16 +287,19 @@ def _render_header_section(store_id: str, year: int, month: int):
             value=_get_total_sales(selected_year, selected_month),
             step=100000,
             format="%d",
+            disabled=readonly,  # Phase F: readonly일 때 비활성화
             key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
         )
-        _set_total_sales(selected_year, selected_month, total_sales_input)
+        if not readonly:
+            _set_total_sales(selected_year, selected_month, total_sales_input)
         
         # Phase D: 자동값 표시
         if auto_sales > 0:
             st.caption(f"💡 sales 월합계(자동): {auto_sales:,.0f}원")
     with sales_col2:
-        # Phase D: 매출 불러오기 버튼
-        if st.button("🔄 매출 불러오기", key=f"settlement_load_sales_{selected_year}_{selected_month}", use_container_width=True):
+        # Phase D: 매출 불러오기 버튼 (Phase F: readonly일 때 비활성화)
+        if st.button("🔄 매출 불러오기", key=f"settlement_load_sales_{selected_year}_{selected_month}", 
+                     disabled=readonly, use_container_width=True):
             # sales에서 다시 계산
             auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
             st.session_state[auto_sales_key] = auto_sales
@@ -297,8 +307,9 @@ def _render_header_section(store_id: str, year: int, month: int):
             st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
             st.rerun()
     with sales_col3:
-        # Phase D: 자동값으로 되돌리기 버튼
-        if st.button("↩️ 자동값으로", key=f"settlement_reset_sales_{selected_year}_{selected_month}", use_container_width=True):
+        # Phase D: 자동값으로 되돌리기 버튼 (Phase F: readonly일 때 비활성화)
+        if st.button("↩️ 자동값으로", key=f"settlement_reset_sales_{selected_year}_{selected_month}", 
+                     disabled=readonly, use_container_width=True):
             if auto_sales_key in st.session_state:
                 st.session_state[total_sales_key] = st.session_state[auto_sales_key]
                 st.success(f"✅ 자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
@@ -323,73 +334,118 @@ def _render_header_section(store_id: str, year: int, month: int):
     with col4:
         st.metric("이익률", f"{totals['profit_margin']:.1f}%")
     
-    # 상태 배지 및 평가 문구
+    # Phase F: 상태 배지 및 확정/해제 버튼
     st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
-        st.markdown("""
-        <div style="padding: 0.5rem 1rem; background-color: #667eea; border-radius: 0.5rem; display: inline-block;">
-            <span style="color: #ffffff; font-weight: 600;">작성중</span>
-        </div>
-        """, unsafe_allow_html=True)
+        # Phase F: 상태 배지
+        if month_status == 'final':
+            st.markdown("""
+            <div style="padding: 0.5rem 1rem; background-color: #10b981; border-radius: 0.5rem; display: inline-block;">
+                <span style="color: #ffffff; font-weight: 600;">🟢 확정됨</span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 0.5rem 1rem; background-color: #667eea; border-radius: 0.5rem; display: inline-block;">
+                <span style="color: #ffffff; font-weight: 600;">🟡 작성중</span>
+            </div>
+            """, unsafe_allow_html=True)
     with col2:
-        st.markdown("""
-        <div style="padding: 0.5rem 0;">
-            <span style="color: #ffffff; font-size: 1rem;">
-                이번 달 성적표를 작성 중입니다.
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+        if month_status == 'final':
+            st.markdown("""
+            <div style="padding: 0.5rem 0;">
+                <span style="color: #ffffff; font-size: 1rem;">
+                    이번 달 정산이 확정되었습니다. (읽기 전용)
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 0.5rem 0;">
+                <span style="color: #ffffff; font-size: 1rem;">
+                    이번 달 성적표를 작성 중입니다.
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
     with col3:
-        # Phase C: 저장값 불러오기 버튼
-        if st.button("📥 저장값 불러오기", key="settlement_load_saved_values", use_container_width=True):
-            # 강제로 저장된 값 복원 (덮어쓰기)
-            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
-            st.success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
-            st.rerun()
+        # Phase F: 확정/해제 버튼
+        if month_status == 'draft':
+            if st.button("✅ 이번달 확정", key="settlement_finalize", type="primary", use_container_width=True):
+                try:
+                    affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
+                    if affected >= 0:
+                        st.success("✅ 이번달 정산이 확정되었습니다. (읽기 전용)")
+                        # Phase F: 확정 후 DB 값 복원 (force_restore)
+                        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ 확정할 항목이 없습니다. 먼저 항목을 저장하세요.")
+                except Exception as e:
+                    st.error(f"❌ 확정 실패: {str(e)}")
+        else:
+            # Phase F: 확정 해제 버튼 (manager 이상만)
+            user_role = st.session_state.get('user_role', 'manager')
+            if user_role in ['manager', 'admin']:
+                if st.button("🔓 확정 해제", key="settlement_unfinalize", use_container_width=True):
+                    try:
+                        affected = set_month_settlement_status(store_id, selected_year, selected_month, 'draft')
+                        st.warning("⚠️ 확정이 해제되었습니다. 다시 수정할 수 있습니다.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ 확정 해제 실패: {str(e)}")
     
-    # Phase C: 이번달 저장 버튼
+    # Phase C: 저장값 불러오기 버튼 (Phase F: readonly일 때 비활성화)
     st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
-    save_col1, save_col2 = st.columns([1, 4])
-    with save_col1:
-        if st.button("💾 이번달 저장(draft)", key="settlement_save_month", type="primary", use_container_width=True):
-            try:
-                expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
-                saved_count = 0
-                
-                # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
-                for category, items in expense_items.items():
-                    for item in items:
-                        template_id = item.get('template_id')
-                        if not template_id:
-                            continue
-                        
-                        input_type = item.get('input_type', 'amount')  # 기본값: amount
-                        
-                        if input_type == 'amount':
-                            # 금액 입력: amount 저장, percent는 None (또는 0)
-                            amount = item.get('amount', 0)
-                            upsert_actual_settlement_item(
-                                store_id, selected_year, selected_month,
-                                template_id, amount=float(int(amount)), percent=None, status='draft'
-                            )
-                            saved_count += 1
-                        else:
-                            # 비율 입력: percent 저장, amount는 None (또는 0)
-                            percent = item.get('rate', 0.0)
-                            upsert_actual_settlement_item(
-                                store_id, selected_year, selected_month,
-                                template_id, amount=None, percent=percent, status='draft'
-                            )
-                            saved_count += 1
-                
-                if saved_count > 0:
-                    st.success(f"✅ {saved_count}개 항목이 저장되었습니다.")
-                else:
-                    st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ 저장 실패: {str(e)}")
+    if st.button("📥 저장값 불러오기", key="settlement_load_saved_values", disabled=readonly, use_container_width=True):
+        # 강제로 저장된 값 복원 (덮어쓰기)
+        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+        st.success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
+        st.rerun()
+    
+    # Phase C: 이번달 저장 버튼 (Phase F: readonly일 때 숨김)
+    if not readonly:
+        st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
+        save_col1, save_col2 = st.columns([1, 4])
+        with save_col1:
+            if st.button("💾 이번달 저장(draft)", key="settlement_save_month", type="primary", use_container_width=True):
+                try:
+                    expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
+                    saved_count = 0
+                    
+                    # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
+                    for category, items in expense_items.items():
+                        for item in items:
+                            template_id = item.get('template_id')
+                            if not template_id:
+                                continue
+                            
+                            input_type = item.get('input_type', 'amount')  # 기본값: amount
+                            
+                            if input_type == 'amount':
+                                # 금액 입력: amount 저장, percent는 None (또는 0)
+                                amount = item.get('amount', 0)
+                                upsert_actual_settlement_item(
+                                    store_id, selected_year, selected_month,
+                                    template_id, amount=float(int(amount)), percent=None, status='draft'
+                                )
+                                saved_count += 1
+                            else:
+                                # 비율 입력: percent 저장, amount는 None (또는 0)
+                                percent = item.get('rate', 0.0)
+                                upsert_actual_settlement_item(
+                                    store_id, selected_year, selected_month,
+                                    template_id, amount=None, percent=percent, status='draft'
+                                )
+                                saved_count += 1
+                    
+                    if saved_count > 0:
+                        st.success(f"✅ {saved_count}개 항목이 저장되었습니다.")
+                    else:
+                        st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ 저장 실패: {str(e)}")
     
     render_section_divider()
     
@@ -459,9 +515,10 @@ def _render_expense_category(
     items: list,
     total_sales: int,
     year: int,
-    month: int
+    month: int,
+    readonly: bool = False
 ):
-    """비용 카테고리별 입력 UI (Phase C.5: input_type 선택형)"""
+    """비용 카테고리별 입력 UI (Phase C.5: input_type 선택형, Phase F: readonly 지원)"""
     # Phase C.5: is_linked는 더 이상 사용하지 않지만, 기본값 설정용으로 유지
     is_linked_default = category_info['type'] == 'linked'  # 기본값 설정용
     
@@ -503,10 +560,11 @@ def _render_expense_category(
                 item_name = st.text_input(
                     "항목명",
                     value=item.get('name', ''),
+                    disabled=readonly,  # Phase F: readonly일 때 비활성화
                     key=item_name_key
                 )
             with col2:
-                # Phase C.5: 입력방식 선택 라디오
+                # Phase C.5: 입력방식 선택 라디오 (Phase F: readonly일 때 비활성화)
                 input_type_key = f"settlement_input_type_{category}_{idx}_{year}_{month}"
                 input_type_options = ["금액(원)", "%(매출대비)"]
                 input_type_index = 0 if item.get('input_type') == 'amount' else 1
@@ -516,18 +574,19 @@ def _render_expense_category(
                     index=input_type_index,
                     key=input_type_key,
                     horizontal=True,
+                    disabled=readonly,  # Phase F: readonly일 때 비활성화
                     label_visibility="collapsed"
                 )
                 selected_input_type = 'amount' if selected_input_type_label == "금액(원)" else 'rate'
                 
-                # input_type 변경 감지 및 업데이트
-                if selected_input_type != item.get('input_type'):
+                # input_type 변경 감지 및 업데이트 (readonly일 때는 업데이트 안 함)
+                if not readonly and selected_input_type != item.get('input_type'):
                     expense_items = _initialize_expense_items(store_id, year, month)
                     if idx < len(expense_items[category]):
                         expense_items[category][idx]['input_type'] = selected_input_type
                         # 값은 유지 (amount와 rate 모두 보존)
             with col3:
-                # Phase C.5: 선택된 input_type에 따라 입력칸 표시
+                # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (Phase F: readonly일 때 비활성화)
                 if selected_input_type == 'amount':
                     # 금액 입력
                     amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
@@ -537,10 +596,11 @@ def _render_expense_category(
                         value=int(item.get('amount', 0)),
                         step=1000,
                         format="%d",
+                        disabled=readonly,  # Phase F: readonly일 때 비활성화
                         key=amount_key
                     )
-                    # 금액 업데이트
-                    if amount != item.get('amount', 0):
+                    # 금액 업데이트 (readonly일 때는 업데이트 안 함)
+                    if not readonly and amount != item.get('amount', 0):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['amount'] = int(amount)
@@ -554,20 +614,22 @@ def _render_expense_category(
                         value=float(item.get('rate', 0.0)),
                         step=0.1,
                         format="%.2f",
+                        disabled=readonly,  # Phase F: readonly일 때 비활성화
                         key=rate_key
                     )
                     calculated = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
                     st.caption(f"→ {calculated:,.0f}원")
-                    # 비율 업데이트
-                    if rate != item.get('rate', 0.0):
+                    # 비율 업데이트 (readonly일 때는 업데이트 안 함)
+                    if not readonly and rate != item.get('rate', 0.0):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['rate'] = float(rate)
-            with col3:
+            with col4:
                 col_save, col_delete = st.columns(2)
                 with col_save:
-                    # 항목명 수정 시 템플릿 업데이트 버튼 (Phase B)
-                    if st.button("💾", key=f"settlement_save_{category}_{idx}_{year}_{month}", help="템플릿 저장"):
+                    # 항목명 수정 시 템플릿 업데이트 버튼 (Phase B, Phase F: readonly일 때 비활성화)
+                    if st.button("💾", key=f"settlement_save_{category}_{idx}_{year}_{month}", 
+                                 disabled=readonly, help="템플릿 저장"):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             current_item = expense_items[category][idx]
@@ -593,7 +655,8 @@ def _render_expense_category(
                                     st.error(f"템플릿 업데이트 실패: {e}")
                         st.rerun()
                 with col_delete:
-                    if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", help="삭제"):
+                    if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", 
+                                 disabled=readonly, help="삭제"):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
                             item_to_delete = expense_items[category][idx]
@@ -611,83 +674,84 @@ def _render_expense_category(
                             expense_items[category].pop(idx)
                         st.rerun()
     
-    # 새 항목 추가 (Phase C.5: input_type 선택형)
-    st.markdown("---")
-    add_col1, add_col2, add_col3, add_col4 = st.columns([2, 1.5, 2, 1])
-    with add_col1:
-        new_name = st.text_input(
-            "항목명",
-            key=f"settlement_new_name_{category}_{year}_{month}",
-            placeholder="예: 월세, 관리비 등"
-        )
-    with add_col2:
-        # Phase C.5: 새 항목 입력방식 선택
-        new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
-        new_input_type_options = ["금액(원)", "%(매출대비)"]
-        # 기본값: 카테고리 기본값
-        new_input_type_default = 0 if category not in ['재료비', '부가세&카드수수료'] else 1
-        new_input_type_label = st.radio(
-            "입력방식",
-            options=new_input_type_options,
-            index=new_input_type_default,
-            key=new_input_type_key,
-            horizontal=True,
-            label_visibility="collapsed"
-        )
-        new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
-    with add_col3:
-        # Phase C.5: 선택된 input_type에 따라 입력칸 표시
-        if new_input_type == 'amount':
-            new_value = st.number_input(
-                "금액 (원)",
-                min_value=0,
-                value=0,
-                step=1000,
-                format="%d",
-                key=f"settlement_new_amount_{category}_{year}_{month}"
+    # 새 항목 추가 (Phase C.5: input_type 선택형, Phase F: readonly일 때 숨김)
+    if not readonly:
+        st.markdown("---")
+        add_col1, add_col2, add_col3, add_col4 = st.columns([2, 1.5, 2, 1])
+        with add_col1:
+            new_name = st.text_input(
+                "항목명",
+                key=f"settlement_new_name_{category}_{year}_{month}",
+                placeholder="예: 월세, 관리비 등"
             )
-        else:
-            new_value = st.number_input(
-                "비율 (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=0.0,
-                step=0.1,
-                format="%.2f",
-                key=f"settlement_new_rate_{category}_{year}_{month}"
+        with add_col2:
+            # Phase C.5: 새 항목 입력방식 선택
+            new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
+            new_input_type_options = ["금액(원)", "%(매출대비)"]
+            # 기본값: 카테고리 기본값
+            new_input_type_default = 0 if category not in ['재료비', '부가세&카드수수료'] else 1
+            new_input_type_label = st.radio(
+                "입력방식",
+                options=new_input_type_options,
+                index=new_input_type_default,
+                key=new_input_type_key,
+                horizontal=True,
+                label_visibility="collapsed"
             )
-    with add_col4:
-        if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
-            if new_name.strip():
-                expense_items = _initialize_expense_items(store_id, year, month)
-                
-                # 템플릿에 저장 (Phase B)
-                try:
-                    item_type = 'percent' if new_input_type == 'rate' else 'normal'
-                    sort_order = len(expense_items[category])  # 현재 항목 수를 sort_order로 사용
-                    save_cost_item_template(
-                        store_id, category, new_name.strip(),
-                        item_type=item_type, sort_order=sort_order
-                    )
-                    st.caption("✅ 템플릿에 저장됨")
-                except Exception as e:
-                    st.error(f"템플릿 저장 실패: {e}")
-                
-                # Phase C.5: session_state에 추가 (input_type 포함)
-                new_item = {
-                    'name': new_name.strip(),
-                    'input_type': new_input_type,
-                    'amount': int(new_value) if new_input_type == 'amount' else 0,
-                    'rate': float(new_value) if new_input_type == 'rate' else 0.0,
-                }
-                expense_items[category].append(new_item)
-                st.rerun()
+            new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
+        with add_col3:
+            # Phase C.5: 선택된 input_type에 따라 입력칸 표시
+            if new_input_type == 'amount':
+                new_value = st.number_input(
+                    "금액 (원)",
+                    min_value=0,
+                    value=0,
+                    step=1000,
+                    format="%d",
+                    key=f"settlement_new_amount_{category}_{year}_{month}"
+                )
             else:
-                st.error("항목명을 입력해주세요.")
+                new_value = st.number_input(
+                    "비율 (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=0.0,
+                    step=0.1,
+                    format="%.2f",
+                    key=f"settlement_new_rate_{category}_{year}_{month}"
+                )
+        with add_col4:
+            if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
+                if new_name.strip():
+                    expense_items = _initialize_expense_items(store_id, year, month)
+                    
+                    # 템플릿에 저장 (Phase B)
+                    try:
+                        item_type = 'percent' if new_input_type == 'rate' else 'normal'
+                        sort_order = len(expense_items[category])  # 현재 항목 수를 sort_order로 사용
+                        save_cost_item_template(
+                            store_id, category, new_name.strip(),
+                            item_type=item_type, sort_order=sort_order
+                        )
+                        st.caption("✅ 템플릿에 저장됨")
+                    except Exception as e:
+                        st.error(f"템플릿 저장 실패: {e}")
+                    
+                    # Phase C.5: session_state에 추가 (input_type 포함)
+                    new_item = {
+                        'name': new_name.strip(),
+                        'input_type': new_input_type,
+                        'amount': int(new_value) if new_input_type == 'amount' else 0,
+                        'rate': float(new_value) if new_input_type == 'rate' else 0.0,
+                    }
+                    expense_items[category].append(new_item)
+                    st.rerun()
+                else:
+                    st.error("항목명을 입력해주세요.")
 
 
-def _render_expense_section(store_id: str, year: int, month: int, total_sales: int):
-    """비용 입력 영역"""
+def _render_expense_section(store_id: str, year: int, month: int, total_sales: int, readonly: bool = False):
+    """비용 입력 영역 (Phase F: readonly 지원)"""
     st.markdown("### 💸 비용 입력")
     
     expense_items = _initialize_expense_items(store_id, year, month)
@@ -721,7 +785,7 @@ def _render_expense_section(store_id: str, year: int, month: int, total_sales: i
         },
     }
     
-    # 각 카테고리 렌더링
+    # 각 카테고리 렌더링 (Phase F: readonly 전달)
     for category, info in categories.items():
         _render_expense_category(
             store_id,
@@ -730,7 +794,8 @@ def _render_expense_section(store_id: str, year: int, month: int, total_sales: i
             expense_items[category],
             total_sales,
             year,
-            month
+            month,
+            readonly
         )
         st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
@@ -1095,7 +1160,7 @@ def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
-        st.caption("✅ Settlement Phase D ACTIVE")
+        st.caption("✅ Settlement Phase F ACTIVE")
         
         # 인증 및 store_id 확인 (Phase B)
         user_id, store_id = require_auth_and_store()
@@ -1113,13 +1178,21 @@ def render_settlement_actual():
         current_year = current_year_kst()
         current_month = current_month_kst()
         
-        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼)
+        # Phase F: 월별 정산 상태 확인
+        month_status = get_month_settlement_status(store_id, current_year, current_month)
+        readonly = (month_status == 'final')
+        
+        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly 전달)
         year, month, expense_items, total_sales, totals = _render_header_section(
-            store_id, current_year, current_month
+            store_id, current_year, current_month, readonly
         )
         
-        # 비용 입력 영역 (템플릿 저장/삭제 포함)
-        _render_expense_section(store_id, year, month, total_sales)
+        # Phase F: 월 상태 재확인 (연/월 변경 시)
+        month_status = get_month_settlement_status(store_id, year, month)
+        readonly = (month_status == 'final')
+        
+        # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
+        _render_expense_section(store_id, year, month, total_sales, readonly)
         
         # 분석 영역 (Phase E: 성적표)
         _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
@@ -1129,7 +1202,7 @@ def render_settlement_actual():
         st.error(f"❌ 실제정산 페이지 로드 중 오류가 발생했습니다: {str(e)}")
         st.exception(e)
         st.info("""
-        **Phase D 실제정산 페이지**
+        **Phase F 실제정산 페이지**
         
         - 연/월 선택
         - 총매출 입력 (sales 테이블 자동 불러오기)
@@ -1139,4 +1212,6 @@ def render_settlement_actual():
         - Soft Delete
         - 항목별 금액/% 선택형 입력
         - sales 월합계 자동 불러오기
+        - 목표 대비 성적표
+        - 확정(Final) + 잠금(읽기전용) + 확정 해제
         """)
