@@ -1358,9 +1358,10 @@ def _render_settlement_history(store_id: str):
                     key=f"history_view_{year}_{month}",
                     use_container_width=True
                 ):
-                    # Phase H: 월 이동
-                    st.session_state['settlement_year'] = year
-                    st.session_state['settlement_month'] = month
+                    # Phase H: 월 이동 (별도 플래그 사용)
+                    # st.number_input이 이미 settlement_year 키를 사용하므로 직접 수정 불가
+                    st.session_state['settlement_navigate_to_year'] = year
+                    st.session_state['settlement_navigate_to_month'] = month
                     st.rerun()
         
         # 더 보기 버튼 (선택)
@@ -1420,13 +1421,21 @@ def render_settlement_actual():
         """, unsafe_allow_html=True)
         
         # 현재 연/월 (세션 상태에서 선택된 값이 있으면 사용, 없으면 현재 월 사용)
-        # 사용자가 연/월을 변경하면 st.number_input의 key로 세션 상태에 저장됨
-        if "settlement_year" in st.session_state:
+        # Phase H: 히스토리에서 이동한 경우 우선 처리
+        if "settlement_navigate_to_year" in st.session_state:
+            initial_year = st.session_state["settlement_navigate_to_year"]
+            # 플래그 제거 (한 번만 적용)
+            del st.session_state["settlement_navigate_to_year"]
+        elif "settlement_year" in st.session_state:
             initial_year = st.session_state["settlement_year"]
         else:
             initial_year = current_year_kst()
         
-        if "settlement_month" in st.session_state:
+        if "settlement_navigate_to_month" in st.session_state:
+            initial_month = st.session_state["settlement_navigate_to_month"]
+            # 플래그 제거 (한 번만 적용)
+            del st.session_state["settlement_navigate_to_month"]
+        elif "settlement_month" in st.session_state:
             initial_month = st.session_state["settlement_month"]
         else:
             initial_month = current_month_kst()
