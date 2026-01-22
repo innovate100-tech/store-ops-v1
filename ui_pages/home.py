@@ -1307,69 +1307,70 @@ def render_home():
             
             # 미션 1: 메뉴 3개 등록
             mission1_icon = "✅" if mission1_complete else "⬜"
-            st.markdown(f"""
-            <div style="padding: 1.2rem; background: {'#d4edda' if mission1_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission1_complete else '#6c757d'}; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission1_icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
-                            미션 1: 메뉴 3개 등록하기
-                            {f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({menu_count}/3)</span>' if not mission1_complete else ''}
-                        </div>
-                        <div style="color: #666; font-size: 0.95rem;">
-                            메뉴가 있어야 판매/원가/분석이 의미가 생깁니다.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            mission1_bg = "#d4edda" if mission1_complete else "#f8f9fa"
+            mission1_border = "#28a745" if mission1_complete else "#6c757d"
+            mission1_progress = f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({menu_count}/3)</span>' if not mission1_complete else ""
+            
+            mission1_html = (
+                f'<div style="padding: 1.2rem; background: {mission1_bg}; border-radius: 8px; '
+                f'border-left: 4px solid {mission1_border}; margin-bottom: 1rem;">'
+                f'<div style="display: flex; align-items: center; margin-bottom: 0.5rem;">'
+                f'<span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission1_icon}</span>'
+                f'<div style="flex: 1;">'
+                f'<div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">'
+                f'미션 1: 메뉴 3개 등록하기 {mission1_progress}'
+                f'</div>'
+                f'<div style="color: #666; font-size: 0.95rem;">메뉴가 있어야 판매/원가/분석이 의미가 생깁니다.</div>'
+                f'</div></div></div>'
+            )
+            st.markdown(mission1_html, unsafe_allow_html=True)
             if not mission1_complete:
                 if st.button("메뉴 등록", key="mission1_btn", use_container_width=True):
                     st.session_state.current_page = "메뉴 등록"
                     st.rerun()
             
             # 미션 2: 점장마감 3회
-            mission2_complete = close_count >= 3
             mission2_icon = "✅" if mission2_complete else "⬜"
-            st.markdown(f"""
-            <div style="padding: 1.2rem; background: {'#d4edda' if mission2_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission2_complete else '#6c757d'}; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission2_icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
-                            미션 2: 점장마감 3회 하기
-                            {f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({close_count}/3)</span>' if not mission2_complete else ''}
-                        </div>
-                        <div style="color: #666; font-size: 0.95rem;">
-                            3번만 하면 홈이 자동으로 흐름을 읽기 시작합니다.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            mission2_bg = "#d4edda" if mission2_complete else "#f8f9fa"
+            mission2_border = "#28a745" if mission2_complete else "#6c757d"
+            mission2_progress = f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({close_count}/3)</span>' if not mission2_complete else ""
+            
+            mission2_html = (
+                f'<div style="padding: 1.2rem; background: {mission2_bg}; border-radius: 8px; '
+                f'border-left: 4px solid {mission2_border}; margin-bottom: 1rem;">'
+                f'<div style="display: flex; align-items: center; margin-bottom: 0.5rem;">'
+                f'<span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission2_icon}</span>'
+                f'<div style="flex: 1;">'
+                f'<div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">'
+                f'미션 2: 점장마감 3회 하기 {mission2_progress}'
+                f'</div>'
+                f'<div style="color: #666; font-size: 0.95rem;">3번만 하면 홈이 자동으로 흐름을 읽기 시작합니다.</div>'
+                f'</div></div></div>'
+            )
+            st.markdown(mission2_html, unsafe_allow_html=True)
             if not mission2_complete:
                 if st.button("점장 마감", key="mission2_btn", use_container_width=True):
                     st.session_state.current_page = "점장 마감"
                     st.rerun()
             
             # 미션 3: 이번 달 성적표 1회
-            mission3_complete = has_settlement
             mission3_icon = "✅" if mission3_complete else "⬜"
-            st.markdown(f"""
-            <div style="padding: 1.2rem; background: {'#d4edda' if mission3_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission3_complete else '#6c757d'}; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission3_icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
-                            미션 3: 이번 달 성적표 1회 만들기
-                        </div>
-                        <div style="color: #666; font-size: 0.95rem;">
-                            우리 가게 돈 구조(손익분기점/이익구조)가 완성됩니다.
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            mission3_bg = "#d4edda" if mission3_complete else "#f8f9fa"
+            mission3_border = "#28a745" if mission3_complete else "#6c757d"
+            
+            mission3_html = (
+                f'<div style="padding: 1.2rem; background: {mission3_bg}; border-radius: 8px; '
+                f'border-left: 4px solid {mission3_border}; margin-bottom: 1rem;">'
+                f'<div style="display: flex; align-items: center; margin-bottom: 0.5rem;">'
+                f'<span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission3_icon}</span>'
+                f'<div style="flex: 1;">'
+                f'<div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">'
+                f'미션 3: 이번 달 성적표 1회 만들기'
+                f'</div>'
+                f'<div style="color: #666; font-size: 0.95rem;">우리 가게 돈 구조(손익분기점/이익구조)가 완성됩니다.</div>'
+                f'</div></div></div>'
+            )
+            st.markdown(mission3_html, unsafe_allow_html=True)
             if not mission3_complete:
                 if st.button("실제정산", key="mission3_btn", use_container_width=True):
                     st.session_state.current_page = "실제정산"
