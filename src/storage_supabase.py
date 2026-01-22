@@ -2883,7 +2883,7 @@ def upsert_actual_settlement_item(
     store_id: str,
     year: int,
     month: int,
-    template_id: int,
+    template_id: str,  # UUID 문자열
     amount: float = None,
     percent: float = None,
     status: str = 'draft'
@@ -2914,7 +2914,7 @@ def upsert_actual_settlement_item(
             "store_id": store_id,
             "year": int(year),
             "month": int(month),
-            "template_id": int(template_id),
+            "template_id": template_id,  # UUID 문자열이므로 int() 변환 제거
             "status": status,
         }
         
