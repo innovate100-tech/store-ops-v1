@@ -86,6 +86,315 @@ def get_monthly_close_stats(store_id: str, year: int, month: int) -> tuple:
         return (0, 0, 0.0, 0)
 
 
+def get_problems_top3(store_id: str) -> list:
+    """
+    문제 TOP3 추출 (룰 기반)
+    
+    Returns:
+        list: [{"text": str, "target_page": str}, ...] 최대 3개
+    """
+    problems = []
+    
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return [{"text": "데이터를 불러올 수 없습니다.", "target_page": "점장 마감"}]
+        
+        KST = ZoneInfo("Asia/Seoul")
+        today = datetime.now(KST).date()
+        
+        # 최근 6일 매출 데이터 조회 (최근 3일 vs 그 전 3일 비교용)
+        from datetime import timedelta
+        six_days_ago = today - timedelta(days=6)
+        
+        sales_recent = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", six_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .order("date", desc=False)\
+            .execute()
+        
+        sales_data = {}
+        if sales_recent.data:
+            for row in sales_recent.data:
+                date_str = row.get('date')
+                total = float(row.get('total_sales', 0) or 0)
+                if date_str:
+                    sales_data[date_str] = total
+        
+        # A. 최근 3일 평균 매출 < 그 전 3일 평균
+        if len(sales_data) >= 6:
+            recent_3_days = list(sales_data.values())[-3:]
+            prev_3_days = list(sales_data.values())[-6:-3]
+            if recent_3_days and prev_3_days:
+                recent_avg = sum(recent_3_days) / len(recent_3_days)
+                prev_avg = sum(prev_3_days) / len(prev_3_days)
+                if recent_avg < prev_avg and prev_avg > 0:
+                    problems.append({
+                        "text": "최근 3일 평균 매출이 직전 기간보다 감소했습니다.",
+                        "target_page": "매출 관리"
+                    })
+        
+        # 이번 달 매출 데이터 조회
+        current_year = today.year
+        current_month = today.month
+        start_of_month = date(current_year, current_month, 1)
+        if current_month == 12:
+            end_of_month = date(current_year + 1, 1, 1)
+        else:
+            end_of_month = date(current_year, current_month + 1, 1)
+        
+        sales_month = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", start_of_month.isoformat())\
+            .lt("date", end_of_month.isoformat())\
+            .execute()
+        
+        month_sales = {}
+        if sales_month.data:
+            for row in sales_month.data:
+                date_str = row.get('date')
+                total = float(row.get('total_sales', 0) or 0)
+                if date_str and total > 0:
+                    month_sales[date_str] = total
+        
+        # B. 이번 달 매출 최저일 발생 (최근 3일 내)
+        if month_sales:
+            min_sales = min(month_sales.values())
+            min_date = min([d for d, s in month_sales.items() if s == min_sales])
+            min_date_obj = datetime.strptime(min_date, '%Y-%m-%d').date() if isinstance(min_date, str) else min_date
+            days_ago = (today - min_date_obj).days
+            if days_ago <= 3 and days_ago >= 0:
+                problems.append({
+                    "text": "이번 달 최저 매출일이 최근에 발생했습니다.",
+                    "target_page": "매출 관리"
+                })
+        
+        # C. 마감 공백 존재
+        daily_close_month = supabase.table("daily_close")\
+            .select("date")\
+            .eq("store_id", store_id)\
+            .gte("date", start_of_month.isoformat())\
+            .lt("date", end_of_month.isoformat())\
+            .execute()
+        
+        closed_dates = set()
+        if daily_close_month.data:
+            for row in daily_close_month.data:
+                date_str = row.get('date')
+                if date_str:
+                    closed_dates.add(date_str)
+        
+        # 오늘까지의 날짜 중 마감 안 된 날 확인
+        check_date = start_of_month
+        gap_found = False
+        while check_date < today and check_date < end_of_month:
+            if check_date.isoformat() not in closed_dates:
+                gap_found = True
+                break
+            check_date += timedelta(days=1)
+        
+        if gap_found:
+            problems.append({
+                "text": "이번 달 마감하지 않은 날이 있습니다.",
+                "target_page": "점장 마감"
+            })
+        
+        # D. 판매 메뉴 쏠림 (상위 1개 메뉴가 50% 이상)
+        seven_days_ago = today - timedelta(days=7)
+        sales_items_recent = supabase.table("v_daily_sales_items_effective")\
+            .select("menu_id, qty")\
+            .eq("store_id", store_id)\
+            .gte("date", seven_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .execute()
+        
+        if sales_items_recent.data:
+            menu_totals = {}
+            total_qty = 0
+            for row in sales_items_recent.data:
+                menu_id = row.get('menu_id')
+                qty = int(row.get('qty', 0) or 0)
+                if menu_id and qty > 0:
+                    menu_totals[menu_id] = menu_totals.get(menu_id, 0) + qty
+                    total_qty += qty
+            
+            if menu_totals and total_qty > 0:
+                max_menu_qty = max(menu_totals.values())
+                max_ratio = max_menu_qty / total_qty
+                if max_ratio >= 0.5:
+                    problems.append({
+                        "text": "상위 1개 메뉴가 전체 판매의 50% 이상을 차지합니다.",
+                        "target_page": "판매 관리"
+                    })
+        
+        # E. 최근 7일 판매 데이터 거의 없음
+        if sales_items_recent.data:
+            unique_dates = set()
+            for row in sales_items_recent.data:
+                date_str = row.get('date')
+                if date_str:
+                    unique_dates.add(date_str)
+            
+            if len(unique_dates) <= 2:  # 2일 이하
+                problems.append({
+                    "text": "최근 일주일 판매 데이터가 거의 없습니다.",
+                    "target_page": "점장 마감"
+                })
+        
+        # 최대 3개만 반환
+        return problems[:3] if problems else [{"text": "아직 분석할 데이터가 충분하지 않습니다.", "target_page": "점장 마감"}]
+        
+    except Exception as e:
+        return [{"text": "문제 분석 중 오류가 발생했습니다.", "target_page": "점장 마감"}]
+
+
+def get_good_points_top3(store_id: str) -> list:
+    """
+    잘한 점 TOP3 추출 (룰 기반)
+    
+    Returns:
+        list: [{"text": str, "target_page": str}, ...] 최대 3개
+    """
+    good_points = []
+    
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return [{"text": "데이터를 불러올 수 없습니다.", "target_page": "점장 마감"}]
+        
+        KST = ZoneInfo("Asia/Seoul")
+        today = datetime.now(KST).date()
+        
+        # 최근 6일 매출 데이터 조회
+        from datetime import timedelta
+        six_days_ago = today - timedelta(days=6)
+        
+        sales_recent = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", six_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .order("date", desc=False)\
+            .execute()
+        
+        sales_data = {}
+        if sales_recent.data:
+            for row in sales_recent.data:
+                date_str = row.get('date')
+                total = float(row.get('total_sales', 0) or 0)
+                if date_str:
+                    sales_data[date_str] = total
+        
+        # A. 최근 3일 평균 매출 > 그 전 3일 평균
+        if len(sales_data) >= 6:
+            recent_3_days = list(sales_data.values())[-3:]
+            prev_3_days = list(sales_data.values())[-6:-3]
+            if recent_3_days and prev_3_days:
+                recent_avg = sum(recent_3_days) / len(recent_3_days)
+                prev_avg = sum(prev_3_days) / len(prev_3_days)
+                if recent_avg > prev_avg and prev_avg > 0:
+                    good_points.append({
+                        "text": "최근 3일 평균 매출이 이전 기간보다 증가했습니다.",
+                        "target_page": "매출 관리"
+                    })
+        
+        # 이번 달 매출 데이터 조회
+        current_year = today.year
+        current_month = today.month
+        start_of_month = date(current_year, current_month, 1)
+        if current_month == 12:
+            end_of_month = date(current_year + 1, 1, 1)
+        else:
+            end_of_month = date(current_year, current_month + 1, 1)
+        
+        sales_month = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", start_of_month.isoformat())\
+            .lt("date", end_of_month.isoformat())\
+            .execute()
+        
+        month_sales = {}
+        if sales_month.data:
+            for row in sales_month.data:
+                date_str = row.get('date')
+                total = float(row.get('total_sales', 0) or 0)
+                if date_str and total > 0:
+                    month_sales[date_str] = total
+        
+        # B. 이번 달 최고 매출일 발생 (최근 3일 내)
+        if month_sales:
+            max_sales = max(month_sales.values())
+            max_date = max([d for d, s in month_sales.items() if s == max_sales])
+            max_date_obj = datetime.strptime(max_date, '%Y-%m-%d').date() if isinstance(max_date, str) else max_date
+            days_ago = (today - max_date_obj).days
+            if days_ago <= 3 and days_ago >= 0:
+                good_points.append({
+                    "text": "이번 달 최고 매출일이 최근에 발생했습니다.",
+                    "target_page": "매출 관리"
+                })
+        
+        # C. 마감 스트릭 유지 (이미 get_monthly_close_stats에서 계산됨)
+        close_stats = get_monthly_close_stats(store_id, current_year, current_month)
+        streak_days = close_stats[3]
+        if streak_days >= 3:
+            good_points.append({
+                "text": "연속 마감 기록이 유지되고 있습니다.",
+                "target_page": "점장 마감"
+            })
+        
+        # D. 판매 메뉴 다양화 (상위 1개 메뉴가 50% 미만)
+        seven_days_ago = today - timedelta(days=7)
+        sales_items_recent = supabase.table("v_daily_sales_items_effective")\
+            .select("menu_id, qty")\
+            .eq("store_id", store_id)\
+            .gte("date", seven_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .execute()
+        
+        if sales_items_recent.data:
+            menu_totals = {}
+            total_qty = 0
+            for row in sales_items_recent.data:
+                menu_id = row.get('menu_id')
+                qty = int(row.get('qty', 0) or 0)
+                if menu_id and qty > 0:
+                    menu_totals[menu_id] = menu_totals.get(menu_id, 0) + qty
+                    total_qty += qty
+            
+            if menu_totals and total_qty > 0:
+                max_menu_qty = max(menu_totals.values())
+                max_ratio = max_menu_qty / total_qty
+                if max_ratio < 0.5 and len(menu_totals) >= 3:  # 3개 이상 메뉴, 최대 비율 50% 미만
+                    good_points.append({
+                        "text": "최근 판매가 여러 메뉴로 분산되고 있습니다.",
+                        "target_page": "판매 관리"
+                    })
+        
+        # E. 판매 데이터 꾸준 (최근 7일 중 5일 이상)
+        if sales_items_recent.data:
+            unique_dates = set()
+            for row in sales_items_recent.data:
+                date_str = row.get('date')
+                if date_str:
+                    unique_dates.add(date_str)
+            
+            if len(unique_dates) >= 5:
+                good_points.append({
+                    "text": "최근 일주일 판매 입력이 꾸준히 이루어지고 있습니다.",
+                    "target_page": "판매 관리"
+                })
+        
+        # 최대 3개만 반환
+        return good_points[:3] if good_points else [{"text": "데이터가 쌓이면 자동 분석됩니다.", "target_page": "점장 마감"}]
+        
+    except Exception as e:
+        return [{"text": "잘한 점 분석 중 오류가 발생했습니다.", "target_page": "점장 마감"}]
+
+
 def check_actual_settlement_exists(store_id: str, year: int, month: int) -> bool:
     """
     이번 달 actual_settlement 데이터 존재 여부 확인
@@ -582,45 +891,71 @@ def render_home():
     # ========== 섹션 4: 문제 / 잘한 점 ==========
     try:
         with st.container():
-        st.markdown("### ⚠️ 문제 / ✅ 잘한 점")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### ⚠️ 문제")
-            if data_level < 2:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
-                    <p style="color: #721c24; margin: 0;">운영 데이터가 부족합니다. 마감을 꾸준히 입력해주세요.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
-                    <p style="color: #721c24; margin: 0;">문제 분석은 다음 단계에서 추가됩니다.</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("#### ✅ 잘한 점")
-            if data_level == 0:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
-                    <p style="color: #155724; margin: 0;">시스템을 시작하셨습니다. 첫 마감부터 시작하세요!</p>
-                </div>
-                """, unsafe_allow_html=True)
-            elif data_level == 1:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
-                    <p style="color: #155724; margin: 0;">매출 데이터를 꾸준히 입력하고 있습니다. 좋습니다!</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
-                    <p style="color: #155724; margin: 0;">잘한 점 분석은 다음 단계에서 추가됩니다.</p>
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown("### 🔴 문제 TOP3 / 🟢 잘한 점 TOP3")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🔴 문제 TOP3")
+                try:
+                    problems = get_problems_top3(store_id)
+                    
+                    if not problems:
+                        st.markdown("""
+                        <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; margin: 0; margin-bottom: 1rem;">아직 분석할 데이터가 충분하지 않습니다.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("📋 점장 마감 시작하기", use_container_width=True, key="home_btn_problems_fallback"):
+                            st.session_state.current_page = "점장 마감"
+                            st.rerun()
+                    else:
+                        for idx, problem in enumerate(problems, 1):
+                            st.markdown(f"""
+                            <div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;">
+                                <div style="font-weight: 600; color: #721c24; margin-bottom: 0.3rem;">{idx}. {problem['text']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"보러가기", key=f"home_btn_problem_{idx}", use_container_width=True):
+                                st.session_state.current_page = problem['target_page']
+                                st.rerun()
+                except Exception as e:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                        <p style="color: #721c24; margin: 0;">문제 분석 중 오류가 발생했습니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("#### 🟢 잘한 점 TOP3")
+                try:
+                    good_points = get_good_points_top3(store_id)
+                    
+                    if not good_points:
+                        st.markdown("""
+                        <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; margin: 0; margin-bottom: 1rem;">데이터가 쌓이면 자동 분석됩니다.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("📋 점장 마감 시작하기", use_container_width=True, key="home_btn_good_fallback"):
+                            st.session_state.current_page = "점장 마감"
+                            st.rerun()
+                    else:
+                        for idx, point in enumerate(good_points, 1):
+                            st.markdown(f"""
+                            <div style="padding: 1rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;">
+                                <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;">{idx}. {point['text']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"보러가기", key=f"home_btn_good_{idx}", use_container_width=True):
+                                st.session_state.current_page = point['target_page']
+                                st.rerun()
+                except Exception as e:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <p style="color: #155724; margin: 0;">잘한 점 분석 중 오류가 발생했습니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
     except Exception:
         pass
     
