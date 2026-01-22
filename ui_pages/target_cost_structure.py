@@ -7,7 +7,7 @@ import pandas as pd
 import time
 from src.ui_helpers import render_page_header, render_section_header, render_section_divider, safe_get_value
 from src.utils.time_utils import current_year_kst, current_month_kst
-from src.storage_supabase import load_csv, load_expense_structure, save_expense_item, update_expense_item, delete_expense_item, copy_expense_structure_from_previous_month, save_targets
+from src.storage_supabase import load_csv, load_expense_structure, save_expense_item, update_expense_item, delete_expense_item, copy_expense_structure_from_previous_month, save_targets, get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales
 from src.utils.crud_guard import run_write
 import logging
 
@@ -69,32 +69,21 @@ def render_target_cost_structure():
     render_section_divider()
     
     # ========== 손익분기점 계산 및 상단 표시 ==========
-    # 모든 원본 데이터를 render 함수 상단에서 한 번만 로드 (캐시 활용)
-    expense_df = load_expense_structure(selected_year, selected_month)
+    # 공식 엔진 함수 사용 (헌법 준수)
+    from src.auth import get_current_store_id
+    store_id = get_current_store_id()
     
-    # 고정비 계산 (임차료, 인건비, 공과금)
-    fixed_costs = 0
-    if not expense_df.empty:
-        fixed_categories = ['임차료', '인건비', '공과금']
-        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    fixed_costs = get_fixed_costs(store_id, selected_year, selected_month) if store_id else 0.0
+    variable_cost_ratio = get_variable_cost_ratio(store_id, selected_year, selected_month) if store_id else 0.0
+    breakeven_sales = calculate_break_even_sales(store_id, selected_year, selected_month) if store_id else 0.0
     
-    # 변동비율 계산 (재료비, 부가세&카드수수료)
-    # 변동비 카테고리의 모든 항목 비율 합계
-    variable_cost_rate = 0.0  # % 단위
-    if not expense_df.empty:
-        variable_categories = ['재료비', '부가세&카드수수료']
-        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-        if not variable_df.empty:
-            # 각 항목의 비율 합계 (amount 필드에 비율 저장됨)
-            variable_cost_rate = variable_df['amount'].sum()
+    # 변동비율을 % 단위로 변환 (UI 표시용)
+    variable_cost_rate = variable_cost_ratio * 100.0  # % 단위
+    variable_rate_decimal = variable_cost_ratio  # 소수 형태
     
-    # 손익분기점 계산: 고정비 / (1 - 변동비율)
-    # 조건: 고정비 > 0 AND 변동비율 > 0 AND 변동비율 < 100
-    breakeven_sales = None
-    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
-        variable_rate_decimal = variable_cost_rate / 100
-        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
-            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
+    # breakeven_sales가 0이면 None으로 변환 (기존 로직 호환)
+    if breakeven_sales <= 0:
+        breakeven_sales = None
     
     # 목표 매출 로드
     targets_df = load_csv('targets.csv', default_columns=[

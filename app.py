@@ -2231,28 +2231,21 @@ elif page == "통합 대시보드":
     current_month = datetime.now().month
     
     # ========== 손익분기 매출 vs 목표 매출 비교 ==========
-    expense_df = load_expense_structure(current_year, current_month)
+    # 공식 엔진 함수 사용 (헌법 준수)
+    from src.storage_supabase import get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales
+    store_id_dashboard = get_current_store_id()
     
-    # 고정비 계산 (임차료, 인건비, 공과금)
-    fixed_costs = 0
-    if not expense_df.empty:
-        fixed_categories = ['임차료', '인건비', '공과금']
-        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    fixed_costs = get_fixed_costs(store_id_dashboard, current_year, current_month) if store_id_dashboard else 0.0
+    variable_cost_ratio = get_variable_cost_ratio(store_id_dashboard, current_year, current_month) if store_id_dashboard else 0.0
+    breakeven_sales = calculate_break_even_sales(store_id_dashboard, current_year, current_month) if store_id_dashboard else 0.0
     
-    # 변동비율 계산 (재료비, 부가세&카드수수료)
-    variable_cost_rate = 0.0
-    if not expense_df.empty:
-        variable_categories = ['재료비', '부가세&카드수수료']
-        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-        if not variable_df.empty:
-            variable_cost_rate = variable_df['amount'].sum()
+    # 변동비율을 % 단위로 변환 (기존 로직 호환)
+    variable_cost_rate = variable_cost_ratio * 100.0  # % 단위
+    variable_rate_decimal = variable_cost_ratio  # 소수 형태
     
-    # 손익분기점 계산
-    breakeven_sales = None
-    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
-        variable_rate_decimal = variable_cost_rate / 100
-        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
-            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
+    # breakeven_sales가 0이면 None으로 변환 (기존 로직 호환)
+    if breakeven_sales <= 0:
+        breakeven_sales = None
     
     # 목표 매출 로드
     targets_df = load_csv('targets.csv', default_columns=[
@@ -3155,31 +3148,21 @@ elif page == "목표 비용구조" or page == "비용구조":
     render_section_divider()
     
     # ========== 손익분기점 계산 및 상단 표시 ==========
-    expense_df = load_expense_structure(selected_year, selected_month)
+    # 공식 엔진 함수 사용 (헌법 준수)
+    from src.storage_supabase import get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales
+    store_id_expense = get_current_store_id()
     
-    # 고정비 계산 (임차료, 인건비, 공과금)
-    fixed_costs = 0
-    if not expense_df.empty:
-        fixed_categories = ['임차료', '인건비', '공과금']
-        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    fixed_costs = get_fixed_costs(store_id_expense, selected_year, selected_month) if store_id_expense else 0.0
+    variable_cost_ratio = get_variable_cost_ratio(store_id_expense, selected_year, selected_month) if store_id_expense else 0.0
+    breakeven_sales = calculate_break_even_sales(store_id_expense, selected_year, selected_month) if store_id_expense else 0.0
     
-    # 변동비율 계산 (재료비, 부가세&카드수수료)
-    # 변동비 카테고리의 모든 항목 비율 합계
-    variable_cost_rate = 0.0  # % 단위
-    if not expense_df.empty:
-        variable_categories = ['재료비', '부가세&카드수수료']
-        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-        if not variable_df.empty:
-            # 각 항목의 비율 합계 (amount 필드에 비율 저장됨)
-            variable_cost_rate = variable_df['amount'].sum()
+    # 변동비율을 % 단위로 변환 (기존 로직 호환)
+    variable_cost_rate = variable_cost_ratio * 100.0  # % 단위
+    variable_rate_decimal = variable_cost_ratio  # 소수 형태
     
-    # 손익분기점 계산: 고정비 / (1 - 변동비율)
-    # 조건: 고정비 > 0 AND 변동비율 > 0 AND 변동비율 < 100
-    breakeven_sales = None
-    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
-        variable_rate_decimal = variable_cost_rate / 100
-        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
-            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
+    # breakeven_sales가 0이면 None으로 변환 (기존 로직 호환)
+    if breakeven_sales <= 0:
+        breakeven_sales = None
     
     # 목표 매출 로드
     targets_df = load_csv('targets.csv', default_columns=[
@@ -3922,13 +3905,16 @@ elif page == "매출구조":
     selected_year = int(st.session_state.get("expense_year", current_year))
     selected_month = int(st.session_state.get("expense_month", current_month))
     
-    # 비용구조에서 고정비/변동비율과 목표매출 불러오기
-    expense_df = load_expense_structure(selected_year, selected_month)
+    # 공식 엔진 함수 사용 (헌법 준수)
+    from src.storage_supabase import get_fixed_costs, get_variable_cost_ratio
+    store_id_target = get_current_store_id()
     
-    fixed_costs = 0
-    variable_cost_rate = 0.0  # % 단위
-
-    # 5대 비용(임차료, 인건비, 재료비, 공과금, 부가세&카드수수료)을 위한 세부 항목
+    fixed_costs = get_fixed_costs(store_id_target, selected_year, selected_month) if store_id_target else 0.0
+    variable_cost_ratio = get_variable_cost_ratio(store_id_target, selected_year, selected_month) if store_id_target else 0.0
+    variable_cost_rate = variable_cost_ratio * 100.0  # % 단위 (기존 로직 호환)
+    
+    # 카테고리별 세부 항목은 expense_structure에서 직접 조회 (표시용)
+    expense_df = load_expense_structure(selected_year, selected_month)
     fixed_by_category = {
         '임차료': 0,
         '인건비': 0,
@@ -3941,14 +3927,12 @@ elif page == "매출구조":
     
     if not expense_df.empty:
         fixed_categories = ['임차료', '인건비', '공과금']
-        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
         for cat in fixed_categories:
             fixed_by_category[cat] = expense_df[expense_df['category'] == cat]['amount'].sum()
         
         variable_categories = ['재료비', '부가세&카드수수료']
         variable_df = expense_df[expense_df['category'].isin(variable_categories)]
         if not variable_df.empty:
-            variable_cost_rate = variable_df['amount'].sum()
             for cat in variable_categories:
                 variable_rate_by_category[cat] = variable_df[variable_df['category'] == cat]['amount'].sum()
     

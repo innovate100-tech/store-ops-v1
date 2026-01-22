@@ -192,29 +192,23 @@ def compute_menu_sales_summary(
 
 def _compute_dashboard_metrics(ctx, raw_data):
     """대시보드 메트릭 계산 (손익분기점, 매출 통합, 집계 등)"""
+    from src.storage_supabase import get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales
+    
     expense_df = raw_data['expense_df']
     targets_df = raw_data['targets_df']
     
-    # 고정비 계산 (임차료, 인건비, 공과금)
-    fixed_costs = 0
-    if not expense_df.empty:
-        fixed_categories = ['임차료', '인건비', '공과금']
-        fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+    # 공식 엔진 함수 사용 (헌법 준수)
+    fixed_costs = get_fixed_costs(ctx['store_id'], ctx['year'], ctx['month'])
+    variable_cost_ratio = get_variable_cost_ratio(ctx['store_id'], ctx['year'], ctx['month'])
+    breakeven_sales = calculate_break_even_sales(ctx['store_id'], ctx['year'], ctx['month'])
     
-    # 변동비율 계산 (재료비, 부가세&카드수수료)
-    variable_cost_rate = 0.0
-    if not expense_df.empty:
-        variable_categories = ['재료비', '부가세&카드수수료']
-        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-        if not variable_df.empty:
-            variable_cost_rate = variable_df['amount'].sum()
+    # 변동비율을 % 단위로 변환 (기존 로직 호환)
+    variable_cost_rate = variable_cost_ratio * 100.0  # % 단위
+    variable_rate_decimal = variable_cost_ratio  # 소수 형태
     
-    # 손익분기점 계산
-    breakeven_sales = None
-    if fixed_costs > 0 and variable_cost_rate > 0 and variable_cost_rate < 100:
-        variable_rate_decimal = variable_cost_rate / 100
-        if variable_rate_decimal < 1 and (1 - variable_rate_decimal) > 0:
-            breakeven_sales = fixed_costs / (1 - variable_rate_decimal)
+    # breakeven_sales가 0이면 None으로 변환 (기존 로직 호환)
+    if breakeven_sales <= 0:
+        breakeven_sales = None
     
     # 목표 매출
     target_sales = 0

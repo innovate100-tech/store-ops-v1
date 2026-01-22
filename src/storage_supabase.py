@@ -3081,6 +3081,237 @@ def upsert_actual_settlement_item(
 # Phase D: 실제정산 - sales 테이블에서 월매출 자동 불러오기
 # ============================================
 
+# ============================================
+# Phase 4.2-2: 비용 구조 및 손익분기점 공식 엔진 함수
+# ============================================
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_fixed_costs(store_id: str, year: int, month: int) -> float:
+    """
+    고정비 조회 (SSOT 엔진)
+    
+    우선순위:
+    1. actual_settlement_items (final 상태) - input_type='amount'인 항목 합계
+    2. expense_structure - 임차료, 인건비, 공과금 합계
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        float: 고정비 합계 (원 단위)
+    """
+    try:
+        # 1순위: actual_settlement_items (final 상태 확인)
+        month_status = get_month_settlement_status(store_id, year, month)
+        if month_status == 'final':
+            try:
+                total_sales = load_monthly_sales_total(store_id, year, month)
+                expense_items = {}
+                templates = load_cost_item_templates(store_id)
+                saved_items = load_actual_settlement_items(store_id, year, month)
+                
+                saved_dict = {}
+                for saved in saved_items:
+                    template_id = saved.get('template_id')
+                    if template_id:
+                        saved_dict[template_id] = saved
+                
+                for template in templates:
+                    if not template.get('is_active', True):
+                        continue
+                    category = template.get('category')
+                    if not category:
+                        continue
+                    
+                    if category not in expense_items:
+                        expense_items[category] = []
+                    
+                    template_id = template.get('id')
+                    saved = saved_dict.get(template_id, {})
+                    
+                    saved_amount = saved.get('amount')
+                    saved_percent = saved.get('percent')
+                    has_amount = saved_amount is not None and float(saved_amount or 0) > 0
+                    has_percent = saved_percent is not None and float(saved_percent or 0) > 0
+                    
+                    if has_amount and not has_percent:
+                        input_type = 'amount'
+                    elif has_percent and not has_amount:
+                        input_type = 'rate'
+                    elif has_amount and has_percent:
+                        input_type = 'amount'
+                    else:
+                        input_type = 'amount'
+                    
+                    item = {
+                        'template_id': template_id,
+                        'item_name': template.get('item_name', ''),
+                        'input_type': input_type,
+                        'amount': int(saved_amount or 0) if input_type == 'amount' else 0,
+                        'rate': float(saved_percent or 0.0) if input_type == 'rate' else 0.0,
+                    }
+                    expense_items[category].append(item)
+                
+                # 고정비 카테고리 (임차료, 인건비, 공과금)의 amount 합계
+                fixed_categories = ['임차료', '인건비', '공과금']
+                fixed_total = 0.0
+                for cat in fixed_categories:
+                    if cat in expense_items:
+                        for item in expense_items[cat]:
+                            if item.get('input_type') == 'amount':
+                                fixed_total += float(item.get('amount', 0))
+                
+                if fixed_total > 0:
+                    return fixed_total
+            except Exception:
+                pass
+        
+        # 2순위: expense_structure
+        expense_df = load_expense_structure(year, month, store_id)
+        if not expense_df.empty:
+            fixed_categories = ['임차료', '인건비', '공과금']
+            fixed_costs = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
+            return float(fixed_costs)
+        
+        return 0.0
+    except Exception as e:
+        logger.error(f"Failed to get fixed costs: {e}")
+        return 0.0
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_variable_cost_ratio(store_id: str, year: int, month: int) -> float:
+    """
+    변동비율 조회 (SSOT 엔진)
+    
+    우선순위:
+    1. actual_settlement_items (final 상태) - input_type='rate'인 항목 합계
+    2. expense_structure - 재료비, 부가세&카드수수료 합계
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        float: 변동비율 (0.0 ~ 1.0, 소수 형태)
+    """
+    try:
+        # 1순위: actual_settlement_items (final 상태 확인)
+        month_status = get_month_settlement_status(store_id, year, month)
+        if month_status == 'final':
+            try:
+                total_sales = load_monthly_sales_total(store_id, year, month)
+                expense_items = {}
+                templates = load_cost_item_templates(store_id)
+                saved_items = load_actual_settlement_items(store_id, year, month)
+                
+                saved_dict = {}
+                for saved in saved_items:
+                    template_id = saved.get('template_id')
+                    if template_id:
+                        saved_dict[template_id] = saved
+                
+                for template in templates:
+                    if not template.get('is_active', True):
+                        continue
+                    category = template.get('category')
+                    if not category:
+                        continue
+                    
+                    if category not in expense_items:
+                        expense_items[category] = []
+                    
+                    template_id = template.get('id')
+                    saved = saved_dict.get(template_id, {})
+                    
+                    saved_amount = saved.get('amount')
+                    saved_percent = saved.get('percent')
+                    has_amount = saved_amount is not None and float(saved_amount or 0) > 0
+                    has_percent = saved_percent is not None and float(saved_percent or 0) > 0
+                    
+                    if has_amount and not has_percent:
+                        input_type = 'amount'
+                    elif has_percent and not has_amount:
+                        input_type = 'rate'
+                    elif has_amount and has_percent:
+                        input_type = 'amount'
+                    else:
+                        input_type = 'amount'
+                    
+                    item = {
+                        'template_id': template_id,
+                        'item_name': template.get('item_name', ''),
+                        'input_type': input_type,
+                        'amount': int(saved_amount or 0) if input_type == 'amount' else 0,
+                        'rate': float(saved_percent or 0.0) if input_type == 'rate' else 0.0,
+                    }
+                    expense_items[category].append(item)
+                
+                # 변동비 카테고리 (재료비, 부가세&카드수수료)의 rate 합계
+                variable_categories = ['재료비', '부가세&카드수수료']
+                variable_rate_total = 0.0
+                for cat in variable_categories:
+                    if cat in expense_items:
+                        for item in expense_items[cat]:
+                            if item.get('input_type') == 'rate':
+                                variable_rate_total += float(item.get('rate', 0.0))
+                
+                # %를 소수로 변환
+                if variable_rate_total > 0:
+                    return variable_rate_total / 100.0
+            except Exception:
+                pass
+        
+        # 2순위: expense_structure
+        expense_df = load_expense_structure(year, month, store_id)
+        if not expense_df.empty:
+            variable_categories = ['재료비', '부가세&카드수수료']
+            variable_df = expense_df[expense_df['category'].isin(variable_categories)]
+            if not variable_df.empty:
+                variable_cost_rate = variable_df['amount'].sum()  # % 단위
+                return variable_cost_rate / 100.0  # 소수로 변환
+        
+        return 0.0
+    except Exception as e:
+        logger.error(f"Failed to get variable cost ratio: {e}")
+        return 0.0
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def calculate_break_even_sales(store_id: str, year: int, month: int) -> float:
+    """
+    손익분기점 매출 계산 (SSOT 엔진)
+    
+    공식: 고정비 / (1 - 변동비율)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        float: 손익분기점 매출 (원 단위), 계산 불가 시 0.0
+    """
+    try:
+        fixed_costs = get_fixed_costs(store_id, year, month)
+        variable_ratio = get_variable_cost_ratio(store_id, year, month)
+        
+        # 계산 조건: 고정비 > 0 AND 변동비율 > 0 AND 변동비율 < 1
+        if fixed_costs > 0 and variable_ratio > 0 and variable_ratio < 1:
+            denominator = 1.0 - variable_ratio
+            if denominator > 0:
+                breakeven = fixed_costs / denominator
+                return float(breakeven)
+        
+        return 0.0
+    except Exception as e:
+        logger.error(f"Failed to calculate break even sales: {e}")
+        return 0.0
+
+
 @st.cache_data(ttl=60, show_spinner=False)  # 1분 캐시 (월이 바뀌거나 입력 즉시 반영)
 def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
     """

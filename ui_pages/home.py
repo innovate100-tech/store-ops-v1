@@ -7,7 +7,7 @@ from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header, render_section_divider
 from src.auth import get_current_store_id, get_supabase_client
-from src.storage_supabase import load_monthly_sales_total, load_expense_structure, load_csv
+from src.storage_supabase import load_monthly_sales_total, load_expense_structure, load_csv, get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -653,138 +653,48 @@ def get_store_financial_structure(store_id: str, target_year: int, target_month:
         if not supabase:
             return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
         
-        # 1순위: actual_settlement 조회 (final 상태 확인)
-        try:
-            settlement_result = supabase.table("actual_settlement")\
-                .select("actual_sales, actual_cost, actual_profit, profit_margin")\
-                .eq("store_id", store_id)\
-                .eq("year", target_year)\
-                .eq("month", target_month)\
-                .limit(1)\
-                .execute()
-            
-            if settlement_result.data and len(settlement_result.data) > 0:
-                row = settlement_result.data[0]
-                actual_sales = float(row.get('actual_sales', 0) or 0)
-                actual_cost = float(row.get('actual_cost', 0) or 0)
-                actual_profit = float(row.get('actual_profit', 0) or 0)
-                
-                if actual_sales > 0:
-                    # actual_settlement에서 고정비/변동비 추론
-                    # actual_cost = fixed_cost + (actual_sales * variable_ratio)
-                    # actual_profit = actual_sales - actual_cost
-                    # variable_ratio = (actual_cost - fixed_cost) / actual_sales
-                    # 하지만 actual_settlement에는 고정비/변동비 구분이 없으므로
-                    # expense_structure를 참조하거나, 간단히 비율로 계산
-                    
-                    # 간단 버전: actual_cost를 기준으로 변동비율 추정
-                    # 실제로는 expense_structure를 함께 조회해야 정확함
-                    # 여기서는 간단히: variable_ratio = actual_cost / actual_sales (전체 비용 비율)
-                    variable_ratio = actual_cost / actual_sales if actual_sales > 0 else 0.0
-                    fixed_cost = 0  # actual_settlement만으로는 고정비 추정 불가
-                    
-                    # expense_structure에서 고정비 가져오기
-                    expense_df = load_expense_structure(target_year, target_month, store_id)
-                    if not expense_df.empty:
-                        fixed_categories = ['임차료', '인건비', '공과금']
-                        fixed_cost = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
-                        
-                        variable_categories = ['재료비', '부가세&카드수수료']
-                        variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-                        if not variable_df.empty:
-                            variable_ratio = variable_df['amount'].sum() / 100.0  # %를 소수로 변환
-                    
-                    # 손익분기점 계산
-                    break_even_sales = 0
-                    if fixed_cost > 0 and variable_ratio < 1 and (1 - variable_ratio) > 0:
-                        break_even_sales = int(fixed_cost / (1 - variable_ratio))
-                    
-                    # example_table 생성
-                    example_table = None
-                    if break_even_sales > 0:
-                        example_sales = [
-                            max(int(break_even_sales * 0.8), 0),
-                            break_even_sales,
-                            int(break_even_sales * 1.2),
-                            int(break_even_sales * 1.5)
-                        ]
-                        example_table = []
-                        for sales in example_sales:
-                            if sales > 0:
-                                profit = sales - fixed_cost - (sales * variable_ratio)
-                                margin = (profit / sales * 100) if sales > 0 else 0.0
-                                example_table.append({
-                                    "sales": sales,
-                                    "profit": int(profit),
-                                    "margin": round(margin, 1)
-                                })
-                    
-                    return {
-                        "source": "actual",
-                        "fixed_cost": int(fixed_cost),
-                        "variable_ratio": variable_ratio,
-                        "break_even_sales": break_even_sales,
-                        "example_table": example_table
-                    }
-        except Exception:
-            pass
+        # 공식 엔진 함수 사용 (헌법 준수)
+        # 우선순위는 엔진 함수 내부에서 처리됨 (actual_settlement final → expense_structure)
+        fixed_cost = get_fixed_costs(store_id, target_year, target_month)
+        variable_ratio = get_variable_cost_ratio(store_id, target_year, target_month)
+        break_even_sales = calculate_break_even_sales(store_id, target_year, target_month)
         
-        # 2순위: expense_structure + targets
-        try:
-            expense_df = load_expense_structure(target_year, target_month, store_id)
-            
-            if expense_df.empty:
-                return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
-            
-            # 고정비 계산
-            fixed_categories = ['임차료', '인건비', '공과금']
-            fixed_cost = expense_df[expense_df['category'].isin(fixed_categories)]['amount'].sum()
-            
-            # 변동비율 계산
-            variable_categories = ['재료비', '부가세&카드수수료']
-            variable_df = expense_df[expense_df['category'].isin(variable_categories)]
-            variable_cost_rate = 0.0
-            if not variable_df.empty:
-                variable_cost_rate = variable_df['amount'].sum()  # % 단위
-            
-            variable_ratio = variable_cost_rate / 100.0 if variable_cost_rate > 0 else 0.0
-            
-            # 손익분기점 계산
-            break_even_sales = 0
-            if fixed_cost > 0 and variable_ratio < 1 and (1 - variable_ratio) > 0:
-                break_even_sales = int(fixed_cost / (1 - variable_ratio))
-            
-            # example_table 생성
-            example_table = None
-            if break_even_sales > 0:
-                example_sales = [
-                    max(int(break_even_sales * 0.8), 0),
-                    break_even_sales,
-                    int(break_even_sales * 1.2),
-                    int(break_even_sales * 1.5)
-                ]
-                example_table = []
-                for sales in example_sales:
-                    if sales > 0:
-                        profit = sales - fixed_cost - (sales * variable_ratio)
-                        margin = (profit / sales * 100) if sales > 0 else 0.0
-                        example_table.append({
-                            "sales": sales,
-                            "profit": int(profit),
-                            "margin": round(margin, 1)
-                        })
-            
-            return {
-                "source": "target",
-                "fixed_cost": int(fixed_cost),
-                "variable_ratio": variable_ratio,
-                "break_even_sales": break_even_sales,
-                "example_table": example_table
-            }
-        except Exception:
-            pass
+        # source 판별: actual_settlement final 존재 여부 확인
+        from src.storage_supabase import get_month_settlement_status
+        month_status = get_month_settlement_status(store_id, target_year, target_month)
+        source = "actual" if month_status == 'final' else "target" if fixed_cost > 0 or variable_ratio > 0 else "none"
         
-        return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
+        # 손익분기점이 0이면 데이터 없음으로 처리
+        if break_even_sales <= 0:
+            return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
+        
+        # example_table 생성
+        example_table = None
+        if break_even_sales > 0:
+            example_sales = [
+                max(int(break_even_sales * 0.8), 0),
+                int(break_even_sales),
+                int(break_even_sales * 1.2),
+                int(break_even_sales * 1.5)
+            ]
+            example_table = []
+            for sales in example_sales:
+                if sales > 0:
+                    profit = sales - fixed_cost - (sales * variable_ratio)
+                    margin = (profit / sales * 100) if sales > 0 else 0.0
+                    example_table.append({
+                        "sales": sales,
+                        "profit": int(profit),
+                        "margin": round(margin, 1)
+                    })
+        
+        return {
+            "source": source,
+            "fixed_cost": int(fixed_cost),
+            "variable_ratio": variable_ratio,
+            "break_even_sales": int(break_even_sales),
+            "example_table": example_table
+        }
         
     except Exception as e:
         return {"source": "none", "fixed_cost": 0, "variable_ratio": 0.0, "break_even_sales": 0, "example_table": None}
