@@ -962,20 +962,153 @@ def detect_data_level(store_id: str) -> int:
         return 0
 
 
+def render_day0_home():
+    """DAY 0 전용 홈 화면 (데이터 0단계용)"""
+    try:
+        store_id = get_current_store_id()
+        if not store_id:
+            st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
+            return
+        
+        # ========== [A] HERO 영역 ==========
+        st.markdown("""
+        <div style="padding: 3rem 2rem; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; margin-bottom: 2rem;">
+            <div style="font-size: 1.2rem; margin-bottom: 1rem; opacity: 0.95;">👋 사장님, 환영합니다.</div>
+            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; line-height: 1.2;">
+                ⭐ 선택받는 가게는, 숫자가 다릅니다.
+            </div>
+            <div style="font-size: 1.5rem; font-weight: 500; margin-bottom: 1.5rem; opacity: 0.95;">
+                이제 장사는, 숫자가 알려줍니다.
+            </div>
+            <div style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1rem; opacity: 0.9;">
+                이 앱은 매출을 올리는 방법을<br>
+                감이 아니라 숫자로 알려주는 사장 전용 화면입니다.
+            </div>
+            <div style="font-size: 1.1rem; font-weight: 600; opacity: 0.95;">
+                오늘부터, 장사는 느낌이 아니라 판단으로 합니다.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ========== [B] 첫 행동 카드 ==========
+        st.markdown("""
+        <div style="padding: 2.5rem; background: #ffffff; border-radius: 16px; border: 3px solid #667eea; margin-bottom: 2rem; text-align: center;">
+            <h2 style="color: #333; margin-bottom: 1rem; font-size: 1.8rem;">오늘 장사를 마감해보세요</h2>
+            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+                하루를 정리해야, 이 화면이 사장님 가게 계기판으로 바뀝니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 점장마감 버튼
+        if st.button("👉 점장마감 하러 가기", type="primary", use_container_width=True, key="day0_btn_close"):
+            st.session_state.current_page = "점장 마감"
+            st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ========== [C] 처음 오신 사장님을 위한 3단계 ==========
+        st.markdown("### 처음 오신 사장님을 위한 3단계")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #667eea; height: 100%;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #667eea; margin-bottom: 0.5rem;">STEP 1</div>
+                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
+                    메뉴·재료 3개만 등록하기<br>
+                    <span style="font-size: 0.9rem; color: #666;">(가게 구조 만들기)</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            col1_btn1, col1_btn2 = st.columns(2)
+            with col1_btn1:
+                if st.button("메뉴 등록", use_container_width=True, key="day0_btn_menu"):
+                    st.session_state.current_page = "메뉴 관리"
+                    st.rerun()
+            with col1_btn2:
+                if st.button("재료 등록", use_container_width=True, key="day0_btn_ingredient"):
+                    st.session_state.current_page = "재료 관리"
+                    st.rerun()
+        
+        with col2:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #4facfe; height: 100%;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #4facfe; margin-bottom: 0.5rem;">STEP 2</div>
+                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
+                    오늘 장사 마감 한 번<br>
+                    <span style="font-size: 0.9rem; color: #666;">(홈 화면이 바뀌기 시작)</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("점장 마감", use_container_width=True, key="day0_btn_close_step2"):
+                st.session_state.current_page = "점장 마감"
+                st.rerun()
+        
+        with col3:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #43e97b; height: 100%;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #43e97b; margin-bottom: 0.5rem;">STEP 3</div>
+                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
+                    이번 달 성적표 만들기<br>
+                    <span style="font-size: 0.9rem; color: #666;">(사장님 가게 돈 구조 완성)</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("실제정산", use_container_width=True, key="day0_btn_settlement"):
+                st.session_state.current_page = "실제정산"
+                st.rerun()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ========== [D] 불안 제거 블록 ==========
+        st.markdown("""
+        <div style="padding: 2rem; background: #e7f3ff; border-radius: 12px; border-left: 4px solid #4facfe; text-align: center; margin-top: 2rem;">
+            <p style="color: #0c5460; font-size: 1.1rem; line-height: 1.8; margin: 0;">
+                지금은 아무 숫자도 없어도 괜찮습니다.<br>
+                사장님 가게는 오늘부터 만들어집니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"DAY 0 홈 화면을 표시하는 중 오류가 발생했습니다: {str(e)}")
+        # 오류 발생 시 기본 안내 표시
+        st.info("오늘부터 마감을 시작하세요. 점장 마감 페이지로 이동해주세요.")
+        if st.button("점장 마감 하러 가기", type="primary"):
+            st.session_state.current_page = "점장 마감"
+            st.rerun()
+
+
 def render_home():
     """홈 (사장 계기판) 페이지 렌더링"""
-    render_page_header("사장 계기판", "🏠")
-    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
         return
     
-    # 데이터 단계 판별 (최초 1회만)
-    if 'home_data_level' not in st.session_state:
-        st.session_state.home_data_level = detect_data_level(store_id)
+    # 데이터 단계 판별 (매번 체크하여 최신 상태 유지)
+    data_level = detect_data_level(store_id)
+    st.session_state.home_data_level = data_level
     
-    data_level = st.session_state.home_data_level
+    # DAY 0 전용 홈 화면 표시
+    if data_level == 0:
+        render_day0_home()
+        return
+    
+    # 기존 홈 화면 렌더링
+    render_page_header("사장 계기판", "🏠")
+    
+    # 단계별 안내
+    level_labels = {
+        0: "LEVEL 0: 데이터 거의 없음",
+        1: "LEVEL 1: 매출만 있음",
+        2: "LEVEL 2: 운영 데이터 있음",
+        3: "LEVEL 3: 재무 구조 있음",
+    }
+    
+    st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
     
     # 단계별 안내
     level_labels = {
