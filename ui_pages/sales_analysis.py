@@ -30,9 +30,11 @@ def render_sales_analysis():
         # 날짜를 datetime으로 변환
         daily_sales_df['날짜'] = pd.to_datetime(daily_sales_df['날짜'])
         
-        # 사용 가능한 날짜 범위
+        # 사용 가능한 날짜 범위 (오늘 날짜까지 선택 가능)
         min_date = daily_sales_df['날짜'].min().date()
-        max_date = daily_sales_df['날짜'].max().date()
+        data_max_date = daily_sales_df['날짜'].max().date()
+        today_date = today_kst().date()
+        max_date = max(data_max_date, today_date)  # 데이터 최대 날짜와 오늘 중 더 큰 값
         
         # 기간 선택 필터 (전역 사용)
         st.markdown("""
