@@ -65,27 +65,6 @@ def render_sales_entry():
                             success, conflict_info = save_sales(date, store, card_sales, cash_sales, total_sales, check_conflict=True)
                             
                             if success:
-                                # 충돌이 있으면 경고 표시
-                                if conflict_info:
-                                    existing = conflict_info.get('existing_total_sales', 0)
-                                    has_daily_close = conflict_info.get('has_daily_close', False)
-                                    
-                                    if has_daily_close:
-                                        daily_close_total = conflict_info.get('daily_close_total_sales', 0)
-                                        st.warning(f"⚠️ **주의**: 해당 날짜에 마감보고가 이미 등록되어 있습니다!")
-                                        st.warning(f"   - 마감보고 매출: {daily_close_total:,.0f}원")
-                                        st.warning(f"   - 기존 매출등록 값: {existing:,.0f}원")
-                                        st.warning(f"   - 새로 입력한 값: {total_sales:,.0f}원")
-                                        st.warning(f"   → **새 값으로 덮어쓰기되었습니다.**")
-                                    else:
-                                        st.warning(f"⚠️ **주의**: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!")
-                                        st.warning(f"   - 기존 값: {existing:,.0f}원")
-                                        st.warning(f"   - 새 값: {total_sales:,.0f}원")
-                                        st.warning(f"   → **새 값으로 덮어쓰기되었습니다.**")
-                                
-                                # 성공 메시지
-                                st.success(f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
-                                
                                 # 캐시 무효화
                                 from src.storage_supabase import soft_invalidate, load_monthly_sales_total
                                 soft_invalidate(reason="save_sales", targets=["sales"])
@@ -94,10 +73,47 @@ def render_sales_entry():
                                 except Exception:
                                     pass
                                 
+                                # 충돌이 있으면 경고 표시
+                                if conflict_info:
+                                    existing = conflict_info.get('existing_total_sales', 0)
+                                    has_daily_close = conflict_info.get('has_daily_close', False)
+                                    
+                                    if has_daily_close:
+                                        daily_close_total = conflict_info.get('daily_close_total_sales', 0)
+                                        # 토스트 알림 (더 눈에 띄게)
+                                        st.toast("⚠️ 마감보고와 충돌 감지", icon="⚠️")
+                                        st.warning(f"""
+                                        **⚠️ 주의: 해당 날짜에 마감보고가 이미 등록되어 있습니다!**
+                                        
+                                        - 마감보고 매출: **{daily_close_total:,.0f}원**
+                                        - 기존 매출등록 값: **{existing:,.0f}원**
+                                        - 새로 입력한 값: **{total_sales:,.0f}원**
+                                        
+                                        → **새 값으로 덮어쓰기되었습니다.**
+                                        """)
+                                    else:
+                                        # 토스트 알림
+                                        st.toast("⚠️ 기존 값과 충돌", icon="⚠️")
+                                        st.warning(f"""
+                                        **⚠️ 주의: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!**
+                                        
+                                        - 기존 값: **{existing:,.0f}원**
+                                        - 새 값: **{total_sales:,.0f}원**
+                                        
+                                        → **새 값으로 덮어쓰기되었습니다.**
+                                        """)
+                                
+                                # 성공 메시지 (토스트 + 일반 메시지)
+                                st.toast(f"✅ 매출 저장 완료! ({total_sales:,}원)", icon="✅")
+                                st.success(f"✅ **매출이 저장되었습니다!**")
+                                st.info(f"📅 날짜: {date}  |  🏪 매장: {store}  |  💰 총매출: **{total_sales:,}원**")
+                                
                                 st.rerun()
                             else:
+                                st.toast("❌ 저장 실패", icon="❌")
                                 st.error("❌ 매출 저장에 실패했습니다.")
                         except Exception as e:
+                            st.toast("❌ 저장 실패", icon="❌")
                             st.error(f"❌ 매출 저장 실패: {str(e)}")
                             st.exception(e)
         
@@ -161,14 +177,28 @@ def render_sales_entry():
                                 except Exception as e:
                                     errors.append(f"{date}: {e}")
                         
-                        if errors:
-                            for error in errors:
+                        # 에러와 경고를 구분하여 표시
+                        warnings = [e for e in errors if "⚠️" in e]
+                        real_errors = [e for e in errors if "⚠️" not in e]
+                        
+                        if warnings:
+                            st.warning(f"⚠️ **{len(warnings)}건의 충돌이 감지되었습니다:**")
+                            for warning in warnings:
+                                st.warning(warning)
+                        
+                        if real_errors:
+                            st.error(f"❌ **{len(real_errors)}건의 오류가 발생했습니다:**")
+                            for error in real_errors:
                                 st.error(error)
                         
                         if success_count > 0:
-                            st.success(f"✅ {success_count}일의 매출이 저장되었습니다!")
+                            # 토스트 알림
+                            st.toast(f"✅ {success_count}일의 매출 저장 완료!", icon="✅")
+                            st.success(f"✅ **{success_count}일의 매출이 저장되었습니다!**")
                             st.balloons()
                             st.rerun()  # 일괄 저장 완료 후 한 번만 rerun
+                        elif not real_errors and not warnings:
+                            st.info("💡 저장할 데이터가 없습니다.")
     
     # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
     else:
