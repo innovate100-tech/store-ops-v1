@@ -1228,7 +1228,7 @@ def _render_analysis_section(store_id: str, year: int, month: int, expense_items
 
 def _load_settlement_history(store_id: str, limit: int = 6) -> list:
     """
-    Phase H: 월별 히스토리 데이터 로드
+    Phase H.1: 월별 히스토리 데이터 로드 (DB 기반, session_state 사용 안 함)
     
     Returns:
         list: [
@@ -1240,7 +1240,7 @@ def _load_settlement_history(store_id: str, limit: int = 6) -> list:
                 'total_cost': float,
                 'operating_profit': float,
                 'profit_margin': float,
-                'grade': str  # 'GOOD' | 'WARN' | 'BAD' | None
+                'grade': str | None  # 'GOOD' | 'WARN' | 'BAD' | None (목표 없음)
             },
             ...
         ]
@@ -1254,14 +1254,14 @@ def _load_settlement_history(store_id: str, limit: int = 6) -> list:
         
         history = []
         for year, month in months:
-            # 스냅샷 로드
+            # Phase H.1: 스냅샷 로드 (DB 기반, session_state 사용 안 함)
             snapshot = load_monthly_settlement_snapshot(store_id, year, month)
             
-            # Phase H: 성적표 평가 (간단 버전)
-            # 목표 데이터 로드
+            # Phase H.1: 목표 데이터 로드
             targets = _load_targets_for_month(store_id, year, month)
             grade = None
             
+            # Phase H.1: 목표가 있을 때만 성적표 평가
             if targets['has_targets']:
                 # 목표 정규화
                 normalized_targets = _normalize_targets(
@@ -1273,19 +1273,19 @@ def _load_settlement_history(store_id: str, limit: int = 6) -> list:
                 # 간단 평가: 총비용/이익 기준
                 target_total_cost = sum(normalized_targets[cat]['amount'] for cat in normalized_targets.keys())
                 actual_total_cost = snapshot['total_cost']
-                cost_diff = actual_total_cost - target_total_cost
                 
                 target_profit = targets['target_sales'] - target_total_cost
                 actual_profit = snapshot['operating_profit']
                 profit_diff = actual_profit - target_profit
                 
-                # 평가: 이익 기준 우선, 비용 기준 보조
+                # 평가: 이익 기준 우선
                 if profit_diff >= 0:
                     grade = 'GOOD'  # 🟢
                 elif profit_diff >= -target_profit * 0.1:  # 10% 이내
                     grade = 'WARN'  # 🟡
                 else:
                     grade = 'BAD'  # 🔴
+            # Phase H.1: 목표 없으면 grade는 None 유지
             
             history.append({
                 'year': year,
@@ -1305,51 +1305,88 @@ def _load_settlement_history(store_id: str, limit: int = 6) -> list:
 
 
 def _render_settlement_history(store_id: str):
-    """Phase H: 월별 히스토리 섹션 렌더링"""
+    """Phase H.1: 월별 히스토리 섹션 렌더링 (UX 개선)"""
     render_section_divider()
     st.markdown("### 📊 월별 성적 히스토리")
     
+    # Phase H.1: 히스토리 limit 상태 유지
+    if 'settlement_history_limit' not in st.session_state:
+        st.session_state['settlement_history_limit'] = 6
+    
     # 히스토리 로드
-    history = _load_settlement_history(store_id, limit=6)
+    try:
+        history = _load_settlement_history(store_id, limit=st.session_state['settlement_history_limit'])
+    except Exception as e:
+        st.error("❌ 히스토리 데이터를 불러오지 못했습니다.")
+        logger.error(f"Failed to load settlement history: {e}", exc_info=True)
+        return
     
     if not history:
         st.info("💡 아직 작성된 실제정산 내역이 없습니다.")
         return
+    
+    # Phase H.1: 현재 선택된 월 확인
+    current_year = st.session_state.get('settlement_year', current_year_kst())
+    current_month = st.session_state.get('settlement_month', current_month_kst())
     
     # 표 데이터 준비
     table_data = []
     for row in history:
         year = row['year']
         month = row['month']
-        status_emoji = "🟢 확정" if row['status'] == 'final' else "🟡 작성중"
         
-        # 성적 아이콘
-        if row['grade'] == 'GOOD':
-            grade_emoji = "🟢"
-        elif row['grade'] == 'WARN':
-            grade_emoji = "🟡"
-        elif row['grade'] == 'BAD':
-            grade_emoji = "🔴"
+        # Phase H.1: 현재 선택 월 강조
+        is_current = (year == current_year and month == current_month)
+        month_display = f"{year}-{month:02d}"
+        if is_current:
+            month_display = f"👉 **{month_display}**"  # 현재 월 강조
+        
+        # Phase H.1: 상태 뱃지
+        if row['status'] == 'final':
+            status_emoji = "🟢 확정"
+            status_tooltip = "월 마감 완료"
         else:
-            grade_emoji = "⚪"  # 목표 없음
+            status_emoji = "🟡 작성중"
+            status_tooltip = "아직 확정되지 않은 월"
+        
+        # Phase H.1: 성적 아이콘 (목표 없는 달 처리)
+        if row['grade'] == 'GOOD':
+            grade_display = "🟢"
+        elif row['grade'] == 'WARN':
+            grade_display = "🟡"
+        elif row['grade'] == 'BAD':
+            grade_display = "🔴"
+        else:
+            grade_display = "—"  # Phase H.1: 목표 없음
+        
+        # Phase H.1: 금액/비율 포맷 통일 (None/0 처리)
+        total_sales = row['total_sales'] or 0
+        total_cost = row['total_cost'] or 0.0
+        operating_profit = row['operating_profit'] or 0.0
+        profit_margin = row['profit_margin'] or 0.0
         
         table_data.append({
-            '월': f"{year}-{month:02d}",
-            '매출': f"{row['total_sales']:,.0f}원",
-            '총비용': f"{row['total_cost']:,.0f}원",
-            '영업이익': f"{row['operating_profit']:,.0f}원",
-            '이익률': f"{row['profit_margin']:.1f}%",
+            '월': month_display,
+            '매출': f"{total_sales:,.0f}원" if total_sales > 0 else "0원",
+            '총비용': f"{total_cost:,.0f}원" if total_cost > 0 else "0원",
+            '영업이익': f"{operating_profit:,.0f}원" if operating_profit != 0 else "0원",
+            '이익률': f"{profit_margin:.1f}%" if profit_margin != 0 else "0%",
             '상태': status_emoji,
-            '성적': grade_emoji,
+            '성적': grade_display,
             '_year': year,  # 내부용
-            '_month': month  # 내부용
+            '_month': month,  # 내부용
+            '_is_current': is_current,  # 내부용
+            '_status_tooltip': status_tooltip  # 내부용
         })
     
-    # 표 렌더링
+    # Phase H.1: 표 렌더링
     if table_data:
         # DataFrame 생성
         df = pd.DataFrame(table_data)
         display_df = df[['월', '매출', '총비용', '영업이익', '이익률', '상태', '성적']].copy()
+        
+        # Phase H.1: 상태 뱃지 툴팁 (caption으로 표시)
+        st.caption("💡 상태: 🟢 확정 = 월 마감 완료, 🟡 작성중 = 아직 확정되지 않은 월")
         
         # 표 표시
         st.dataframe(
@@ -1358,7 +1395,7 @@ def _render_settlement_history(store_id: str):
             hide_index=True
         )
         
-        # 각 행에 "보기" 버튼 추가
+        # Phase H.1: 각 행에 "보기" 버튼 추가
         st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
         st.markdown("**월별 상세 보기:**")
         
@@ -1368,53 +1405,39 @@ def _render_settlement_history(store_id: str):
             with cols[col_idx]:
                 year = row['_year']
                 month = row['_month']
+                is_current = row['_is_current']
+                
+                # Phase H.1: 현재 월은 버튼 스타일 변경 (선택)
+                button_label = f"{year}-{month:02d}"
+                if is_current:
+                    button_label = f"👉 {button_label}"
+                
                 if st.button(
-                    f"{year}-{month:02d}",
+                    button_label,
                     key=f"history_view_{year}_{month}",
-                    use_container_width=True
+                    use_container_width=True,
+                    type="primary" if is_current else "secondary"
                 ):
-                    # Phase H: 월 이동 (별도 플래그 사용)
-                    # st.number_input이 이미 settlement_year 키를 사용하므로 직접 수정 불가
+                    # Phase H.1: 월 이동 (별도 플래그 사용)
                     st.session_state['settlement_navigate_to_year'] = year
                     st.session_state['settlement_navigate_to_month'] = month
                     st.rerun()
         
-        # 더 보기 버튼 (선택)
-        if len(history) >= 6:
+        # Phase H.1: 더 보기 버튼 (상태 유지)
+        current_limit = st.session_state['settlement_history_limit']
+        if current_limit == 6 and len(history) >= 6:
             if st.button("📅 더 보기 (최근 24개월)", key="history_more"):
-                # 24개월 로드
-                history_24 = _load_settlement_history(store_id, limit=24)
-                if history_24:
-                    table_data_24 = []
-                    for row in history_24:
-                        year = row['year']
-                        month = row['month']
-                        status_emoji = "🟢 확정" if row['status'] == 'final' else "🟡 작성중"
-                        
-                        if row['grade'] == 'GOOD':
-                            grade_emoji = "🟢"
-                        elif row['grade'] == 'WARN':
-                            grade_emoji = "🟡"
-                        elif row['grade'] == 'BAD':
-                            grade_emoji = "🔴"
-                        else:
-                            grade_emoji = "⚪"
-                        
-                        table_data_24.append({
-                            '월': f"{year}-{month:02d}",
-                            '매출': f"{row['total_sales']:,.0f}원",
-                            '총비용': f"{row['total_cost']:,.0f}원",
-                            '영업이익': f"{row['operating_profit']:,.0f}원",
-                            '이익률': f"{row['profit_margin']:.1f}%",
-                            '상태': status_emoji,
-                            '성적': grade_emoji,
-                            '_year': year,
-                            '_month': month
-                        })
-                    
-                    df_24 = pd.DataFrame(table_data_24)
-                    display_df_24 = df_24[['월', '매출', '총비용', '영업이익', '이익률', '상태', '성적']].copy()
-                    st.dataframe(display_df_24, use_container_width=True, hide_index=True)
+                st.session_state['settlement_history_limit'] = 24
+                st.rerun()
+        elif current_limit == 24:
+            if st.button("📅 줄이기 (최근 6개월)", key="history_less"):
+                st.session_state['settlement_history_limit'] = 6
+                st.rerun()
+        
+        # Phase H.1: 목표 없는 달 안내
+        has_no_target = any(row['grade'] is None for row in history)
+        if has_no_target:
+            st.caption("💡 성적 '—'는 해당 월에 목표가 설정되지 않아 평가할 수 없습니다.")
 
 
 def render_settlement_actual():

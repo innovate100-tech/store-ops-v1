@@ -3161,7 +3161,12 @@ def load_available_settlement_months(store_id: str, limit: int = 12) -> list:
 @st.cache_data(ttl=60, show_spinner=False)
 def load_monthly_settlement_snapshot(store_id: str, year: int, month: int) -> dict:
     """
-    월별 실제정산 스냅샷 (히스토리용 경량 데이터)
+    Phase H.1: 월별 실제정산 스냅샷 (히스토리용 경량 데이터)
+    
+    중요: 이 함수는 DB 기반으로만 계산합니다. session_state를 사용하지 않습니다.
+    - actual_settlement_items 테이블에서 저장된 값 조회
+    - cost_item_templates 테이블에서 템플릿 조회
+    - sales 테이블에서 월 매출 합계 조회
     
     Args:
         store_id: 매장 ID
@@ -3179,14 +3184,14 @@ def load_monthly_settlement_snapshot(store_id: str, year: int, month: int) -> di
         }
     """
     try:
-        # Phase F: 상태 조회
+        # Phase F: 상태 조회 (DB 기반)
         month_status = get_month_settlement_status(store_id, year, month)
         
-        # Phase D: 매출 조회
+        # Phase D: 매출 조회 (DB 기반, sales 테이블)
         total_sales = load_monthly_sales_total(store_id, year, month)
         
-        # Phase H: 비용 항목 로드 (히스토리용 경량)
-        # 템플릿 + 저장된 값만 로드 (세션 상태 사용 안 함)
+        # Phase H.1: 비용 항목 로드 (DB 기반, session_state 사용 안 함)
+        # actual_settlement_items + cost_item_templates에서만 로드
         expense_items = {}
         templates = load_cost_item_templates(store_id)
         saved_items = load_actual_settlement_items(store_id, year, month)
