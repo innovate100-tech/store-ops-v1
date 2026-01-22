@@ -26,6 +26,13 @@ def render_sales_management():
     """매출 관리 페이지 렌더링"""
     render_page_header("매출 관리", "📊")
     
+    # store_id 초기화 (UnboundLocalError 방지)
+    store_id = None
+    try:
+        store_id = get_current_store_id()
+    except Exception:
+        store_id = None
+    
     # 매출 새로고침 버튼 (캐시 무효화)
     col1, col2 = st.columns([1, 4])
     with col1:
@@ -84,11 +91,6 @@ def render_sales_management():
     ].copy() if not merged_df.empty else pd.DataFrame()
     
     # 월매출: SSOT 함수 사용 (헌법 준수)
-    try:
-        store_id = get_current_store_id()
-    except Exception:
-        store_id = None
-    
     month_total_sales = load_monthly_sales_total(store_id, current_year, current_month) if store_id else 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
     
