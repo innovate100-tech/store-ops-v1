@@ -10,22 +10,25 @@ from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
     save_cost_item_template,
-    soft_delete_cost_item_template
+    soft_delete_cost_item_template,
+    load_actual_settlement_items,
+    upsert_actual_settlement_item
 )
 
 # 공통 설정 적용
 bootstrap(page_title="Settlement Actual")
 
 
-def _load_templates_to_session_state(store_id: str, year: int, month: int, force: bool = False):
+def _load_templates_to_session_state(store_id: str, year: int, month: int, force: bool = False, restore_values: bool = False, force_restore: bool = False):
     """
-    템플릿을 session_state로 로드
+    템플릿을 session_state로 로드 + 저장된 값 복원 (Phase C)
     
     Args:
         store_id: 매장 ID
         year: 연도
         month: 월
         force: True면 기존 session_state를 덮어씀
+        restore_values: True면 저장된 값(actual_settlement_items)을 복원
     
     Returns:
         dict: expense_items 구조
@@ -53,10 +56,14 @@ def _load_templates_to_session_state(store_id: str, year: int, month: int, force
         if category not in expense_items:
             continue
         
-        # 템플릿에서 항목 생성 (amount는 0, rate는 0.0)
+        # 템플릿에서 항목 생성 (Phase C: template_id 필수 포함)
+        template_id = template.get('id')
+        if not template_id:
+            continue  # template_id가 없으면 건너뛰기
+        
         item = {
             'name': template.get('item_name', ''),
-            'template_id': template.get('id'),  # 나중에 업데이트 시 사용
+            'template_id': template_id,  # Phase C: 필수
         }
         
         # item_type에 따라 amount 또는 rate 설정
@@ -70,20 +77,50 @@ def _load_templates_to_session_state(store_id: str, year: int, month: int, force
         
         expense_items[category].append(item)
     
+    # Phase C: 저장된 값 복원
+    if restore_values:
+        saved_items = load_actual_settlement_items(store_id, year, month)
+        # template_id를 키로 하는 딕셔너리 생성
+        saved_dict = {item.get('template_id'): item for item in saved_items if item.get('template_id')}
+        
+        # 각 카테고리별 항목에 저장된 값 주입
+        for category, items in expense_items.items():
+            for item in items:
+                template_id = item.get('template_id')
+                if template_id and template_id in saved_dict:
+                    saved_item = saved_dict[template_id]
+                    # force_restore=True면 항상 복원, 아니면 값이 비어있을 때만 복원
+                    if category in ['재료비', '부가세&카드수수료']:
+                        # 매출연동: percent 복원
+                        current_rate = item.get('rate', 0.0)
+                        saved_percent = saved_item.get('percent')
+                        if saved_percent is not None:
+                            if force_restore or current_rate == 0.0:
+                                item['rate'] = float(saved_percent)
+                    else:
+                        # 고정비: amount 복원
+                        current_amount = item.get('amount', 0)
+                        saved_amount = saved_item.get('amount')
+                        if saved_amount is not None:
+                            if force_restore or current_amount == 0:
+                                item['amount'] = int(saved_amount)
+    
     # session_state에 저장
     st.session_state[key] = expense_items
     return expense_items
 
 
-def _initialize_expense_items(store_id: str, year: int, month: int, force: bool = False):
+def _initialize_expense_items(store_id: str, year: int, month: int, force: bool = False, restore_values: bool = True, force_restore: bool = False):
     """
-    비용 항목 초기화 (템플릿에서 로드 또는 session_state 반환)
+    비용 항목 초기화 (템플릿에서 로드 + 저장된 값 복원, Phase C)
     
     Args:
         store_id: 매장 ID
         year: 연도
         month: 월
         force: True면 템플릿에서 강제로 다시 로드
+        restore_values: True면 저장된 값 복원 (기본값: True)
+        force_restore: True면 저장된 값으로 강제 덮어쓰기 (기본값: False)
     
     Returns:
         dict: expense_items 구조
@@ -94,8 +131,8 @@ def _initialize_expense_items(store_id: str, year: int, month: int, force: bool 
     if not force and key in st.session_state:
         return st.session_state[key]
     
-    # 템플릿에서 로드
-    return _load_templates_to_session_state(store_id, year, month, force=True)
+    # 템플릿에서 로드 + 저장된 값 복원
+    return _load_templates_to_session_state(store_id, year, month, force=True, restore_values=restore_values, force_restore=force_restore)
 
 
 def _get_total_sales(year: int, month: int) -> float:
@@ -162,9 +199,9 @@ def _render_header_section(store_id: str, year: int, month: int):
     with col3:
         # 템플릿 리셋 버튼 (Phase B)
         if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", use_container_width=True):
-            # 강제로 템플릿에서 다시 로드
-            _initialize_expense_items(store_id, selected_year, selected_month, force=True)
-            st.success("✅ 템플릿을 다시 불러왔습니다. (현재 입력한 금액/비율은 유지됩니다)")
+            # 강제로 템플릿에서 다시 로드 (값 복원 포함)
+            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
+            st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
             st.rerun()
     
     # 연/월이 변경되면 rerun (템플릿 자동 로드)
@@ -180,7 +217,7 @@ def _render_header_section(store_id: str, year: int, month: int):
         min_value=0.0,
         value=_get_total_sales(selected_year, selected_month),
         step=100000.0,
-        format="%d",
+        format="%.0f",  # Phase C: float 경고 해결
         key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
     )
     _set_total_sales(selected_year, selected_month, total_sales_input)
@@ -204,7 +241,7 @@ def _render_header_section(store_id: str, year: int, month: int):
     
     # 상태 배지 및 평가 문구
     st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 3])
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         st.markdown("""
         <div style="padding: 0.5rem 1rem; background-color: #667eea; border-radius: 0.5rem; display: inline-block;">
@@ -219,6 +256,55 @@ def _render_header_section(store_id: str, year: int, month: int):
             </span>
         </div>
         """, unsafe_allow_html=True)
+    with col3:
+        # Phase C: 저장값 불러오기 버튼
+        if st.button("📥 저장값 불러오기", key="settlement_load_saved_values", use_container_width=True):
+            # 강제로 저장된 값 복원 (덮어쓰기)
+            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+            st.success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
+            st.rerun()
+    
+    # Phase C: 이번달 저장 버튼
+    st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
+    save_col1, save_col2 = st.columns([1, 4])
+    with save_col1:
+        if st.button("💾 이번달 저장(draft)", key="settlement_save_month", type="primary", use_container_width=True):
+            try:
+                expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
+                saved_count = 0
+                
+                # 모든 항목 순회하며 저장
+                for category, items in expense_items.items():
+                    is_linked = category in ['재료비', '부가세&카드수수료']
+                    for item in items:
+                        template_id = item.get('template_id')
+                        if not template_id:
+                            continue
+                        
+                        if is_linked:
+                            # 매출연동: percent 저장 (0이어도 저장)
+                            percent = item.get('rate', 0.0)
+                            upsert_actual_settlement_item(
+                                store_id, selected_year, selected_month,
+                                template_id, percent=percent, status='draft'
+                            )
+                            saved_count += 1
+                        else:
+                            # 고정비: amount 저장 (0이어도 저장)
+                            amount = item.get('amount', 0)
+                            upsert_actual_settlement_item(
+                                store_id, selected_year, selected_month,
+                                template_id, amount=float(amount), status='draft'
+                            )
+                            saved_count += 1
+                
+                if saved_count > 0:
+                    st.success(f"✅ {saved_count}개 항목이 저장되었습니다.")
+                else:
+                    st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ 저장 실패: {str(e)}")
     
     render_section_divider()
     
@@ -307,7 +393,7 @@ def _render_expense_category(
                         min_value=0,
                         value=int(item.get('amount', 0)),
                         step=10000,
-                        format="%d",
+                        format="%.0f",  # Phase C: float 경고 해결
                         key=amount_key
                     )
                     # 금액 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
@@ -387,7 +473,7 @@ def _render_expense_category(
                 min_value=0,
                 value=0,
                 step=10000,
-                format="%d",
+                format="%.0f",  # Phase C: float 경고 해결
                 key=f"settlement_new_amount_{category}_{year}_{month}"
             )
     with add_col3:

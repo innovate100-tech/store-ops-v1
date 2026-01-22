@@ -2840,3 +2840,95 @@ def soft_delete_cost_item_template(store_id: str, category: str, item_name: str)
     except Exception as e:
         logger.error(f"Failed to soft delete cost item template: {e}")
         raise
+
+
+# ============================================
+# Phase C: 실제정산 월별 금액/비율 저장/불러오기
+# ============================================
+
+def load_actual_settlement_items(store_id: str, year: int, month: int):
+    """
+    실제정산 월별 항목 값 로드
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        list: 저장된 항목 값 리스트 (template_id, amount, percent, status)
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return []
+        
+        result = supabase.table("actual_settlement_items")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .eq("year", int(year))\
+            .eq("month", int(month))\
+            .execute()
+        
+        logger.info(f"Loaded {len(result.data) if result.data else 0} actual settlement items for {year}-{month}")
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to load actual settlement items: {e}")
+        return []
+
+
+def upsert_actual_settlement_item(
+    store_id: str,
+    year: int,
+    month: int,
+    template_id: int,
+    amount: float = None,
+    percent: float = None,
+    status: str = 'draft'
+):
+    """
+    실제정산 월별 항목 값 저장/업데이트 (upsert)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+        template_id: 템플릿 ID (cost_item_templates.id)
+        amount: 금액 (고정비/normal 항목용)
+        percent: 비율 (매출연동 항목용)
+        status: 상태 ('draft' | 'final')
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return False
+        
+        upsert_data = {
+            "store_id": store_id,
+            "year": int(year),
+            "month": int(month),
+            "template_id": int(template_id),
+            "status": status,
+        }
+        
+        if amount is not None:
+            upsert_data["amount"] = float(amount)
+        if percent is not None:
+            upsert_data["percent"] = float(percent)
+        
+        # upsert (store_id, year, month, template_id 기준)
+        supabase.table("actual_settlement_items").upsert(
+            upsert_data,
+            on_conflict="store_id,year,month,template_id"
+        ).execute()
+        
+        logger.info(f"Actual settlement item saved: {year}-{month}, template_id={template_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to upsert actual settlement item: {e}")
+        raise
