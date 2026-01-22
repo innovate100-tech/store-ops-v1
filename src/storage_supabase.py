@@ -2889,14 +2889,15 @@ def upsert_actual_settlement_item(
 ):
     """
     실제정산 월별 항목 값 저장/업데이트 (upsert)
+    Phase C.5: input_type에 따라 amount 또는 percent만 저장 (다른 값은 None 또는 0)
     
     Args:
         store_id: 매장 ID
         year: 연도
         month: 월
         template_id: 템플릿 ID (cost_item_templates.id)
-        amount: 금액 (고정비/normal 항목용)
-        percent: 비율 (매출연동 항목용)
+        amount: 금액 (input_type='amount'일 때)
+        percent: 비율 (input_type='rate'일 때)
         status: 상태 ('draft' | 'final')
     
     Returns:
@@ -2916,10 +2917,19 @@ def upsert_actual_settlement_item(
             "status": status,
         }
         
+        # Phase C.5: input_type에 따라 선택적 저장
+        # amount가 있으면 amount 저장, percent는 None (의미 명확)
+        # percent가 있으면 percent 저장, amount는 None
         if amount is not None:
             upsert_data["amount"] = float(amount)
-        if percent is not None:
+            upsert_data["percent"] = None  # Phase C.5: 명확성을 위해 None
+        elif percent is not None:
             upsert_data["percent"] = float(percent)
+            upsert_data["amount"] = None  # Phase C.5: 명확성을 위해 None
+        else:
+            # 둘 다 None이면 0으로 저장 (기존 정책 유지)
+            upsert_data["amount"] = 0.0
+            upsert_data["percent"] = 0.0
         
         # upsert (store_id, year, month, template_id 기준)
         supabase.table("actual_settlement_items").upsert(
@@ -2927,8 +2937,8 @@ def upsert_actual_settlement_item(
             on_conflict="store_id,year,month,template_id"
         ).execute()
         
-        logger.info(f"Actual settlement item saved: {year}-{month}, template_id={template_id}")
+        logger.info(f"Actual settlement item saved: {year}-{month}, template_id={template_id}, amount={amount}, percent={percent}")
         return True
     except Exception as e:
-        logger.error(f"Failed to upsert actual settlement item: {e}")
+        logger.error(f"Failed to upsert actual settlement_item: {e}")
         raise

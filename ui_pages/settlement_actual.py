@@ -61,23 +61,24 @@ def _load_templates_to_session_state(store_id: str, year: int, month: int, force
         if not template_id:
             continue  # template_id가 없으면 건너뛰기
         
+        # Phase C.5: input_type 지원 구조로 초기화
         item = {
             'name': template.get('item_name', ''),
             'template_id': template_id,  # Phase C: 필수
+            'input_type': None,  # Phase C.5: 복원 시 추론 또는 기본값 설정
+            'amount': 0,  # Phase C.5: 항상 초기화
+            'rate': 0.0,  # Phase C.5: 항상 초기화
         }
         
-        # item_type에 따라 amount 또는 rate 설정
-        item_type = template.get('item_type', 'normal')
+        # 카테고리 기본값으로 input_type 설정 (복원 시 덮어쓰기 가능)
         if category in ['재료비', '부가세&카드수수료']:
-            # 매출연동: rate 사용
-            item['rate'] = 0.0
+            item['input_type'] = 'rate'  # 기본값: 매출연동
         else:
-            # 고정비: amount 사용
-            item['amount'] = 0
+            item['input_type'] = 'amount'  # 기본값: 고정비
         
         expense_items[category].append(item)
     
-    # Phase C: 저장된 값 복원
+    # Phase C: 저장된 값 복원 + Phase C.5: input_type 추론
     if restore_values:
         saved_items = load_actual_settlement_items(store_id, year, month)
         # template_id를 키로 하는 딕셔너리 생성
@@ -89,21 +90,45 @@ def _load_templates_to_session_state(store_id: str, year: int, month: int, force
                 template_id = item.get('template_id')
                 if template_id and template_id in saved_dict:
                     saved_item = saved_dict[template_id]
-                    # force_restore=True면 항상 복원, 아니면 값이 비어있을 때만 복원
-                    if category in ['재료비', '부가세&카드수수료']:
-                        # 매출연동: percent 복원
-                        current_rate = item.get('rate', 0.0)
-                        saved_percent = saved_item.get('percent')
-                        if saved_percent is not None:
-                            if force_restore or current_rate == 0.0:
-                                item['rate'] = float(saved_percent)
-                    else:
-                        # 고정비: amount 복원
-                        current_amount = item.get('amount', 0)
-                        saved_amount = saved_item.get('amount')
+                    
+                    # Phase C.5: 저장된 값 추출
+                    saved_amount = saved_item.get('amount')
+                    saved_percent = saved_item.get('percent')
+                    
+                    # Phase C.5: input_type 추론 규칙
+                    # 1. amount가 존재하고 > 0이고 percent가 null/0이면 input_type='amount'
+                    # 2. percent가 존재하고 > 0이고 amount가 null/0이면 input_type='rate'
+                    # 3. 둘 다 있으면 amount 우선
+                    # 4. 둘 다 없으면 카테고리 기본값 유지 (이미 설정됨)
+                    
+                    # None 체크와 값 체크를 분리
+                    saved_amount_val = float(saved_amount) if saved_amount is not None else 0.0
+                    saved_percent_val = float(saved_percent) if saved_percent is not None else 0.0
+                    
+                    has_amount = saved_amount is not None and saved_amount_val > 0
+                    has_percent = saved_percent is not None and saved_percent_val > 0
+                    
+                    if has_amount and not has_percent:
+                        item['input_type'] = 'amount'
+                    elif has_percent and not has_amount:
+                        item['input_type'] = 'rate'
+                    elif has_amount and has_percent:
+                        item['input_type'] = 'amount'  # amount 우선
+                    # 둘 다 없으면 카테고리 기본값 유지 (이미 설정됨)
+                    
+                    # 값 복원 (force_restore 정책 유지)
+                    if force_restore:
+                        # 강제 복원: 항상 DB 값으로 덮어쓰기
                         if saved_amount is not None:
-                            if force_restore or current_amount == 0:
-                                item['amount'] = int(saved_amount)
+                            item['amount'] = int(saved_amount or 0)
+                        if saved_percent is not None:
+                            item['rate'] = float(saved_percent or 0.0)
+                    else:
+                        # 기본 복원: 값이 비어있을 때만 복원
+                        if saved_amount is not None and item.get('amount', 0) == 0:
+                            item['amount'] = int(saved_amount or 0)
+                        if saved_percent is not None and item.get('rate', 0.0) == 0.0:
+                            item['rate'] = float(saved_percent or 0.0)
     
     # session_state에 저장
     st.session_state[key] = expense_items
@@ -148,14 +173,23 @@ def _set_total_sales(year: int, month: int, value):
 
 
 def _calculate_category_total(category: str, items: list, total_sales: int) -> float:
-    """카테고리별 총액 계산"""
-    if category in ['재료비', '부가세&카드수수료']:
-        # 매출연동: 비율 합계 * 매출
-        total_rate = sum(item.get('rate', 0.0) for item in items)
-        return (float(total_sales) * total_rate / 100) if total_sales > 0 else 0.0
-    else:
-        # 고정비: 금액 합계
-        return float(sum(item.get('amount', 0) for item in items))
+    """카테고리별 총액 계산 (Phase C.5: input_type 기준)"""
+    category_total = 0.0
+    
+    for item in items:
+        input_type = item.get('input_type', 'amount')  # 기본값: amount
+        
+        if input_type == 'amount':
+            # 금액 입력: amount 직접 사용
+            used_amount = float(item.get('amount', 0))
+        else:
+            # 비율 입력: total_sales * rate / 100
+            rate = item.get('rate', 0.0)
+            used_amount = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
+        
+        category_total += used_amount
+    
+    return category_total
 
 
 def _calculate_totals(expense_items: dict, total_sales: int) -> dict:
@@ -273,28 +307,29 @@ def _render_header_section(store_id: str, year: int, month: int):
                 expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
                 saved_count = 0
                 
-                # 모든 항목 순회하며 저장
+                # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
                 for category, items in expense_items.items():
-                    is_linked = category in ['재료비', '부가세&카드수수료']
                     for item in items:
                         template_id = item.get('template_id')
                         if not template_id:
                             continue
                         
-                        if is_linked:
-                            # 매출연동: percent 저장 (0이어도 저장)
-                            percent = item.get('rate', 0.0)
-                            upsert_actual_settlement_item(
-                                store_id, selected_year, selected_month,
-                                template_id, percent=percent, status='draft'
-                            )
-                            saved_count += 1
-                        else:
-                            # 고정비: amount 저장 (0이어도 저장)
+                        input_type = item.get('input_type', 'amount')  # 기본값: amount
+                        
+                        if input_type == 'amount':
+                            # 금액 입력: amount 저장, percent는 None (또는 0)
                             amount = item.get('amount', 0)
                             upsert_actual_settlement_item(
                                 store_id, selected_year, selected_month,
-                                template_id, amount=float(int(amount)), status='draft'  # Hotfix: int로 캐스팅 후 float로 변환 (DB numeric 호환)
+                                template_id, amount=float(int(amount)), percent=None, status='draft'
+                            )
+                            saved_count += 1
+                        else:
+                            # 비율 입력: percent 저장, amount는 None (또는 0)
+                            percent = item.get('rate', 0.0)
+                            upsert_actual_settlement_item(
+                                store_id, selected_year, selected_month,
+                                template_id, amount=None, percent=percent, status='draft'
                             )
                             saved_count += 1
                 
@@ -320,8 +355,9 @@ def _render_expense_category(
     year: int,
     month: int
 ):
-    """비용 카테고리별 입력 UI (Phase B: 템플릿 저장/삭제 포함)"""
-    is_linked = category_info['type'] == 'linked'  # 매출연동 여부
+    """비용 카테고리별 입력 UI (Phase C.5: input_type 선택형)"""
+    # Phase C.5: is_linked는 더 이상 사용하지 않지만, 기본값 설정용으로 유지
+    is_linked_default = category_info['type'] == 'linked'  # 기본값 설정용
     
     # 카테고리 헤더
     st.markdown(f"""
@@ -333,31 +369,29 @@ def _render_expense_category(
     """, unsafe_allow_html=True)
     st.caption(category_info['description'])
     
-    # 카테고리 총액 표시
+    # 카테고리 총액 표시 (Phase C.5: input_type 기준 계산)
     category_total = _calculate_category_total(category, items, total_sales)
     if category_total > 0:
-        if is_linked:
-            total_rate = sum(item.get('rate', 0) for item in items)
-            st.markdown(f"""
-            <div style="text-align: right; margin: 0.5rem 0;">
-                <strong style="color: #667eea; font-size: 1.1rem;">
-                    총 비율: {total_rate:.2f}% → {category_total:,.0f}원
-                </strong>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div style="text-align: right; margin: 0.5rem 0;">
-                <strong style="color: #667eea; font-size: 1.1rem;">
-                    총액: {category_total:,.0f}원
-                </strong>
-            </div>
-            """, unsafe_allow_html=True)
+        # Phase C.5: input_type 기준으로 표시 (단순화: 총액만 표시)
+        st.markdown(f"""
+        <div style="text-align: right; margin: 0.5rem 0;">
+            <strong style="color: #667eea; font-size: 1.1rem;">
+                카테고리 합계: {category_total:,.0f}원
+            </strong>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # 기존 항목 표시 및 수정
+    # 기존 항목 표시 및 수정 (Phase C.5: input_type 선택형)
     if items:
         for idx, item in enumerate(items):
-            col1, col2, col3 = st.columns([3, 2, 1])
+            # Phase C.5: input_type 기본값 설정 (없으면 카테고리 기본값)
+            if 'input_type' not in item or item.get('input_type') is None:
+                if category in ['재료비', '부가세&카드수수료']:
+                    item['input_type'] = 'rate'
+                else:
+                    item['input_type'] = 'amount'
+            
+            col1, col2, col3, col4 = st.columns([2, 1.5, 2, 1])
             with col1:
                 item_name_key = f"settlement_item_name_{category}_{idx}_{year}_{month}"
                 item_name = st.text_input(
@@ -366,41 +400,63 @@ def _render_expense_category(
                     key=item_name_key
                 )
             with col2:
-                if is_linked:
-                    # 매출연동: 비율 입력
-                    rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
-                    rate = st.number_input(
-                        "비율 (%)",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=item.get('rate', 0.0),
-                        step=0.1,
-                        format="%.2f",
-                        key=rate_key
-                    )
-                    calculated = (total_sales * rate / 100) if total_sales > 0 else 0.0
-                    st.caption(f"→ {calculated:,.0f}원")
-                    # 비율 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
-                    if rate != item.get('rate', 0.0):
-                        expense_items = _initialize_expense_items(store_id, year, month)
-                        if idx < len(expense_items[category]):
-                            expense_items[category][idx]['rate'] = float(rate)  # Hotfix: float 타입 유지
-                else:
-                    # 고정비: 금액 입력
+                # Phase C.5: 입력방식 선택 라디오
+                input_type_key = f"settlement_input_type_{category}_{idx}_{year}_{month}"
+                input_type_options = ["금액(원)", "%(매출대비)"]
+                input_type_index = 0 if item.get('input_type') == 'amount' else 1
+                selected_input_type_label = st.radio(
+                    "입력방식",
+                    options=input_type_options,
+                    index=input_type_index,
+                    key=input_type_key,
+                    horizontal=True,
+                    label_visibility="collapsed"
+                )
+                selected_input_type = 'amount' if selected_input_type_label == "금액(원)" else 'rate'
+                
+                # input_type 변경 감지 및 업데이트
+                if selected_input_type != item.get('input_type'):
+                    expense_items = _initialize_expense_items(store_id, year, month)
+                    if idx < len(expense_items[category]):
+                        expense_items[category][idx]['input_type'] = selected_input_type
+                        # 값은 유지 (amount와 rate 모두 보존)
+            with col3:
+                # Phase C.5: 선택된 input_type에 따라 입력칸 표시
+                if selected_input_type == 'amount':
+                    # 금액 입력
                     amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
                     amount = st.number_input(
                         "금액 (원)",
                         min_value=0,
                         value=int(item.get('amount', 0)),
-                        step=10000,
-                        format="%d",  # Hotfix: int 타입에 맞는 format
+                        step=1000,
+                        format="%d",
                         key=amount_key
                     )
-                    # 금액 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
+                    # 금액 업데이트
                     if amount != item.get('amount', 0):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
-                            expense_items[category][idx]['amount'] = int(amount)  # Hotfix: int 타입 유지
+                            expense_items[category][idx]['amount'] = int(amount)
+                else:
+                    # 비율 입력
+                    rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
+                    rate = st.number_input(
+                        "비율 (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=float(item.get('rate', 0.0)),
+                        step=0.1,
+                        format="%.2f",
+                        key=rate_key
+                    )
+                    calculated = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
+                    st.caption(f"→ {calculated:,.0f}원")
+                    # 비율 업데이트
+                    if rate != item.get('rate', 0.0):
+                        expense_items = _initialize_expense_items(store_id, year, month)
+                        if idx < len(expense_items[category]):
+                            expense_items[category][idx]['rate'] = float(rate)
             with col3:
                 col_save, col_delete = st.columns(2)
                 with col_save:
@@ -415,7 +471,9 @@ def _render_expense_category(
                             
                             if new_name.strip() and new_name != old_name:
                                 try:
-                                    item_type = 'percent' if is_linked else 'normal'
+                                    # Phase C.5: input_type 기준으로 item_type 결정
+                                    current_input_type = expense_items[category][idx].get('input_type', 'amount')
+                                    item_type = 'percent' if current_input_type == 'rate' else 'normal'
                                     save_cost_item_template(
                                         store_id, category, new_name.strip(),
                                         item_type=item_type, sort_order=idx
@@ -447,9 +505,9 @@ def _render_expense_category(
                             expense_items[category].pop(idx)
                         st.rerun()
     
-    # 새 항목 추가
+    # 새 항목 추가 (Phase C.5: input_type 선택형)
     st.markdown("---")
-    add_col1, add_col2, add_col3 = st.columns([3, 2, 1])
+    add_col1, add_col2, add_col3, add_col4 = st.columns([2, 1.5, 2, 1])
     with add_col1:
         new_name = st.text_input(
             "항목명",
@@ -457,7 +515,32 @@ def _render_expense_category(
             placeholder="예: 월세, 관리비 등"
         )
     with add_col2:
-        if is_linked:
+        # Phase C.5: 새 항목 입력방식 선택
+        new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
+        new_input_type_options = ["금액(원)", "%(매출대비)"]
+        # 기본값: 카테고리 기본값
+        new_input_type_default = 0 if category not in ['재료비', '부가세&카드수수료'] else 1
+        new_input_type_label = st.radio(
+            "입력방식",
+            options=new_input_type_options,
+            index=new_input_type_default,
+            key=new_input_type_key,
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
+    with add_col3:
+        # Phase C.5: 선택된 input_type에 따라 입력칸 표시
+        if new_input_type == 'amount':
+            new_value = st.number_input(
+                "금액 (원)",
+                min_value=0,
+                value=0,
+                step=1000,
+                format="%d",
+                key=f"settlement_new_amount_{category}_{year}_{month}"
+            )
+        else:
             new_value = st.number_input(
                 "비율 (%)",
                 min_value=0.0,
@@ -467,23 +550,14 @@ def _render_expense_category(
                 format="%.2f",
                 key=f"settlement_new_rate_{category}_{year}_{month}"
             )
-        else:
-            new_value = st.number_input(
-                "금액 (원)",
-                min_value=0,
-                value=0,
-                step=10000,
-                format="%d",  # Hotfix: int 타입에 맞는 format
-                key=f"settlement_new_amount_{category}_{year}_{month}"
-            )
-    with add_col3:
+    with add_col4:
         if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
             if new_name.strip():
                 expense_items = _initialize_expense_items(store_id, year, month)
                 
                 # 템플릿에 저장 (Phase B)
                 try:
-                    item_type = 'percent' if is_linked else 'normal'
+                    item_type = 'percent' if new_input_type == 'rate' else 'normal'
                     sort_order = len(expense_items[category])  # 현재 항목 수를 sort_order로 사용
                     save_cost_item_template(
                         store_id, category, new_name.strip(),
@@ -493,12 +567,13 @@ def _render_expense_category(
                 except Exception as e:
                     st.error(f"템플릿 저장 실패: {e}")
                 
-                # session_state에 추가
-                new_item = {'name': new_name.strip()}
-                if is_linked:
-                    new_item['rate'] = float(new_value)  # Hotfix: float 타입 유지
-                else:
-                    new_item['amount'] = int(new_value)  # Hotfix: int 타입 유지
+                # Phase C.5: session_state에 추가 (input_type 포함)
+                new_item = {
+                    'name': new_name.strip(),
+                    'input_type': new_input_type,
+                    'amount': int(new_value) if new_input_type == 'amount' else 0,
+                    'rate': float(new_value) if new_input_type == 'rate' else 0.0,
+                }
                 expense_items[category].append(new_item)
                 st.rerun()
             else:
@@ -565,7 +640,7 @@ def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
-        st.caption("✅ Settlement Phase B ACTIVE")
+        st.caption("✅ Settlement Phase C.5 ACTIVE")
         
         # 인증 및 store_id 확인 (Phase B)
         user_id, store_id = require_auth_and_store()
@@ -599,12 +674,13 @@ def render_settlement_actual():
         st.error(f"❌ 실제정산 페이지 로드 중 오류가 발생했습니다: {str(e)}")
         st.exception(e)
         st.info("""
-        **Phase B 실제정산 페이지**
+        **Phase C.5 실제정산 페이지**
         
         - 연/월 선택
         - 총매출 입력
-        - 비용 입력 (5개 카테고리)
+        - 비용 입력 (5개 카테고리, 항목별 입력방식 선택)
         - 자동 계산 (총비용, 영업이익, 이익률)
         - 템플릿 저장/자동 로드
         - Soft Delete
+        - 항목별 금액/% 선택형 입력
         """)
