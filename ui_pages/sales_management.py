@@ -57,15 +57,27 @@ def render_sales_management():
     ])
     
     # 매출과 방문자 데이터 통합
-    merged_df = merge_sales_visitors(sales_df, visitors_df)
+    try:
+        merged_df = merge_sales_visitors(sales_df, visitors_df)
+    except Exception:
+        merged_df = pd.DataFrame()
     
     # 날짜 컬럼을 datetime으로 변환
     if not merged_df.empty and '날짜' in merged_df.columns:
-        merged_df['날짜'] = pd.to_datetime(merged_df['날짜'])
+        try:
+            merged_df['날짜'] = pd.to_datetime(merged_df['날짜'])
+        except Exception:
+            pass
     if not sales_df.empty and '날짜' in sales_df.columns:
-        sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
+        try:
+            sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])
+        except Exception:
+            pass
     if not visitors_df.empty and '날짜' in visitors_df.columns:
-        visitors_df['날짜'] = pd.to_datetime(visitors_df['날짜'])
+        try:
+            visitors_df['날짜'] = pd.to_datetime(visitors_df['날짜'])
+        except Exception:
+            pass
     
     current_year = current_year_kst()
     current_month = current_month_kst()
@@ -85,10 +97,13 @@ def render_sales_management():
         target_sales = float(target_sales)
     
     # 이번달 데이터 필터링 및 기본 변수 계산 (전역 사용)
-    month_data = merged_df[
-        (merged_df['날짜'].dt.year == current_year) & 
-        (merged_df['날짜'].dt.month == current_month)
-    ].copy() if not merged_df.empty else pd.DataFrame()
+    if not merged_df.empty and '날짜' in merged_df.columns and pd.api.types.is_datetime64_any_dtype(merged_df['날짜']):
+        month_data = merged_df[
+            (merged_df['날짜'].dt.year == current_year) & 
+            (merged_df['날짜'].dt.month == current_month)
+        ].copy()
+    else:
+        month_data = pd.DataFrame()
     
     # 월매출: SSOT 함수 사용 (헌법 준수)
     month_total_sales = load_monthly_sales_total(store_id, current_year, current_month) if store_id else 0

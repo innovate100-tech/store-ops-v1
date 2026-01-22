@@ -2403,6 +2403,9 @@ elif page == "통합 대시보드":
         
         # ========== 매출 수준별 비용·영업이익 시뮬레이션 ==========
         if target_sales > 0:
+            # expense_df 로드 (비용 구조 데이터)
+            expense_df = load_expense_structure(current_year, current_month)
+            
             # 5대 비용 세부 계산을 위한 카테고리별 데이터
             fixed_by_category = {
                 '임차료': 0,
