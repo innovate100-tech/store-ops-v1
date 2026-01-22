@@ -151,9 +151,12 @@ def render_manager_close():
                                     """, unsafe_allow_html=True)
                     
                 except Exception as e:
-                    # Phase 3: 에러 메시지 표준화
-                    error_msg = handle_data_error("방문자 데이터 저장", e)
+                    error_msg = handle_data_error("마감 저장", e)
                     st.error(error_msg)
+                    with st.expander("🔍 오류 상세 (복구/문의용)"):
+                        st.code(str(e), language=None)
+                        st.caption("위 내용을 복사해 관리자에게 전달하시면 원인 파악에 도움이 됩니다.")
+                        st.caption("💡 Supabase SQL Editor에서 save_daily_close_transaction 함수가 생성되어 있는지 확인하세요. (sql/save_daily_close_transaction.sql)")
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때
