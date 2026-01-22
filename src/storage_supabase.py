@@ -2942,3 +2942,66 @@ def upsert_actual_settlement_item(
     except Exception as e:
         logger.error(f"Failed to upsert actual settlement_item: {e}")
         raise
+
+
+# ============================================
+# Phase D: 실제정산 - sales 테이블에서 월매출 자동 불러오기
+# ============================================
+
+@st.cache_data(ttl=60, show_spinner=False)  # 1분 캐시 (월이 바뀌거나 입력 즉시 반영)
+def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
+    """
+    sales 테이블에서 월매출 합계 조회 (KST 기준)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        int: 월매출 합계 (원 단위)
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return 0
+        
+        # KST 기준 월 시작/끝 계산
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        
+        KST = ZoneInfo("Asia/Seoul")
+        start_kst = datetime(year, month, 1, 0, 0, 0, tzinfo=KST)
+        
+        # 다음달 1일 0시 (미포함)
+        if month == 12:
+            end_kst = datetime(year + 1, 1, 1, 0, 0, 0, tzinfo=KST)
+        else:
+            end_kst = datetime(year, month + 1, 1, 0, 0, 0, tzinfo=KST)
+        
+        # DATE 타입이므로 문자열로 변환 (YYYY-MM-DD)
+        start_date_str = start_kst.date().isoformat()
+        end_date_str = end_kst.date().isoformat()
+        
+        # sales 테이블 조회: store_id + 날짜 범위 필터
+        # date >= start_date AND date < end_date
+        result = supabase.table("sales")\
+            .select("total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", start_date_str)\
+            .lt("date", end_date_str)\
+            .execute()
+        
+        # 합산 (total_sales 컬럼 사용)
+        if result.data:
+            total = sum(float(row.get('total_sales', 0) or 0) for row in result.data)
+            row_count = len(result.data)
+            logger.info(f"Monthly sales total loaded: {year}-{month}, {row_count} rows, total={total:,.0f}원")
+            return int(total)
+        else:
+            logger.info(f"Monthly sales total loaded: {year}-{month}, 0 rows, total=0원")
+            return 0
+    except Exception as e:
+        logger.error(f"Failed to load monthly sales total: {e}")
+        return 0
