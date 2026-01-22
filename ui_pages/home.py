@@ -727,9 +727,58 @@ def check_actual_settlement_exists(store_id: str, year: int, month: int) -> bool
         return False
 
 
+def get_menu_count(store_id: str) -> int:
+    """
+    메뉴 개수 조회 (온보딩 미션용)
+    
+    Returns:
+        int: menu_master 개수 (실패 시 0)
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return 0
+        
+        result = supabase.table("menu_master")\
+            .select("id", count="exact")\
+            .eq("store_id", store_id)\
+            .execute()
+        
+        count = result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        return count
+        
+    except Exception as e:
+        return 0
+
+
+def get_close_count(store_id: str) -> int:
+    """
+    점장마감 개수 조회 (온보딩 미션용)
+    
+    Returns:
+        int: daily_close 개수 (실패 시 0)
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return 0
+        
+        result = supabase.table("daily_close")\
+            .select("id", count="exact")\
+            .eq("store_id", store_id)\
+            .execute()
+        
+        count = result.count if hasattr(result, 'count') and result.count is not None else (len(result.data) if result.data else 0)
+        return count
+        
+    except Exception as e:
+        return 0
+
+
 def get_today_one_action(store_id: str, level: int) -> dict:
     """
     오늘 하나만 추천 액션 결정 (룰 기반)
+    미션 진행률을 고려하여 추천
     
     Returns:
         dict: {
@@ -752,6 +801,16 @@ def get_today_one_action(store_id: str, level: int) -> dict:
         now_kst = datetime.now(KST)
         current_year = now_kst.year
         current_month = now_kst.month
+        
+        # 미션 진행률 체크 (미션 2 미완료 시 무조건 점장마감 유도)
+        close_count = get_close_count(store_id)
+        if close_count < 3:
+            return {
+                "title": "점장마감 3회 달성하기",
+                "reason": f"현재 {close_count}회 완료. 3번만 하면 홈이 자동으로 흐름을 읽기 시작합니다.",
+                "button_label": "📋 점장 마감 하러가기",
+                "target_page": "점장 마감"
+            }
         
         if level == 0:
             return {
@@ -1110,16 +1169,6 @@ def render_home():
     
     st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
     
-    # 단계별 안내
-    level_labels = {
-        0: "LEVEL 0: 데이터 거의 없음",
-        1: "LEVEL 1: 매출만 있음",
-        2: "LEVEL 2: 운영 데이터 있음",
-        3: "LEVEL 3: 재무 구조 있음",
-    }
-    
-    st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
-    
     render_section_divider()
     
     # ========== 섹션 1: 상태판 ==========
@@ -1199,6 +1248,164 @@ def render_home():
                 if st.button("📋 점장 마감", type="primary", use_container_width=True, key="home_btn_close_rate"):
                     st.session_state.current_page = "점장 마감"
                     st.rerun()
+    
+    render_section_divider()
+    
+    # ========== 섹션 1.5: 시작 미션 3개 ==========
+    try:
+        with st.container():
+            st.markdown("### 🚀 시작 미션 3개")
+            
+            # 미션 진행률 조회
+            menu_count = get_menu_count(store_id)
+            close_count = get_close_count(store_id)
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            has_settlement = check_actual_settlement_exists(store_id, now_kst.year, now_kst.month)
+            
+            # 미션 완료 여부 계산
+            mission1_complete = menu_count >= 3
+            mission2_complete = close_count >= 3
+            mission3_complete = has_settlement
+            
+            # 진행률 계산 (각 미션 0~1점, 총점/3)
+            completed_count = sum([mission1_complete, mission2_complete, mission3_complete])
+            progress_percentage = (completed_count / 3.0) * 100
+            
+            # 진행률 바 표시
+            st.progress(progress_percentage / 100.0)
+            
+            # 상태 메시지 결정
+            if progress_percentage <= 33:
+                status_msg = "기본 데이터 만드는 단계"
+            elif progress_percentage <= 66:
+                status_msg = "가게가 숫자로 보이기 시작하는 구간"
+            elif progress_percentage < 100:
+                remaining = 3 - completed_count
+                status_msg = f"이제 거의 완성 단계 — {remaining}개만 더 하면 홈이 '자동 코치 모드'로 진화합니다."
+            else:
+                status_msg = "✅ 자동 코치 모드 활성화"
+            
+            # 진행률 상태 메시지 표시
+            st.caption(f"온보딩 진행률 {int(progress_percentage)}% — {status_msg}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 완료 보상 문장 표시
+            reward_messages = []
+            if mission1_complete:
+                reward_messages.append("✅ 메뉴 기반이 생겨서 판매/원가 분석이 정확해졌습니다.")
+            if mission2_complete:
+                reward_messages.append("✅ 점장마감 데이터가 쌓여서 홈이 자동으로 흐름을 읽기 시작합니다.")
+            if mission3_complete:
+                reward_messages.append("✅ 이번 달 성적표가 완성되어 손익 구조가 잠겼습니다.")
+            
+            if reward_messages:
+                for msg in reward_messages:
+                    st.info(msg)
+                st.markdown("<br>", unsafe_allow_html=True)
+            
+            # 미션 1: 메뉴 3개 등록
+            mission1_icon = "✅" if mission1_complete else "⬜"
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: {'#d4edda' if mission1_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission1_complete else '#6c757d'}; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission1_icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
+                            미션 1: 메뉴 3개 등록하기
+                            {f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({menu_count}/3)</span>' if not mission1_complete else ''}
+                        </div>
+                        <div style="color: #666; font-size: 0.95rem;">
+                            메뉴가 있어야 판매/원가/분석이 의미가 생깁니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if not mission1_complete:
+                if st.button("메뉴 등록", key="mission1_btn", use_container_width=True):
+                    st.session_state.current_page = "메뉴 등록"
+                    st.rerun()
+            
+            # 미션 2: 점장마감 3회
+            mission2_complete = close_count >= 3
+            mission2_icon = "✅" if mission2_complete else "⬜"
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: {'#d4edda' if mission2_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission2_complete else '#6c757d'}; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission2_icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
+                            미션 2: 점장마감 3회 하기
+                            {f'<span style="font-size: 0.9rem; color: #666; font-weight: normal;">({close_count}/3)</span>' if not mission2_complete else ''}
+                        </div>
+                        <div style="color: #666; font-size: 0.95rem;">
+                            3번만 하면 홈이 자동으로 흐름을 읽기 시작합니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if not mission2_complete:
+                if st.button("점장 마감", key="mission2_btn", use_container_width=True):
+                    st.session_state.current_page = "점장 마감"
+                    st.rerun()
+            
+            # 미션 3: 이번 달 성적표 1회
+            mission3_complete = has_settlement
+            mission3_icon = "✅" if mission3_complete else "⬜"
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: {'#d4edda' if mission3_complete else '#f8f9fa'}; border-radius: 8px; border-left: 4px solid {'#28a745' if mission3_complete else '#6c757d'}; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 1.5rem; margin-right: 0.8rem;">{mission3_icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #333; font-size: 1.1rem; margin-bottom: 0.3rem;">
+                            미션 3: 이번 달 성적표 1회 만들기
+                        </div>
+                        <div style="color: #666; font-size: 0.95rem;">
+                            우리 가게 돈 구조(손익분기점/이익구조)가 완성됩니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if not mission3_complete:
+                if st.button("실제정산", key="mission3_btn", use_container_width=True):
+                    st.session_state.current_page = "실제정산"
+                    st.rerun()
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # ========== 추천 다음 행동 1개 ==========
+            st.markdown("#### 💡 지금 가장 좋은 다음 행동")
+            
+            # 우선순위에 따라 추천 행동 결정
+            if not mission2_complete:
+                # 우선순위 1: 점장마감 미완료
+                st.info("점장마감을 3회 하면 홈이 자동으로 흐름을 읽기 시작합니다.")
+                if st.button("점장 마감 하러 가기", type="primary", use_container_width=True, key="mission_next_close"):
+                    st.session_state.current_page = "점장 마감"
+                    st.rerun()
+            elif not mission1_complete:
+                # 우선순위 2: 메뉴 미완료
+                st.info("메뉴가 있어야 판매/원가/분석이 의미가 생깁니다.")
+                if st.button("메뉴 등록 하러 가기", type="primary", use_container_width=True, key="mission_next_menu"):
+                    st.session_state.current_page = "메뉴 등록"
+                    st.rerun()
+            elif not mission3_complete:
+                # 우선순위 3: 실제정산 미완료
+                st.info("이번 달 성적표가 완성되면 손익 구조가 잠깁니다.")
+                if st.button("실제정산 하러 가기", type="primary", use_container_width=True, key="mission_next_settlement"):
+                    st.session_state.current_page = "실제정산"
+                    st.rerun()
+            else:
+                # 모두 완료
+                st.success("🎉 기본 세팅이 끝났습니다. 이제 홈이 매일 가게를 읽어드립니다.")
+                st.caption("💡 팁: 매일 점장마감을 하시면 홈이 자동으로 매출 흐름과 문제점을 분석해드립니다.")
+    except Exception as e:
+        # 미션 섹션 오류 시에도 홈이 죽지 않도록
+        pass
     
     render_section_divider()
     
