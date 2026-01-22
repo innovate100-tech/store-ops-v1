@@ -967,11 +967,11 @@ def render_home():
             st.markdown("### 🔍 이상 징후")
             
             if data_level < 2:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <p style="color: #856404; margin: 0;">이상 징후 분석을 위해서는 운영 데이터가 필요합니다. 마감을 꾸준히 입력해주세요.</p>
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <p style="color: #856404; margin: 0;">이상 징후 분석을 위해서는 운영 데이터가 필요합니다. 마감을 꾸준히 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
             else:
                 st.markdown("""
                 <div style="padding: 1.5rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
@@ -989,11 +989,11 @@ def render_home():
             st.markdown("### 📈 미니 차트")
             
             if data_level == 0:
-            st.markdown("""
-            <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
-                <p style="color: #6c757d; margin: 0;">차트를 표시하려면 데이터가 필요합니다. 마감을 입력해주세요.</p>
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown("""
+                <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
+                    <p style="color: #6c757d; margin: 0;">차트를 표시하려면 데이터가 필요합니다. 마감을 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
             elif data_level == 1:
                 st.markdown("""
                 <div style="padding: 2rem; background: #fff3cd; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
@@ -1017,12 +1017,12 @@ def render_home():
             st.markdown("### 🏪 우리 가게 숫자 구조")
             
             if data_level < 3:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <h4 style="color: #856404; margin-bottom: 0.5rem;">재무 구조를 입력하세요</h4>
-                <p style="color: #856404; margin-bottom: 1rem;">비용 구조와 실제 정산을 입력하면 우리 가게의 숫자 구조를 볼 수 있습니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">재무 구조를 입력하세요</h4>
+                    <p style="color: #856404; margin-bottom: 1rem;">비용 구조와 실제 정산을 입력하면 우리 가게의 숫자 구조를 볼 수 있습니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("💳 목표 비용구조", use_container_width=True, key="home_btn_cost"):
