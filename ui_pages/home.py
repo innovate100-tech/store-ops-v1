@@ -395,6 +395,240 @@ def get_good_points_top3(store_id: str) -> list:
         return [{"text": "잘한 점 분석 중 오류가 발생했습니다.", "target_page": "점장 마감"}]
 
 
+def get_anomaly_signals(store_id: str) -> list:
+    """
+    이상 징후 감지 (조기경보 시스템, 룰 기반)
+    
+    Returns:
+        list: [{"icon": str, "text": str, "target_page": str}, ...] 최대 3개
+    """
+    signals = []
+    
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return []
+        
+        KST = ZoneInfo("Asia/Seoul")
+        today = datetime.now(KST).date()
+        from datetime import timedelta
+        
+        # 최근 7일 매출 데이터 조회
+        seven_days_ago = today - timedelta(days=7)
+        sales_recent = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", seven_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .order("date", desc=False)\
+            .execute()
+        
+        sales_data = {}
+        if sales_recent.data:
+            for row in sales_recent.data:
+                date_str = row.get('date')
+                total = float(row.get('total_sales', 0) or 0)
+                if date_str and total > 0:
+                    sales_data[date_str] = total
+        
+        # A. 최근 3일 연속 매출 감소
+        if len(sales_data) >= 3:
+            recent_dates = sorted(sales_data.keys())[-3:]
+            recent_values = [sales_data[d] for d in recent_dates]
+            if len(recent_values) == 3:
+                is_decreasing = recent_values[0] > recent_values[1] > recent_values[2]
+                if is_decreasing:
+                    signals.append({
+                        "icon": "📉",
+                        "text": "최근 3일 연속 매출이 감소하고 있습니다.",
+                        "target_page": "매출 관리"
+                    })
+                    if len(signals) >= 3:
+                        return signals[:3]
+        
+        # B. 최근 7일 중 매출 공백 2일 이상
+        expected_dates = set()
+        check_date = seven_days_ago
+        while check_date <= today:
+            expected_dates.add(check_date.isoformat())
+            check_date += timedelta(days=1)
+        
+        sales_dates = set(sales_data.keys())
+        missing_days = expected_dates - sales_dates
+        if len(missing_days) >= 2:
+            signals.append({
+                "icon": "⚠️",
+                "text": "최근 7일 중 매출이 입력되지 않은 날이 2일 이상 있습니다.",
+                "target_page": "매출 관리"
+            })
+            if len(signals) >= 3:
+                return signals[:3]
+        
+        # 이번 달 매출 데이터 조회 (C 규칙용)
+        current_year = today.year
+        current_month = today.month
+        start_of_month = date(current_year, current_month, 1)
+        if current_month == 12:
+            end_of_month = date(current_year + 1, 1, 1)
+        else:
+            end_of_month = date(current_year, current_month + 1, 1)
+        
+        sales_month = supabase.table("sales")\
+            .select("date, total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", start_of_month.isoformat())\
+            .lt("date", end_of_month.isoformat())\
+            .execute()
+        
+        month_sales_list = []
+        if sales_month.data:
+            for row in sales_month.data:
+                total = float(row.get('total_sales', 0) or 0)
+                if total > 0:
+                    month_sales_list.append(total)
+        
+        # C. 최근 3일 평균 매출이 이번 달 평균 대비 ±30% 이상 변동
+        if len(sales_data) >= 3 and len(month_sales_list) >= 3:
+            recent_3_days = list(sales_data.values())[-3:]
+            recent_avg = sum(recent_3_days) / len(recent_3_days)
+            month_avg = sum(month_sales_list) / len(month_sales_list)
+            
+            if month_avg > 0:
+                ratio = recent_avg / month_avg
+                if ratio <= 0.7 or ratio >= 1.3:  # ±30% 이상 변동
+                    signals.append({
+                        "icon": "📊",
+                        "text": "최근 매출 흐름이 이번 달 평균 대비 크게 변했습니다.",
+                        "target_page": "매출 관리"
+                    })
+                    if len(signals) >= 3:
+                        return signals[:3]
+        
+        # D. 특정 메뉴 비중 급등 (최근 3일 vs 그 전 3일)
+        if len(sales_data) >= 6:
+            # 최근 3일과 그 전 3일 판매 데이터 비교
+            recent_3_start = today - timedelta(days=3)
+            prev_3_start = today - timedelta(days=6)
+            
+            sales_items_recent_3 = supabase.table("v_daily_sales_items_effective")\
+                .select("menu_id, qty")\
+                .eq("store_id", store_id)\
+                .gte("date", recent_3_start.isoformat())\
+                .lte("date", today.isoformat())\
+                .execute()
+            
+            sales_items_prev_3 = supabase.table("v_daily_sales_items_effective")\
+                .select("menu_id, qty")\
+                .eq("store_id", store_id)\
+                .gte("date", prev_3_start.isoformat())\
+                .lt("date", recent_3_start.isoformat())\
+                .execute()
+            
+            if sales_items_recent_3.data and sales_items_prev_3.data:
+                # 최근 3일 메뉴별 합계
+                recent_menu_totals = {}
+                recent_total = 0
+                for row in sales_items_recent_3.data:
+                    menu_id = row.get('menu_id')
+                    qty = int(row.get('qty', 0) or 0)
+                    if menu_id and qty > 0:
+                        recent_menu_totals[menu_id] = recent_menu_totals.get(menu_id, 0) + qty
+                        recent_total += qty
+                
+                # 그 전 3일 메뉴별 합계
+                prev_menu_totals = {}
+                prev_total = 0
+                for row in sales_items_prev_3.data:
+                    menu_id = row.get('menu_id')
+                    qty = int(row.get('qty', 0) or 0)
+                    if menu_id and qty > 0:
+                        prev_menu_totals[menu_id] = prev_menu_totals.get(menu_id, 0) + qty
+                        prev_total += qty
+                
+                # 특정 메뉴 비중 급등 체크
+                if recent_total > 0 and prev_total > 0:
+                    for menu_id in recent_menu_totals:
+                        recent_ratio = recent_menu_totals[menu_id] / recent_total
+                        prev_ratio = prev_menu_totals.get(menu_id, 0) / prev_total if prev_total > 0 else 0
+                        
+                        if prev_ratio > 0 and recent_ratio >= prev_ratio * 1.5:  # 50% 이상 증가
+                            signals.append({
+                                "icon": "🍽️",
+                                "text": "최근 판매에서 특정 메뉴 비중이 급격히 증가했습니다.",
+                                "target_page": "판매 관리"
+                            })
+                            if len(signals) >= 3:
+                                return signals[:3]
+                            break
+        
+        # E. 최근 5일 판매량 급감
+        five_days_ago = today - timedelta(days=5)
+        sales_items_recent_5 = supabase.table("v_daily_sales_items_effective")\
+            .select("qty")\
+            .eq("store_id", store_id)\
+            .gte("date", five_days_ago.isoformat())\
+            .lte("date", today.isoformat())\
+            .execute()
+        
+        sales_items_prev_5 = supabase.table("v_daily_sales_items_effective")\
+            .select("qty")\
+            .eq("store_id", store_id)\
+            .gte("date", (five_days_ago - timedelta(days=5)).isoformat())\
+            .lt("date", five_days_ago.isoformat())\
+            .execute()
+        
+        if sales_items_recent_5.data and sales_items_prev_5.data:
+            recent_total_qty = sum(int(row.get('qty', 0) or 0) for row in sales_items_recent_5.data)
+            prev_total_qty = sum(int(row.get('qty', 0) or 0) for row in sales_items_prev_5.data)
+            
+            if prev_total_qty > 0:
+                decline_ratio = recent_total_qty / prev_total_qty
+                if decline_ratio <= 0.7:  # 30% 이상 감소
+                    signals.append({
+                        "icon": "📉",
+                        "text": "최근 판매량이 눈에 띄게 줄었습니다.",
+                        "target_page": "판매 관리"
+                    })
+                    if len(signals) >= 3:
+                        return signals[:3]
+        
+        # F. 최근 3일 연속 마감 누락
+        daily_close_recent = supabase.table("daily_close")\
+            .select("date")\
+            .eq("store_id", store_id)\
+            .gte("date", (today - timedelta(days=3)).isoformat())\
+            .lte("date", today.isoformat())\
+            .execute()
+        
+        closed_dates_recent = set()
+        if daily_close_recent.data:
+            for row in daily_close_recent.data:
+                date_str = row.get('date')
+                if date_str:
+                    closed_dates_recent.add(date_str)
+        
+        # 최근 3일 중 마감 없는 날 확인
+        missing_close_count = 0
+        check_date = today - timedelta(days=2)  # 어제부터 3일 전까지
+        while check_date <= today:
+            if check_date.isoformat() not in closed_dates_recent:
+                missing_close_count += 1
+            check_date += timedelta(days=1)
+        
+        if missing_close_count >= 3:
+            signals.append({
+                "icon": "⏰",
+                "text": "최근 3일 연속 마감이 없습니다.",
+                "target_page": "점장 마감"
+            })
+        
+        # 최대 3개만 반환
+        return signals[:3]
+        
+    except Exception as e:
+        return []
+
+
 def check_actual_settlement_exists(store_id: str, year: int, month: int) -> bool:
     """
     이번 달 actual_settlement 데이터 존재 여부 확인
@@ -964,18 +1198,35 @@ def render_home():
     # ========== 섹션 5: 이상 징후 ==========
     try:
         with st.container():
-            st.markdown("### 🔍 이상 징후")
+            st.markdown("### ⚠️ 이상 징후")
             
-            if data_level < 2:
+            try:
+                signals = get_anomaly_signals(store_id)
+                
+                if not signals:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <p style="color: #155724; margin: 0; font-weight: 500;">현재 감지된 이상 징후가 없습니다.</p>
+                        <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">정상 범위로 보입니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    for idx, signal in enumerate(signals, 1):
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.3rem;">
+                                <span style="font-size: 1.2rem; margin-right: 0.5rem;">{signal['icon']}</span>
+                                <div style="font-weight: 600; color: #856404; flex: 1;">{signal['text']}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button(f"보러가기", key=f"home_btn_anomaly_{idx}", use_container_width=True):
+                            st.session_state.current_page = signal['target_page']
+                            st.rerun()
+            except Exception as e:
                 st.markdown("""
-                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                    <p style="color: #856404; margin: 0;">이상 징후 분석을 위해서는 운영 데이터가 필요합니다. 마감을 꾸준히 입력해주세요.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                    <p style="color: #0c5460; margin: 0;">이상 징후 분석은 다음 단계에서 추가됩니다.</p>
+                <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                    <p style="color: #721c24; margin: 0;">이상 징후 분석 중 오류가 발생했습니다.</p>
                 </div>
                 """, unsafe_allow_html=True)
     except Exception:
