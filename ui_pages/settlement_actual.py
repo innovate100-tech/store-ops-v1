@@ -269,6 +269,36 @@ def _show_settlement_query_diagnostics():
                 else:
                     end_date = dt.datetime(selected_year, selected_month + 1, 1).date()
                 
+                # 3-1. 필터 없이 조회 (데이터 존재 여부 확인)
+                st.write("**3-1. 필터 없이 조회 (store_id만):**")
+                result_no_date = supabase.table("sales")\
+                    .select("date, store_id, total_sales")\
+                    .eq("store_id", store_id)\
+                    .limit(10)\
+                    .execute()
+                
+                st.write(f"- Row count: {len(result_no_date.data) if result_no_date.data else 0}")
+                if result_no_date.data:
+                    # 날짜 범위 확인
+                    dates = [row.get('date') for row in result_no_date.data if row.get('date')]
+                    if dates:
+                        min_date = min(dates)
+                        max_date = max(dates)
+                        st.write(f"- 실제 데이터 날짜 범위: {min_date} ~ {max_date}")
+                        st.write("- 샘플 데이터:")
+                        st.json(result_no_date.data[0])
+                        
+                        # 선택한 날짜 범위와 비교
+                        if min_date > end_date.isoformat() or max_date < start_date.isoformat():
+                            st.warning(f"⚠️ 선택한 날짜 범위({start_date} ~ {end_date})에 데이터가 없습니다!")
+                            st.info(f"💡 실제 데이터는 {min_date} ~ {max_date} 범위에 있습니다.")
+                else:
+                    st.warning("⚠️ store_id 필터로도 데이터가 없습니다.")
+                
+                st.divider()
+                
+                # 3-2. 날짜 범위 필터 적용
+                st.write("**3-2. 날짜 범위 필터 적용:**")
                 result = supabase.table("sales")\
                     .select("date, store_id, total_sales")\
                     .eq("store_id", store_id)\
@@ -283,12 +313,13 @@ def _show_settlement_query_diagnostics():
                     st.write("- 첫 row 샘플:")
                     st.json(result.data[0])
                 else:
-                    st.warning("⚠️ 데이터가 비어있습니다.")
+                    st.warning("⚠️ 날짜 범위 필터로 데이터가 비어있습니다.")
             else:
                 st.error("❌ Supabase 클라이언트 또는 store_id가 없습니다.")
         except Exception as e:
             st.error(f"❌ 에러: {type(e).__name__}: {str(e)}")
             st.code(str(e), language="text")
+            st.exception(e)
         
         st.divider()
         
@@ -376,10 +407,10 @@ def load_actual_settlement_data(store_id: str, year: int, month: int, safe_mode:
         # Safe Mode: 필수 쿼리만 실행
         if safe_mode:
             logger.warning("🧯 Safe Mode: 최소 DB 로드만 수행")
-            # 필수 쿼리 1개만 실행 (매출 데이터)
+            # 필수 쿼리 1개만 실행 (매출 데이터) - 특정 연/월만 조회
             print(f"[DB] START: fetch_sales (Safe Mode)")
             t_start = time.perf_counter()
-            sales_df = get_session_df('ss_sales_df', load_csv, 'sales.csv', default_columns=['날짜', '매장', '총매출'])
+            sales_df = _load_sales_with_filter(store_id, year, month)
             t_elapsed = (time.perf_counter() - t_start) * 1000
             print(f"[DB] END: fetch_sales ({t_elapsed:.1f}ms)")
             db_query_timings.append(('fetch_sales', t_elapsed))
@@ -425,18 +456,18 @@ def load_actual_settlement_data(store_id: str, year: int, month: int, safe_mode:
             cache_status['sales'] = 'SESSION_CACHE_MISS'
         
         try:
-            # 느린 쿼리(500ms 이상) 예상 시 서버 필터링 사용
-            # 하지만 전체 데이터가 필요할 수도 있으므로, 일단 기존 방식 사용
-            # 성능 측정 후 개선 결정
-            sales_df = get_session_df('ss_sales_df', load_csv, 'sales.csv', default_columns=['날짜', '매장', '총매출'])
+            # 실제정산 페이지는 특정 연/월 데이터가 필요하므로 _load_sales_with_filter 사용
+            # load_csv는 최근 90일 필터를 강제 적용하므로, 과거 데이터 조회 시 문제 발생 가능
+            logger.info(f"load_actual_settlement_data: _load_sales_with_filter 사용 (year={year}, month={month})")
+            sales_df = _load_sales_with_filter(store_id, year, month)
             t_elapsed = (time.perf_counter() - t_start) * 1000
             print(f"[DB] END: fetch_sales ({t_elapsed:.1f}ms)")
             db_query_timings.append(('fetch_sales', t_elapsed))
             total_db_time += t_elapsed
             
-            # 느린 경우 서버 필터링으로 재시도 (개발모드에서만)
-            if t_elapsed > 500 and is_dev_mode():
-                logger.warning(f"⚠️ fetch_sales가 느림 ({t_elapsed:.1f}ms), 서버 필터링으로 재시도")
+            # 데이터가 없으면 전체 범위로 재시도 (디버깅용)
+            if len(sales_df) == 0 and is_dev_mode():
+                logger.warning(f"⚠️ {year}년 {month}월 데이터가 없음, 전체 범위로 재시도")
                 t_start_filtered = time.perf_counter()
                 try:
                     sales_df_filtered = _load_sales_with_filter(store_id, year, month)
