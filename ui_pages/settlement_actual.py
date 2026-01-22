@@ -12,7 +12,8 @@ from src.storage_supabase import (
     save_cost_item_template,
     soft_delete_cost_item_template,
     load_actual_settlement_items,
-    upsert_actual_settlement_item
+    upsert_actual_settlement_item,
+    load_monthly_sales_total
 )
 
 # 공통 설정 적용
@@ -238,23 +239,69 @@ def _render_header_section(store_id: str, year: int, month: int):
             st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
             st.rerun()
     
-    # 연/월이 변경되면 rerun (템플릿 자동 로드)
+    # 연/월이 변경되면 rerun (템플릿 자동 로드 + Phase D: 자동매출 재계산)
     if selected_year != year or selected_month != month:
+        # Phase D: 월 변경 시 자동매출 재계산
+        auto_sales_key = f"settlement_auto_sales_{selected_year}_{selected_month}"
+        if auto_sales_key not in st.session_state:
+            auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
+            st.session_state[auto_sales_key] = auto_sales
         st.rerun()
     
     render_section_divider()
     
-    # 총매출 입력
+    # 총매출 입력 (Phase D: sales 자동 불러오기)
     st.markdown("### 📊 이번 달 성적표")
-    total_sales_input = st.number_input(
-        "총매출 (원)",
-        min_value=0,
-        value=_get_total_sales(selected_year, selected_month),
-        step=100000,
-        format="%d",  # Hotfix: int 타입에 맞는 format
-        key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
-    )
-    _set_total_sales(selected_year, selected_month, total_sales_input)
+    
+    # Phase D: sales에서 월매출 자동 계산
+    auto_sales_key = f"settlement_auto_sales_{selected_year}_{selected_month}"
+    if auto_sales_key not in st.session_state:
+        # 첫 진입 시 자동 계산
+        auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
+        st.session_state[auto_sales_key] = auto_sales
+    else:
+        auto_sales = st.session_state[auto_sales_key]
+    
+    # Phase D: 초기 주입 정책 (total_sales가 없거나 0이면 자동값으로 채움)
+    total_sales_key = f"settlement_total_sales_{selected_year}_{selected_month}"
+    if total_sales_key not in st.session_state or st.session_state[total_sales_key] == 0:
+        # 자동값으로 초기화
+        st.session_state[total_sales_key] = auto_sales
+    
+    # Phase D: 매출 불러오기 버튼
+    sales_col1, sales_col2, sales_col3 = st.columns([3, 1, 1])
+    with sales_col1:
+        total_sales_input = st.number_input(
+            "총매출 (원)",
+            min_value=0,
+            value=_get_total_sales(selected_year, selected_month),
+            step=100000,
+            format="%d",
+            key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
+        )
+        _set_total_sales(selected_year, selected_month, total_sales_input)
+        
+        # Phase D: 자동값 표시
+        if auto_sales > 0:
+            st.caption(f"💡 sales 월합계(자동): {auto_sales:,.0f}원")
+    with sales_col2:
+        # Phase D: 매출 불러오기 버튼
+        if st.button("🔄 매출 불러오기", key=f"settlement_load_sales_{selected_year}_{selected_month}", use_container_width=True):
+            # sales에서 다시 계산
+            auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
+            st.session_state[auto_sales_key] = auto_sales
+            st.session_state[total_sales_key] = auto_sales
+            st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
+            st.rerun()
+    with sales_col3:
+        # Phase D: 자동값으로 되돌리기 버튼
+        if st.button("↩️ 자동값으로", key=f"settlement_reset_sales_{selected_year}_{selected_month}", use_container_width=True):
+            if auto_sales_key in st.session_state:
+                st.session_state[total_sales_key] = st.session_state[auto_sales_key]
+                st.success(f"✅ 자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
+                st.rerun()
+            else:
+                st.warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
     
     # KPI 카드
     expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
@@ -342,6 +389,62 @@ def _render_header_section(store_id: str, year: int, month: int):
                 st.error(f"❌ 저장 실패: {str(e)}")
     
     render_section_divider()
+    
+    # Phase D: sales 월합계 진단 (DEV 모드에서만)
+    try:
+        from src.auth import is_dev_mode
+        if is_dev_mode():
+            with st.expander("🔍 sales 월합계 진단 (DEV)", expanded=False):
+                st.markdown("### 진단 정보")
+                st.write(f"**store_id:** `{store_id}`")
+                st.write(f"**year/month:** {selected_year}-{selected_month}")
+                
+                # 날짜 범위 계산
+                from src.utils.time_utils import now_kst
+                from datetime import datetime
+                from zoneinfo import ZoneInfo
+                KST = ZoneInfo("Asia/Seoul")
+                start_kst = datetime(selected_year, selected_month, 1, 0, 0, 0, tzinfo=KST)
+                if selected_month == 12:
+                    end_kst = datetime(selected_year + 1, 1, 1, 0, 0, 0, tzinfo=KST)
+                else:
+                    end_kst = datetime(selected_year, selected_month + 1, 1, 0, 0, 0, tzinfo=KST)
+                start_date_str = start_kst.date().isoformat()
+                end_date_str = end_kst.date().isoformat()
+                
+                st.write(f"**필터 범위:** `date >= {start_date_str} AND date < {end_date_str}`")
+                
+                # 실제 조회 테스트
+                try:
+                    from src.storage_supabase import get_read_client
+                    supabase = get_read_client()
+                    if supabase:
+                        result = supabase.table("sales")\
+                            .select("total_sales, date")\
+                            .eq("store_id", store_id)\
+                            .gte("date", start_date_str)\
+                            .lt("date", end_date_str)\
+                            .execute()
+                        
+                        row_count = len(result.data) if result.data else 0
+                        total_sum = sum(float(row.get('total_sales', 0) or 0) for row in (result.data or []))
+                        
+                        st.write(f"**조회 row count:** {row_count}")
+                        st.write(f"**합계 값:** {total_sum:,.0f}원")
+                        st.write(f"**자동값 (session_state):** {auto_sales:,.0f}원")
+                        
+                        if result.data:
+                            st.write("**조회된 데이터 (최대 10건):**")
+                            import pandas as pd
+                            df = pd.DataFrame(result.data[:10])
+                            st.dataframe(df, use_container_width=True)
+                    else:
+                        st.error("Supabase client를 가져올 수 없습니다.")
+                except Exception as e:
+                    st.error(f"진단 조회 실패: {str(e)}")
+                    st.exception(e)
+    except Exception:
+        pass  # DEV 모드가 아니면 무시
     
     return selected_year, selected_month, expense_items, total_sales, totals
 
@@ -640,7 +743,7 @@ def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
-        st.caption("✅ Settlement Phase C.5 ACTIVE")
+        st.caption("✅ Settlement Phase D ACTIVE")
         
         # 인증 및 store_id 확인 (Phase B)
         user_id, store_id = require_auth_and_store()
@@ -674,13 +777,14 @@ def render_settlement_actual():
         st.error(f"❌ 실제정산 페이지 로드 중 오류가 발생했습니다: {str(e)}")
         st.exception(e)
         st.info("""
-        **Phase C.5 실제정산 페이지**
+        **Phase D 실제정산 페이지**
         
         - 연/월 선택
-        - 총매출 입력
+        - 총매출 입력 (sales 테이블 자동 불러오기)
         - 비용 입력 (5개 카테고리, 항목별 입력방식 선택)
         - 자동 계산 (총비용, 영업이익, 이익률)
         - 템플릿 저장/자동 로드
         - Soft Delete
         - 항목별 금액/% 선택형 입력
+        - sales 월합계 자동 불러오기
         """)
