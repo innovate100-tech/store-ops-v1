@@ -349,26 +349,43 @@ def _render_analysis_section():
 
 def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase A+)"""
-    # 페이지 제목
-    st.markdown("""
-    <div style="margin: 0 0 1.0rem 0;">
-        <h2 style="color: #ffffff; font-weight: 700; margin: 0;">
-            🧾 실제정산
-        </h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 현재 연/월
-    current_year = current_year_kst()
-    current_month = current_month_kst()
-    
-    # 상단 영역 (연/월 선택, KPI 카드)
-    year, month, expense_items, total_sales, totals = _render_header_section(
-        current_year, current_month
-    )
-    
-    # 비용 입력 영역
-    _render_expense_section(year, month, total_sales)
-    
-    # 분석 영역
-    _render_analysis_section()
+    try:
+        # 안전장치: 함수 실행 확인 (DEV용)
+        st.caption("✅ Settlement Phase A+ ACTIVE")
+        
+        # 페이지 제목
+        st.markdown("""
+        <div style="margin: 0 0 1.0rem 0;">
+            <h2 style="color: #ffffff; font-weight: 700; margin: 0;">
+                🧾 실제정산
+            </h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 현재 연/월
+        current_year = current_year_kst()
+        current_month = current_month_kst()
+        
+        # 상단 영역 (연/월 선택, KPI 카드)
+        year, month, expense_items, total_sales, totals = _render_header_section(
+            current_year, current_month
+        )
+        
+        # 비용 입력 영역
+        _render_expense_section(year, month, total_sales)
+        
+        # 분석 영역
+        _render_analysis_section()
+        
+    except Exception as e:
+        # 에러 발생 시 최소한의 UI 표시
+        st.error(f"❌ 실제정산 페이지 로드 중 오류가 발생했습니다: {str(e)}")
+        st.exception(e)
+        st.info("""
+        **Phase A+ 실제정산 페이지**
+        
+        - 연/월 선택
+        - 총매출 입력
+        - 비용 입력 (5개 카테고리)
+        - 자동 계산 (총비용, 영업이익, 이익률)
+        """)
