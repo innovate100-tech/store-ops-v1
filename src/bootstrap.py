@@ -97,6 +97,44 @@ def _diagnose_table(client, table_name: str, store_id: str = None):
     return result
 
 
+def _show_package_versions():
+    """
+    DEV MODE일 때 패키지 버전 정보를 출력 (디버깅용)
+    세션당 1회만 실행
+    """
+    try:
+        # Python 3.8+ 호환성을 위한 import
+        try:
+            from importlib import metadata
+        except ImportError:
+            # Python 3.7 이하 대비 (하지만 실제로는 3.8+ 사용)
+            import importlib_metadata as metadata
+        
+        versions = {}
+        packages = ["supabase", "gotrue", "httpx", "postgrest", "realtime", "storage"]
+        
+        for pkg in packages:
+            try:
+                version = metadata.version(pkg)
+                versions[pkg] = version
+            except metadata.PackageNotFoundError:
+                versions[pkg] = "not installed"
+        
+        # Streamlit 버전도 추가
+        try:
+            versions["streamlit"] = metadata.version("streamlit")
+        except:
+            versions["streamlit"] = "unknown"
+        
+        with st.expander("🔧 DEV MODE: 패키지 버전 정보", expanded=False):
+            st.write("**설치된 패키지 버전:**")
+            st.json(versions)
+            st.caption("이 정보는 디버깅 목적으로만 사용됩니다.")
+    except Exception as e:
+        # 버전 정보 출력 실패해도 앱은 계속 실행
+        logger.warning(f"_show_package_versions: 버전 정보 출력 실패 - {e}")
+
+
 def bootstrap(page_title: str = "황승진 외식경영 의사결정도구"):
     """
     공통 페이지 설정 적용
@@ -139,6 +177,11 @@ def bootstrap(page_title: str = "황승진 외식경영 의사결정도구"):
         
         # DEV MODE 체크 (로컬 개발용) - import 시 DB 호출 없음
         from src.auth import apply_dev_mode_session, is_dev_mode, clear_session
+        
+        # DEV MODE일 때 패키지 버전 정보 출력 (세션당 1회만)
+        if is_dev_mode() and not st.session_state.get("_version_info_shown", False):
+            _show_package_versions()
+            st.session_state["_version_info_shown"] = True
         
         # clear_session() 호출 추적 (호출되는지 확인)
         import inspect
