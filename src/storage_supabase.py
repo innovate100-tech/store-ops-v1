@@ -2027,60 +2027,93 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
             pass
         
         # ========== 재고 자동 차감 기능 ==========
-        # 판매된 메뉴의 레시피를 기반으로 재료 사용량 계산 후 재고 차감
+        # 공식 엔진 함수 사용 (헌법 준수)
         # 주의: 재고 차감은 트랜잭션 외부에서 실행 (마감 저장과 독립적)
         if sales_items:
             try:
-                # 레시피 데이터 로드
-                recipe_result = supabase.table("recipes").select("menu_id,ingredient_id,qty").eq("store_id", store_id).execute()
+                from src.analytics import calculate_ingredient_usage
                 
-                if recipe_result.data:
-                    # 메뉴명 -> 메뉴 ID 매핑
+                # sales_items를 DataFrame으로 변환 (공식 함수 입력 형식)
+                daily_sales_list = []
+                for menu_name, sales_qty in sales_items:
+                    if sales_qty > 0:
+                        daily_sales_list.append({
+                            '날짜': date_str,
+                            '메뉴명': menu_name,
+                            '판매수량': int(sales_qty)
+                        })
+                
+                if daily_sales_list:
+                    daily_sales_df = pd.DataFrame(daily_sales_list)
+                    
+                    # 레시피 데이터 로드 (DataFrame 형식)
+                    recipe_result = supabase.table("recipes").select("menu_id,ingredient_id,qty").eq("store_id", store_id).execute()
                     menu_result = supabase.table("menu_master").select("id,name").eq("store_id", store_id).execute()
-                    menu_map = {m['name']: m['id'] for m in menu_result.data}
-                    
-                    # 재료 ID -> 재료명 매핑
                     ingredient_result = supabase.table("ingredients").select("id,name").eq("store_id", store_id).execute()
-                    ingredient_map = {i['id']: i['name'] for i in ingredient_result.data}
                     
-                    # 재료별 사용량 계산
-                    ingredient_usage = {}  # {ingredient_id: total_usage}
-                    
-                    for menu_name, sales_qty in sales_items:
-                        if sales_qty > 0 and menu_name in menu_map:
-                            menu_id = menu_map[menu_name]
-                            
-                            # 해당 메뉴의 레시피 찾기
-                            menu_recipes = [r for r in recipe_result.data if r['menu_id'] == menu_id]
-                            
-                            for recipe in menu_recipes:
-                                ingredient_id = recipe['ingredient_id']
-                                recipe_qty = float(recipe['qty'])
-                                
-                                # 재료 사용량 = 판매수량 × 레시피 사용량
-                                usage = sales_qty * recipe_qty
-                                
-                                if ingredient_id in ingredient_usage:
-                                    ingredient_usage[ingredient_id] += usage
-                                else:
-                                    ingredient_usage[ingredient_id] = usage
-                    
-                    # 재고 차감
-                    for ingredient_id, usage_amount in ingredient_usage.items():
-                        # 현재 재고 조회
-                        inventory_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                    if recipe_result.data and menu_result.data:
+                        # 메뉴 ID -> 메뉴명 매핑
+                        menu_map = {m['id']: m['name'] for m in menu_result.data}
+                        # 재료 ID -> 재료명 매핑
+                        ingredient_map = {i['id']: i['name'] for i in ingredient_result.data}
                         
-                        if inventory_result.data:
-                            current_stock = float(inventory_result.data[0]['on_hand'])
-                            new_stock = max(0, current_stock - usage_amount)  # 음수 방지
+                        # 레시피 DataFrame 생성
+                        recipe_list = []
+                        for r in recipe_result.data:
+                            menu_id = r.get('menu_id')
+                            menu_name = menu_map.get(menu_id)
+                            if menu_name:
+                                recipe_list.append({
+                                    '메뉴명': menu_name,
+                                    '재료명': ingredient_map.get(r.get('ingredient_id'), f"ID:{r.get('ingredient_id')}"),
+                                    '사용량': float(r.get('qty', 0))
+                                })
+                        
+                        if recipe_list:
+                            recipe_df = pd.DataFrame(recipe_list)
                             
-                            # 재고 업데이트
-                            supabase.table("inventory").update({
-                                "on_hand": new_stock
-                            }).eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                            # 공식 엔진 함수 호출 (헌법 준수)
+                            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
                             
-                            ingredient_name = ingredient_map.get(ingredient_id, f"ID:{ingredient_id}")
-                            logger.info(f"Inventory updated: {ingredient_name} - {current_stock:.2f} → {new_stock:.2f} (사용량: {usage_amount:.2f})")
+                            if not usage_df.empty:
+                                # 재료명 -> 재료 ID 역매핑
+                                ingredient_name_to_id = {name: iid for iid, name in ingredient_map.items()}
+                                
+                                # 재료별 사용량 집계 (ingredient_id 기준)
+                                ingredient_usage = {}  # {ingredient_id: total_usage}
+                                for _, row in usage_df.iterrows():
+                                    ingredient_name = row['재료명']
+                                    total_usage = float(row['총사용량'])
+                                    
+                                    # 재료명으로 재료 ID 찾기
+                                    ingredient_id = None
+                                    for iid, name in ingredient_map.items():
+                                        if name == ingredient_name:
+                                            ingredient_id = iid
+                                            break
+                                    
+                                    if ingredient_id:
+                                        if ingredient_id in ingredient_usage:
+                                            ingredient_usage[ingredient_id] += total_usage
+                                        else:
+                                            ingredient_usage[ingredient_id] = total_usage
+                                
+                                # 재고 차감
+                                for ingredient_id, usage_amount in ingredient_usage.items():
+                                    # 현재 재고 조회
+                                    inventory_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                                    
+                                    if inventory_result.data:
+                                        current_stock = float(inventory_result.data[0]['on_hand'])
+                                        new_stock = max(0, current_stock - usage_amount)  # 음수 방지
+                                        
+                                        # 재고 업데이트
+                                        supabase.table("inventory").update({
+                                            "on_hand": new_stock
+                                        }).eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+                                        
+                                        ingredient_name = ingredient_map.get(ingredient_id, f"ID:{ingredient_id}")
+                                        logger.info(f"Inventory updated: {ingredient_name} - {current_stock:.2f} → {new_stock:.2f} (사용량: {usage_amount:.2f})")
             except Exception as e:
                 # 재고 차감 실패해도 마감 저장은 성공으로 처리 (경고만 로깅)
                 logger.warning(f"재고 자동 차감 중 오류 발생 (마감은 저장됨): {e}")
