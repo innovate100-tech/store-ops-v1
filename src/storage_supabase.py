@@ -1992,17 +1992,15 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
     date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
     
     try:
-        # sales_items를 JSONB 형식으로 변환
-        sales_items_json = None
+        # sales_items를 JSONB 배열로 전달 (리스트 그대로 전달 → DB에서 배열로 수신)
+        # json.dumps 문자열로 보내면 스칼라로 들어가 jsonb_array_length 시 "cannot get array length of a scalar" 발생
+        sales_items_payload = None
         if sales_items:
-            # sales_items가 [(menu_name, qty), ...] 형식인 경우 JSONB 배열로 변환
-            sales_items_array = [
+            sales_items_payload = [
                 {"menu_name": menu_name, "quantity": int(qty)}
                 for menu_name, qty in sales_items
             ]
-            sales_items_json = json.dumps(sales_items_array, ensure_ascii=False)
         
-        # 트랜잭션 함수 호출 (원자적 저장)
         supabase.rpc('save_daily_close_transaction', {
             'p_date': date_str,
             'p_store_id': str(store_id),
@@ -2015,7 +2013,7 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
             'p_group_customer': bool(issues.get('단체손님', False)),
             'p_staff_issue': bool(issues.get('직원이슈', False)),
             'p_memo': str(memo) if memo else None,
-            'p_sales_items': sales_items_json
+            'p_sales_items': sales_items_payload,
         }).execute()
         
         logger.info(f"Daily close saved (transactional): {date_str}")
