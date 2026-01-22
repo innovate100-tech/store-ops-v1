@@ -260,6 +260,8 @@ def _show_settlement_query_diagnostics():
         st.write("**3. 직접 Supabase 쿼리 (sales 테이블):**")
         try:
             from src.storage_supabase import get_read_client
+            from src.utils.time_utils import now_kst, today_kst
+            
             supabase = get_read_client()
             if supabase and store_id:
                 # 날짜 범위 계산
@@ -269,12 +271,21 @@ def _show_settlement_query_diagnostics():
                 else:
                     end_date = dt.datetime(selected_year, selected_month + 1, 1).date()
                 
+                # 현재 시간 정보 출력 (타임존 확인용)
+                st.write("**시간대 정보:**")
+                st.write(f"- 현재 시간 (KST): {now_kst().strftime('%Y-%m-%d %H:%M:%S %Z')}")
+                st.write(f"- 오늘 날짜 (KST): {today_kst()}")
+                st.write(f"- 선택한 날짜 범위: {start_date} ~ {end_date}")
+                
+                st.divider()
+                
                 # 3-1. 필터 없이 조회 (데이터 존재 여부 확인)
-                st.write("**3-1. 필터 없이 조회 (store_id만):**")
+                st.write("**3-1. 필터 없이 조회 (store_id만, 최대 20건):**")
                 result_no_date = supabase.table("sales")\
                     .select("date, store_id, total_sales")\
                     .eq("store_id", store_id)\
-                    .limit(10)\
+                    .order("date", desc=False)\
+                    .limit(20)\
                     .execute()
                 
                 st.write(f"- Row count: {len(result_no_date.data) if result_no_date.data else 0}")
@@ -285,13 +296,32 @@ def _show_settlement_query_diagnostics():
                         min_date = min(dates)
                         max_date = max(dates)
                         st.write(f"- 실제 데이터 날짜 범위: {min_date} ~ {max_date}")
-                        st.write("- 샘플 데이터:")
+                        st.write(f"- 날짜 타입: {type(dates[0])}")
+                        
+                        # 날짜 형식 확인
+                        st.write("**실제 저장된 날짜 샘플 (처음 5개):**")
+                        for i, row in enumerate(result_no_date.data[:5]):
+                            date_val = row.get('date')
+                            st.write(f"  {i+1}. date={date_val} (type: {type(date_val).__name__})")
+                        
+                        st.write("- 첫 row 샘플:")
                         st.json(result_no_date.data[0])
                         
                         # 선택한 날짜 범위와 비교
-                        if min_date > end_date.isoformat() or max_date < start_date.isoformat():
-                            st.warning(f"⚠️ 선택한 날짜 범위({start_date} ~ {end_date})에 데이터가 없습니다!")
-                            st.info(f"💡 실제 데이터는 {min_date} ~ {max_date} 범위에 있습니다.")
+                        start_str = start_date.isoformat()
+                        end_str = end_date.isoformat()
+                        
+                        # 날짜 비교 (문자열로 변환하여 비교)
+                        min_str = str(min_date) if min_date else ""
+                        max_str = str(max_date) if max_date else ""
+                        
+                        if min_str and max_str:
+                            if min_str > end_str or max_str < start_str:
+                                st.warning(f"⚠️ 선택한 날짜 범위({start_str} ~ {end_str})에 데이터가 없습니다!")
+                                st.info(f"💡 실제 데이터는 {min_str} ~ {max_str} 범위에 있습니다.")
+                                st.info(f"💡 날짜 범위를 조정하거나, 데이터가 다른 날짜에 저장되어 있는지 확인하세요.")
+                            else:
+                                st.success(f"✅ 날짜 범위가 겹칩니다: 선택({start_str}~{end_str}) vs 실제({min_str}~{max_str})")
                 else:
                     st.warning("⚠️ store_id 필터로도 데이터가 없습니다.")
                 
@@ -304,16 +334,24 @@ def _show_settlement_query_diagnostics():
                     .eq("store_id", store_id)\
                     .gte("date", start_date.isoformat())\
                     .lt("date", end_date.isoformat())\
+                    .order("date", desc=False)\
                     .limit(5)\
                     .execute()
                 
                 st.write(f"- Row count: {len(result.data) if result.data else 0}")
-                st.write(f"- 쿼리 조건: store_id={store_id}, date >= {start_date}, date < {end_date}")
+                st.write(f"- 쿼리 조건: store_id={store_id}, date >= {start_date.isoformat()}, date < {end_date.isoformat()}")
                 if result.data:
                     st.write("- 첫 row 샘플:")
                     st.json(result.data[0])
                 else:
                     st.warning("⚠️ 날짜 범위 필터로 데이터가 비어있습니다.")
+                    
+                    # 디버깅: 날짜 형식 문제 확인
+                    st.write("**디버깅 정보:**")
+                    st.write(f"- start_date.isoformat(): `{start_date.isoformat()}`")
+                    st.write(f"- end_date.isoformat(): `{end_date.isoformat()}`")
+                    st.write(f"- start_date type: {type(start_date)}")
+                    st.write(f"- end_date type: {type(end_date)}")
             else:
                 st.error("❌ Supabase 클라이언트 또는 store_id가 없습니다.")
         except Exception as e:
