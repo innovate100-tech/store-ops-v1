@@ -135,38 +135,38 @@ def _initialize_expense_items(store_id: str, year: int, month: int, force: bool 
     return _load_templates_to_session_state(store_id, year, month, force=True, restore_values=restore_values, force_restore=force_restore)
 
 
-def _get_total_sales(year: int, month: int) -> float:
+def _get_total_sales(year: int, month: int) -> int:
     """총매출 반환 (임시값 0)"""
     key = f"settlement_total_sales_{year}_{month}"
-    return st.session_state.get(key, 0.0)
+    return int(st.session_state.get(key, 0))
 
 
-def _set_total_sales(year: int, month: int, value: float):
+def _set_total_sales(year: int, month: int, value):
     """총매출 설정"""
     key = f"settlement_total_sales_{year}_{month}"
-    st.session_state[key] = value
+    st.session_state[key] = int(value) if value is not None else 0
 
 
-def _calculate_category_total(category: str, items: list, total_sales: float) -> float:
+def _calculate_category_total(category: str, items: list, total_sales: int) -> float:
     """카테고리별 총액 계산"""
     if category in ['재료비', '부가세&카드수수료']:
         # 매출연동: 비율 합계 * 매출
-        total_rate = sum(item.get('rate', 0) for item in items)
-        return (total_sales * total_rate / 100) if total_sales > 0 else 0.0
+        total_rate = sum(item.get('rate', 0.0) for item in items)
+        return (float(total_sales) * total_rate / 100) if total_sales > 0 else 0.0
     else:
         # 고정비: 금액 합계
-        return sum(item.get('amount', 0) for item in items)
+        return float(sum(item.get('amount', 0) for item in items))
 
 
-def _calculate_totals(expense_items: dict, total_sales: float) -> dict:
+def _calculate_totals(expense_items: dict, total_sales: int) -> dict:
     """전체 합계 계산"""
     category_totals = {}
     for category, items in expense_items.items():
         category_totals[category] = _calculate_category_total(category, items, total_sales)
     
     total_cost = sum(category_totals.values())
-    operating_profit = total_sales - total_cost
-    profit_margin = (operating_profit / total_sales * 100) if total_sales > 0 else 0.0
+    operating_profit = float(total_sales) - total_cost
+    profit_margin = (operating_profit / float(total_sales) * 100) if total_sales > 0 else 0.0
     
     return {
         'category_totals': category_totals,
@@ -214,10 +214,10 @@ def _render_header_section(store_id: str, year: int, month: int):
     st.markdown("### 📊 이번 달 성적표")
     total_sales_input = st.number_input(
         "총매출 (원)",
-        min_value=0.0,
+        min_value=0,
         value=_get_total_sales(selected_year, selected_month),
-        step=100000.0,
-        format="%.0f",  # Phase C: float 경고 해결
+        step=100000,
+        format="%d",  # Hotfix: int 타입에 맞는 format
         key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
     )
     _set_total_sales(selected_year, selected_month, total_sales_input)
@@ -294,7 +294,7 @@ def _render_header_section(store_id: str, year: int, month: int):
                             amount = item.get('amount', 0)
                             upsert_actual_settlement_item(
                                 store_id, selected_year, selected_month,
-                                template_id, amount=float(amount), status='draft'
+                                template_id, amount=float(int(amount)), status='draft'  # Hotfix: int로 캐스팅 후 float로 변환 (DB numeric 호환)
                             )
                             saved_count += 1
                 
@@ -316,7 +316,7 @@ def _render_expense_category(
     category: str,
     category_info: dict,
     items: list,
-    total_sales: float,
+    total_sales: int,
     year: int,
     month: int
 ):
@@ -384,7 +384,7 @@ def _render_expense_category(
                     if rate != item.get('rate', 0.0):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
-                            expense_items[category][idx]['rate'] = rate
+                            expense_items[category][idx]['rate'] = float(rate)  # Hotfix: float 타입 유지
                 else:
                     # 고정비: 금액 입력
                     amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
@@ -393,14 +393,14 @@ def _render_expense_category(
                         min_value=0,
                         value=int(item.get('amount', 0)),
                         step=10000,
-                        format="%.0f",  # Phase C: float 경고 해결
+                        format="%d",  # Hotfix: int 타입에 맞는 format
                         key=amount_key
                     )
                     # 금액 업데이트 (템플릿에는 저장하지 않음, 월별 값이므로)
                     if amount != item.get('amount', 0):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
-                            expense_items[category][idx]['amount'] = amount
+                            expense_items[category][idx]['amount'] = int(amount)  # Hotfix: int 타입 유지
             with col3:
                 col_save, col_delete = st.columns(2)
                 with col_save:
@@ -473,7 +473,7 @@ def _render_expense_category(
                 min_value=0,
                 value=0,
                 step=10000,
-                format="%.0f",  # Phase C: float 경고 해결
+                format="%d",  # Hotfix: int 타입에 맞는 format
                 key=f"settlement_new_amount_{category}_{year}_{month}"
             )
     with add_col3:
@@ -496,16 +496,16 @@ def _render_expense_category(
                 # session_state에 추가
                 new_item = {'name': new_name.strip()}
                 if is_linked:
-                    new_item['rate'] = new_value
+                    new_item['rate'] = float(new_value)  # Hotfix: float 타입 유지
                 else:
-                    new_item['amount'] = int(new_value)
+                    new_item['amount'] = int(new_value)  # Hotfix: int 타입 유지
                 expense_items[category].append(new_item)
                 st.rerun()
             else:
                 st.error("항목명을 입력해주세요.")
 
 
-def _render_expense_section(store_id: str, year: int, month: int, total_sales: float):
+def _render_expense_section(store_id: str, year: int, month: int, total_sales: int):
     """비용 입력 영역"""
     st.markdown("### 💸 비용 입력")
     
