@@ -50,7 +50,7 @@ def render_manager_close():
                     .execute()
                 
                 if overrides_check.count and overrides_check.count > 0:
-                    st.warning(f"⚠️ **판매량 보정이 존재합니다**: 해당 날짜에 판매량등록으로 입력된 값이 {overrides_check.count}개 있습니다. 보정값이 마감 입력보다 우선 적용됩니다.")
+                    st.warning(f"⚠️ **이 날짜에는 판매량 보정이 존재하며, 보정값이 최종 적용됩니다.** (보정 항목: {overrides_check.count}개)")
         except Exception as e:
             # 에러 발생 시 무시 (UI 경고이므로)
             pass
