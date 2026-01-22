@@ -1227,14 +1227,22 @@ def render_settlement_actual():
         </div>
         """, unsafe_allow_html=True)
         
-        # 현재 연/월
-        current_year = current_year_kst()
-        current_month = current_month_kst()
+        # 현재 연/월 (세션 상태에서 선택된 값이 있으면 사용, 없으면 현재 월 사용)
+        # 사용자가 연/월을 변경하면 st.number_input의 key로 세션 상태에 저장됨
+        if "settlement_year" in st.session_state:
+            initial_year = st.session_state["settlement_year"]
+        else:
+            initial_year = current_year_kst()
+        
+        if "settlement_month" in st.session_state:
+            initial_month = st.session_state["settlement_month"]
+        else:
+            initial_month = current_month_kst()
         
         # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly는 내부에서 확인)
         # _render_header_section 내부에서 month_status를 확인하므로 여기서는 readonly를 False로 전달
         year, month, expense_items, total_sales, totals, readonly = _render_header_section(
-            store_id, current_year, current_month, readonly=False
+            store_id, initial_year, initial_month, readonly=False
         )
         
         # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
