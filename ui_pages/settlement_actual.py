@@ -374,18 +374,53 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         if month_status == 'draft':
             if st.button("✅ 이번달 확정", key="settlement_finalize", type="primary", use_container_width=True):
                 try:
-                    affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
-                    if affected >= 0:
-                        # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
-                        get_month_settlement_status.clear()
-                        # 확정 후 DB 값 복원 (force_restore)
-                        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
-                        st.success("✅ 이번달 정산이 확정되었습니다. (읽기 전용)")
-                        st.rerun()
+                    # Phase F: 확정 전에 현재 입력값을 먼저 저장
+                    expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
+                    saved_count = 0
+                    
+                    # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
+                    for category, items in expense_items.items():
+                        for item in items:
+                            template_id = item.get('template_id')
+                            if not template_id:
+                                continue
+                            
+                            input_type = item.get('input_type', 'amount')  # 기본값: amount
+                            
+                            if input_type == 'amount':
+                                # 금액 입력: amount 저장, percent는 None
+                                amount = item.get('amount', 0)
+                                upsert_actual_settlement_item(
+                                    store_id, selected_year, selected_month,
+                                    template_id, amount=float(int(amount)), percent=None
+                                )
+                                saved_count += 1
+                            elif input_type == 'rate':
+                                # 비율 입력: percent 저장, amount는 None
+                                rate = item.get('rate', 0)
+                                upsert_actual_settlement_item(
+                                    store_id, selected_year, selected_month,
+                                    template_id, amount=None, percent=float(rate)
+                                )
+                                saved_count += 1
+                    
+                    # 저장 완료 후 확정 처리
+                    if saved_count > 0:
+                        affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
+                        if affected >= 0:
+                            # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
+                            get_month_settlement_status.clear()
+                            # 확정 후 DB 값 복원 (force_restore)
+                            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+                            st.success(f"✅ 이번달 정산이 확정되었습니다. ({saved_count}개 항목 저장됨, 읽기 전용)")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ 확정 처리 중 오류가 발생했습니다.")
                     else:
-                        st.warning("⚠️ 확정할 항목이 없습니다. 먼저 항목을 저장하세요.")
+                        st.warning("⚠️ 저장할 항목이 없습니다. 먼저 항목을 입력하세요.")
                 except Exception as e:
                     st.error(f"❌ 확정 실패: {str(e)}")
+                    st.exception(e)
         else:
             # Phase F: 확정 해제 버튼 (manager 이상만)
             user_role = st.session_state.get('user_role', 'manager')
