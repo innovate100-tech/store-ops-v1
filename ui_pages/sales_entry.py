@@ -60,13 +60,46 @@ def render_sales_entry():
                         st.error("매출은 0보다 큰 값이어야 합니다.")
                     else:
                         # run_write로 통일
-                        run_write(
-                            "save_sales",
-                            lambda: save_sales(date, store, card_sales, cash_sales, total_sales),
-                            targets=["sales"],
-                            extra={"date": str(date), "store": store, "total_sales": total_sales},
-                            success_message=f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)"
-                        )
+                        try:
+                            # 충돌 확인을 위해 직접 save_sales 호출
+                            success, conflict_info = save_sales(date, store, card_sales, cash_sales, total_sales, check_conflict=True)
+                            
+                            if success:
+                                # 충돌이 있으면 경고 표시
+                                if conflict_info:
+                                    existing = conflict_info.get('existing_total_sales', 0)
+                                    has_daily_close = conflict_info.get('has_daily_close', False)
+                                    
+                                    if has_daily_close:
+                                        daily_close_total = conflict_info.get('daily_close_total_sales', 0)
+                                        st.warning(f"⚠️ **주의**: 해당 날짜에 마감보고가 이미 등록되어 있습니다!")
+                                        st.warning(f"   - 마감보고 매출: {daily_close_total:,.0f}원")
+                                        st.warning(f"   - 기존 매출등록 값: {existing:,.0f}원")
+                                        st.warning(f"   - 새로 입력한 값: {total_sales:,.0f}원")
+                                        st.warning(f"   → **새 값으로 덮어쓰기되었습니다.**")
+                                    else:
+                                        st.warning(f"⚠️ **주의**: 해당 날짜에 이미 다른 매출 값이 등록되어 있습니다!")
+                                        st.warning(f"   - 기존 값: {existing:,.0f}원")
+                                        st.warning(f"   - 새 값: {total_sales:,.0f}원")
+                                        st.warning(f"   → **새 값으로 덮어쓰기되었습니다.**")
+                                
+                                # 성공 메시지
+                                st.success(f"✅ 매출이 저장되었습니다! ({date}, {store}, 총매출: {total_sales:,}원)")
+                                
+                                # 캐시 무효화
+                                from src.storage_supabase import soft_invalidate, load_monthly_sales_total
+                                soft_invalidate(reason="save_sales", targets=["sales"])
+                                try:
+                                    load_monthly_sales_total.clear()
+                                except Exception:
+                                    pass
+                                
+                                st.rerun()
+                            else:
+                                st.error("❌ 매출 저장에 실패했습니다.")
+                        except Exception as e:
+                            st.error(f"❌ 매출 저장 실패: {str(e)}")
+                            st.exception(e)
         
         else:
             # 일괄 입력 폼
@@ -101,14 +134,30 @@ def render_sales_entry():
                                 errors.append(f"{date}: 매장명이 없습니다.")
                             else:
                                 try:
-                                    run_write(
-                                        "save_sales_batch",
-                                        lambda d=date, s=store, c=card_sales, ca=cash_sales, t=total_sales: save_sales(d, s, c, ca, t),
-                                        targets=["sales"],
-                                        extra={"date": str(date), "store": store},
-                                        rerun=False  # 일괄 저장은 마지막에 한 번만 rerun
-                                    )
-                                    success_count += 1
+                                    # 충돌 확인을 위해 직접 save_sales 호출
+                                    success, conflict_info = save_sales(date, store, card_sales, cash_sales, total_sales, check_conflict=True)
+                                    
+                                    if success:
+                                        # 충돌이 있으면 경고 (일괄 저장에서는 로그만)
+                                        if conflict_info:
+                                            existing = conflict_info.get('existing_total_sales', 0)
+                                            has_daily_close = conflict_info.get('has_daily_close', False)
+                                            if has_daily_close:
+                                                errors.append(f"{date}: ⚠️ 마감보고와 충돌 (기존: {existing:,.0f}원 → 새: {total_sales:,.0f}원, 덮어쓰기됨)")
+                                            else:
+                                                errors.append(f"{date}: ⚠️ 기존 값과 충돌 (기존: {existing:,.0f}원 → 새: {total_sales:,.0f}원, 덮어쓰기됨)")
+                                        
+                                        # 캐시 무효화
+                                        from src.storage_supabase import soft_invalidate, load_monthly_sales_total
+                                        soft_invalidate(reason="save_sales_batch", targets=["sales"])
+                                        try:
+                                            load_monthly_sales_total.clear()
+                                        except Exception:
+                                            pass
+                                        
+                                        success_count += 1
+                                    else:
+                                        errors.append(f"{date}: 저장 실패")
                                 except Exception as e:
                                     errors.append(f"{date}: {e}")
                         

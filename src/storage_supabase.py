@@ -1078,11 +1078,25 @@ def load_key_menus() -> List[str]:
 # Save Functions
 # ============================================
 
-def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
-    """매출 데이터 저장"""
+def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check_conflict=True):
+    """
+    매출 데이터 저장
+    
+    Args:
+        date: 날짜
+        store_name: 매장명
+        card_sales: 카드 매출
+        cash_sales: 현금 매출
+        total_sales: 총 매출 (None이면 card_sales + cash_sales)
+        check_conflict: True면 기존 값과 충돌 확인 (기본값: True)
+    
+    Returns:
+        tuple: (성공 여부, 충돌 정보) 또는 (True, None) - 충돌 없음
+        충돌 정보: {"existing_total_sales": float, "new_total_sales": float, "has_daily_close": bool}
+    """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
-        return False
+        return False, None
     
     store_id = get_current_store_id()
     if not store_id:
@@ -1093,6 +1107,42 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
     
     try:
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+        
+        # 충돌 확인: 기존 sales 값과 daily_close 값 확인
+        conflict_info = None
+        if check_conflict:
+            # 기존 sales 값 확인
+            existing_sales = supabase.table("sales")\
+                .select("total_sales")\
+                .eq("store_id", store_id)\
+                .eq("date", date_str)\
+                .execute()
+            
+            existing_total = None
+            if existing_sales.data and len(existing_sales.data) > 0:
+                existing_total = float(existing_sales.data[0].get('total_sales', 0) or 0)
+            
+            # daily_close 값 확인 (마감보고가 있는지)
+            existing_daily_close = supabase.table("daily_close")\
+                .select("total_sales")\
+                .eq("store_id", store_id)\
+                .eq("date", date_str)\
+                .execute()
+            
+            has_daily_close = existing_daily_close.data and len(existing_daily_close.data) > 0
+            daily_close_total = None
+            if has_daily_close:
+                daily_close_total = float(existing_daily_close.data[0].get('total_sales', 0) or 0)
+            
+            # 충돌 감지: 기존 값이 있고 새 값과 다르면 충돌
+            if existing_total is not None and existing_total > 0 and abs(existing_total - float(total_sales)) > 0.01:
+                conflict_info = {
+                    "existing_total_sales": existing_total,
+                    "new_total_sales": float(total_sales),
+                    "has_daily_close": has_daily_close,
+                    "daily_close_total_sales": daily_close_total
+                }
+                logger.warning(f"Sales conflict detected: {date_str}, existing={existing_total}, new={total_sales}, has_daily_close={has_daily_close}")
         
         result = supabase.table("sales").upsert({
             "store_id": store_id,
@@ -1125,7 +1175,7 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None):
         except Exception:
             pass
         
-        return True
+        return True, conflict_info
     except Exception as e:
         logger.error(f"Failed to save sales: {e}")
         raise
@@ -1897,6 +1947,8 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         # 캐시 클리어 (데이터 변경 후)
         try:
             load_csv.clear()
+            # Phase G: load_monthly_sales_total 캐시도 무효화 (마감 저장 시 월합계도 갱신 필요)
+            load_monthly_sales_total.clear()
         except Exception:
             pass
         
