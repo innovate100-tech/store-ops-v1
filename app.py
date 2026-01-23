@@ -28,18 +28,30 @@ if not check_login():
 user_id = st.session_state.get('user_id')
 import logging
 logger = logging.getLogger(__name__)
-logger.info(f"온보딩 체크: user_id={user_id}")
 
+# 디버깅: 온보딩 상태 확인 및 화면에 표시
 if user_id:
+    from src.auth import get_onboarding_mode
+    mode = get_onboarding_mode(user_id)
     needs = needs_onboarding(user_id)
-    logger.info(f"온보딩 필요 여부: {needs}")
+    
+    logger.info(f"온보딩 체크: user_id={user_id}, mode={mode}, needs={needs}")
+    
+    # 디버깅 정보를 화면에 표시 (개발 모드)
+    if st.secrets.get("app", {}).get("dev_mode", False):
+        with st.expander("🔍 온보딩 디버깅 정보", expanded=True):
+            st.write(f"**User ID**: {user_id}")
+            st.write(f"**Onboarding Mode**: {mode}")
+            st.write(f"**Needs Onboarding**: {needs}")
+            st.write(f"**Type of mode**: {type(mode)}")
+    
     if needs:
         logger.info("온보딩 화면으로 이동")
         from ui_pages.onboarding_mode_select import render_onboarding_mode_select
         render_onboarding_mode_select()
         st.stop()
     else:
-        logger.info("온보딩 불필요 - 다음 단계로 진행")
+        logger.info(f"온보딩 불필요 (mode={mode}) - 다음 단계로 진행")
 else:
     logger.warning("user_id가 없음 - 온보딩 체크 건너뜀")
 

@@ -33,3 +33,19 @@ SELECT
 FROM information_schema.columns
 WHERE table_name = 'user_profiles' 
 AND column_name = 'onboarding_mode';
+
+-- 기존 사용자의 onboarding_mode를 NULL로 업데이트 (선택사항)
+-- 최근 7일 이내 생성된 사용자만 업데이트
+UPDATE user_profiles
+SET onboarding_mode = NULL
+WHERE onboarding_mode = 'coach'
+AND created_at > NOW() - INTERVAL '7 days';
+
+-- 업데이트 결과 확인
+SELECT 
+    id,
+    onboarding_mode,
+    created_at
+FROM user_profiles
+ORDER BY created_at DESC
+LIMIT 5;
