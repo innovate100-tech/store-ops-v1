@@ -570,10 +570,25 @@ def ensure_user_profile(user_id: str) -> bool:
         
         if not profile_result.data:
             # 프로필이 없으면 생성 (onboarding_mode는 NULL로 두어 온보딩 화면으로 유도)
-            client.table("user_profiles").insert({
-                "id": user_id
-                # onboarding_mode는 NULL로 두어 온보딩 선택 화면으로 유도
-            }).execute()
+            # DB 기본값이 'coach'로 설정되어 있을 수 있으므로 명시적으로 NULL을 설정
+            try:
+                client.table("user_profiles").insert({
+                    "id": user_id,
+                    "onboarding_mode": None  # 명시적으로 NULL 설정
+                }).execute()
+            except Exception as e:
+                # NOT NULL 제약이 있으면 기본값으로 생성하고 나중에 NULL로 업데이트 시도
+                logger.warning(f"onboarding_mode를 NULL로 설정 실패 (NOT NULL 제약?), 기본값으로 생성: {e}")
+                client.table("user_profiles").insert({
+                    "id": user_id
+                }).execute()
+                # 생성 후 NULL로 업데이트 시도 (제약이 있으면 실패하지만 시도)
+                try:
+                    client.table("user_profiles").update({
+                        "onboarding_mode": None
+                    }).eq("id", user_id).execute()
+                except:
+                    pass  # NOT NULL 제약이 있으면 무시
             
             logger.info(f"User profile created: {user_id}")
             return True
@@ -611,12 +626,15 @@ def get_onboarding_mode(user_id: str = None) -> str:
         profile_result = client.table("user_profiles").select("onboarding_mode").eq("id", user_id).execute()
         
         if not profile_result.data:
+            logger.warning(f"get_onboarding_mode: user_profiles가 없음 (user_id={user_id})")
             return None
         
         mode = profile_result.data[0].get('onboarding_mode')
+        logger.info(f"get_onboarding_mode: user_id={user_id}, mode={mode}, type={type(mode)}")
         
         # NULL이면 None 반환 (온보딩 필요)
         if mode is None:
+            logger.info(f"get_onboarding_mode: mode가 None이므로 None 반환")
             return None
         
         # 값 검증 (coach 또는 fast만 허용)

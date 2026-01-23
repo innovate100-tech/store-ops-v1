@@ -26,10 +26,22 @@ if not check_login():
 
 # 온보딩 모드 선택이 필요하면 온보딩 화면으로 이동 (매장 체크 전에 먼저 확인)
 user_id = st.session_state.get('user_id')
-if user_id and needs_onboarding(user_id):
-    from ui_pages.onboarding_mode_select import render_onboarding_mode_select
-    render_onboarding_mode_select()
-    st.stop()
+import logging
+logger = logging.getLogger(__name__)
+logger.info(f"온보딩 체크: user_id={user_id}")
+
+if user_id:
+    needs = needs_onboarding(user_id)
+    logger.info(f"온보딩 필요 여부: {needs}")
+    if needs:
+        logger.info("온보딩 화면으로 이동")
+        from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+        render_onboarding_mode_select()
+        st.stop()
+    else:
+        logger.info("온보딩 불필요 - 다음 단계로 진행")
+else:
+    logger.warning("user_id가 없음 - 온보딩 체크 건너뜀")
 
 # 매장이 없으면 매장 생성 화면으로 이동
 store_id = get_current_store_id()
