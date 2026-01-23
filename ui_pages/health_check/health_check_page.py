@@ -265,19 +265,21 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
 
 def render_input_form(store_id: str, session_id: str):
     """입력 폼 렌더링 (9개 섹션) - 임시 저장 방식"""
-    # 강제 초기화 옵션 (DEV 모드 또는 버튼 클릭 시)
-    if st.session_state.get("dev_mode", False):
-        if st.button("🔄 답변 상태 초기화 (개발용)", type="secondary"):
-            for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            # 기존 키들도 정리
+    # 강제 초기화 옵션 (항상 표시 - 문제 해결용)
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 상태 초기화", type="secondary", use_container_width=True):
+            # 모든 건강검진 관련 session_state 초기화
             keys_to_remove = []
             for key in st.session_state.keys():
-                if key.startswith("answer_") or key.startswith("q_") or key.startswith("health_check_answer_count_"):
+                if (key.startswith("hc_") or 
+                    key.startswith("answer_") or 
+                    key.startswith("q_") or 
+                    key.startswith("health_check_answer_count_")):
                     keys_to_remove.append(key)
             for key in keys_to_remove:
                 del st.session_state[key]
+            st.success("상태가 초기화되었습니다. 페이지를 새로고침합니다.")
             st.rerun()
     
     # session_state 초기화 (초기 1회만 DB 로드)
@@ -286,17 +288,35 @@ def render_input_form(store_id: str, session_id: str):
     hc_answers_key = "hc_answers"
     hc_dirty_key = "hc_dirty"
     
-    # 답변 개수 계산
+    # 답변 개수 계산 (실제로 값이 있는 항목만)
     answers = st.session_state.get(hc_answers_key, {})
-    answered_count = len([v for v in answers.values() if v])
+    # answers는 {(category, code): raw_value} 형태
+    # raw_value가 "yes", "maybe", "no" 중 하나인 경우만 카운트
+    valid_values = ["yes", "maybe", "no"]
+    answered_count = len([v for v in answers.values() if v in valid_values])
     dirty_count = len(st.session_state.get(hc_dirty_key, set()))
     
-    progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0
+    # 진행률 계산 (정확도 개선)
+    progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0.0
     can_complete = answered_count >= 60  # 최소 60개 이상
     
     # 진행률 표시
-    st.progress(progress_ratio)
+    st.progress(min(progress_ratio, 1.0))  # 1.0을 넘지 않도록
     st.caption(f"진행률: {answered_count}/{TOTAL_QUESTIONS} 문항 완료 ({progress_ratio*100:.1f}%)")
+    
+    # 디버그 정보 (임시로 항상 표시 - 문제 해결 후 제거)
+    with st.expander("🔍 디버그 정보 (임시)", expanded=False):
+        st.write(f"**answers 딕셔너리 크기**: {len(answers)}")
+        st.write(f"**유효한 답변 개수**: {answered_count}")
+        st.write(f"**dirty 개수**: {dirty_count}")
+        st.write(f"**TOTAL_QUESTIONS**: {TOTAL_QUESTIONS}")
+        st.write(f"**session_id**: {session_id}")
+        st.write(f"**hc_loaded_session_id**: {st.session_state.get('hc_loaded_session_id')}")
+        if answers:
+            st.write("**답변 샘플 (최대 5개)**:")
+            sample_items = list(answers.items())[:5]
+            for key, value in sample_items:
+                st.write(f"  - {key}: {value}")
     
     # 저장 상태 표시
     if dirty_count > 0:
