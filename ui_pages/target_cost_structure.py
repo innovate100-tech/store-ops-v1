@@ -208,216 +208,97 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         pass  # 디버그 실패해도 페이지는 계속 동작
     
     
-    # 손익분기점 상단 공지 표시
-    if breakeven_sales is not None and breakeven_sales > 0:
-        # 평일/주말 비율 입력 - 공통 info-box 스타일 사용
-        st.markdown("""
-        <div class="info-box">
-            <strong>📅 평일/주말 매출 비율 설정</strong>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([2, 2, 2])
-        with col1:
-            weekday_ratio = st.number_input(
-                "평일 매출 비율 (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=70.0,
-                step=1.0,
-                format="%.1f",
-                key="target_cost_structure_weekday_ratio",
-                help="평일(22일) 매출이 차지하는 비율"
-            )
-        with col2:
-            weekend_ratio = st.number_input(
-                "주말 매출 비율 (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=30.0,
-                step=1.0,
-                format="%.1f",
-                key="target_cost_structure_weekend_ratio",
-                help="주말(8일) 매출이 차지하는 비율"
-            )
-        with col3:
-            st.write("")
-            st.write("")
-            total_ratio = weekday_ratio + weekend_ratio
-            if abs(total_ratio - 100.0) > 0.1:
-                st.warning(f"⚠️ 합계: {total_ratio:.1f}% (100%가 되어야 합니다)")
-            else:
-                st.success(f"✓ 합계: {total_ratio:.1f}%")
-        
-        # 목표 월매출 입력 - 공통 info-box 스타일 사용
-        st.markdown("""
-        <div class="info-box">
-            <strong>🎯 목표 월매출 설정</strong>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            target_sales_input = st.number_input(
-                "목표 월매출 (원)",
-                min_value=0,
-                value=int(target_sales) if target_sales > 0 else 0,
-                step=100000,
-                key="target_cost_structure_target_sales_input",
-                help="이번 달 목표 매출을 입력하세요"
-            )
-        with col2:
-            st.write("")
-            st.write("")
-            if st.button("💾 목표 저장", key="target_cost_structure_save_target_sales", use_container_width=True):
-                try:
-                    # 목표 매출만 저장 (나머지는 0으로 설정)
-                    save_targets(
-                        selected_year, selected_month, 
-                        target_sales_input, 0, 0, 0, 0, 0
-                    )
-                    st.success("목표 매출이 저장되었습니다!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"저장 중 오류: {e}")
-        
-        # 손익분기 매출과 목표 매출 비교 표시
-        if abs(total_ratio - 100.0) <= 0.1:
-            # 일일 손익분기 매출 계산
-            weekday_daily_breakeven = (breakeven_sales * weekday_ratio / 100) / 22
-            weekend_daily_breakeven = (breakeven_sales * weekend_ratio / 100) / 8
-            
-            # 일일 목표 매출 계산 (목표 매출이 있을 때만)
-            weekday_daily_target = 0
-            weekend_daily_target = 0
-            if target_sales_input > 0:
-                weekday_daily_target = (target_sales_input * weekday_ratio / 100) / 22
-                weekend_daily_target = (target_sales_input * weekend_ratio / 100) / 8
-            
-            # 일일 고정비 계산 개선 (평일/주말 비율 반영)
-            # 평일 고정비 = 고정비 × (평일 일수 / 총 일수) / 평일 일수
-            weekday_monthly_fixed = fixed_costs * (22 / 30)
-            weekend_monthly_fixed = fixed_costs * (8 / 30)
-            weekday_daily_fixed = weekday_monthly_fixed / 22
-            weekend_daily_fixed = weekend_monthly_fixed / 8
-            
-            # 일일 영업이익 계산
-            # 일일 영업이익 = 일일 매출 × (1 - 변동비율) - 일일 고정비
-            weekday_daily_breakeven_profit = 0  # 손익분기점이므로 0원
-            weekend_daily_breakeven_profit = 0  # 손익분기점이므로 0원
-            
-            weekday_daily_target_profit = 0
-            weekend_daily_target_profit = 0
-            if target_sales_input > 0:
-                weekday_daily_target_profit = (weekday_daily_target * (1 - variable_rate_decimal)) - weekday_daily_fixed
-                weekend_daily_target_profit = (weekend_daily_target * (1 - variable_rate_decimal)) - weekend_daily_fixed
-            
-            # 손익분기 매출과 목표 매출 비교 - 공통 info-box 스타일 사용 + 계산 공식 안내
-            st.markdown(f"""
-            <div class="info-box">
-                <strong>📊 손익분기 매출 vs 목표 매출 비교</strong><br>
-                <span style="font-size: 0.85rem; opacity: 0.95;">
-                    계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 추정 영업이익 계산
-            # 영업이익 = 매출 × (1 - 변동비율) - 고정비
-            variable_rate_decimal = variable_cost_rate / 100
-            
-            # 손익분기 매출의 추정 영업이익 (0원)
-            breakeven_profit = 0
-            
-            # 목표 매출의 추정 영업이익
-            target_profit = 0
-            if target_sales_input > 0:
-                target_profit = (target_sales_input * (1 - variable_rate_decimal)) - fixed_costs
-            
-            # 월간 매출 비교
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                    <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
-                    <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
-                    <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
-                        💰 추정 영업이익
-                    </div>
-                    <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem;">0원</div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col2:
-                if target_sales_input > 0:
-                    gap = target_sales_input - breakeven_sales
-                    gap_percent = (gap / breakeven_sales * 100) if breakeven_sales > 0 else 0
-                    gap_color = "#28a745" if gap > 0 else "#dc3545"
-                    profit_color = "#ffd700" if target_profit > 0 else "#ff6b6b"
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-                    <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">🎯 목표 월매출</div>
-                        <div style="font-size: 1.8rem; font-weight: 700;">{int(target_sales_input):,}원</div>
-                    <div style="font-size: 1.35rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
-                        💰 추정 영업이익
-                    </div>
-                        <div style="font-size: 1.3rem; font-weight: 600; margin-top: 0.3rem; color: {profit_color};">{int(target_profit):,}원</div>
-                        <!-- 차이(원, %) 표시는 제거하여 박스를 더 단순하게 유지 -->
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; text-align: center; margin-top: 0.5rem; border: 2px dashed #dee2e6;">
-                        <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: #6c757d;">🎯 목표 월매출</div>
-                        <div style="font-size: 0.85rem; color: #6c757d;">위에서 목표 매출을 입력하세요</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            # 일일 매출 비교 - 공통 info-box 스타일 사용
-            st.markdown("""
-            <div class="info-box">
-                <strong>📅 일일 매출 비교</strong>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 평일 일일 매출
-            col1, col2 = st.columns(2)
-            with col1:
-                weekday_profit_color = "#ffd700" if weekday_daily_target_profit > 0 else "#ff6b6b" if weekday_daily_target_profit < 0 else "white"
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
-                    <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">📅 평일 일일 매출</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekday_daily_breakeven):,}원</div>
-                    {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekday_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
-                    <div style="font-size: 1.275rem; margin-top: 0.9rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
-                        💰 일일 영업이익
-                    </div>
-                    <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
-                    {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekday_profit_color};">목표시 영업이익: {int(weekday_daily_target_profit):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
-                        (월매출 × {weekday_ratio:.1f}% ÷ 22일)
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            with col2:
-                weekend_profit_color = "#ffd700" if weekend_daily_target_profit > 0 else "#ff6b6b" if weekend_daily_target_profit < 0 else "white"
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); padding: 1.5rem; border-radius: 8px; color: white; margin-top: 0.5rem; text-align: right;">
-                    <div style="font-size: 1.3rem; margin-bottom: 0.4rem; opacity: 0.9; text-align: center;">🎉 주말 일일 매출</div>
-                    <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.1rem;">일일손익분기매출: {int(weekend_daily_breakeven):,}원</div>
-                    {f'<div style="font-size: 1.3rem; font-weight: 700;">일일목표매출: {int(weekend_daily_target):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.2rem;">목표 매출 입력 필요</div>'}
-                    <div style="font-size: 1.275rem; margin-top: 1rem; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.7rem; text-align: center;">
-                        💰 일일 영업이익
-                    </div>
-                    <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem;">손익분기시 영업이익: 0원</div>
-                    {f'<div style="font-size: 0.95rem; font-weight: 600; color: {weekend_profit_color};">목표시 영업이익: {int(weekend_daily_target_profit):,}원</div>' if target_sales_input > 0 else '<div style="font-size: 0.8rem; opacity: 0.7;">목표 매출 입력 필요</div>'}
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.5rem;">
-                        (월매출 × {weekend_ratio:.1f}% ÷ 8일)
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+    # ========== ZONE B: 기본 정보 입력 ==========
+    render_section_header("기본 정보 입력", "📋")
+    
+    # 1. 목표 매출 입력
+    st.markdown("""
+    <div class="info-box">
+        <strong>🎯 목표 월매출 설정</strong>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        target_sales_input = st.number_input(
+            "목표 월매출 (원)",
+            min_value=0,
+            value=int(target_sales) if target_sales > 0 else 0,
+            step=100000,
+            key="target_cost_structure_target_sales_input",
+            help="이번 달 목표 매출을 입력하세요"
+        )
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("💾 목표 저장", key="target_cost_structure_save_target_sales", use_container_width=True):
+            try:
+                # 목표 매출만 저장 (나머지는 0으로 설정)
+                save_targets(
+                    selected_year, selected_month, 
+                    target_sales_input, 0, 0, 0, 0, 0
+                )
+                st.success("목표 매출이 저장되었습니다!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"저장 중 오류: {e}")
+    
+    # 2. 평일/주말 매출 비율 설정 (선택 사항)
+    st.markdown("""
+    <div class="info-box">
+        <strong>📅 평일/주말 매출 비율 설정 (선택)</strong>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 2, 2])
+    with col1:
+        weekday_ratio = st.number_input(
+            "평일 매출 비율 (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=70.0,
+            step=1.0,
+            format="%.1f",
+            key="target_cost_structure_weekday_ratio",
+            help="평일(22일) 매출이 차지하는 비율"
+        )
+    with col2:
+        weekend_ratio = st.number_input(
+            "주말 매출 비율 (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=30.0,
+            step=1.0,
+            format="%.1f",
+            key="target_cost_structure_weekend_ratio",
+            help="주말(8일) 매출이 차지하는 비율"
+        )
+    with col3:
+        st.write("")
+        st.write("")
+        total_ratio = weekday_ratio + weekend_ratio
+        if abs(total_ratio - 100.0) > 0.1:
+            st.warning(f"⚠️ 합계: {total_ratio:.1f}% (100%가 되어야 합니다)")
         else:
-            st.info("평일과 주말 비율의 합이 100%가 되어야 일일 매출을 계산할 수 있습니다.")
+            st.success(f"✓ 합계: {total_ratio:.1f}%")
+    
+    render_section_divider()
+    
+    # ========== ZONE C: 손익분기점 미리보기 (최소한의 계산) ==========
+    if breakeven_sales is not None and breakeven_sales > 0:
+        render_section_header("손익분기점 계산 결과", "📊")
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
+            <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
+            <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
+            <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
+                계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        render_section_divider()
     else:
+        render_section_header("손익분기점 계산 결과", "📊")
         st.markdown(f"""
         <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
             <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
@@ -425,8 +306,7 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
             <div style="font-size: 0.85rem; color: #888; margin-top: 0.3rem;">고정비: 임차료, 인건비, 공과금 / 변동비: 재료비, 부가세&카드수수료</div>
         </div>
         """, unsafe_allow_html=True)
-    
-    render_section_divider()
+        render_section_divider()
     
     # ========== 비용 구조 입력 ==========
     # 5개 카테고리별 입력
@@ -767,162 +647,8 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         
         render_section_divider()
     
-    # ========== 목표매출 달성시 비용구조 분석 ==========
-    if breakeven_sales is not None and breakeven_sales > 0 and target_sales_input > 0:
-        render_section_header("목표매출 달성시 비용구조 분석", "💰")
-        
-        if not expense_df.empty:
-            # 목표매출 달성시 각 비용 카테고리별 월매출 대비 비율 계산
-            analysis_data = []
-            
-            for category in expense_categories.keys():
-                cat_df = expense_df[expense_df['category'] == category]
-                if not cat_df.empty:
-                    if expense_categories[category]['type'] == 'fixed':
-                        # 고정비: 금액을 월매출 대비 비율로 계산
-                        category_amount = cat_df['amount'].sum()
-                        category_ratio = (category_amount / target_sales_input * 100) if target_sales_input > 0 else 0
-                        analysis_data.append({
-                            '비용 카테고리': category,
-                            '비용 금액': f"{int(category_amount):,}원",
-                            '월매출 대비 비율': f"{category_ratio:.2f}%"
-                        })
-                    else:
-                        # 변동비: 이미 비율로 저장되어 있음
-                        category_rate = cat_df['amount'].sum()
-                        category_amount = target_sales_input * (category_rate / 100)
-                        analysis_data.append({
-                            '비용 카테고리': category,
-                            '비용 금액': f"{int(category_amount):,}원",
-                            '월매출 대비 비율': f"{category_rate:.2f}%"
-                        })
-            
-            # 분석 데이터프레임 생성
-            if analysis_data:
-                analysis_df = pd.DataFrame(analysis_data)
-                
-                # 개발모드: 최종 DataFrame 디버그
-                try:
-                    from src.auth import is_dev_mode
-                    if is_dev_mode():
-                        st.caption(f"🔍 DEBUG: analysis_df row_count = {len(analysis_df)}")
-                except Exception:
-                    pass
-                
-                st.dataframe(analysis_df, use_container_width=True, hide_index=True)
-                
-                # 총 비용 및 이익률 계산
-                total_expenses = fixed_costs + (target_sales_input * variable_cost_rate / 100)
-                expense_ratio = (total_expenses / target_sales_input * 100) if target_sales_input > 0 else 0
-                profit_margin = 100 - expense_ratio
-                
-                st.markdown("---")
-                
-                # 요약 지표
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("목표 월매출", f"{int(target_sales_input):,}원")
-                with col2:
-                    st.metric("총 비용", f"{int(total_expenses):,}원")
-                with col3:
-                    st.metric("총 비용률", f"{expense_ratio:.2f}%")
-                with col4:
-                    st.metric("이익률", f"{profit_margin:.2f}%")
-                
-                # 알림 시스템
-                st.markdown("#### ⚠️ 알림")
-                alerts = []
-                
-                # 변동비율 기준 (위험: 50% 이상, 주의: 40-50%, 정상: 40% 미만)
-                if variable_cost_rate >= 50:
-                    alerts.append("🔴 변동비율이 50% 이상입니다. 원가 관리가 시급합니다.")
-                elif variable_cost_rate >= 40:
-                    alerts.append("🟡 변동비율이 40% 이상입니다. 주의가 필요합니다.")
-                else:
-                    alerts.append("✅ 변동비율이 정상 범위입니다.")
-                
-                # 고정비 기준 (위험: 목표 매출의 30% 이상, 주의: 20-30%, 정상: 20% 미만)
-                fixed_cost_ratio = (fixed_costs / target_sales_input * 100) if target_sales_input > 0 else 0
-                if fixed_cost_ratio >= 30:
-                    alerts.append("🔴 고정비가 목표 매출의 30% 이상입니다. 고정비 절감이 필요합니다.")
-                elif fixed_cost_ratio >= 20:
-                    alerts.append("🟡 고정비가 목표 매출의 20% 이상입니다. 주의가 필요합니다.")
-                else:
-                    alerts.append("✅ 고정비가 정상 범위입니다.")
-                
-                # 총 비용률 기준 (위험: 90% 이상, 주의: 80-90%, 정상: 80% 미만)
-                if expense_ratio >= 90:
-                    alerts.append("🔴 총 비용률이 90% 이상입니다. 수익성이 매우 낮습니다.")
-                elif expense_ratio >= 80:
-                    alerts.append("🟡 총 비용률이 80% 이상입니다. 비용 절감이 필요합니다.")
-                else:
-                    alerts.append("✅ 총 비용률이 정상 범위입니다.")
-                
-                # 알림 표시
-                for alert in alerts:
-                    if "🔴" in alert:
-                        st.error(alert)
-                    elif "🟡" in alert:
-                        st.warning(alert)
-                    else:
-                        st.success(alert)
-            else:
-                st.info("비용 데이터가 없습니다.")
-        else:
-            st.info("목표 매출을 입력하고 비용 데이터를 입력해주세요.")
-    
-    # ========== 월간 집계 표시 ==========
-    render_section_header("월간 비용 집계", "📊")
-    
-    if not expense_df.empty:
-        # 카테고리별 집계
-        summary_data = []
-        total_amount = 0
-        
-        for category in expense_categories.keys():
-            cat_df = expense_df[expense_df['category'] == category]
-            if not cat_df.empty:
-                if expense_categories[category]['type'] == 'fixed':
-                    # 고정비: 합계
-                    cat_total = cat_df['amount'].sum()
-                    summary_data.append({
-                        '카테고리': category,
-                        '유형': '고정비',
-                        '항목수': len(cat_df),
-                        '합계': f"{int(cat_total):,}원"
-                    })
-                    total_amount += cat_total
-                else:
-                    # 변동비: 비율 표시 (평균 또는 합계)
-                    # 실제로는 각 항목이 비율이므로, 가장 큰 비율 또는 합계를 표시
-                    cat_max_rate = cat_df['amount'].max()
-                    summary_data.append({
-                        '카테고리': category,
-                        '유형': '변동비',
-                        '항목수': len(cat_df),
-                        '합계': f"{cat_max_rate:.2f}% (최대 비율)"
-                    })
-        
-        if summary_data:
-            summary_df = pd.DataFrame(summary_data)
-            
-            # 개발모드: 최종 DataFrame 디버그
-            try:
-                from src.auth import is_dev_mode
-                if is_dev_mode():
-                    st.caption(f"🔍 DEBUG: summary_df row_count = {len(summary_df)}")
-            except Exception:
-                pass
-            
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-            
-            st.markdown(f"""
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                <strong>총 고정비: {int(total_amount):,}원</strong>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info(f"{selected_year}년 {selected_month}월의 비용 데이터가 없습니다. 위에서 비용 항목을 입력해주세요.")
+    # 분석 기능 제거: 목표매출 달성시 비용구조 분석은 분석 페이지로 이동
+    # 분석 기능 제거: 월간 집계 표시는 분석 페이지로 이동
     
     # UI 출력 완료 시점
     t3 = time.perf_counter()

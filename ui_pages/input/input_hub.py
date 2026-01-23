@@ -478,16 +478,16 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**🎯 목표 매출 구조**")
+        st.markdown("**🎯 목표 매출 구조 입력**")
         st.caption("설계의 기준 데이터입니다. 설계 메뉴에서 업그레이드/시뮬레이션됩니다")
-        if st.button("🎯 목표 매출 구조", use_container_width=True, type="secondary", key="input_hub_target_sales"):
+        if st.button("🎯 목표 매출 구조 입력", use_container_width=True, type="secondary", key="input_hub_target_sales"):
             st.session_state["current_page"] = "목표 매출구조"  # page key 유지
             st.rerun()
     
     with col2:
-        st.markdown("**🧾 목표 비용 구조**")
+        st.markdown("**🧾 목표 비용 구조 입력**")
         st.caption("설계의 기준 데이터입니다. 설계 메뉴에서 업그레이드/시뮬레이션됩니다")
-        if st.button("🧾 목표 비용 구조", use_container_width=True, type="secondary", key="input_hub_target_cost"):
+        if st.button("🧾 목표 비용 구조 입력", use_container_width=True, type="secondary", key="input_hub_target_cost"):
             st.session_state["current_page"] = "목표 비용구조"  # page key 유지
             st.rerun()
     
