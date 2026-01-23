@@ -2376,6 +2376,8 @@ def render_fast_home():
 def render_home():
     """홈 페이지 렌더링 - 모드에 따라 분기"""
     from src.auth import get_onboarding_mode
+    import logging
+    logger = logging.getLogger(__name__)
     
     user_id = st.session_state.get('user_id')
     if not user_id:
@@ -2384,10 +2386,20 @@ def render_home():
     
     # 온보딩 모드 확인
     mode = get_onboarding_mode(user_id)
+    logger.info(f"render_home: user_id={user_id}, mode={mode}")
+    
+    # 디버깅 정보 표시 (개발 모드에서만)
+    if st.secrets.get("app", {}).get("dev_mode", False):
+        with st.expander("🔍 홈 모드 디버깅", expanded=False):
+            st.write(f"**Current Mode**: {mode}")
+            st.write(f"**Mode Type**: {type(mode)}")
+            st.write(f"**Will render**: {'Fast Home' if mode == 'fast' else 'Coach Home'}")
     
     # 모드에 따라 분기
     if mode == 'fast':
+        logger.info("render_home: Fast Mode - render_fast_home() 호출")
         render_fast_home()
     else:
         # 기본값은 coach 모드
+        logger.info("render_home: Coach Mode (기본값) - render_coach_home() 호출")
         render_coach_home()

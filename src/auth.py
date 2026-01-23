@@ -623,6 +623,7 @@ def get_onboarding_mode(user_id: str = None) -> str:
             return None
         
         client = get_supabase_client()
+        # 캐시 무효화를 위해 매번 DB에서 직접 조회 (캐시 사용 안 함)
         profile_result = client.table("user_profiles").select("onboarding_mode").eq("id", user_id).execute()
         
         if not profile_result.data:

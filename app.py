@@ -1494,6 +1494,13 @@ with st.sidebar:
                     if st.button("✅ 확인", use_container_width=True, key="mode_switch_confirm"):
                         if set_onboarding_mode(user_id, new_mode):
                             st.session_state["_mode_switch_pending"] = False
+                            # 캐시 클리어 (모드 변경 후 홈 재구성을 위해)
+                            try:
+                                from src.auth import get_onboarding_mode
+                                # 함수 캐시가 있다면 클리어 (get_onboarding_mode는 캐시 없지만 안전을 위해)
+                                st.cache_data.clear()
+                            except:
+                                pass
                             st.success(f"모드가 '{new_mode_label}'로 변경되었습니다.")
                             st.rerun()
                         else:
