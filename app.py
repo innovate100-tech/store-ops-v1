@@ -37,14 +37,15 @@ if user_id:
     
     logger.info(f"온보딩 체크: user_id={user_id}, mode={mode}, needs={needs}")
     
-    # 디버깅 정보를 화면에 표시 (항상 표시)
-    with st.expander("🔍 온보딩 디버깅 정보", expanded=True):
-        st.write(f"**User ID**: {user_id}")
-        st.write(f"**Onboarding Mode**: {mode}")
-        st.write(f"**Mode is None**: {mode is None}")
-        st.write(f"**Needs Onboarding**: {needs}")
-        st.write(f"**Type of mode**: {type(mode)}")
-        st.write(f"**Mode repr**: {repr(mode)}")
+    # 디버깅 정보를 화면에 표시 (개발 모드에서만)
+    if st.secrets.get("app", {}).get("dev_mode", False):
+        with st.expander("🔍 온보딩 디버깅 정보", expanded=False):
+            st.write(f"**User ID**: {user_id}")
+            st.write(f"**Onboarding Mode**: {mode}")
+            st.write(f"**Mode is None**: {mode is None}")
+            st.write(f"**Needs Onboarding**: {needs}")
+            st.write(f"**Type of mode**: {type(mode)}")
+            st.write(f"**Mode repr**: {repr(mode)}")
     
     if needs:
         logger.info("온보딩 화면으로 이동")
