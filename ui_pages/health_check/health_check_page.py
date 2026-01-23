@@ -250,22 +250,32 @@ def render_category_questions(
             st.session_state[answer_state_key] = current_value
         
         # index가 None이면 기본값 0 사용 (첫 번째 옵션)
-        radio_index = index if index is not None else 0
+        # index가 범위를 벗어나지 않도록 체크
+        radio_index = index if (index is not None and 0 <= index < len(options)) else 0
         
-        selected = st.radio(
-            question_text,
-            options=options,
-            index=radio_index,
-            key=f"q_{category}_{question_code}",
-            horizontal=True
-        )
+        try:
+            selected = st.radio(
+                question_text,
+                options=options,
+                index=radio_index,
+                key=f"q_{category}_{question_code}",
+                horizontal=True
+            )
+        except Exception as e:
+            logger.error(f"Error rendering radio for {question_code}: {e}")
+            continue
         
-        # selected가 None이거나 raw_value_map에 없으면 스킵 (안전장치)
-        if selected is None or selected not in raw_value_map:
+        # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵 (안전장치)
+        if selected is None or selected not in options or selected not in raw_value_map:
+            logger.warning(f"Invalid selected value for {question_code}: {selected}")
             continue
         
         # 값이 변경되었고, 이전에 저장한 키와 다르면 저장 (rerun 폭발 방지)
-        new_raw_value = raw_value_map[selected]
+        try:
+            new_raw_value = raw_value_map[selected]
+        except KeyError as e:
+            logger.error(f"KeyError in raw_value_map for {question_code}: selected={selected}, error={e}")
+            continue
         stored_value = st.session_state.get(answer_state_key)
         
         if new_raw_value != stored_value:
