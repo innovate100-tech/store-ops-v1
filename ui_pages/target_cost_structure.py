@@ -53,12 +53,12 @@ def render_target_cost_structure():
 
 
 def _render_revenue_design_tools(year: int, month: int, store_id: str):
-    """ZONE D: 수익 구조 설계 도구 (기존 기능)"""
-    # 기존 코드는 그대로 유지하되, selected_year, selected_month를 파라미터로 받음
+    """목표 비용 구조 입력 페이지 렌더링"""
     selected_year = year
     selected_month = month
     
-    # 기간 선택 및 전월 데이터 복사
+    # ========== ZONE A: 기간 선택 & 전월 복사 ==========
+    render_section_header("기간 선택", "📅")
     col1, col2, col3 = st.columns([2, 2, 2])
     with col1:
         selected_year = st.number_input(
@@ -92,9 +92,8 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
     
     render_section_divider()
     
-    # ========== 손익분기점 계산 및 상단 표시 ==========
+    # ========== 데이터 로드 (내부 로직) ==========
     # 공식 엔진 함수 사용 (헌법 준수)
-    # expense_df 로드
     expense_df = load_expense_structure(selected_year, selected_month, store_id)
     
     fixed_costs = get_fixed_costs(store_id, selected_year, selected_month) if store_id else 0.0
@@ -308,7 +307,8 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         """, unsafe_allow_html=True)
         render_section_divider()
     
-    # ========== 비용 구조 입력 ==========
+    # ========== ZONE D: 비용 구조 입력 ==========
+    render_section_header("비용 구조 입력", "💰")
     # 5개 카테고리별 입력
     expense_categories = {
         '임차료': {'type': 'fixed', 'icon': '🏢', 'description': '고정비 (금액 직접 입력)'},

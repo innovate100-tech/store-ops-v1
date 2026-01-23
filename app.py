@@ -2470,11 +2470,16 @@ elif page == "통합 대시보드":
 # 통합 대시보드 페이지 (기존 코드 제거됨 - archive/ui_pages_dashboard/ 참조)
 # 약 880줄의 기존 코드가 제거되었습니다.
 
-# 목표 비용구조 페이지 (비용구조와 동일)
-elif page == "목표 비용구조" or page == "비용구조":
+# 목표 비용구조 페이지
+elif page == "목표 비용구조":
+    from ui_pages.target_cost_structure import render_target_cost_structure
+    render_target_cost_structure()
+
+# 비용구조 페이지 (기존 코드 유지 - 다른 곳에서 사용할 수 있음)
+elif page == "비용구조":
     # 비용구조 페이지 전용 헤더 (화이트 모드에서도 항상 흰색 텍스트로 표시)
     header_color = "#ffffff"
-    page_title = "목표 비용구조 관리" if page == "목표 비용구조" else "비용구조 관리"
+    page_title = "비용구조 관리"
     st.markdown(f"""
     <div style="margin: 0 0 1.0rem 0;">
         <h2 style="color: {header_color}; font-weight: 700; margin: 0;">
@@ -2623,8 +2628,10 @@ elif page == "목표 비용구조" or page == "비용구조":
                 except Exception as e:
                     st.error(f"저장 중 오류: {e}")
         
-        # 손익분기 매출과 목표 매출 비교 표시
-        if abs(total_ratio - 100.0) <= 0.1:
+        # 분석 기능 제거: 손익분기 매출과 목표 매출 비교는 분석 페이지로 이동
+        # 분석 기능 제거: 일일 매출 비교는 분석 페이지로 이동
+        # (아래 코드는 제거됨)
+        if False:  # 분석 기능 제거
             # 일일 손익분기 매출 계산
             weekday_daily_breakeven = (breakeven_sales * weekday_ratio / 100) / 22
             weekend_daily_breakeven = (breakeven_sales * weekend_ratio / 100) / 8
@@ -2760,6 +2767,8 @@ elif page == "목표 비용구조" or page == "비용구조":
         else:
             st.info("평일과 주말 비율의 합이 100%가 되어야 일일 매출을 계산할 수 있습니다.")
     else:
+        # 손익분기점 미리보기 (최소한의 계산만)
+        render_section_header("손익분기점 계산 결과", "📊")
         st.markdown(f"""
         <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
             <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
@@ -3121,8 +3130,10 @@ elif page == "목표 비용구조" or page == "비용구조":
         
         render_section_divider()
     
-    # ========== 목표매출 달성시 비용구조 분석 ==========
-    if breakeven_sales is not None and breakeven_sales > 0 and target_sales_input > 0:
+    # 분석 기능 제거: 목표매출 달성시 비용구조 분석은 분석 페이지로 이동
+    # 분석 기능 제거: 월간 집계 표시는 분석 페이지로 이동
+    # (아래 코드는 제거됨)
+    if False:  # 분석 기능 제거
         render_section_header("목표매출 달성시 비용구조 분석", "💰")
         
         if not expense_df.empty:
@@ -3215,52 +3226,8 @@ elif page == "목표 비용구조" or page == "비용구조":
                 st.info("비용 데이터가 없습니다.")
         else:
             st.info("목표 매출을 입력하고 비용 데이터를 입력해주세요.")
-    
-    # ========== 월간 집계 표시 ==========
-    render_section_header("월간 비용 집계", "📊")
-    
-    if not expense_df.empty:
-        # 카테고리별 집계
-        summary_data = []
-        total_amount = 0
-        
-        for category in expense_categories.keys():
-            cat_df = expense_df[expense_df['category'] == category]
-            if not cat_df.empty:
-                if expense_categories[category]['type'] == 'fixed':
-                    # 고정비: 합계
-                    cat_total = cat_df['amount'].sum()
-                    summary_data.append({
-                        '카테고리': category,
-                        '유형': '고정비',
-                        '항목수': len(cat_df),
-                        '합계': f"{int(cat_total):,}원"
-                    })
-                    total_amount += cat_total
-                else:
-                    # 변동비: 비율 표시 (평균 또는 합계)
-                    # 실제로는 각 항목이 비율이므로, 가장 큰 비율 또는 합계를 표시
-                    cat_max_rate = cat_df['amount'].max()
-                    summary_data.append({
-                        '카테고리': category,
-                        '유형': '변동비',
-                        '항목수': len(cat_df),
-                        '합계': f"{cat_max_rate:.2f}% (최대 비율)"
-                    })
-        
-        if summary_data:
-            summary_df = pd.DataFrame(summary_data)
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-            
-            st.markdown(f"""
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                <strong>총 고정비: {int(total_amount):,}원</strong>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info(f"{selected_year}년 {selected_month}월의 비용 데이터가 없습니다. 위에서 비용 항목을 입력해주세요.")
 
-# 비용구조 페이지 끝
+# 비용구조 페이지 끝 (분석 기능 제거됨)
 
 # 목표 매출구조 페이지
 elif page == "목표 매출구조":
