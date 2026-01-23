@@ -48,7 +48,7 @@ def render_today_strategy_card(strategy: Dict, location: str = "home"):
             st.markdown(f"- {bullet}")
     
     # 미션 진행률 표시 (있는 경우)
-    from src.storage_supabase import load_active_mission
+    from src.storage_supabase import load_active_mission, load_recent_evaluated_missions
     from datetime import date
     from zoneinfo import ZoneInfo
     from datetime import datetime
@@ -58,8 +58,13 @@ def render_today_strategy_card(strategy: Dict, location: str = "home"):
         kst = ZoneInfo("Asia/Seoul")
         today = datetime.now(kst).date()
         active_mission = load_active_mission(store_id, today)
+        
+        # 최근 평가 완료 미션 (있는 경우)
+        recent_evaluated = load_recent_evaluated_missions(store_id, limit=1)
+        recent_mission = recent_evaluated[0] if recent_evaluated else None
     else:
         active_mission = None
+        recent_mission = None
     
     if active_mission:
         from src.storage_supabase import load_mission_tasks
@@ -69,10 +74,42 @@ def render_today_strategy_card(strategy: Dict, location: str = "home"):
             total_count = len(tasks)
             progress = (done_count / total_count * 100) if total_count > 0 else 0
             
+            # 상태 배지
+            status = active_mission.get("status", "active")
+            status_labels = {
+                "active": "🛠 실행중",
+                "monitoring": "👀 감시중",
+                "evaluated": "🧠 판정완료",
+            }
+            status_label = status_labels.get(status, "🛠 실행중")
+            
             st.progress(progress / 100)
-            st.caption(f"진행률: {done_count}/{total_count} ({progress:.0f}%)")
+            st.caption(f"{status_label} · 진행률: {done_count}/{total_count} ({progress:.0f}%)")
             
             if st.button("📋 미션 열기", key=f"mission_open_{location}", use_container_width=True):
+                st.session_state["current_page"] = "오늘의 전략 실행"
+                st.rerun()
+    
+    # 최근 평가 완료 미션 결과 요약 (있는 경우)
+    if recent_mission and location == "home":
+        result_type = recent_mission.get("result_type")
+        coach_comment = recent_mission.get("coach_comment", "")
+        if result_type and coach_comment:
+            result_badges = {
+                "improved": "✅ 개선",
+                "no_change": "➡️ 정체",
+                "worsened": "⚠️ 악화",
+            }
+            badge = result_badges.get(result_type, "")
+            
+            st.markdown(f"""
+            <div style="padding: 0.8rem; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 5px; margin-top: 0.5rem;">
+                <strong>최근 전략 결과: {badge}</strong><br>
+                <small>{coach_comment}</small>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("근거 보기", key=f"view_result_{location}", use_container_width=True):
                 st.session_state["current_page"] = "오늘의 전략 실행"
                 st.rerun()
     

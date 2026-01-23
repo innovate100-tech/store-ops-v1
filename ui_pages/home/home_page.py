@@ -870,6 +870,31 @@ def _render_zone2_coach_verdict(store_id: str, year: int, month: int, monthly_sa
         logger.error(f"코치 판결 렌더링 오류: {e}")
         st.info("코치 판결을 생성하는 중입니다. 데이터가 더 필요할 수 있습니다.")
     
+    # monitoring 미션 자동 평가 (PHASE 10-7C)
+    try:
+        from src.storage_supabase import load_active_mission, set_mission_status, update_mission_evaluation, save_mission_result
+        from src.strategy.strategy_monitor import evaluate_mission_effect
+        from datetime import date
+        
+        # monitoring 상태 미션 찾기
+        monitoring_mission = load_active_mission(store_id, date.today())
+        if monitoring_mission and monitoring_mission.get("status") == "monitoring":
+            # 평가 시도
+            evaluation = evaluate_mission_effect(monitoring_mission, store_id)
+            if evaluation and evaluation.get("result_type") != "data_insufficient":
+                # 결과 저장
+                result_type = evaluation.get("result_type")
+                coach_comment = evaluation.get("coach_comment", "")
+                baseline = evaluation.get("baseline", {})
+                after = evaluation.get("after", {})
+                delta = evaluation.get("delta", {})
+                
+                if update_mission_evaluation(monitoring_mission["id"], result_type, coach_comment):
+                    save_mission_result(monitoring_mission["id"], baseline, after, delta)
+    except Exception as e:
+        logger.error(f"미션 평가 오류: {e}")
+        # 에러 발생해도 계속 진행
+    
     # 오늘의 전략 카드 추가
     try:
         from ui_pages.analysis.strategy_engine import pick_primary_strategy

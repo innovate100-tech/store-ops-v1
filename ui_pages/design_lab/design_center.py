@@ -101,6 +101,37 @@ def render_design_center():
         action_button_label=f"{concern_name} 점검하기"
     )
     
+    # 최근 전략 결과 요약 (ZONE A 하단)
+    try:
+        from src.storage_supabase import load_recent_evaluated_missions
+        recent_evaluated = load_recent_evaluated_missions(store_id, limit=1)
+        if recent_evaluated:
+            recent_mission = recent_evaluated[0]
+            result_type = recent_mission.get("result_type")
+            coach_comment = recent_mission.get("coach_comment", "")
+            if result_type and coach_comment:
+                result_badges = {
+                    "improved": "✅ 개선",
+                    "no_change": "➡️ 정체",
+                    "worsened": "⚠️ 악화",
+                }
+                badge = result_badges.get(result_type, "")
+                
+                st.markdown("---")
+                st.markdown("### 📊 최근 전략 결과")
+                st.markdown(f"""
+                <div style="padding: 1rem; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 5px;">
+                    <strong>{badge}</strong><br>
+                    {coach_comment}
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("근거 보기", key="design_center_view_result", use_container_width=True):
+                    st.session_state["current_page"] = "오늘의 전략 실행"
+                    st.rerun()
+    except Exception:
+        pass
+    
     # 오늘의 전략 카드 추가
     try:
         from ui_pages.analysis.strategy_engine import pick_primary_strategy
@@ -208,7 +239,7 @@ def render_design_center():
     
     # 진행 중 미션 카드 (ZONE D 위에)
     try:
-        from src.storage_supabase import load_active_mission
+        from src.storage_supabase import load_active_mission, load_recent_evaluated_missions
         from datetime import date
         from zoneinfo import ZoneInfo
         from datetime import datetime
@@ -225,14 +256,41 @@ def render_design_center():
                 total_count = len(tasks)
                 progress = (done_count / total_count * 100) if total_count > 0 else 0
                 
+                # 상태 배지
+                status = active_mission.get("status", "active")
+                status_labels = {
+                    "active": "🛠 실행중",
+                    "monitoring": "👀 감시중",
+                    "evaluated": "🧠 판정완료",
+                }
+                status_label = status_labels.get(status, "🛠 실행중")
+                
                 st.markdown("---")
                 st.markdown("### 🎯 진행 중 미션")
                 st.markdown(f"**{active_mission.get('title', '오늘 할 일')}**")
                 st.progress(progress / 100)
-                st.caption(f"진행률: {done_count}/{total_count} ({progress:.0f}%)")
+                st.caption(f"{status_label} · 진행률: {done_count}/{total_count} ({progress:.0f}%)")
                 if st.button("📋 미션 열기", key="design_center_mission_open", use_container_width=True):
                     st.session_state["current_page"] = "오늘의 전략 실행"
                     st.rerun()
+        
+        # 코치 재개입 (evaluated 미션 중 worsened/no_change)
+        recent_evaluated = load_recent_evaluated_missions(store_id, limit=1)
+        if recent_evaluated:
+            recent_mission = recent_evaluated[0]
+            result_type = recent_mission.get("result_type")
+            if result_type in ["worsened", "no_change"]:
+                st.markdown("---")
+                st.markdown("### 🚨 코치 재개입")
+                coach_comment = recent_mission.get("coach_comment", "")
+                st.warning(f"{coach_comment}")
+                if st.button("다음 전략 받기", key="design_center_next_strategy", use_container_width=True):
+                    # 다음 전략 생성
+                    from ui_pages.analysis.strategy_engine import pick_primary_strategy
+                    from ui_pages.common.today_strategy_card import render_today_strategy_card
+                    next_strategy = pick_primary_strategy(store_id, ref_date=today, window_days=14)
+                    if next_strategy:
+                        render_today_strategy_card(next_strategy, location="design_center")
     except Exception:
         pass  # 에러 발생해도 계속 진행
     

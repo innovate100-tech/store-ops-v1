@@ -18,9 +18,13 @@ CREATE TABLE IF NOT EXISTS strategy_missions (
     title TEXT NOT NULL,
     reason_json JSONB NOT NULL,  -- 근거 숫자들 저장
     cta_page TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'abandoned')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'abandoned', 'monitoring', 'evaluated')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ NULL,
+    monitor_start_date DATE NULL,  -- 감시 시작일
+    evaluation_date DATE NULL,  -- 평가 완료일
+    result_type TEXT NULL CHECK (result_type IN ('improved', 'no_change', 'worsened', 'data_insufficient')),
+    coach_comment TEXT NULL,  -- 코치 판정 코멘트
     UNIQUE(store_id, mission_date)  -- 하루 1개만
 );
 
@@ -28,7 +32,9 @@ CREATE TABLE IF NOT EXISTS strategy_missions (
 CREATE INDEX IF NOT EXISTS idx_strategy_missions_store_date 
     ON strategy_missions(store_id, mission_date DESC);
 CREATE INDEX IF NOT EXISTS idx_strategy_missions_status 
-    ON strategy_missions(store_id, status) WHERE status = 'active';
+    ON strategy_missions(store_id, status) WHERE status IN ('active', 'monitoring');
+CREATE INDEX IF NOT EXISTS idx_strategy_missions_result 
+    ON strategy_missions(store_id, result_type) WHERE result_type IS NOT NULL;
 
 -- ============================================
 -- STEP 2: strategy_mission_tasks 테이블
@@ -151,3 +157,45 @@ CREATE TRIGGER trigger_update_task_done_at
     FOR EACH ROW
     WHEN (OLD.is_done IS DISTINCT FROM NEW.is_done)
     EXECUTE FUNCTION update_task_done_at();
+
+-- ============================================
+-- STEP 5: strategy_mission_results 테이블 (PHASE 10-7C)
+-- ============================================
+CREATE TABLE IF NOT EXISTS strategy_mission_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mission_id UUID NOT NULL REFERENCES strategy_missions(id) ON DELETE CASCADE,
+    baseline_json JSONB NOT NULL,  -- baseline 기간 지표
+    after_json JSONB NOT NULL,  -- after 기간 지표
+    delta_json JSONB NOT NULL,  -- 변화량/변화율
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(mission_id)  -- 미션당 1개 결과만
+);
+
+-- 인덱스
+CREATE INDEX IF NOT EXISTS idx_strategy_mission_results_mission 
+    ON strategy_mission_results(mission_id);
+
+-- RLS 정책
+ALTER TABLE strategy_mission_results ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view strategy_mission_results from their store" ON strategy_mission_results;
+CREATE POLICY "Users can view strategy_mission_results from their store"
+    ON strategy_mission_results FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM strategy_missions sm
+            WHERE sm.id = strategy_mission_results.mission_id
+            AND sm.store_id = get_user_store_id()
+        )
+    );
+
+DROP POLICY IF EXISTS "Users can insert strategy_mission_results to their store" ON strategy_mission_results;
+CREATE POLICY "Users can insert strategy_mission_results to their store"
+    ON strategy_mission_results FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM strategy_missions sm
+            WHERE sm.id = strategy_mission_results.mission_id
+            AND sm.store_id = get_user_store_id()
+        )
+    );

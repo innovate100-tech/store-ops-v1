@@ -133,9 +133,13 @@ def render_mission_detail():
         total_count = len(tasks)
         all_done = (done_count == total_count) if total_count > 0 else False
         
-        if st.button("✅ 오늘 미션 완료 처리", key="complete_mission", use_container_width=True, disabled=not all_done):
+        if st.button("✅ 오늘 미션 완료 처리", key="complete_mission", use_container_width=True):
+            # completed → monitoring으로 자동 전환
             if set_mission_status(mission_id, "completed"):
-                st.success("미션이 완료되었습니다!")
+                # monitoring 상태로 전환
+                from src.storage_supabase import set_mission_status as update_status
+                update_status(mission_id, "monitoring")
+                st.success("미션이 완료되었습니다! 7일 후 자동으로 효과를 평가합니다.")
                 st.rerun()
             else:
                 st.error("완료 처리에 실패했습니다.")
@@ -149,11 +153,13 @@ def render_mission_detail():
             else:
                 st.error("포기 처리에 실패했습니다.")
     
-    # 효과 비교 (7일 후) - 완료된 미션만
-    if mission.get("status") == "completed":
-        completed_at = mission.get("completed_at")
-        if completed_at:
-            _render_effect_comparison(store_id, mission)
+    # 효과 비교 (7일 후) - monitoring/evaluated 미션
+    if mission.get("status") in ["monitoring", "evaluated"]:
+        _render_effect_comparison(store_id, mission)
+    
+    # 다음 개입 제안 (evaluated 미션만)
+    if mission.get("status") == "evaluated":
+        _render_next_intervention(store_id, mission)
 
 
 
@@ -231,39 +237,140 @@ def _render_checklist(mission_id: str, tasks: list):
 def _render_effect_comparison(store_id: str, mission: dict):
     """7일 후 효과 비교 렌더링"""
     st.markdown("---")
-    st.markdown("### 📊 7일 후 효과 비교")
+    st.markdown("### 📊 전략 결과 판정")
     
+    # 상태 타임라인
+    status = mission.get("status", "active")
+    status_labels = {
+        "active": "🛠 실행중",
+        "completed": "✅ 완료",
+        "monitoring": "👀 감시중",
+        "evaluated": "🧠 판정완료",
+        "abandoned": "❌ 포기",
+    }
+    st.caption(f"상태: {status_labels.get(status, status)}")
+    
+    # 평가 결과가 있으면 표시
+    result_type = mission.get("result_type")
+    coach_comment = mission.get("coach_comment")
+    
+    if result_type and coach_comment:
+        # 결과 배지
+        result_badges = {
+            "improved": "✅ 개선",
+            "no_change": "➡️ 정체",
+            "worsened": "⚠️ 악화",
+            "data_insufficient": "📊 데이터 부족",
+        }
+        badge = result_badges.get(result_type, result_type)
+        
+        st.markdown(f"""
+        <div style="padding: 1rem; background: #f8f9fa; border-left: 4px solid #667eea; border-radius: 5px; margin-bottom: 1rem;">
+            <strong>{badge}</strong><br>
+            {coach_comment}
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 효과 비교 데이터
     try:
-        from ui_pages.strategy.mission_effects import compute_mission_effect
+        from src.storage_supabase import load_mission_result
         
-        effect = compute_mission_effect(mission, store_id)
-        if not effect:
-            st.info("아직 7일이 지나지 않았어요. (또는 데이터 부족)")
-            return
-        
-        # 효과 표시
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            sales_delta = effect.get("sales_delta_pct", 0)
-            sales_emoji = "📈" if sales_delta > 0 else "📉" if sales_delta < 0 else "➡️"
-            st.metric("매출(일평균)", f"{sales_delta:+.1f}%", delta=f"{sales_emoji}")
-        
-        with col2:
-            visitors_delta = effect.get("visitors_delta_pct", 0)
-            visitors_emoji = "📈" if visitors_delta > 0 else "📉" if visitors_delta < 0 else "➡️"
-            st.metric("네이버방문자(일평균)", f"{visitors_delta:+.1f}%", delta=f"{visitors_emoji}")
-        
-        with col3:
-            avgp_delta = effect.get("avgp_delta_pct", 0)
-            avgp_emoji = "📈" if avgp_delta > 0 else "📉" if avgp_delta < 0 else "➡️"
-            st.metric("객단가", f"{avgp_delta:+.1f}%", delta=f"{avgp_emoji}")
-        
-        # 해석
-        interpretation = effect.get("interpretation", "")
-        if interpretation:
-            st.info(f"💡 {interpretation}")
+        result = load_mission_result(mission["id"])
+        if result:
+            delta = result.get("delta_json", {})
+            baseline = result.get("baseline_json", {})
+            after = result.get("after_json", {})
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                sales_delta = delta.get("sales_delta_pct", 0)
+                sales_emoji = "📈" if sales_delta > 0 else "📉" if sales_delta < 0 else "➡️"
+                st.metric("매출(일평균)", f"{sales_delta:+.1f}%", delta=f"{sales_emoji}")
+            
+            with col2:
+                visitors_delta = delta.get("visitors_delta_pct", 0)
+                visitors_emoji = "📈" if visitors_delta > 0 else "📉" if visitors_delta < 0 else "➡️"
+                st.metric("네이버방문자(일평균)", f"{visitors_delta:+.1f}%", delta=f"{visitors_emoji}")
+            
+            with col3:
+                avgp_delta = delta.get("avgp_delta_pct", 0)
+                avgp_emoji = "📈" if avgp_delta > 0 else "📉" if avgp_delta < 0 else "➡️"
+                st.metric("객단가", f"{avgp_delta:+.1f}%", delta=f"{avgp_emoji}")
+        else:
+            # 평가 중이면 평가 시도
+            if status == "monitoring":
+                from src.strategy.strategy_monitor import evaluate_mission_effect
+                evaluation = evaluate_mission_effect(mission, store_id)
+                if evaluation:
+                    if evaluation.get("result_type") != "data_insufficient":
+                        # 자동 저장
+                        from src.storage_supabase import update_mission_evaluation, save_mission_result
+                        update_mission_evaluation(
+                            mission["id"],
+                            evaluation.get("result_type", "data_insufficient"),
+                            evaluation.get("coach_comment", "")
+                        )
+                        save_mission_result(
+                            mission["id"],
+                            evaluation.get("baseline", {}),
+                            evaluation.get("after", {}),
+                            evaluation.get("delta", {})
+                        )
+                        st.rerun()
+                    else:
+                        st.info(evaluation.get("coach_comment", "데이터 수집 중입니다."))
     except Exception as e:
         if is_dev_mode():
             st.error(f"효과 비교 오류: {e}")
         st.info("효과 비교 데이터를 불러올 수 없습니다.")
+
+
+def _render_next_intervention(store_id: str, mission: dict):
+    """다음 개입 제안 렌더링"""
+    st.markdown("---")
+    st.markdown("### 🎯 다음 개입 제안")
+    
+    try:
+        from src.strategy.strategy_monitor import evaluate_mission_effect
+        from src.strategy.strategy_followup import decide_next_intervention
+        
+        # 평가 결과 로드
+        evaluation = evaluate_mission_effect(mission, store_id)
+        if not evaluation:
+            return
+        
+        # 다음 개입 결정
+        intervention = decide_next_intervention(mission, evaluation)
+        if not intervention:
+            return
+        
+        intervention_type = intervention.get("intervention_type", "")
+        next_title = intervention.get("next_strategy_title", "")
+        next_reason = intervention.get("next_reason_bullets", [])
+        next_cta_page = intervention.get("next_cta_page", "홈")
+        
+        # 개입 타입별 UI
+        if intervention_type == "maintain":
+            st.success(f"✅ {next_title}")
+        elif intervention_type == "pivot":
+            st.warning(f"🔄 {next_title}")
+        elif intervention_type == "escalate":
+            st.error(f"⚠️ {next_title}")
+        else:
+            st.info(f"⏳ {next_title}")
+        
+        if next_reason:
+            for reason in next_reason:
+                st.markdown(f"- {reason}")
+        
+        if st.button("다음 전략 시작", key="next_strategy", use_container_width=True):
+            st.session_state["current_page"] = next_cta_page
+            st.rerun()
+        
+        if st.button("관련 설계실 이동", key="goto_design", use_container_width=True):
+            st.session_state["current_page"] = "가게 설계 센터"
+            st.rerun()
+    except Exception as e:
+        if is_dev_mode():
+            st.error(f"다음 개입 제안 오류: {e}")

@@ -4655,7 +4655,7 @@ def set_mission_status(mission_id: str, status: str) -> bool:
     
     Args:
         mission_id: 미션 ID
-        status: 'active' | 'completed' | 'abandoned'
+        status: 'active' | 'completed' | 'abandoned' | 'monitoring' | 'evaluated'
     
     Returns:
         bool: 성공 여부
@@ -4664,7 +4664,7 @@ def set_mission_status(mission_id: str, status: str) -> bool:
     if not supabase:
         return False
     
-    if not mission_id or status not in ['active', 'completed', 'abandoned']:
+    if not mission_id or status not in ['active', 'completed', 'abandoned', 'monitoring', 'evaluated']:
         return False
     
     try:
@@ -4672,7 +4672,14 @@ def set_mission_status(mission_id: str, status: str) -> bool:
         if status == "completed":
             from datetime import datetime
             from zoneinfo import ZoneInfo
-            update_data["completed_at"] = datetime.now(ZoneInfo("Asia/Seoul")).isoformat()
+            kst = ZoneInfo("Asia/Seoul")
+            update_data["completed_at"] = datetime.now(kst).isoformat()
+            update_data["monitor_start_date"] = datetime.now(kst).date().isoformat()
+        elif status == "evaluated":
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            kst = ZoneInfo("Asia/Seoul")
+            update_data["evaluation_date"] = datetime.now(kst).date().isoformat()
         
         supabase.table("strategy_missions")\
             .update(update_data)\
@@ -4684,6 +4691,165 @@ def set_mission_status(mission_id: str, status: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to update mission status: {e}")
         return False
+
+
+def save_mission_result(mission_id: str, baseline_json: dict, after_json: dict, delta_json: dict) -> bool:
+    """
+    미션 결과 저장
+    
+    Args:
+        mission_id: 미션 ID
+        baseline_json: baseline 기간 지표
+        after_json: after 기간 지표
+        delta_json: 변화량/변화율
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not mission_id:
+        return False
+    
+    try:
+        import json
+        supabase.table("strategy_mission_results").upsert({
+            "mission_id": mission_id,
+            "baseline_json": json.dumps(baseline_json),
+            "after_json": json.dumps(after_json),
+            "delta_json": json.dumps(delta_json),
+        }, on_conflict="mission_id").execute()
+        
+        logger.info(f"Mission result saved: {mission_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save mission result: {e}")
+        return False
+
+
+def update_mission_evaluation(mission_id: str, result_type: str, coach_comment: str) -> bool:
+    """
+    미션 평가 결과 업데이트
+    
+    Args:
+        mission_id: 미션 ID
+        result_type: 'improved' | 'no_change' | 'worsened' | 'data_insufficient'
+        coach_comment: 코치 코멘트
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not mission_id or result_type not in ['improved', 'no_change', 'worsened', 'data_insufficient']:
+        return False
+    
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        kst = ZoneInfo("Asia/Seoul")
+        
+        supabase.table("strategy_missions")\
+            .update({
+                "status": "evaluated",
+                "result_type": result_type,
+                "coach_comment": coach_comment,
+                "evaluation_date": datetime.now(kst).date().isoformat(),
+            })\
+            .eq("id", mission_id)\
+            .execute()
+        
+        logger.info(f"Mission evaluation updated: {mission_id} -> {result_type}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update mission evaluation: {e}")
+        return False
+
+
+def load_mission_result(mission_id: str) -> Optional[dict]:
+    """
+    미션 결과 조회
+    
+    Args:
+        mission_id: 미션 ID
+    
+    Returns:
+        결과 dict 또는 None
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return None
+    
+    if not mission_id:
+        return None
+    
+    try:
+        result = supabase.table("strategy_mission_results")\
+            .select("*")\
+            .eq("mission_id", mission_id)\
+            .execute()
+        
+        if result.data:
+            mission_result = result.data[0]
+            import json
+            if isinstance(mission_result.get("baseline_json"), str):
+                mission_result["baseline_json"] = json.loads(mission_result["baseline_json"])
+            if isinstance(mission_result.get("after_json"), str):
+                mission_result["after_json"] = json.loads(mission_result["after_json"])
+            if isinstance(mission_result.get("delta_json"), str):
+                mission_result["delta_json"] = json.loads(mission_result["delta_json"])
+            return mission_result
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to load mission result: {e}")
+        return None
+
+
+def load_recent_evaluated_missions(store_id: str, limit: int = 3) -> list:
+    """
+    최근 평가 완료된 미션 조회
+    
+    Args:
+        store_id: 매장 ID
+        limit: 최대 조회 개수
+    
+    Returns:
+        미션 리스트
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return []
+    
+    if not store_id:
+        return []
+    
+    try:
+        result = supabase.table("strategy_missions")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .eq("status", "evaluated")\
+            .order("evaluation_date", desc=True)\
+            .limit(limit)\
+            .execute()
+        
+        if result.data:
+            missions = result.data
+            # JSONB 파싱
+            import json
+            for mission in missions:
+                if isinstance(mission.get("reason_json"), str):
+                    mission["reason_json"] = json.loads(mission["reason_json"])
+            return missions
+        
+        return []
+    except Exception as e:
+        logger.error(f"Failed to load recent evaluated missions: {e}")
+        return []
 
 
 def load_design_routine_logs(store_id: str, routine_type: Optional[str] = None, limit: int = 10) -> list:
