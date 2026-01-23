@@ -21,6 +21,74 @@ from src.auth import get_current_store_id
 bootstrap(page_title="Menu Management")
 
 
+def render_menu_management():
+    """메뉴 등록 페이지 렌더링 (HOME v2 공통 프레임 적용)"""
+    render_page_header("메뉴 설계실", "🍽️")
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다.")
+        return
+    
+    # ZONE A: Coach Board
+    coach_data = get_menu_design_coach_data(store_id)
+    render_coach_board(
+        cards=coach_data["cards"],
+        verdict_text=coach_data["verdict_text"],
+        action_title=coach_data.get("action_title"),
+        action_reason=coach_data.get("action_reason"),
+        action_target_page=coach_data.get("action_target_page"),
+        action_button_label=coach_data.get("action_button_label")
+    )
+    
+    # ZONE B: Structure Map
+    def _render_menu_structure_map():
+        menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+        if menu_df.empty:
+            st.info("메뉴가 등록되지 않았습니다. 메뉴를 등록하면 구조 맵이 표시됩니다.")
+        else:
+            # 간단한 메뉴 분포 차트 (카테고리별)
+            if 'category' in menu_df.columns or '카테고리' in menu_df.columns:
+                category_col = 'category' if 'category' in menu_df.columns else '카테고리'
+                category_counts = menu_df[category_col].value_counts()
+                if not category_counts.empty:
+                    st.bar_chart(category_counts)
+                else:
+                    st.info("카테고리 정보가 없습니다.")
+            else:
+                st.info("메뉴를 등록하면 구조 맵이 표시됩니다.")
+    
+    render_structure_map_container(
+        content_func=_render_menu_structure_map,
+        empty_message="메뉴가 등록되지 않았습니다.",
+        empty_action_label="메뉴 등록하기",
+        empty_action_page="메뉴 등록"
+    )
+    
+    # ZONE C: Owner School
+    school_cards = [
+        {
+            "title": "메뉴 구조 설계",
+            "point1": "대표메뉴는 매출의 30% 이상을 차지해야 합니다",
+            "point2": "유인메뉴는 손님을 끌어들이는 역할입니다"
+        },
+        {
+            "title": "가격 전략",
+            "point1": "평균 가격대를 명확히 정하면 손님 선택이 쉬워집니다",
+            "point2": "원가율 50%를 넘는 메뉴는 가격 조정을 고려하세요"
+        },
+        {
+            "title": "메뉴 라인업",
+            "point1": "최소 3개 이상의 메뉴가 있어야 패턴 분석이 시작됩니다",
+            "point2": "카테고리별 균형이 중요합니다"
+        },
+    ]
+    render_school_cards(school_cards)
+    
+    # ZONE D: Design Tools (기존 기능)
+    render_design_tools_container(_render_menu_design_tools)
+
+
 def _render_menu_design_tools():
     """ZONE D: 메뉴 설계 도구 (기존 기능)"""
     # 입력 모드 선택 (단일 / 일괄)
