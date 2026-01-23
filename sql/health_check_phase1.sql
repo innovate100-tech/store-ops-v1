@@ -20,10 +20,25 @@ CREATE TABLE IF NOT EXISTS health_check_sessions (
     main_bottleneck TEXT NULL,  -- 'Q','S','C','P1','P2','P3','M','H','F'
     coach_summary TEXT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT valid_check_type CHECK (check_type IN ('ad-hoc', 'regular', 'periodic')),
+    CONSTRAINT valid_check_type CHECK (check_type IN ('ad-hoc', 'regular', 'periodic', 'monthly')),
     CONSTRAINT valid_grade CHECK (overall_grade IS NULL OR overall_grade IN ('A', 'B', 'C', 'D', 'E')),
     CONSTRAINT valid_bottleneck CHECK (main_bottleneck IS NULL OR main_bottleneck IN ('Q', 'S', 'C', 'P1', 'P2', 'P3', 'M', 'H', 'F'))
 );
+
+-- 기존 테이블이 있는 경우 제약조건 업데이트 (check_type에 'monthly' 추가)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'valid_check_type' 
+        AND table_name = 'health_check_sessions'
+    ) THEN
+        -- 기존 제약조건 삭제 후 재생성
+        ALTER TABLE health_check_sessions DROP CONSTRAINT IF EXISTS valid_check_type;
+        ALTER TABLE health_check_sessions ADD CONSTRAINT valid_check_type 
+            CHECK (check_type IN ('ad-hoc', 'regular', 'periodic', 'monthly'));
+    END IF;
+END $$;
 
 -- ============================================
 -- 2. health_check_answers (건강검진 답변)
@@ -87,6 +102,7 @@ ALTER TABLE health_check_results ENABLE ROW LEVEL SECURITY;
 -- (Using auth.uid() to get user_id, then checking store_members)
 
 -- health_check_sessions policies
+DROP POLICY IF EXISTS "Users can view their store's health check sessions" ON health_check_sessions;
 CREATE POLICY "Users can view their store's health check sessions"
     ON health_check_sessions FOR SELECT
     USING (
@@ -96,6 +112,7 @@ CREATE POLICY "Users can view their store's health check sessions"
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert their store's health check sessions" ON health_check_sessions;
 CREATE POLICY "Users can insert their store's health check sessions"
     ON health_check_sessions FOR INSERT
     WITH CHECK (
@@ -105,6 +122,7 @@ CREATE POLICY "Users can insert their store's health check sessions"
         )
     );
 
+DROP POLICY IF EXISTS "Users can update their store's health check sessions" ON health_check_sessions;
 CREATE POLICY "Users can update their store's health check sessions"
     ON health_check_sessions FOR UPDATE
     USING (
@@ -115,6 +133,7 @@ CREATE POLICY "Users can update their store's health check sessions"
     );
 
 -- health_check_answers policies
+DROP POLICY IF EXISTS "Users can view their store's health check answers" ON health_check_answers;
 CREATE POLICY "Users can view their store's health check answers"
     ON health_check_answers FOR SELECT
     USING (
@@ -124,6 +143,7 @@ CREATE POLICY "Users can view their store's health check answers"
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert their store's health check answers" ON health_check_answers;
 CREATE POLICY "Users can insert their store's health check answers"
     ON health_check_answers FOR INSERT
     WITH CHECK (
@@ -133,6 +153,7 @@ CREATE POLICY "Users can insert their store's health check answers"
         )
     );
 
+DROP POLICY IF EXISTS "Users can update their store's health check answers" ON health_check_answers;
 CREATE POLICY "Users can update their store's health check answers"
     ON health_check_answers FOR UPDATE
     USING (
@@ -143,6 +164,7 @@ CREATE POLICY "Users can update their store's health check answers"
     );
 
 -- health_check_results policies
+DROP POLICY IF EXISTS "Users can view their store's health check results" ON health_check_results;
 CREATE POLICY "Users can view their store's health check results"
     ON health_check_results FOR SELECT
     USING (
@@ -152,6 +174,7 @@ CREATE POLICY "Users can view their store's health check results"
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert their store's health check results" ON health_check_results;
 CREATE POLICY "Users can insert their store's health check results"
     ON health_check_results FOR INSERT
     WITH CHECK (
@@ -161,6 +184,7 @@ CREATE POLICY "Users can insert their store's health check results"
         )
     );
 
+DROP POLICY IF EXISTS "Users can update their store's health check results" ON health_check_results;
 CREATE POLICY "Users can update their store's health check results"
     ON health_check_results FOR UPDATE
     USING (

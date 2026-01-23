@@ -25,7 +25,7 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> tuple[Op
     
     Args:
         store_id: 매장 ID
-        check_type: 검진 유형 ('ad-hoc' | 'regular' | 'periodic')
+        check_type: 검진 유형 ('ad-hoc' | 'regular' | 'periodic' | 'monthly')
     
     Returns:
         (session_id, error_message) 튜플
@@ -68,6 +68,8 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> tuple[Op
             return None, "데이터베이스 권한 문제가 있습니다. RLS 정책을 확인해주세요."
         elif "foreign key" in error_msg.lower():
             return None, f"매장 ID({store_id})가 유효하지 않습니다."
+        elif "check constraint" in error_msg.lower() and "valid_check_type" in error_msg.lower():
+            return None, f"검진 유형 '{check_type}'이 허용되지 않습니다. 허용된 값: 'ad-hoc', 'regular', 'periodic', 'monthly'. SQL 제약조건을 업데이트해주세요."
         else:
             return None, f"세션 생성 중 오류가 발생했습니다: {error_msg}"
 
