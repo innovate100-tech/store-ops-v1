@@ -16,15 +16,23 @@ from ui_pages.home.home_data import (
     detect_data_level,
     detect_owner_day_level,
 )
-from ui_pages.home.home_rules import get_problems_top3, get_good_points_top3
-from ui_pages.home.home_alerts import get_anomaly_signals
+from ui_pages.home.home_rules import (
+    get_problems_top1,
+    get_good_points_top1,
+    get_problems_top3,
+    get_good_points_top3,
+)
+from ui_pages.home.home_alerts import get_anomaly_signals_light, get_anomaly_signals
 from ui_pages.home.home_lazy import get_store_financial_structure
 
 __all__ = [
     "render_home",
     "_render_home_body",
+    "get_problems_top1",
+    "get_good_points_top1",
     "get_problems_top3",
     "get_good_points_top3",
+    "get_anomaly_signals_light",
     "get_anomaly_signals",
     "get_coach_summary",
     "get_month_status_summary",

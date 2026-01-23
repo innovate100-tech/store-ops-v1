@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -23,8 +24,13 @@ from ui_pages.home.home_data import (
     detect_data_level,
     detect_owner_day_level,
 )
-from ui_pages.home.home_rules import get_problems_top3, get_good_points_top3
-from ui_pages.home.home_alerts import get_anomaly_signals
+from ui_pages.home.home_rules import (
+    get_problems_top1,
+    get_good_points_top1,
+    get_problems_top3,
+    get_good_points_top3,
+)
+from ui_pages.home.home_alerts import get_anomaly_signals_light, get_anomaly_signals
 from ui_pages.home.home_lazy import get_monthly_memos, render_lazy_insights, get_store_financial_structure
 
 logger = logging.getLogger(__name__)
@@ -169,12 +175,27 @@ def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mo
 
 def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     """통합 홈 렌더링. coaching_enabled=True면 coach_only 블록 표시."""
+    load_start = time.time()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
         return
     kst = ZoneInfo("Asia/Seoul")
     now = datetime.now(kst)
     year, month = now.year, now.month
+    
+    # 새로고침 버튼 (캐시 무효화)
+    render_page_header("사장 계기판", "🏠")
+    col_refresh, _ = st.columns([1, 5])
+    with col_refresh:
+        if st.button("🔄 새로고침", key="home_btn_refresh", use_container_width=True):
+            try:
+                st.cache_data.clear()
+                st.cache_resource.clear()
+                logger.info("홈 캐시 무효화 완료")
+                st.rerun()
+            except Exception as e:
+                logger.error(f"캐시 무효화 실패: {e}")
+    
     data_level = detect_data_level(store_id)
     st.session_state["home_data_level"] = data_level
     day_level = detect_owner_day_level(store_id)
@@ -185,8 +206,9 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     avg_customer_spend = kpis["avg_customer_spend"]
     monthly_profit = kpis["monthly_profit"]
     closed_days, total_days, close_rate, streak_days = close_stats
-
-    render_page_header("사장 계기판", "🏠")
+    
+    load_time = time.time() - load_start
+    logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id}, coaching_enabled={coaching_enabled})")
 
     if coaching_enabled and day_level:
         try:
@@ -364,57 +386,93 @@ def _render_coach_missions(store_id: str, year: int, month: int, kpis: dict) -> 
 
 
 def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
-    st.markdown("### 🔴 문제 TOP3 / 🟢 잘한 점 TOP3")
+    """문제/잘한 점 TOP1 표시 + 자세히 보기 버튼 (TOP3 lazy load)."""
+    st.markdown("### 🔴 문제 / 🟢 잘한 점")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### 🔴 문제 TOP3")
+        st.markdown("#### 🔴 문제")
         try:
-            problems = get_problems_top3(store_id)
+            # 경량 버전: TOP1만 계산
+            problems = get_problems_top1(store_id)
             if not problems:
                 st.warning("아직 분석할 데이터가 충분하지 않습니다.")
                 if st.button("📋 점장 마감 시작하기", key="home_btn_pf", use_container_width=True):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             else:
-                for i, p in enumerate(problems, 1):
-                    t = p.get("text", "")
-                    g = ""
-                    if coaching_enabled:
-                        if "매출" in t and ("감소" in t or "떨어" in t):
-                            g = "<div style='color:#856404;font-size:0.85rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
-                        elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
-                            g = "<div style='color:#856404;font-size:0.85rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
-                        elif "메뉴" in t and "50%" in t:
-                            g = "<div style='color:#856404;font-size:0.85rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
-                    st.markdown(f"""<div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24;">{i}. {t}</div>{g}</div>""", unsafe_allow_html=True)
-                    if st.button("보러가기", key=f"home_btn_p_{i}", use_container_width=True):
-                        st.session_state["current_page"] = p.get("target_page", "점장 마감")
-                        st.rerun()
+                p = problems[0]
+                t = p.get("text", "")
+                g = ""
+                if coaching_enabled:
+                    if "매출" in t and ("감소" in t or "떨어" in t):
+                        g = "<div style='color:#856404;font-size:0.85rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                    elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
+                        g = "<div style='color:#856404;font-size:0.85rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                    elif "메뉴" in t and "50%" in t:
+                        g = "<div style='color:#856404;font-size:0.85rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
+                st.markdown(f"""<div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24;">{t}</div>{g}</div>""", unsafe_allow_html=True)
+                if st.button("보러가기", key="home_btn_p_1", use_container_width=True):
+                    st.session_state["current_page"] = p.get("target_page", "점장 마감")
+                    st.rerun()
+                # 자세히 보기 버튼
+                if st.button("📋 자세히 보기 (TOP3)", key="home_btn_p_detail", use_container_width=True):
+                    st.session_state["_home_problems_expanded"] = True
+                    st.rerun()
+            # TOP3 확장 영역
+            if st.session_state.get("_home_problems_expanded", False):
+                with st.expander("🔴 문제 TOP3 전체", expanded=True):
+                    if "_home_problems_top3" not in st.session_state:
+                        st.session_state["_home_problems_top3"] = get_problems_top3(store_id)
+                    problems_full = st.session_state["_home_problems_top3"]
+                    for i, p in enumerate(problems_full, 1):
+                        t = p.get("text", "")
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24;">{i}. {t}</div></div>""", unsafe_allow_html=True)
+                        if st.button("보러가기", key=f"home_btn_p_full_{i}", use_container_width=True):
+                            st.session_state["current_page"] = p.get("target_page", "점장 마감")
+                            st.rerun()
         except Exception:
             st.error("문제 분석 중 오류가 발생했습니다.")
     with col2:
-        st.markdown("#### 🟢 잘한 점 TOP3")
+        st.markdown("#### 🟢 잘한 점")
         try:
-            good = get_good_points_top3(store_id)
+            # 경량 버전: TOP1만 계산
+            good = get_good_points_top1(store_id)
             if not good:
                 st.warning("데이터가 쌓이면 자동 분석됩니다.")
                 if st.button("📋 점장 마감 시작하기", key="home_btn_gf", use_container_width=True):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             else:
-                for i, g in enumerate(good, 1):
-                    st.markdown(f"""<div style="padding: 1rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724;">{i}. {g.get('text','')}</div></div>""", unsafe_allow_html=True)
-                    if st.button("보러가기", key=f"home_btn_g_{i}", use_container_width=True):
-                        st.session_state["current_page"] = g.get("target_page", "점장 마감")
-                        st.rerun()
+                g = good[0]
+                st.markdown(f"""<div style="padding: 1rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724;">{g.get('text','')}</div></div>""", unsafe_allow_html=True)
+                if st.button("보러가기", key="home_btn_g_1", use_container_width=True):
+                    st.session_state["current_page"] = g.get("target_page", "점장 마감")
+                    st.rerun()
+                # 자세히 보기 버튼
+                if st.button("📋 자세히 보기 (TOP3)", key="home_btn_g_detail", use_container_width=True):
+                    st.session_state["_home_good_points_expanded"] = True
+                    st.rerun()
+            # TOP3 확장 영역
+            if st.session_state.get("_home_good_points_expanded", False):
+                with st.expander("🟢 잘한 점 TOP3 전체", expanded=True):
+                    if "_home_good_points_top3" not in st.session_state:
+                        st.session_state["_home_good_points_top3"] = get_good_points_top3(store_id)
+                    good_full = st.session_state["_home_good_points_top3"]
+                    for i, g in enumerate(good_full, 1):
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724;">{i}. {g.get('text','')}</div></div>""", unsafe_allow_html=True)
+                        if st.button("보러가기", key=f"home_btn_g_full_{i}", use_container_width=True):
+                            st.session_state["current_page"] = g.get("target_page", "점장 마감")
+                            st.rerun()
         except Exception:
             st.error("잘한 점 분석 중 오류가 발생했습니다.")
 
 
 def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
+    """이상 징후 경량 버전 (1-2개) + 자세히 보기 버튼 (전체 3개 lazy load)."""
     st.markdown("### ⚠️ 이상 징후")
     try:
-        signals = get_anomaly_signals(store_id)
+        # 경량 버전: 1-2개만 계산
+        signals = get_anomaly_signals_light(store_id)
         if not signals:
             st.success("현재 감지된 이상 징후가 없습니다. 정상 범위로 보입니다.")
         else:
@@ -432,6 +490,25 @@ def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
                 if st.button("보러가기", key=f"home_btn_a_{i}", use_container_width=True):
                     st.session_state["current_page"] = s.get("target_page", "점장 마감")
                     st.rerun()
+            # 자세히 보기 버튼
+            if st.button("📋 자세히 보기 (전체)", key="home_btn_a_detail", use_container_width=True):
+                st.session_state["_home_anomaly_expanded"] = True
+                st.rerun()
+        # 전체 확장 영역
+        if st.session_state.get("_home_anomaly_expanded", False):
+            with st.expander("⚠️ 이상 징후 전체 (최대 3개)", expanded=True):
+                if "_home_anomaly_full" not in st.session_state:
+                    st.session_state["_home_anomaly_full"] = get_anomaly_signals(store_id)
+                signals_full = st.session_state["_home_anomaly_full"]
+                if not signals_full:
+                    st.info("추가 이상 징후가 없습니다.")
+                else:
+                    for i, s in enumerate(signals_full, 1):
+                        t = s.get("text", "")
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;"><span style="font-size:1.2rem;">{s.get('icon','')}</span> <strong>{t}</strong></div>""", unsafe_allow_html=True)
+                        if st.button("보러가기", key=f"home_btn_a_full_{i}", use_container_width=True):
+                            st.session_state["current_page"] = s.get("target_page", "점장 마감")
+                            st.rerun()
     except Exception:
         st.error("이상 징후 분석 중 오류가 발생했습니다.")
 

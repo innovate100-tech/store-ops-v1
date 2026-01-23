@@ -1,6 +1,7 @@
 """
 홈 이상 징후 (룰 기반)
-- get_anomaly_signals
+- get_anomaly_signals_light: 경량 버전 (1-2개만)
+- get_anomaly_signals: 전체 버전 (최대 3개)
 """
 from __future__ import annotations
 
@@ -8,6 +9,63 @@ from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 
 from src.auth import get_supabase_client
+
+
+def get_anomaly_signals_light(store_id: str) -> list:
+    """
+    이상 징후 경량 버전 (1-2개만, 홈 최초 진입용)
+    Returns: [{"icon": str, "text": str, "target_page": str}, ...] 최대 2개
+    """
+    signals = []
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return []
+        kst = ZoneInfo("Asia/Seoul")
+        today = datetime.now(kst).date()
+        seven_ago = today - timedelta(days=7)
+        sales_recent = supabase.table("sales").select("date, total_sales").eq("store_id", store_id).gte(
+            "date", seven_ago.isoformat()
+        ).lte("date", today.isoformat()).order("date", desc=False).execute()
+        sales_data = {}
+        if sales_recent.data:
+            for row in sales_recent.data:
+                d = row.get("date")
+                t = float(row.get("total_sales", 0) or 0)
+                if d and t > 0:
+                    sales_data[d] = t
+        if len(sales_data) >= 3:
+            recent_dates = sorted(sales_data.keys())[-3:]
+            recent_values = [sales_data[d] for d in recent_dates]
+            if len(recent_values) == 3 and recent_values[0] > recent_values[1] > recent_values[2]:
+                signals.append({"icon": "📉", "text": "최근 3일 연속 매출이 감소하고 있습니다.", "target_page": "매출 관리"})
+                if len(signals) >= 2:
+                    return signals[:2]
+        expected = set()
+        d = seven_ago
+        while d <= today:
+            expected.add(d.isoformat())
+            d += timedelta(days=1)
+        missing = expected - set(sales_data.keys())
+        if len(missing) >= 2:
+            signals.append({"icon": "⚠️", "text": "최근 7일 중 매출이 입력되지 않은 날이 2일 이상 있습니다.", "target_page": "매출 관리"})
+            if len(signals) >= 2:
+                return signals[:2]
+        dc = supabase.table("daily_close").select("date").eq("store_id", store_id).gte(
+            "date", (today - timedelta(days=3)).isoformat()
+        ).lte("date", today.isoformat()).execute()
+        closed = {r["date"] for r in (dc.data or []) if r.get("date")}
+        missing_close = 0
+        d = today - timedelta(days=2)
+        while d <= today:
+            if d.isoformat() not in closed:
+                missing_close += 1
+            d += timedelta(days=1)
+        if missing_close >= 3:
+            signals.append({"icon": "⏰", "text": "최근 3일 연속 마감이 없습니다.", "target_page": "점장 마감"})
+        return signals[:2]
+    except Exception:
+        return []
 
 
 def get_anomaly_signals(store_id: str) -> list:
