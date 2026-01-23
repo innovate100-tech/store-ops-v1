@@ -139,45 +139,18 @@ def _render_evidence_section(evidence: list):
 
 
 def _render_strategy_cards_section(cards: list):
-    """섹션 2: 전략 카드 TOP3"""
+    """섹션 2: 전략 카드 TOP3 (v4 포맷)"""
     st.markdown("### 🎯 전략 카드 TOP3")
     
     if not cards:
         st.info("전략 카드를 생성할 수 없습니다.")
         return
     
+    # v4 공통 컴포넌트 사용
+    from ui_pages.common.strategy_card_v4 import render_strategy_card_v4
+    
     for card in cards:
-        rank = card.get("rank", 0)
-        title = card.get("title", "")
-        goal = card.get("goal", "")
-        why = card.get("why", "")
-        evidence_list = card.get("evidence", [])
-        cta = card.get("cta", {})
-        
-        with st.container():
-            st.markdown(f"#### {rank}. {title}")
-            st.markdown(f"**목표**: {goal}")
-            st.markdown(f"**이유**: {why}")
-            
-            if evidence_list:
-                st.markdown("**근거**:")
-                for ev in evidence_list:
-                    st.markdown(f"- {ev}")
-            
-            # CTA 버튼
-            cta_label = cta.get("label", "실행하기")
-            cta_page = cta.get("page", "")
-            if cta_page:
-                if st.button(cta_label, key=f"strategy_card_{rank}_cta", use_container_width=True):
-                    st.session_state["current_page"] = cta_page
-                    # params 전달 (tab 등)
-                    params = cta.get("params", {})
-                    if params:
-                        for key, value in params.items():
-                            st.session_state[f"_strategy_param_{key}"] = value
-                    st.rerun()
-            
-            st.divider()
+        render_strategy_card_v4(card)
 
 
 def _render_roadmap_section(roadmap: list):

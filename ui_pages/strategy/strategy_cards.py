@@ -1,11 +1,12 @@
 """
 전략 카드 TOP3 생성 엔진 v1
 - 10-7A의 가게 상태 분류 결과 + 설계/매출 신호를 이용해서 전략 카드 3장 생성
+- v4: 건강검진 통합 + Impact/Action Plan 추가
 """
 from __future__ import annotations
 
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional
 
@@ -667,7 +668,113 @@ def _build_strategy_cards_v4(
         if health_profile.get("exists"):
             debug["rules_fired"].append("건강검진 가중치 적용됨")
         
-        # 6. v1 형식으로 변환
+        # 6. Impact 및 Action Plan 계산
+        from src.strategy.impact_engine import estimate_impact
+        from src.strategy.action_plan_engine import build_action_plan
+        
+        # 컨텍스트 확장 (impact/action_plan 계산용)
+        # KPI 추가 로드
+        from datetime import date, timedelta
+        from zoneinfo import ZoneInfo
+        kst = ZoneInfo("Asia/Seoul")
+        now = datetime.now(kst)
+        today = now.date()
+        yesterday = today - timedelta(days=1)
+        
+        # 어제 매출
+        yesterday_sales = 0
+        try:
+            from src.storage_supabase import load_best_available_daily_sales
+            yesterday_df = load_best_available_daily_sales(
+                store_id=store_id,
+                start_date=yesterday.isoformat(),
+                end_date=yesterday.isoformat()
+            )
+            if not yesterday_df.empty and 'total_sales' in yesterday_df.columns:
+                yesterday_sales = int(float(yesterday_df.iloc[0]['total_sales'] or 0))
+        except Exception:
+            pass
+        
+        # 방문자 데이터 (간단히)
+        visitors_mtd = 0
+        sales_per_visitor = 0
+        try:
+            from src.auth import get_supabase_client
+            supabase = get_supabase_client()
+            if supabase:
+                # MTD 방문자 합계
+                month_start = date(year, month, 1)
+                if month == 12:
+                    month_end = date(year + 1, 1, 1)
+                else:
+                    month_end = date(year, month + 1, 1)
+                
+                visitors_result = supabase.table("naver_visitors").select("visitors").eq(
+                    "store_id", store_id
+                ).gte("date", month_start.isoformat()).lt("date", month_end.isoformat()).execute()
+                
+                if visitors_result.data:
+                    visitors_mtd = sum(int(r.get("visitors", 0)) for r in visitors_result.data)
+                    if visitors_mtd > 0 and monthly_sales > 0:
+                        sales_per_visitor = monthly_sales / visitors_mtd
+        except Exception:
+            pass
+        
+        # 경과 일수 계산 (MTD 매출 추정용)
+        if now.year == year and now.month == month:
+            month_start_date = date(year, month, 1)
+            elapsed_days = max(1, (today - month_start_date).days + 1)
+        else:
+            elapsed_days = 30
+        
+        full_context = {
+            "store_id": store_id,
+            "period": {"year": year, "month": month},
+            "kpi": {
+                "mtd_sales": monthly_sales,
+                "avg_daily_sales": monthly_sales / elapsed_days if elapsed_days > 0 else 0,
+                "yesterday_sales": yesterday_sales,
+                "visitors_mtd": visitors_mtd,
+                "sales_per_visitor": sales_per_visitor
+            },
+            "revenue": {
+                "break_even_sales": break_even,
+                "break_even_gap_ratio": break_even_gap_ratio,
+                "variable_cost_rate": None,  # impact_engine에서 계산
+                "fixed_cost": None
+            },
+            "menu": {
+                "avg_food_cost_rate": None,
+                "high_cost_menu_count": menu_portfolio.get("high_cogs_ratio_menu_count", 0),
+                "margin_menu_ratio": margin_menu_ratio
+            },
+            "ingredient": {
+                "top3_cost_concentration_pct": ingredient_concentration * 100 if ingredient_concentration else None
+            },
+            "health": health_profile
+        }
+        
+        # 각 전략에 impact와 action_plan 추가
+        for strategy in final_strategies:
+            strategy_type = strategy.get("type", "")
+            
+            # Impact 계산
+            try:
+                impact = estimate_impact(strategy_type, full_context)
+                strategy["impact"] = impact
+            except Exception as e:
+                debug["notes"].append(f"Impact 계산 오류 ({strategy_type}): {str(e)}")
+                strategy["impact"] = {"won": None, "kind": "indirect", "assumptions": ["계산 오류"], "confidence": 0.3}
+            
+            # Action Plan 생성
+            try:
+                action_plan = build_action_plan(strategy_type, full_context)
+                strategy["action_plan"] = action_plan
+            except Exception as e:
+                debug["notes"].append(f"Action Plan 생성 오류 ({strategy_type}): {str(e)}")
+                strategy["action_plan"] = _get_empty_action_plan()
+        
+        # 7. v1 형식으로 변환
         cards = []
         for idx, strategy in enumerate(final_strategies[:3], 1):
             card = {
@@ -680,7 +787,10 @@ def _build_strategy_cards_v4(
                     "label": strategy.get("cta", {}).get("label", "실행하기"),
                     "page": strategy.get("cta", {}).get("page_key", ""),
                     "params": strategy.get("cta", {}).get("params", {})
-                }
+                },
+                "impact": strategy.get("impact", {}),
+                "action_plan": strategy.get("action_plan", {}),
+                "success_prob": strategy.get("success_prob", 0.55)
             }
             cards.append(card)
         
@@ -787,6 +897,17 @@ def _build_strategy_cards_v1_fallback(
     except Exception as e:
         debug["notes"].append(f"v1 fallback 오류: {str(e)}")
         return _get_empty_cards(year, month, debug)
+
+
+def _get_empty_action_plan() -> Dict:
+    """빈 action plan 반환"""
+    return {
+        "time_horizon": "1주",
+        "difficulty": "중간",
+        "steps": [],
+        "watchouts": [],
+        "required_pages": []
+    }
 
 
 def _select_top3_cards(candidate_cards: List[tuple], debug: Dict) -> List[Dict]:

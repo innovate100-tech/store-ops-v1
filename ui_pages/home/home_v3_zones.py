@@ -53,10 +53,15 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
         # 2순위: 전략 카드 1순위
         elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
             first_card = cards_result["cards"][0]
+            impact = first_card.get("impact", {})
+            action_plan = first_card.get("action_plan", {})
+            
             today_action = {
                 "task": first_card.get("title", "가게 설계 센터부터 시작"),
                 "why": first_card.get("why", ""),
-                "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}})
+                "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}}),
+                "impact": impact,
+                "action_plan": action_plan
             }
             action_title = today_action["task"]
             action_cta = today_action["cta"]
@@ -99,17 +104,34 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     if not evidence_line or evidence_line.strip() == "":
         evidence_line = "데이터 수집 중"
     
-    # 메인 카드 표시 (더 확실하게 표시되도록)
-    # 먼저 간단한 텍스트로 표시 확인
-    st.markdown(f"**오늘은 '{action_title}'부터 하세요.**")
-    st.markdown(f"*{evidence_line}*")
-    st.markdown("---")
+    # 메인 카드 표시 (v4 포맷: impact 포함)
+    impact_info = ""
+    if today_action and "impact" in today_action:
+        impact = today_action.get("impact", {})
+        won = impact.get("won")
+        if won is not None and won > 0:
+            kind = impact.get("kind", "profit_up")
+            kind_label = "예상 이익" if kind == "profit_up" else "리스크 회피" if kind == "risk_avoid" else "간접효과"
+            confidence = impact.get("confidence", 0.5)
+            impact_info = f"""
+            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.15); border-radius: 8px;">
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.3rem;">💰 {kind_label}</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">+{won:,}원/월</div>
+                <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.3rem;">신뢰도 {confidence*100:.0f}%</div>
+            </div>
+            """
+        elif won is None:
+            impact_info = """
+            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.15); border-radius: 8px;">
+                <div style="font-size: 0.9rem; opacity: 0.9;">💡 간접효과 (정량화 어려움)</div>
+            </div>
+            """
     
-    # 그 다음 스타일 카드 표시
     st.markdown(f"""
     <div style="padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); margin-bottom: 1rem;">
         <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700;">오늘은 '{action_title}'부터 하세요.</h3>
         <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 1rem; line-height: 1.6;">{evidence_line}</p>
+        {impact_info}
     </div>
     """, unsafe_allow_html=True)
     
@@ -135,69 +157,24 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
 
 
 def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None:
-    """ZONE 1: 이번 달 가게 전략 요약"""
+    """ZONE 1: 이번 달 가게 전략 요약 (v4 포맷: 전략 6개 카드)"""
     st.markdown("### 🧭 이번 달 가게 전략")
     
     try:
-        # 전략 데이터 로드
+        # 전략 데이터 로드 (v4 엔진 사용)
         state_result = classify_store_state(store_id, year, month)
-        cards_result = build_strategy_cards(store_id, year, month, state_payload=state_result)
+        cards_result = build_strategy_cards(store_id, year, month, state_payload=state_result, use_v4=True)
         
         store_state = state_result.get("state", {})
         cards = cards_result.get("cards", [])
         
-        # 카드 3개 표시
-        col1, col2, col3 = st.columns(3, gap="medium")
-        
-        with col1:
-            # 가게 상태
-            state_code = store_state.get("code", "unknown")
-            state_label = store_state.get("label", "상태 미확인")
-            color_map = {
-                "survival": "🔴",
-                "recovery": "🟡",
-                "restructure": "🟠",
-                "growth": "🟢",
-                "unknown": "⚪"
-            }
-            emoji = color_map.get(state_code, "⚪")
-            st.markdown(f"""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border-left: 4px solid #17a2b8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">가게 상태</div>
-                <div style="font-size: 1.5rem; font-weight: 700; color: #495057;">{emoji} {state_label}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            # 메인 전략
-            main_strategy = "전략 수립 중" if not cards else cards[0].get("title", "전략 수립 중")
-            st.markdown(f"""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border-left: 4px solid #17a2b8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">메인 전략</div>
-                <div style="font-size: 1rem; font-weight: 600; color: #495057; line-height: 1.4;">{main_strategy}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            # 가장 위험한 구조
-            design_state = get_design_state(store_id, year, month)
-            risk_areas = []
-            if design_state.get("menu_portfolio", {}).get("status") == "risk":
-                risk_areas.append("메뉴")
-            if design_state.get("menu_profit", {}).get("status") == "risk":
-                risk_areas.append("메뉴수익")
-            if design_state.get("ingredient_structure", {}).get("status") == "risk":
-                risk_areas.append("재료")
-            if design_state.get("revenue_structure", {}).get("status") == "risk":
-                risk_areas.append("수익")
-            
-            risk_text = risk_areas[0] if risk_areas else "없음"
-            st.markdown(f"""
-            <div style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border-left: 4px solid #17a2b8; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">가장 위험한 구조</div>
-                <div style="font-size: 1rem; font-weight: 600; color: #495057;">{risk_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # 전략 6개 카드 표시 (v4 포맷)
+        if cards:
+            from ui_pages.common.strategy_card_v4 import render_strategy_card_v4
+            for card in cards[:6]:  # 최대 6개
+                render_strategy_card_v4(card)
+        else:
+            st.info("전략 카드를 생성할 수 없습니다.")
         
         # 버튼
         col_btn1, col_btn2 = st.columns(2)
@@ -209,6 +186,7 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
             if st.button("가게 설계 센터", use_container_width=True, key="zone1_to_design_center"):
                 st.session_state["current_page"] = "가게 설계 센터"
                 st.rerun()
+        
     
     except Exception as e:
         st.info("전략 요약을 불러오는 중입니다.")
