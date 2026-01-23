@@ -13,8 +13,8 @@ bootstrap(page_title="Recipe Management")
 
 
 def render_recipe_management():
-    """레시피 등록 페이지 렌더링"""
-    render_page_header("레시피 등록", "📝")
+    """레시피 입력 페이지 렌더링 (입력 전용)"""
+    render_page_header("🧑‍🍳 레시피 입력", "🧑‍🍳")
     
     # 메뉴 및 재료 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])

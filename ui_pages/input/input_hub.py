@@ -328,26 +328,26 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**📘 메뉴 관리**")
-        st.caption("가게의 모든 메뉴를 등록하고 관리합니다")
-        if st.button("📘 메뉴 관리", use_container_width=True, type="primary", key="input_hub_menu_management"):
-            st.session_state["current_page"] = "메뉴 등록"  # page key 유지
+        st.markdown("**📘 메뉴 입력**")
+        st.caption("가게의 모든 메뉴를 등록합니다")
+        if st.button("📘 메뉴 입력", use_container_width=True, type="primary", key="input_hub_menu_input"):
+            st.session_state["current_page"] = "메뉴 입력"  # page key 변경
             st.rerun()
     
     with col2:
-        st.markdown("**🧺 재료 관리**")
-        st.caption("사용하는 모든 재료를 등록하고 관리합니다")
-        if st.button("🧺 재료 관리", use_container_width=True, type="primary", key="input_hub_ingredient_management"):
-            st.session_state["current_page"] = "재료 등록"  # page key 유지
+        st.markdown("**🧺 재료 입력**")
+        st.caption("사용하는 모든 재료를 등록합니다")
+        if st.button("🧺 재료 입력", use_container_width=True, type="primary", key="input_hub_ingredient_input"):
+            st.session_state["current_page"] = "재료 입력"  # page key 변경
             st.rerun()
     
     col3, col4 = st.columns(2)
     
     with col3:
-        st.markdown("**🧑‍🍳 레시피 관리**")
-        st.caption("메뉴별 레시피와 원가를 관리합니다")
-        if st.button("🧑‍🍳 레시피 관리", use_container_width=True, type="primary", key="input_hub_recipe_management"):
-            st.session_state["current_page"] = "레시피 등록"  # page key 유지
+        st.markdown("**🧑‍🍳 레시피 입력**")
+        st.caption("메뉴별 레시피와 원가를 등록합니다")
+        if st.button("🧑‍🍳 레시피 입력", use_container_width=True, type="primary", key="input_hub_recipe_input"):
+            st.session_state["current_page"] = "레시피 입력"  # page key 변경
             st.rerun()
     
     # 재고 관리는 향후 추가 예정 (현재 라우팅 없음)

@@ -1524,9 +1524,9 @@ with st.sidebar:
             ("월간 정산", "실제정산"),  # page key 유지
             ("목표 매출 구조", "목표 매출구조"),  # page key 유지
             ("목표 비용 구조", "목표 비용구조"),  # page key 유지
-            ("메뉴 관리", "메뉴 등록"),  # page key 유지
-            ("재료 관리", "재료 등록"),  # page key 유지
-            ("레시피 관리", "레시피 등록"),  # page key 유지
+            ("메뉴 입력", "메뉴 입력"),  # 라벨 변경, page key 변경
+            ("재료 입력", "재료 입력"),  # 라벨 변경, page key 변경
+            ("레시피 입력", "레시피 입력"),  # 라벨 변경, page key 변경
             # ("재고 관리", "재고 관리"),  # 향후 추가 예정 (현재 라우팅 없음)
             ("매출 등록(과거/수정)", "매출 등록"),  # page key 유지
             ("판매량 등록(과거/수정)", "판매량 등록"),  # page key 유지
@@ -1796,18 +1796,21 @@ elif page == "매출 관리":
     from ui_pages.sales_management import render_sales_management
     render_sales_management()
 
-# 메뉴 등록 페이지
-elif page == "메뉴 등록":
-    from ui_pages.menu_management import render_menu_management
-    render_menu_management()
+# 메뉴 입력 페이지 (입력 전용)
+elif page == "메뉴 입력":
+    from ui_pages.input.menu_input import render_menu_input_page
+    render_menu_input_page()
 
-# 재료 등록 페이지
-elif page == "재료 등록":
-    from ui_pages.ingredient_management import render_ingredient_management
-    render_ingredient_management()
+# 재료 입력 페이지 (입력 전용)
+elif page == "재료 입력":
+    from ui_pages.input.ingredient_input import render_ingredient_input_page
+    render_ingredient_input_page()
 
-# 레시피 등록 페이지
-elif page == "레시피 등록":
+# 레시피 입력 페이지 (입력 전용)
+elif page == "레시피 입력":
+    from ui_pages.recipe_management import render_recipe_management
+    # 헤더만 변경하고 기존 함수 재사용
+    render_recipe_management()
     render_page_header("레시피 등록", "📝")
     
     # 메뉴 및 재료 목록 로드
