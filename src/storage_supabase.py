@@ -344,17 +344,7 @@ def hard_clear_all(reason: str = "unknown"):
         load_expense_structure.clear()
         load_key_menus.clear()
         
-        # dashboard.py의 compute 캐시도 무효화
-        try:
-            import ui_pages.dashboard as dashboard_module
-            if hasattr(dashboard_module, 'compute_merged_sales_visitors'):
-                dashboard_module.compute_merged_sales_visitors.clear()
-            if hasattr(dashboard_module, 'compute_monthly_summary'):
-                dashboard_module.compute_monthly_summary.clear()
-            if hasattr(dashboard_module, 'compute_menu_sales_summary'):
-                dashboard_module.compute_menu_sales_summary.clear()
-        except Exception:
-            pass
+        # dashboard.py는 퇴역되었으므로 캐시 무효화 제거됨
         
         # 세션 캐시 전체 정리 (ss_로 시작하는 키들)
         keys_to_remove = [key for key in st.session_state.keys() if key.startswith('ss_')]
@@ -529,17 +519,7 @@ def invalidate_read_caches(table_name: str = None):
             load_expense_structure.clear()
             load_key_menus.clear()
         
-        # dashboard.py의 compute 캐시도 무효화
-        try:
-            import ui_pages.dashboard as dashboard_module
-            if hasattr(dashboard_module, 'compute_merged_sales_visitors'):
-                dashboard_module.compute_merged_sales_visitors.clear()
-            if hasattr(dashboard_module, 'compute_monthly_summary'):
-                dashboard_module.compute_monthly_summary.clear()
-            if hasattr(dashboard_module, 'compute_menu_sales_summary'):
-                dashboard_module.compute_menu_sales_summary.clear()
-        except Exception:
-            pass  # dashboard 모듈이 없거나 함수가 없으면 무시
+        # dashboard.py는 퇴역되었으므로 캐시 무효화 제거됨
     except Exception:
         pass
 
