@@ -16,6 +16,7 @@ from typing import Tuple, Optional, Dict
 from src.auth import get_supabase_client
 from src.storage_supabase import load_monthly_sales_total, load_monthly_settlement_snapshot, count_unofficial_days_in_month
 from src.health_check.health_integration import get_health_diag_for_home
+from src.ui_helpers import safe_get_value
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -117,14 +118,14 @@ def load_home_kpis(store_id: str, year: int, month: int) -> dict:
             from src.storage_supabase import load_best_available_daily_sales
             yesterday_best = load_best_available_daily_sales(store_id=store_id, start_date=yesterday.isoformat(), end_date=yesterday.isoformat())
             if not yesterday_best.empty and 'total_sales' in yesterday_best.columns:
-                out["yesterday_sales"] = int(float(yesterday_best.iloc[0]['total_sales'] or 0))
+                out["yesterday_sales"] = int(float(safe_get_value(yesterday_best, 'total_sales', 0) or 0))
             else:
                 # 어제 데이터가 없으면 최근 best_available 매출 조회
                 recent_best = load_best_available_daily_sales(store_id=store_id, start_date=(today - timedelta(days=7)).isoformat(), end_date=(today - timedelta(days=1)).isoformat())
                 if not recent_best.empty and 'total_sales' in recent_best.columns:
                     # 최근 날짜의 매출 사용
                     recent_best = recent_best.sort_values('date', ascending=False)
-                    out["yesterday_sales"] = int(float(recent_best.iloc[0]['total_sales'] or 0))
+                    out["yesterday_sales"] = int(float(safe_get_value(recent_best, 'total_sales', 0) or 0))
 
             # 유입당 매출 계산 (네이버방문자 기준)
             if monthly_sales and monthly_sales > 0:

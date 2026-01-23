@@ -19,6 +19,7 @@ from src.storage_supabase import (
 from src.auth import get_supabase_client
 from ui_pages.design_lab.design_insights import get_design_insights
 from ui_pages.design_lab.design_state_loader import get_design_state, get_primary_risk_area
+from src.ui_helpers import safe_get_value, safe_get_row_by_condition
 
 
 def get_coach_verdict(store_id: str, year: int, month: int, monthly_sales: int) -> dict:
@@ -253,7 +254,7 @@ def _check_menu_profit_risk(store_id: str, year: int, month: int, monthly_sales:
                 usage = float(recipe_row.get('사용량', 0) or 0)
                 ing_info = ingredient_df[ingredient_df['재료명'] == ing_name]
                 if not ing_info.empty:
-                    unit_price = float(ing_info.iloc[0].get('단가', 0) or 0)
+                    unit_price = float(safe_get_value(ing_info, '단가', 0) or 0)
                     total_cost += usage * unit_price
             menu_costs[menu_name] = total_cost
         
@@ -264,7 +265,7 @@ def _check_menu_profit_risk(store_id: str, year: int, month: int, monthly_sales:
         for menu_name, cost in menu_costs.items():
             menu_info = menu_df[menu_df['메뉴명'] == menu_name]
             if not menu_info.empty:
-                price = float(menu_info.iloc[0].get('판매가', 0) or 0)
+                price = float(safe_get_value(menu_info, '판매가', 0) or 0)
                 if price > 0:
                     cost_rate = (cost / price * 100)
                     contribution = price - cost
@@ -375,7 +376,7 @@ def _check_ingredient_structure_risk(store_id: str, year: int, month: int) -> di
                     menu_df = load_csv('menu_master.csv', store_id=store_id, default_columns=['id', '메뉴명'])
                     menu_info = menu_df[menu_df['id'] == str(menu_id)]
                     if not menu_info.empty:
-                        menu_name = menu_info.iloc[0].get('메뉴명', '')
+                        menu_name = safe_get_value(menu_info, '메뉴명', '')
             
             if menu_name:
                 qty = float(item.get('qty', 0) or 0)

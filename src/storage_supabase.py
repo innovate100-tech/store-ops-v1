@@ -1207,8 +1207,8 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
         # Phase G: load_monthly_sales_total 캐시도 무효화 (매출 저장 시 월합계도 갱신 필요)
         try:
             load_monthly_sales_total.clear()
-        except Exception:
-            pass  # 함수가 없거나 에러 발생 시 무시
+        except Exception as e:
+            logger.warning(f"캐시 클리어 실패 (load_monthly_sales_total): {e}")  # 에러 삼킴 방지
         
         # S5: 매출 저장 직후 스냅샷 (dev_mode에서만)
         try:
@@ -1216,8 +1216,8 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
             if is_dev_mode():
                 from src.utils.boot_perf import snapshot_current_metrics
                 snapshot_current_metrics("S5: 매출 저장 직후 rerun")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"성능 스냅샷 실패 (비중요): {e}")  # 에러 삼킴 방지
         
         return True, conflict_info
     except Exception as e:

@@ -3,6 +3,7 @@
 """
 import pandas as pd
 import numpy as np
+from src.ui_helpers import safe_get_value, safe_get_row_by_condition
 
 
 def calculate_correlation(sales_df, visitors_df):
@@ -271,7 +272,9 @@ def optimize_order_by_supplier(order_df, suppliers_df, ingredient_suppliers_df):
         ]
         
         if not supplier_row.empty:
-            supplier_name = supplier_row.iloc[0]['공급업체명']
+            supplier_name = safe_get_value(supplier_row, '공급업체명', '')
+            if not supplier_name:
+                continue
             
             if supplier_name not in supplier_groups:
                 supplier_groups[supplier_name] = {
@@ -284,8 +287,8 @@ def optimize_order_by_supplier(order_df, suppliers_df, ingredient_suppliers_df):
             # 공급업체 정보 가져오기
             supplier_info = suppliers_df[suppliers_df['공급업체명'] == supplier_name]
             if not supplier_info.empty:
-                delivery_fee = supplier_info.iloc[0].get('배송비', 0) or 0
-                min_order = supplier_info.iloc[0].get('최소주문금액', 0) or 0
+                delivery_fee = safe_get_value(supplier_info, '배송비', 0) or 0
+                min_order = safe_get_value(supplier_info, '최소주문금액', 0) or 0
                 
                 supplier_groups[supplier_name]['delivery_fee'] = delivery_fee
                 supplier_groups[supplier_name]['min_order_amount'] = min_order
@@ -394,7 +397,7 @@ def calculate_inventory_turnover(ingredient_name, usage_df, inventory_df, days_p
     
     # 현재 재고
     inventory_row = inventory_df[inventory_df['재료명'] == ingredient_name]
-    current_stock = inventory_row.iloc[0]['현재고'] if not inventory_row.empty else 0
+    current_stock = safe_get_value(inventory_row, '현재고', 0) if not inventory_row.empty else 0
     
     # 평균 재고 보유일수
     days_on_hand = current_stock / avg_daily_usage if avg_daily_usage > 0 else 0
@@ -404,7 +407,7 @@ def calculate_inventory_turnover(ingredient_name, usage_df, inventory_df, days_p
     turnover_rate = annual_usage / current_stock if current_stock > 0 else 0
     
     # 최적 발주 빈도 (안전재고 고려)
-    safety_stock = inventory_row.iloc[0].get('안전재고', 0) if not inventory_row.empty else 0
+    safety_stock = safe_get_value(inventory_row, '안전재고', 0) if not inventory_row.empty else 0
     optimal_order_frequency = max(7, int(days_on_hand * 0.7))  # 재고 보유일수의 70%를 발주 주기로
     
     return {
@@ -542,10 +545,9 @@ def target_gap_analysis(sales_df, targets_df, cost_df, year, month, daily_sales_
     if target_data.empty:
         return None
     
-    target_row = target_data.iloc[0]
-    target_sales = target_row['목표매출']
-    target_cost_rate = target_row['목표원가율']
-    target_profit_rate = target_row['목표순이익률']
+    target_sales = safe_get_value(target_data, '목표매출', 0)
+    target_cost_rate = safe_get_value(target_data, '목표원가율', 0)
+    target_profit_rate = safe_get_value(target_data, '목표순이익률', 0)
     
     # 해당 월 매출 데이터 필터링
     sales_df['날짜'] = pd.to_datetime(sales_df['날짜'])

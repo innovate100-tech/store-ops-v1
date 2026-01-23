@@ -15,6 +15,7 @@ from src.storage_supabase import (
 )
 from src.analytics import calculate_menu_cost
 from src.auth import get_current_store_id, get_supabase_client
+from src.ui_helpers import safe_get_value, safe_get_row_by_condition
 
 
 def get_menu_design_coach_data(store_id: str) -> dict:
@@ -121,8 +122,8 @@ def get_ingredient_design_coach_data(store_id: str) -> dict:
             if not ingredient_df.empty and '단가' in ingredient_df.columns:
                 top_ingredient = ingredient_df.nlargest(1, '단가')
                 if not top_ingredient.empty:
-                    top_name = top_ingredient.iloc[0].get('재료명', '')
-                    top_price = top_ingredient.iloc[0].get('단가', 0)
+                    top_name = safe_get_value(top_ingredient, '재료명', '')
+                    top_price = safe_get_value(top_ingredient, '단가', 0)
                     cards.append({
                         "title": "최고 단가 재료",
                         "value": top_name[:10] if len(top_name) > 10 else top_name,
@@ -193,14 +194,15 @@ def get_menu_profit_design_coach_data(store_id: str) -> dict:
                 if not cost_df.empty:
                     max_cost_rate = cost_df['원가율'].max()
                     min_cost_rate = cost_df['원가율'].min()
-                    max_menu = cost_df[cost_df['원가율'] == max_cost_rate].iloc[0]
-                    min_menu = cost_df[cost_df['원가율'] == min_cost_rate].iloc[0]
+                    max_menu = safe_get_row_by_condition(cost_df, cost_df['원가율'] == max_cost_rate)
+                    min_menu = safe_get_row_by_condition(cost_df, cost_df['원가율'] == min_cost_rate)
                     
-                    cards.append({
-                        "title": "최고 원가율",
-                        "value": f"{max_cost_rate:.1f}%",
-                        "subtitle": max_menu.get('메뉴명', '')[:15]
-                    })
+                    if max_menu is not None and not max_menu.empty:
+                        cards.append({
+                            "title": "최고 원가율",
+                            "value": f"{max_cost_rate:.1f}%",
+                            "subtitle": (max_menu.get('메뉴명', '') or '')[:15]
+                        })
                     
                     cards.append({
                         "title": "최저 원가율",

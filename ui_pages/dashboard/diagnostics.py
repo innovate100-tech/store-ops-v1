@@ -35,7 +35,12 @@ def _show_query_diagnostics():
             st.write(f"- DataFrame columns: {list(menu_df.columns)}")
             if not menu_df.empty:
                 st.write("- 첫 row 샘플:")
-                st.json(menu_df.iloc[0].to_dict())
+                from src.ui_helpers import safe_get_first_row
+                first_row = safe_get_first_row(menu_df)
+                if first_row is not None and not first_row.empty:
+                    st.json(first_row.to_dict())
+                else:
+                    st.warning("⚠️ 첫 번째 행을 가져올 수 없습니다.")
             else:
                 st.warning("⚠️ 데이터가 비어있습니다.")
         except Exception as e:
@@ -90,7 +95,12 @@ def _show_query_diagnostics():
             st.write(f"- Row count: {len(expense_df)}")
             if not expense_df.empty:
                 st.write("- 첫 row 샘플:")
-                st.json(expense_df.iloc[0].to_dict())
+                from src.ui_helpers import safe_get_first_row
+                first_row = safe_get_first_row(expense_df)
+                if first_row is not None and not first_row.empty:
+                    st.json(first_row.to_dict())
+                else:
+                    st.warning("⚠️ 첫 번째 행을 가져올 수 없습니다.")
             else:
                 st.warning("⚠️ 데이터가 비어있습니다.")
         except Exception as e:
@@ -112,7 +122,12 @@ def _show_query_diagnostics():
             st.write(f"- 필터링 후 Row count (연도={current_year}, 월={current_month}): {len(filtered_df)}")
             if not filtered_df.empty:
                 st.write("- 첫 row 샘플:")
-                st.json(filtered_df.iloc[0].to_dict())
+                from src.ui_helpers import safe_get_first_row
+                first_row = safe_get_first_row(filtered_df)
+                if first_row is not None and not first_row.empty:
+                    st.json(first_row.to_dict())
+                else:
+                    st.warning("⚠️ 첫 번째 행을 가져올 수 없습니다.")
             else:
                 st.warning("⚠️ 필터링된 데이터가 비어있습니다.")
         except Exception as e:

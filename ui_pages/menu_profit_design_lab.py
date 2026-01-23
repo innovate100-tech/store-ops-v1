@@ -4,7 +4,7 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
-from src.ui_helpers import render_page_header, render_section_divider
+from src.ui_helpers import render_page_header, render_section_divider, safe_get_row_by_condition
 from src.storage_supabase import load_csv
 from src.analytics import calculate_menu_cost
 from ui_pages.design_lab.design_lab_frame import (
@@ -221,11 +221,14 @@ def _render_menu_profit_design_tools(cost_df: pd.DataFrame, menu_df: pd.DataFram
         selected_menu = st.selectbox("메뉴 선택", menu_list, key="menu_profit_simulator_menu")
         
         if selected_menu:
-            menu_info = cost_df[cost_df['메뉴명'] == selected_menu].iloc[0]
-            current_price = int(menu_info['판매가'])
-            current_cost = float(menu_info['원가'])
-            current_cost_rate = float(menu_info['원가율'])
-            current_contribution = float(menu_info['공헌이익'])
+            menu_info = safe_get_row_by_condition(cost_df, cost_df['메뉴명'] == selected_menu)
+            if menu_info is None or menu_info.empty:
+                st.warning("선택한 메뉴 정보를 찾을 수 없습니다.")
+                return
+            current_price = int(menu_info.get('판매가', 0) or 0)
+            current_cost = float(menu_info.get('원가', 0) or 0)
+            current_cost_rate = float(menu_info.get('원가율', 0) or 0)
+            current_contribution = float(menu_info.get('공헌이익', 0) or 0)
             
             col1, col2 = st.columns(2)
             with col1:

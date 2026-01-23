@@ -92,7 +92,8 @@ def compute_monthly_summary(store_id: str, start_date: dt.date, end_date: dt.dat
         sales_total = load_monthly_sales_total(store_id, year, month) if store_id else 0
         # 일평균 매출 계산을 위해 영업일수 필요
         visitors_row = visitors_summary[(visitors_summary['연도'] == year) & (visitors_summary['월'] == month)]
-        days_count = int(visitors_row['영업일수'].iloc[0]) if not visitors_row.empty else 0
+        from src.ui_helpers import safe_get_value
+        days_count = int(safe_get_value(visitors_row, '영업일수', 0)) if not visitors_row.empty else 0
         avg_daily_sales = sales_total / days_count if days_count > 0 else 0
         monthly_sales_list.append({
             '연도': year,

@@ -10,7 +10,7 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 
 # Phase G: 로깅 설정
 logger = logging.getLogger(__name__)
-from src.ui_helpers import render_section_divider
+from src.ui_helpers import render_section_divider, safe_get_value
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -924,7 +924,7 @@ def _load_targets_for_month(store_id: str, year: int, month: int):
         if not targets_df.empty:
             target_row = targets_df[(targets_df['연도'] == year) & (targets_df['월'] == month)]
             if not target_row.empty:
-                target_sales = int(target_row.iloc[0].get('목표매출', 0) or 0)
+                target_sales = int(safe_get_value(target_row, '목표매출', 0) or 0)
         
         # 목표 비용구조 로드
         expense_df = load_expense_structure(year, month, store_id=store_id)

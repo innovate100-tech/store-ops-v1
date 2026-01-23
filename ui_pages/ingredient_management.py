@@ -83,7 +83,12 @@ def _show_ingredient_query_diagnostics():
             st.write(f"- DataFrame columns: {list(ingredient_df.columns)}")
             if not ingredient_df.empty:
                 st.write("- 첫 row 샘플:")
-                st.json(ingredient_df.iloc[0].to_dict())
+                from src.ui_helpers import safe_get_first_row
+                first_row = safe_get_first_row(ingredient_df)
+                if first_row is not None and not first_row.empty:
+                    st.json(first_row.to_dict())
+                else:
+                    st.warning("⚠️ 첫 번째 행을 가져올 수 없습니다.")
             else:
                 st.warning("⚠️ 데이터가 비어있습니다.")
         except Exception as e:
@@ -601,17 +606,22 @@ def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.Dat
         
         if selected_ingredient != "선택하세요":
             # 선택된 재료 정보
-            selected_row = ingredient_usage_df[ingredient_usage_df['재료명'] == selected_ingredient].iloc[0]
+            selected_row = safe_get_row_by_condition(ingredient_usage_df, ingredient_usage_df['재료명'] == selected_ingredient)
+            if selected_row is None or selected_row.empty:
+                st.warning("선택한 재료 정보를 찾을 수 없습니다.")
+                return
             
             st.markdown(f"**재료:** {selected_ingredient}")
-            st.markdown(f"**원가 비중:** {selected_row['원가_비중_%']:.1f}%")
-            st.markdown(f"**연결 메뉴 수:** {selected_row['연결_메뉴_수']}개")
+            st.markdown(f"**원가 비중:** {selected_row.get('원가_비중_%', 0):.1f}%")
+            st.markdown(f"**연결 메뉴 수:** {selected_row.get('연결_메뉴_수', 0)}개")
             
             # 연결된 메뉴 리스트
-            st.markdown("**이 재료가 빠지면 영향받는 메뉴:**")
-            menu_list = selected_row['연결_메뉴_목록'].split(', ')
-            for menu in menu_list:
-                st.write(f"- {menu}")
+            menu_list_str = selected_row.get('연결_메뉴_목록', '')
+            if menu_list_str:
+                st.markdown("**이 재료가 빠지면 영향받는 메뉴:**")
+                menu_list = menu_list_str.split(', ')
+                for menu in menu_list:
+                    st.write(f"- {menu}")
             
             # DB에서 메모 초기값 로드
             selected_ingredient_id = ingredient_id_map.get(selected_ingredient)

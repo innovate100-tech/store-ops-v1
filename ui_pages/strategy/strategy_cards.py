@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 from ui_pages.strategy.store_state import classify_store_state
 from ui_pages.design_lab.design_state_loader import get_design_state
 from ui_pages.design_lab.design_insights import get_design_insights
+from src.ui_helpers import safe_get_value
 
 
 @st.cache_data(ttl=300)
@@ -764,7 +765,7 @@ def _build_strategy_cards_v4(
                 end_date=yesterday.isoformat()
             )
             if not yesterday_df.empty and 'total_sales' in yesterday_df.columns:
-                yesterday_sales = int(float(yesterday_df.iloc[0]['total_sales'] or 0))
+                yesterday_sales = int(float(safe_get_value(yesterday_df, 'total_sales', 0) or 0))
         except Exception:
             pass
         
