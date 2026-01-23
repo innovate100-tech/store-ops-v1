@@ -65,16 +65,19 @@ def render_health_check_page():
     if session_id:
         session = get_health_session(session_id)
         if session and session.get('completed_at'):
-            # 완료된 세션이면 session_state 초기화하고 시작 화면으로
-            if 'health_session_id' in st.session_state:
-                del st.session_state['health_session_id']
-            if 'health_check_view_mode' in st.session_state:
-                del st.session_state['health_check_view_mode']
-            # 답변 개수 캐시도 초기화
-            answer_count_key = f"health_check_answer_count_{session_id}"
-            if answer_count_key in st.session_state:
-                del st.session_state[answer_count_key]
-            session_id = None
+            # 완료된 세션이지만 view_mode가 'result'면 결과 보기 모드이므로 유지
+            # view_mode가 'input'이고 완료된 세션이면 초기화하고 시작 화면으로
+            if view_mode == 'input':
+                # 완료된 세션을 입력 모드로 보려고 하면 초기화
+                if 'health_session_id' in st.session_state:
+                    del st.session_state['health_session_id']
+                if 'health_check_view_mode' in st.session_state:
+                    del st.session_state['health_check_view_mode']
+                # 답변 개수 캐시도 초기화
+                answer_count_key = f"health_check_answer_count_{session_id}"
+                if answer_count_key in st.session_state:
+                    del st.session_state[answer_count_key]
+                session_id = None
     
     # 최근 미완료 세션 확인
     if not session_id:
@@ -89,9 +92,17 @@ def render_health_check_page():
         # view_mode가 'result'이고 세션이 완료되었으면 결과 리포트를 먼저 표시
         session = get_health_session(session_id)
         if view_mode == 'result' and session and session.get('completed_at'):
-            # 결과 리포트를 먼저 표시
+            # 결과 리포트를 먼저 표시 (보기 버튼 클릭 시)
             st.info("📊 검진 결과를 확인하세요.")
-            render_result_report(store_id, session_id)
+            try:
+                render_result_report(store_id, session_id)
+            except Exception as e:
+                logger.error(f"Error rendering result report: {e}", exc_info=True)
+                st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
+                with st.expander("🔧 에러 상세 정보"):
+                    import traceback
+                    st.code(traceback.format_exc(), language="python")
+            
             st.markdown("---")
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
@@ -105,7 +116,15 @@ def render_health_check_page():
                 render_input_form(store_id, session_id)
             
             with tab2:
-                render_result_report(store_id, session_id)
+                # 결과 리포트 탭
+                try:
+                    render_result_report(store_id, session_id)
+                except Exception as e:
+                    logger.error(f"Error rendering result report in tab: {e}", exc_info=True)
+                    st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
+                    with st.expander("🔧 에러 상세 정보"):
+                        import traceback
+                        st.code(traceback.format_exc(), language="python")
             
             with tab3:
                 render_history(store_id)
@@ -550,8 +569,11 @@ def render_history(store_id: str):
             st.write(f"{grade_colors.get(overall_grade, '⚪')} {overall_grade}")
         with col4:
             if st.button("보기", key=f"view_{session['id']}"):
+                # 보기 버튼 클릭 시 세션 ID와 view_mode 설정
                 st.session_state['health_session_id'] = session['id']
                 st.session_state['health_check_view_mode'] = 'result'
+                # 캐시 무효화
+                _invalidate_answers_cache(session['id'])
                 st.rerun()
         
         st.markdown("---")
