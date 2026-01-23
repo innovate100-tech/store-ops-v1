@@ -31,6 +31,17 @@ def render_target_cost_structure():
     </div>
     """, unsafe_allow_html=True)
     
+    # 임시 연결 안내 (수익 구조 설계실과 목표 비용 구조가 동일 페이지로 연결됨)
+    st.info("💡 현재 '수익 구조 설계실'은 목표 비용 구조 페이지로 임시 연결되어 있습니다. 수익 구조 설계실 전용 페이지는 준비 중입니다.")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📋 목표 비용 구조로 보기", key="view_cost_structure", use_container_width=True):
+            st.session_state.current_page = "목표 비용구조"
+            st.rerun()
+    with col2:
+        st.button("🚧 수익 구조 설계실 (준비중)", key="view_revenue_structure", use_container_width=True, disabled=True)
+    st.markdown("---")
+    
     current_year = current_year_kst()
     current_month = current_month_kst()
     
