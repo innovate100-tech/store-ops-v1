@@ -3,6 +3,7 @@
 """
 import streamlit as st
 from typing import Dict, Optional
+from src.auth import get_current_store_id
 
 
 def render_today_strategy_card(strategy: Dict, location: str = "home"):
@@ -46,17 +47,55 @@ def render_today_strategy_card(strategy: Dict, location: str = "home"):
         for bullet in reason_bullets:
             st.markdown(f"- {bullet}")
     
-    # CTA 버튼
-    if st.button(cta_label, key=f"strategy_cta_{location}", use_container_width=True, type="primary"):
-        # 세션 변수 세팅
-        st.session_state["current_page"] = cta_page
-        
-        # 컨텍스트 세팅
-        if cta_context:
-            for key, value in cta_context.items():
-                st.session_state[key] = value
-        
-        st.rerun()
+    # 미션 진행률 표시 (있는 경우)
+    from src.storage_supabase import load_active_mission
+    from datetime import date
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    
+    store_id = get_current_store_id()
+    if store_id:
+        kst = ZoneInfo("Asia/Seoul")
+        today = datetime.now(kst).date()
+        active_mission = load_active_mission(store_id, today)
+    else:
+        active_mission = None
+    
+    if active_mission:
+        from src.storage_supabase import load_mission_tasks
+        tasks = load_mission_tasks(active_mission["id"])
+        if tasks:
+            done_count = sum(1 for t in tasks if t.get("is_done", False))
+            total_count = len(tasks)
+            progress = (done_count / total_count * 100) if total_count > 0 else 0
+            
+            st.progress(progress / 100)
+            st.caption(f"진행률: {done_count}/{total_count} ({progress:.0f}%)")
+            
+            if st.button("📋 미션 열기", key=f"mission_open_{location}", use_container_width=True):
+                st.session_state["current_page"] = "오늘의 전략 실행"
+                st.rerun()
+    
+    # CTA 버튼 (미션 없을 때만 또는 항상 표시)
+    col1, col2 = st.columns(2) if active_mission else st.columns(1)
+    with col1:
+        if st.button(cta_label, key=f"strategy_cta_{location}", use_container_width=True, type="primary"):
+            # 세션 변수 세팅
+            st.session_state["current_page"] = cta_page
+            
+            # 컨텍스트 세팅
+            if cta_context:
+                for key, value in cta_context.items():
+                    st.session_state[key] = value
+            
+            st.rerun()
+    
+    # 미션이 있으면 "미션으로 시작" 버튼도 표시
+    if active_mission:
+        with col2:
+            if st.button("🎯 미션으로 시작", key=f"mission_start_{location}", use_container_width=True):
+                st.session_state["current_page"] = "오늘의 전략 실행"
+                st.rerun()
     
     # 후보 2개가 있으면 expander로 표시
     alternatives = strategy.get("alternatives", [])

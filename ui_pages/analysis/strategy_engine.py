@@ -472,6 +472,59 @@ def build_strategy_card(cause: Dict, signals: Dict, store_id: str) -> Dict:
     return strategy
 
 
+def get_checklist_template(cause_type: str) -> List[dict]:
+    """
+    원인 타입별 체크리스트 템플릿 반환
+    
+    Returns:
+        [{"task_order": int, "task_title": str}, ...]
+    """
+    templates = {
+        "유입 감소형": [
+            {"task_order": 1, "task_title": "최근 14일 네이버방문자 추이 확인"},
+            {"task_order": 2, "task_title": "리뷰/사진 1개 업데이트 계획 메모"},
+            {"task_order": 3, "task_title": "대표 메뉴 1개 '유인' 포인트 문장 정리"},
+            {"task_order": 4, "task_title": "오늘 운영 중 고객 응대 문구 1개 개선(메모)"},
+        ],
+        "객단가 하락형": [
+            {"task_order": 1, "task_title": "고원가율(>=35%) 메뉴 TOP3 확인"},
+            {"task_order": 2, "task_title": "1개 메뉴 가격 시뮬(목표 원가율 32~35%)"},
+            {"task_order": 3, "task_title": "업셀 메뉴 1개 추천 문구 정리"},
+            {"task_order": 4, "task_title": "가격 조정 후보 1개 최종 결정"},
+        ],
+        "판매량 하락형": [
+            {"task_order": 1, "task_title": "주력메뉴 판매량 추이 확인"},
+            {"task_order": 2, "task_title": "판매량 급감 메뉴 1개 원인 분석"},
+            {"task_order": 3, "task_title": "메뉴 구성/조합 개선 아이디어 메모"},
+            {"task_order": 4, "task_title": "오늘 운영 중 판매 전략 1개 적용"},
+        ],
+        "주력메뉴 붕괴형": [
+            {"task_order": 1, "task_title": "주력메뉴 가격/마진 구조 재점검"},
+            {"task_order": 2, "task_title": "가격 시뮬(목표 원가율 32~35%)"},
+            {"task_order": 3, "task_title": "대체 주력메뉴 후보 1개 선정"},
+            {"task_order": 4, "task_title": "가격 조정 또는 메뉴 교체 결정"},
+        ],
+        "원가율 악화형": [
+            {"task_order": 1, "task_title": "고원가율(>=35%) 메뉴 TOP3 확인"},
+            {"task_order": 2, "task_title": "1개 메뉴 가격 시뮬(목표 원가율 32~35%)"},
+            {"task_order": 3, "task_title": "대체재 후보 1개 메모"},
+            {"task_order": 4, "task_title": "\"마진 역할\" 메뉴 1개 지정"},
+        ],
+        "구조 리스크형": [
+            {"task_order": 1, "task_title": "손익분기점 vs 예상매출 비교 확인"},
+            {"task_order": 2, "task_title": "고정비 구조 점검(목표 비용 구조 확인)"},
+            {"task_order": 3, "task_title": "변동비율 개선 방안 1개 메모"},
+            {"task_order": 4, "task_title": "시나리오 시뮬(목표 매출 입력)"},
+            {"task_order": 5, "task_title": "고정비 조정 또는 매출 목표 재설정"},
+        ],
+    }
+    
+    return templates.get(cause_type, [
+        {"task_order": 1, "task_title": "매출 하락 원인 분석"},
+        {"task_order": 2, "task_title": "개선 방안 1개 정리"},
+    ])
+
+
 def pick_primary_strategy(store_id: str, ref_date: Optional[date] = None, window_days: int = 14) -> Dict:
     """
     최종적으로 "오늘의 전략 카드 1개" 반환

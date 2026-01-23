@@ -206,6 +206,36 @@ def render_design_center():
                 st.session_state.current_page = second_page
                 st.rerun()
     
+    # 진행 중 미션 카드 (ZONE D 위에)
+    try:
+        from src.storage_supabase import load_active_mission
+        from datetime import date
+        from zoneinfo import ZoneInfo
+        from datetime import datetime
+        
+        kst = ZoneInfo("Asia/Seoul")
+        today = datetime.now(kst).date()
+        active_mission = load_active_mission(store_id, today)
+        
+        if active_mission:
+            from src.storage_supabase import load_mission_tasks
+            tasks = load_mission_tasks(active_mission["id"])
+            if tasks:
+                done_count = sum(1 for t in tasks if t.get("is_done", False))
+                total_count = len(tasks)
+                progress = (done_count / total_count * 100) if total_count > 0 else 0
+                
+                st.markdown("---")
+                st.markdown("### 🎯 진행 중 미션")
+                st.markdown(f"**{active_mission.get('title', '오늘 할 일')}**")
+                st.progress(progress / 100)
+                st.caption(f"진행률: {done_count}/{total_count} ({progress:.0f}%)")
+                if st.button("📋 미션 열기", key="design_center_mission_open", use_container_width=True):
+                    st.session_state["current_page"] = "오늘의 전략 실행"
+                    st.rerun()
+    except Exception:
+        pass  # 에러 발생해도 계속 진행
+    
     # ZONE D: 전략 실행 런치패드 (Top3 개인화)
     st.markdown("---")
     st.markdown("### 🚀 전략 실행 런치패드")

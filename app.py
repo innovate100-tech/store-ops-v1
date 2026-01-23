@@ -1687,6 +1687,11 @@ elif page == "매출 하락 원인 찾기":
     from ui_pages.diagnostics.sales_drop_oneclick import render_sales_drop_oneclick
     render_sales_drop_oneclick()
 
+# 오늘의 전략 실행 (미션 상세)
+elif page == "오늘의 전략 실행" or page == "미션 상세":
+    from ui_pages.strategy.mission_detail import render_mission_detail
+    render_mission_detail()
+
 # 매출 관리 페이지 (분석 전용)
 elif page == "매출 관리":
     from ui_pages.sales_management import render_sales_management

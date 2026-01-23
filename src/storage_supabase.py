@@ -4432,6 +4432,260 @@ def upsert_design_routine_log(store_id: str, routine_type: str, period_key: str)
         return False
 
 
+# ============================================
+# PHASE 10 / STEP 10-7B: 전략 실행 미션 CRUD
+# ============================================
+
+def create_or_get_today_mission(
+    store_id: str,
+    mission_date: date,
+    cause_type: str,
+    title: str,
+    reason_json: dict,
+    cta_page: str
+) -> Optional[str]:
+    """
+    오늘의 미션 생성 또는 기존 미션 반환
+    
+    Args:
+        store_id: 매장 ID
+        mission_date: 미션 날짜
+        cause_type: 원인 타입 (6개 중 1개)
+        title: 미션 제목
+        reason_json: 근거 JSON (dict)
+        cta_page: CTA 페이지
+    
+    Returns:
+        mission_id (str) 또는 None (실패 시)
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return None
+    
+    if not store_id:
+        return None
+    
+    try:
+        import json
+        # 기존 미션 확인
+        existing = supabase.table("strategy_missions")\
+            .select("id")\
+            .eq("store_id", store_id)\
+            .eq("mission_date", mission_date.isoformat())\
+            .execute()
+        
+        if existing.data:
+            return existing.data[0]["id"]
+        
+        # 새 미션 생성
+        result = supabase.table("strategy_missions").insert({
+            "store_id": store_id,
+            "mission_date": mission_date.isoformat(),
+            "cause_type": cause_type,
+            "title": title,
+            "reason_json": json.dumps(reason_json),
+            "cta_page": cta_page,
+            "status": "active"
+        }).execute()
+        
+        if result.data:
+            mission_id = result.data[0]["id"]
+            logger.info(f"Mission created: {mission_id}")
+            return mission_id
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to create/get mission: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"미션 생성 실패: {e}")
+        return None
+
+
+def load_active_mission(store_id: str, mission_date: Optional[date] = None) -> Optional[dict]:
+    """
+    활성 미션 조회
+    
+    Args:
+        store_id: 매장 ID
+        mission_date: 미션 날짜 (None이면 오늘)
+    
+    Returns:
+        미션 dict 또는 None
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return None
+    
+    if not store_id:
+        return None
+    
+    try:
+        from datetime import date
+        if mission_date is None:
+            from zoneinfo import ZoneInfo
+            from datetime import datetime
+            kst = ZoneInfo("Asia/Seoul")
+            mission_date = datetime.now(kst).date()
+        
+        result = supabase.table("strategy_missions")\
+            .select("*")\
+            .eq("store_id", store_id)\
+            .eq("mission_date", mission_date.isoformat())\
+            .eq("status", "active")\
+            .execute()
+        
+        if result.data:
+            mission = result.data[0]
+            # JSONB 파싱
+            import json
+            if isinstance(mission.get("reason_json"), str):
+                mission["reason_json"] = json.loads(mission["reason_json"])
+            return mission
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to load active mission: {e}")
+        return None
+
+
+def load_mission_tasks(mission_id: str) -> List[dict]:
+    """
+    미션 체크리스트 조회
+    
+    Args:
+        mission_id: 미션 ID
+    
+    Returns:
+        체크리스트 리스트 (task_order 순)
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return []
+    
+    if not mission_id:
+        return []
+    
+    try:
+        result = supabase.table("strategy_mission_tasks")\
+            .select("*")\
+            .eq("mission_id", mission_id)\
+            .order("task_order", desc=False)\
+            .execute()
+        
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to load mission tasks: {e}")
+        return []
+
+
+def create_mission_tasks(mission_id: str, tasks: List[dict]) -> bool:
+    """
+    미션 체크리스트 생성
+    
+    Args:
+        mission_id: 미션 ID
+        tasks: [{"task_order": int, "task_title": str}, ...]
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not mission_id or not tasks:
+        return False
+    
+    try:
+        task_rows = []
+        for task in tasks:
+            task_rows.append({
+                "mission_id": mission_id,
+                "task_order": task["task_order"],
+                "task_title": task["task_title"],
+                "is_done": False
+            })
+        
+        supabase.table("strategy_mission_tasks").insert(task_rows).execute()
+        logger.info(f"Mission tasks created: {len(tasks)} tasks")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to create mission tasks: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"체크리스트 생성 실패: {e}")
+        return False
+
+
+def update_task_done(task_id: str, is_done: bool) -> bool:
+    """
+    체크리스트 항목 완료/미완료 토글
+    
+    Args:
+        task_id: 작업 ID
+        is_done: 완료 여부
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not task_id:
+        return False
+    
+    try:
+        supabase.table("strategy_mission_tasks")\
+            .update({"is_done": is_done})\
+            .eq("id", task_id)\
+            .execute()
+        
+        logger.info(f"Task updated: {task_id} -> {is_done}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update task: {e}")
+        return False
+
+
+def set_mission_status(mission_id: str, status: str) -> bool:
+    """
+    미션 상태 변경
+    
+    Args:
+        mission_id: 미션 ID
+        status: 'active' | 'completed' | 'abandoned'
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not mission_id or status not in ['active', 'completed', 'abandoned']:
+        return False
+    
+    try:
+        update_data = {"status": status}
+        if status == "completed":
+            from datetime import datetime
+            from zoneinfo import ZoneInfo
+            update_data["completed_at"] = datetime.now(ZoneInfo("Asia/Seoul")).isoformat()
+        
+        supabase.table("strategy_missions")\
+            .update(update_data)\
+            .eq("id", mission_id)\
+            .execute()
+        
+        logger.info(f"Mission status updated: {mission_id} -> {status}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update mission status: {e}")
+        return False
+
+
 def load_design_routine_logs(store_id: str, routine_type: Optional[str] = None, limit: int = 10) -> list:
     """
     설계 루틴 로그 조회 (DB)
