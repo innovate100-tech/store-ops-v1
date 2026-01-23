@@ -189,8 +189,16 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     with col_refresh:
         if st.button("🔄 새로고침", key="home_btn_refresh", use_container_width=True):
             try:
+                # 모든 캐시 강제 클리어
                 st.cache_data.clear()
                 st.cache_resource.clear()
+                # 세션 상태도 일부 클리어
+                if "_home_problems_expanded" in st.session_state:
+                    del st.session_state["_home_problems_expanded"]
+                if "_home_good_points_expanded" in st.session_state:
+                    del st.session_state["_home_good_points_expanded"]
+                if "_home_anomaly_expanded" in st.session_state:
+                    del st.session_state["_home_anomaly_expanded"]
                 logger.info("홈 캐시 무효화 완료")
                 st.rerun()
             except Exception as e:

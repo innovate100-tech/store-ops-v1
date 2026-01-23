@@ -2091,36 +2091,9 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
 
 
 def render_home():
-    from src.auth import get_onboarding_mode
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    user_id = st.session_state.get('user_id')
-    if not user_id:
-        st.error("로그인이 필요합니다.")
-        return
-    
-    # 모드 변경 플래그가 있으면 캐시 클리어
-    if st.session_state.get("_mode_changed", False):
-        try:
-            st.cache_data.clear()
-            st.cache_resource.clear()
-        except:
-            pass
-        st.session_state["_mode_changed"] = False
-    
-    # 온보딩 모드 확인 (매번 DB에서 직접 조회하여 최신 값 가져오기)
-    mode = get_onboarding_mode(user_id)
-    logger.info(f"render_home: user_id={user_id}, mode={mode}")
-    
-    # store_id 조회
-    store_id = get_current_store_id()
-    if not store_id:
-        st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
-        return
-    
-    # coaching_enabled = (mode == 'coach')
-    coaching_enabled = (mode != 'fast')
-    
-    # 통합 홈 렌더링
-    _render_home_body(store_id, coaching_enabled)
+    """
+    레거시 홈 렌더링 함수 - home_page.py의 render_home으로 위임
+    """
+    # home_page.py의 render_home으로 위임 (Phase 9 구조)
+    from ui_pages.home.home_page import render_home as render_home_new
+    return render_home_new()
