@@ -694,58 +694,60 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
             
             return pd.DataFrame(columns=default_columns) if default_columns else pd.DataFrame()
         
-        # 데이터가 0건인 경우 디버그 정보 표시 (온라인 환경에서도 표시)
+        # 데이터가 0건인 경우 처리 (Phase 0: 크래시 방지 + UX 개선)
         if not result.data or len(result.data) == 0:
-            # 온라인 환경에서도 진단 정보 표시 (항상 표시)
-            import streamlit as st
-            with st.expander(f"⚠️ 데이터 없음: {filename} (0건)", expanded=True):
-                st.error(f"**테이블:** {actual_table}")
-                st.write(f"**Store ID:** `{store_id}`")
-                st.write("**실행된 쿼리:**")
-                if use_date_filter:
-                    st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}').gte('date', '{cutoff_date.isoformat()}')", language="python")
-                else:
-                    st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}')", language="python")
-                
-                st.write("**가능한 원인:**")
-                st.write("1. 실제로 데이터가 없는 경우")
-                st.write("2. RLS 정책으로 인해 접근 불가")
-                st.write("3. store_id 필터 조건 불일치")
-                st.write("4. 로그인 상태 문제")
-                
-                # 추가 진단: 테이블 존재 여부 확인 (store_id 필터 없이)
-                st.divider()
-                st.write("**추가 진단: 필터 없이 조회:**")
-                try:
-                    # 필터 없이 조회 시도
-                    test_result = supabase.table(actual_table).select("*").limit(5).execute()
-                    
-                    if test_result.data:
-                        test_count = len(test_result.data)
-                        st.warning(f"⚠️ 테이블에는 데이터가 있습니다 ({test_count}건), 하지만 store_id={store_id} 조건으로는 조회되지 않습니다.")
-                        
-                        # 발견된 store_id 목록
-                        store_ids_found = set([row.get('store_id') for row in test_result.data if row.get('store_id')])
-                        st.write(f"**발견된 store_id 목록:** {list(store_ids_found)}")
-                        
-                        if store_id not in store_ids_found:
-                            st.error(f"❌ 현재 store_id(`{store_id}`)가 발견된 store_id 목록에 없습니다!")
-                            st.info("💡 해결 방법:")
-                            st.info("1. 로그아웃 후 다시 로그인")
-                            st.info("2. user_profiles 테이블에서 store_id 확인")
-                            st.info("3. RLS 정책 확인")
-                        
-                        st.write("**샘플 데이터 (필터 없이):**")
-                        st.json(test_result.data[0])
+            # 개발 모드에서만 상세 디버그 정보 표시 (프로덕션에서는 숨김)
+            if _is_dev_mode():
+                import streamlit as st
+                with st.expander(f"⚠️ 데이터 없음: {filename} (0건) [DEV MODE]", expanded=False):
+                    st.error(f"**테이블:** {actual_table}")
+                    st.write(f"**Store ID:** `{store_id}`")
+                    st.write("**실행된 쿼리:**")
+                    if use_date_filter:
+                        st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}').gte('date', '{cutoff_date.isoformat()}')", language="python")
                     else:
-                        st.error("❌ 필터 없이 조회해도 데이터가 없습니다!")
-                        st.warning("💡 이것은 RLS 정책이 모든 데이터 접근을 차단하고 있다는 의미입니다.")
-                        st.info("**확인 사항:**")
-                        st.info("1. Supabase Dashboard → Authentication → Policies")
-                        st.info(f"2. `{actual_table}` 테이블의 SELECT 정책 확인")
-                        st.info("3. RLS 정책이 현재 사용자(`auth.uid()`)에게 데이터 접근을 허용하는지 확인")
-                        st.info("4. 정책 예시:")
-                        st.code("""
+                        st.code(f"table('{actual_table}').select('*').eq('store_id', '{store_id}')", language="python")
+                    
+                    st.write("**가능한 원인:**")
+                    st.write("1. 실제로 데이터가 없는 경우")
+                    st.write("2. RLS 정책으로 인해 접근 불가")
+                    st.write("3. store_id 필터 조건 불일치")
+                    st.write("4. 로그인 상태 문제")
+                    
+                    # 추가 진단: 테이블 존재 여부 확인 (store_id 필터 없이)
+                    st.divider()
+                    st.write("**추가 진단: 필터 없이 조회:**")
+                    try:
+                        # 필터 없이 조회 시도
+                        test_result = supabase.table(actual_table).select("*").limit(5).execute()
+                        
+                        if test_result.data:
+                            test_count = len(test_result.data)
+                            st.warning(f"⚠️ 테이블에는 데이터가 있습니다 ({test_count}건), 하지만 store_id={store_id} 조건으로는 조회되지 않습니다.")
+                            
+                            # 발견된 store_id 목록
+                            store_ids_found = set([row.get('store_id') for row in test_result.data if row.get('store_id')])
+                            st.write(f"**발견된 store_id 목록:** {list(store_ids_found)}")
+                            
+                            if store_id not in store_ids_found:
+                                st.error(f"❌ 현재 store_id(`{store_id}`)가 발견된 store_id 목록에 없습니다!")
+                                st.info("💡 해결 방법:")
+                                st.info("1. 로그아웃 후 다시 로그인")
+                                st.info("2. user_profiles 테이블에서 store_id 확인")
+                                st.info("3. RLS 정책 확인")
+                            
+                            st.write("**샘플 데이터 (필터 없이):**")
+                            if test_result.data and len(test_result.data) > 0:
+                                st.json(test_result.data[0])
+                        else:
+                            st.error("❌ 필터 없이 조회해도 데이터가 없습니다!")
+                            st.warning("💡 이것은 RLS 정책이 모든 데이터 접근을 차단하고 있다는 의미입니다.")
+                            st.info("**확인 사항:**")
+                            st.info("1. Supabase Dashboard → Authentication → Policies")
+                            st.info(f"2. `{actual_table}` 테이블의 SELECT 정책 확인")
+                            st.info("3. RLS 정책이 현재 사용자(`auth.uid()`)에게 데이터 접근을 허용하는지 확인")
+                            st.info("4. 정책 예시:")
+                            st.code("""
 -- 예시: store_id 기반 RLS 정책
 CREATE POLICY "Users can view their store data"
 ON ingredients FOR SELECT
@@ -755,19 +757,25 @@ USING (
     WHERE id = auth.uid()
   )
 );
-                        """, language="sql")
-                except Exception as test_error:
-                    error_msg = str(test_error)
-                    st.error(f"❌ 테이블 접근 테스트 실패: {type(test_error).__name__}: {error_msg}")
-                    st.code(str(test_error), language="text")
-                    
-                    # RLS 관련 에러 확인
-                    if "permission" in error_msg.lower() or "policy" in error_msg.lower() or "RLS" in error_msg:
-                        st.error("🚨 RLS 정책 문제로 보입니다!")
-                        st.info("**해결 방법:**")
-                        st.info(f"1. Supabase Dashboard에서 `{actual_table}` 테이블의 RLS 정책 확인")
-                        st.info("2. SELECT 정책이 필요합니다")
-                        st.info("3. 정책에서 `auth.uid()`와 `store_id`를 올바르게 연결해야 합니다")
+                            """, language="sql")
+                    except Exception as test_error:
+                        error_msg = str(test_error)
+                        st.error(f"❌ 테이블 접근 테스트 실패: {type(test_error).__name__}: {error_msg}")
+                        st.code(str(test_error), language="text")
+                        
+                        # RLS 관련 에러 확인
+                        if "permission" in error_msg.lower() or "policy" in error_msg.lower() or "RLS" in error_msg:
+                            st.error("🚨 RLS 정책 문제로 보입니다!")
+                            st.info("**해결 방법:**")
+                            st.info(f"1. Supabase Dashboard에서 `{actual_table}` 테이블의 RLS 정책 확인")
+                            st.info("2. SELECT 정책이 필요합니다")
+                            st.info("3. 정책에서 `auth.uid()`와 `store_id`를 올바르게 연결해야 합니다")
+            
+            # 프로덕션 모드: 디버그 메시지 숨김 (빈 DataFrame만 반환)
+            # 신규 사용자는 데이터가 없는 것이 정상이므로 기술적 메시지 노출 금지
+            
+            # 프로덕션 모드: 디버그 메시지 숨김 (빈 DataFrame만 반환)
+            # 신규 사용자는 데이터가 없는 것이 정상이므로 기술적 메시지 노출 금지
             
             # 데이터가 0건이어도 빈 DataFrame 반환
             elapsed_ms = (time.perf_counter() - start_time) * 1000
