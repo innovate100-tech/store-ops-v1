@@ -2396,6 +2396,11 @@ elif page == "가게 설계 센터":
     from ui_pages.design_lab.design_center import render_design_center
     render_design_center()
 
+# 메뉴 포트폴리오 설계실 페이지 (설계/분석 전용)
+elif page == "메뉴 등록":
+    from ui_pages.menu_management import render_menu_management
+    render_menu_management()
+
 # 메뉴 수익 구조 설계실 페이지
 elif page == "메뉴 수익 구조 설계실":
     from ui_pages.menu_profit_design_lab import render_menu_profit_design_lab
