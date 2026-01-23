@@ -184,6 +184,83 @@ def _render_evidence_section(evidence_bundle: list):
     st.divider()
 
 
+def _get_card_code_from_title(title: str) -> str:
+    """
+    카드 제목에서 카드 코드 추출
+    
+    Args:
+        title: 카드 제목
+    
+    Returns:
+        카드 코드 (없으면 빈 문자열)
+    """
+    # 제목 기반 매핑
+    title_to_code = {
+        "생존선": "FINANCE_SURVIVAL_LINE",
+        "마진": "MENU_MARGIN_RECOVERY",
+        "원가": "INGREDIENT_RISK_DIVERSIFY",
+        "포트폴리오": "MENU_PORTFOLIO_REBALANCE",
+        "매출 하락": "SALES_DROP_INVESTIGATION",
+        "운영": "OPERATION_QSC_RECOVERY",
+        "QSC": "OPERATION_QSC_RECOVERY",
+    }
+    
+    for key, code in title_to_code.items():
+        if key in title:
+            return code
+    
+    return ""
+
+
+def _load_completed_actions(store_id: str, week_start: date) -> list:
+    """
+    이번 주 완료된 전략 카드 로드 (간단한 구현: session_state 사용)
+    
+    Args:
+        store_id: 매장 ID
+        week_start: 주 시작일 (월요일)
+    
+    Returns:
+        완료된 카드 코드 리스트
+    """
+    # session_state에서 완료된 카드 코드 리스트 가져오기
+    key = f"_completed_actions_{store_id}_{week_start.isoformat()}"
+    completed_actions = st.session_state.get(key, [])
+    
+    # 리스트가 아니면 빈 리스트 반환
+    if not isinstance(completed_actions, list):
+        return []
+    
+    return completed_actions
+
+
+def _save_completed_action(store_id: str, card_code: str):
+    """
+    전략 카드 완료 저장 (간단한 구현: session_state 사용)
+    
+    Args:
+        store_id: 매장 ID
+        card_code: 카드 코드
+    """
+    from datetime import date, timedelta
+    
+    # 이번 주 시작일 계산
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    
+    # session_state에 저장
+    key = f"_completed_actions_{store_id}_{week_start.isoformat()}"
+    completed_actions = st.session_state.get(key, [])
+    
+    if not isinstance(completed_actions, list):
+        completed_actions = []
+    
+    # 중복 제거 후 추가
+    if card_code and card_code not in completed_actions:
+        completed_actions.append(card_code)
+        st.session_state[key] = completed_actions
+
+
 def _render_strategy_cards_section(cards: list, store_id: str):
     """섹션 2: 전략 카드 TOP3 (v4 포맷)"""
     st.markdown("### 🎯 전략 카드 TOP3")
