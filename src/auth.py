@@ -699,13 +699,20 @@ def reset_onboarding(user_id: str = None) -> bool:
                 user_id = st.session_state.get('user_id')
             except (AttributeError, RuntimeError):
                 # Streamlit이 아직 초기화되지 않은 경우
+                logger.debug("reset_onboarding: Streamlit이 아직 초기화되지 않음")
                 return False
         
         if not user_id:
             logger.warning("reset_onboarding: user_id가 없음")
             return False
         
-        client = get_supabase_client()
+        try:
+            client = get_supabase_client()
+        except (AttributeError, RuntimeError):
+            # Streamlit이 아직 초기화되지 않은 경우
+            logger.debug("reset_onboarding: get_supabase_client 호출 실패 (Streamlit 미초기화)")
+            return False
+        
         if not client:
             logger.error("reset_onboarding: Supabase client를 가져올 수 없음")
             return False

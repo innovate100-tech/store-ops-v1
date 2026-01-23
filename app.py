@@ -1471,7 +1471,7 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     
     # 모드 전환 UI (Phase 8-B Step 3)
-    from src.auth import get_onboarding_mode, set_onboarding_mode
+    from src.auth import get_onboarding_mode, set_onboarding_mode, reset_onboarding
     user_id = st.session_state.get('user_id')
     if user_id:
         current_mode = get_onboarding_mode(user_id)
@@ -1533,7 +1533,6 @@ with st.sidebar:
             
             # 온보딩 다시 보기 버튼 (Step 4)
             st.markdown("---")
-            from src.auth import reset_onboarding
             if st.button("🔄 처음 화면 다시 선택하기", use_container_width=True, key="reset_onboarding_btn"):
                 if reset_onboarding(user_id):
                     # 캐시 클리어
