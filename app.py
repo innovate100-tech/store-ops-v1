@@ -3413,6 +3413,7 @@ elif page == "목표 비용구조" or page == "비용구조":
     }
     
     # 기존 데이터 로드
+    expense_df = load_expense_structure(selected_year, selected_month)
     existing_items = {}
     if not expense_df.empty:
         for _, row in expense_df.iterrows():
