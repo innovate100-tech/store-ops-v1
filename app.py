@@ -1543,16 +1543,13 @@ with st.sidebar:
         "🟢 오늘 입력",
         "🩺 건강검진",
         "🚨 문제 분석",
-        "🔥 가게 설계",  # Expander로 렌더링
+        "🔥 가게 설계",
         "📄 성적표·리포트",
         "🛠 마스터·목표",
         "👥 운영 도구",
     ]
     
-    # "🔥 가게 설계"는 Expander로 렌더링
-    design_category = "🔥 가게 설계"
-    
-    # 순서대로 렌더링
+    # 순서대로 렌더링 (모든 카테고리를 일반 카테고리로 렌더링)
     for category_name in category_order:
         if category_name not in menu_categories:
             continue
@@ -1561,20 +1558,15 @@ with st.sidebar:
         if not items:
             continue
         
-        if category_name == design_category:
-            # 가게 설계는 Expander로 렌더링
-            with st.sidebar.expander("🔥 가게 설계", expanded=False):
-                _render_menu_buttons(items, st)
-        else:
-            # 나머지는 일반 카테고리로 렌더링
-            st.sidebar.markdown(f"""
-            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
-                    {category_name}
-                </div>
+        # 모든 카테고리를 일반 카테고리로 렌더링
+        st.sidebar.markdown(f"""
+        <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                {category_name}
             </div>
-            """, unsafe_allow_html=True)
-            _render_menu_buttons(items, st.sidebar)
+        </div>
+        """, unsafe_allow_html=True)
+        _render_menu_buttons(items, st.sidebar)
     
     # 사이드바 하단: 테마 설정 (모든 메뉴 카테고리 아래에 배치)
     st.sidebar.markdown("---")
