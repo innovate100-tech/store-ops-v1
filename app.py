@@ -1556,11 +1556,12 @@ with st.sidebar:
     selected_page_key = st.session_state.current_page
     
     def _render_menu_buttons(items, sidebar_target):
-        for label, key in items:
+        for idx, (label, key) in enumerate(items):
             is_selected = selected_page_key == key
+            # label을 포함하여 고유한 key 생성 (같은 page key를 사용하는 경우 중복 방지)
             btn = sidebar_target.button(
                 label,
-                key=f"menu_btn_{key}",
+                key=f"menu_btn_{label}_{idx}",
                 use_container_width=True,
                 type="primary" if is_selected else "secondary",
             )
