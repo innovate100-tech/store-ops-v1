@@ -100,9 +100,24 @@ def render_menu_management():
     verdict_text, action_title, action_target_page = get_portfolio_verdict(menu_df, roles, categories, avg_price)
     
     # 전략 브리핑 / 전략 실행 탭 분리
-    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+    # session_state로 초기 탭 제어 (런치패드에서 "전략 실행" 탭으로 이동 시)
+    initial_tab_key = f"_initial_tab_메뉴 등록"
+    should_show_execute_first = st.session_state.get(initial_tab_key) == "execute"
     
-    with tab1:
+    if should_show_execute_first:
+        # "전략 실행" 탭을 첫 번째로 배치
+        tab1, tab2 = st.tabs(["🛠️ 전략 실행", "📊 전략 브리핑"])
+        # 플래그 제거 (한 번만 적용)
+        st.session_state.pop(initial_tab_key, None)
+        execute_tab = tab1
+        briefing_tab = tab2
+    else:
+        # 기본: "전략 브리핑" 탭을 첫 번째로
+        tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+        briefing_tab = tab1
+        execute_tab = tab2
+    
+    with briefing_tab:
         # ZONE A: Coach Board
         render_coach_board(
             cards=cards,
@@ -179,7 +194,7 @@ def render_menu_management():
         ]
         render_school_cards(school_cards)
     
-    with tab2:
+    with execute_tab:
         # ZONE D: Design Tools (Portfolio Tools)
         render_design_tools_container(lambda: _render_menu_portfolio_tools(store_id, menu_df, roles, categories))
 

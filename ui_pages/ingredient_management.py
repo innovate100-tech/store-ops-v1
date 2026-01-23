@@ -344,9 +344,21 @@ def render_ingredient_management():
     )
     
     # 전략 브리핑 / 전략 실행 탭 분리
-    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+    # session_state로 초기 탭 제어
+    initial_tab_key = f"_initial_tab_재료 등록"
+    should_show_execute_first = st.session_state.get(initial_tab_key) == "execute"
     
-    with tab1:
+    if should_show_execute_first:
+        tab1, tab2 = st.tabs(["🛠️ 전략 실행", "📊 전략 브리핑"])
+        st.session_state.pop(initial_tab_key, None)
+        execute_tab = tab1
+        briefing_tab = tab2
+    else:
+        tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+        briefing_tab = tab1
+        execute_tab = tab2
+    
+    with briefing_tab:
         # ZONE A: Coach Board
         render_coach_board(
             cards=cards,
@@ -434,7 +446,7 @@ def render_ingredient_management():
         ]
         render_school_cards(school_cards)
     
-    with tab2:
+    with execute_tab:
         # ZONE D: Design Tools (Ingredient Strategy Tools)
         render_design_tools_container(lambda: _render_ingredient_strategy_tools(store_id, ingredient_usage_df, high_risk_df))
 

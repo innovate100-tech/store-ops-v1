@@ -15,10 +15,13 @@ from ui_pages.design_lab.design_center_data import (
     get_design_center_summary,
     get_primary_concern,
 )
+from ui_pages.design_lab.design_insights import get_design_insights
 from ui_pages.coach.coach_adapters import get_design_center_verdict
 from ui_pages.coach.coach_renderer import render_verdict_card
 from ui_pages.routines.routine_state import get_routine_status, mark_weekly_check_done
 from src.auth import get_current_store_id
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # 공통 설정 적용
 bootstrap(page_title="Design Center")
@@ -190,35 +193,154 @@ def render_design_center():
                 st.session_state.current_page = second_page
                 st.rerun()
     
-    # ZONE D: 전략 실행 런치패드
+    # ZONE D: 전략 실행 런치패드 (Top3 개인화)
     st.markdown("---")
     st.markdown("### 🚀 전략 실행 런치패드")
     
-    st.markdown("**문제 상황별 실행 버튼**")
+    # 설계 인사이트 기반 Top3 액션 선정
+    now = datetime.now(ZoneInfo("Asia/Seoul"))
+    top3_actions = _get_top3_launchpad_actions(store_id, now.year, now.month)
     
+    # 우선 노출 3개
+    st.markdown("**우선 실행 (상태 기반 추천)**")
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📉 매출 하락 원인 찾기", key="action_sales_drop", use_container_width=True):
-            st.session_state.current_page = "매출 분석"
-            st.rerun()
-        
-        if st.button("💰 고원가율 메뉴 정리", key="action_high_cost", use_container_width=True):
-            st.session_state.current_page = "메뉴 수익 구조 설계실"
-            st.rerun()
-        
-        if st.button("📊 포트폴리오 미분류 정리", key="action_portfolio", use_container_width=True):
-            st.session_state.current_page = "메뉴 등록"
-            st.rerun()
     
-    with col2:
-        if st.button("🥬 원가 집중/대체재 설계", key="action_ingredient", use_container_width=True):
-            st.session_state.current_page = "재료 등록"
-            st.rerun()
+    for idx, action in enumerate(top3_actions[:3]):
+        col = col1 if idx % 2 == 0 else col2
+        with col:
+            if st.button(action["label"], key=f"top3_action_{idx}", use_container_width=True):
+                st.session_state.current_page = action["page"]
+                # 전략 실행 탭으로 이동하기 위한 플래그 설정
+                if action.get("tab") == "execute":
+                    st.session_state[f"_initial_tab_{action['page']}"] = "execute"
+                st.rerun()
+    
+    # 나머지 액션은 expander로
+    remaining_actions = top3_actions[3:] if len(top3_actions) > 3 else []
+    all_actions = [
+        {"label": "📉 매출 하락 원인 찾기", "page": "매출 관리", "tab": None},
+        {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute"},
+        {"label": "📊 포트폴리오 미분류 정리", "page": "메뉴 등록", "tab": "execute"},
+        {"label": "🥬 원가 집중/대체재 설계", "page": "재료 등록", "tab": "execute"},
+        {"label": "📈 손익분기점 갱신", "page": "수익 구조 설계실", "tab": "execute"},
+        {"label": "🏠 홈으로 돌아가기", "page": "홈", "tab": None},
+    ]
+    
+    # Top3에 포함되지 않은 액션만 표시
+    shown_pages = {a["page"] for a in top3_actions[:3]}
+    other_actions = [a for a in all_actions if a["page"] not in shown_pages]
+    
+    if other_actions:
+        with st.expander("더보기 (기타 액션)", expanded=False):
+            for action in other_actions:
+                if st.button(action["label"], key=f"other_action_{action['page']}", use_container_width=True):
+                    st.session_state.current_page = action["page"]
+                    if action.get("tab") == "execute":
+                        st.session_state[f"_initial_tab_{action['page']}"] = "execute"
+                    st.rerun()
+
+
+def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
+    """
+    설계 인사이트 기반 Top3 액션 선정
+    
+    Returns:
+        [{"label": str, "page": str, "tab": str | None, "score": int}, ...]
+    """
+    try:
+        insights = get_design_insights(store_id, year, month)
         
-        if st.button("📈 손익분기점 갱신", key="action_breakeven", use_container_width=True):
-            st.session_state.current_page = "수익 구조 설계실"
-            st.rerun()
+        # 액션 후보와 점수 계산
+        actions = []
         
-        if st.button("🏠 홈으로 돌아가기", key="action_home", use_container_width=True):
-            st.session_state.current_page = "홈"
-            st.rerun()
+        # 1) 수익 구조 위험 (break_even_gap_ratio < 0.9)
+        revenue = insights.get("revenue_structure", {})
+        if revenue.get("has_data"):
+            gap_ratio = revenue.get("break_even_gap_ratio", 1.0)
+            if gap_ratio < 0.9:
+                score = 100 if gap_ratio < 0.8 else 80
+                actions.append({
+                    "label": "📈 손익분기점 갱신",
+                    "page": "수익 구조 설계실",
+                    "tab": "execute",
+                    "score": score
+                })
+        
+        # 2) 재료 구조 위험 (top3_concentration >= 0.7 AND missing_substitute_count > 0)
+        ingredient = insights.get("ingredient_structure", {})
+        if ingredient.get("has_data"):
+            top3_concentration = ingredient.get("top3_concentration", 0.0)
+            missing_substitute = ingredient.get("missing_substitute_count", 0)
+            if top3_concentration >= 0.7 and missing_substitute > 0:
+                actions.append({
+                    "label": "🥬 원가 집중/대체재 설계",
+                    "page": "재료 등록",
+                    "tab": "execute",
+                    "score": 90
+                })
+        
+        # 3) 마진 메뉴 0개
+        menu_portfolio = insights.get("menu_portfolio", {})
+        if menu_portfolio.get("has_data"):
+            margin_count = menu_portfolio.get("margin_menu_count", 0)
+            if margin_count == 0:
+                actions.append({
+                    "label": "💰 고원가율 메뉴 정리",
+                    "page": "메뉴 수익 구조 설계실",
+                    "tab": "execute",
+                    "score": 85
+                })
+        
+        # 4) 역할 미분류 비율 >= 30%
+        if menu_portfolio.get("has_data"):
+            unclassified_ratio = menu_portfolio.get("role_unclassified_ratio", 0.0)
+            if unclassified_ratio >= 30.0:
+                actions.append({
+                    "label": "📊 포트폴리오 미분류 정리",
+                    "page": "메뉴 등록",
+                    "tab": "execute",
+                    "score": 60
+                })
+        
+        # 5) 고원가율 메뉴 >= 3개
+        menu_profit = insights.get("menu_profit", {})
+        if menu_profit.get("has_data"):
+            high_cogs_count = menu_profit.get("high_cogs_ratio_menu_count", 0)
+            if high_cogs_count >= 3:
+                actions.append({
+                    "label": "💰 고원가율 메뉴 정리",
+                    "page": "메뉴 수익 구조 설계실",
+                    "tab": "execute",
+                    "score": 70
+                })
+        
+        # 6) 운영 데이터 기반 (매출 급락 등 - 기존 로직 활용 가능)
+        # 여기서는 간단히 기본 액션 추가
+        if not actions:
+            actions.append({
+                "label": "📉 매출 하락 원인 찾기",
+                "page": "매출 관리",
+                "tab": None,
+                "score": 50
+            })
+        
+        # 점수 기준 정렬 (높은 순)
+        actions.sort(key=lambda x: x["score"], reverse=True)
+        
+        # 중복 제거 (같은 page는 최고 점수만)
+        seen_pages = set()
+        unique_actions = []
+        for action in actions:
+            if action["page"] not in seen_pages:
+                unique_actions.append(action)
+                seen_pages.add(action["page"])
+        
+        # 최대 6개까지 반환 (Top3 + 나머지 3개)
+        return unique_actions[:6]
+    except Exception:
+        # 에러 시 기본 액션 반환
+        return [
+            {"label": "📉 매출 하락 원인 찾기", "page": "매출 관리", "tab": None, "score": 50},
+            {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute", "score": 40},
+            {"label": "📊 포트폴리오 미분류 정리", "page": "메뉴 등록", "tab": "execute", "score": 30},
+        ]

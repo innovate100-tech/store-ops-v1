@@ -104,9 +104,21 @@ def render_revenue_structure_design_lab():
             coach_data["action_target_page"] = None
     
     # 전략 브리핑 / 전략 실행 탭 분리
-    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+    # session_state로 초기 탭 제어
+    initial_tab_key = f"_initial_tab_수익 구조 설계실"
+    should_show_execute_first = st.session_state.get(initial_tab_key) == "execute"
     
-    with tab1:
+    if should_show_execute_first:
+        tab1, tab2 = st.tabs(["🛠️ 전략 실행", "📊 전략 브리핑"])
+        st.session_state.pop(initial_tab_key, None)
+        execute_tab = tab1
+        briefing_tab = tab2
+    else:
+        tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
+        briefing_tab = tab1
+        execute_tab = tab2
+    
+    with briefing_tab:
         # ZONE A: Coach Board
         render_coach_board(
             cards=coach_data["cards"],
@@ -200,7 +212,7 @@ def render_revenue_structure_design_lab():
         ]
         render_school_cards(school_cards)
     
-    with tab2:
+    with execute_tab:
         # ZONE D: Design Tools
         render_design_tools_container(
             lambda: _render_revenue_structure_design_tools(store_id, current_year, current_month, fixed_costs, variable_ratio, break_even)
