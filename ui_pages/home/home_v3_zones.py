@@ -128,6 +128,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     if today_action and "impact" in today_action:
         impact = today_action.get("impact", {})
         won = impact.get("won")
+        # won이 None이거나 0 이하일 때는 메시지를 표시하지 않음 (과도한 노출 방지)
         if won is not None and won > 0:
             kind = impact.get("kind", "profit_up")
             kind_label = "예상 이익" if kind == "profit_up" else "리스크 회피" if kind == "risk_avoid" else "간접효과"
@@ -139,12 +140,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
                 <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.3rem;">신뢰도 {confidence*100:.0f}%</div>
             </div>
             """
-        elif won is None:
-            impact_info = """
-            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.15); border-radius: 8px;">
-                <div style="font-size: 0.9rem; opacity: 0.9;">💡 간접효과 (정량화 어려움)</div>
-            </div>
-            """
+        # won이 None이면 메시지 표시하지 않음 (데이터 부족 시 과도한 노출 방지)
     
     st.markdown(f"""
     <div style="padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); margin-bottom: 1rem;">

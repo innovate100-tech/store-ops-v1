@@ -82,7 +82,7 @@ def render_strategy_card_v4(card: Dict):
     with st.container():
         st.markdown(f"#### {rank}. {title}")
         
-        # Impact 표시
+        # Impact 표시 (won이 None이거나 0 이하일 때는 표시하지 않음 - 과도한 노출 방지)
         won = impact.get("won")
         if won is not None and won > 0:
             kind = impact.get("kind", "profit_up")
@@ -94,8 +94,7 @@ def render_strategy_card_v4(card: Dict):
                 st.metric(f"💰 {kind_label}", f"+{won:,}원/월")
             with col_impact2:
                 st.caption(f"신뢰도 {confidence*100:.0f}%")
-        elif won is None:
-            st.info("💡 간접효과 (정량화 어려움)")
+        # won이 None이면 메시지 표시하지 않음 (데이터 부족 시 과도한 노출 방지)
         
         # 성공 확률
         st.caption(f"성공 확률: {success_prob*100:.0f}%")
