@@ -277,7 +277,7 @@ def render_sales_entry():
                         if not supabase:
                             st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                             return
                         
                         # 2. Store ID 확인
@@ -285,7 +285,7 @@ def render_sales_entry():
                         if not store_id:
                             st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                             return
                         
                         # 3. save_sales_entry로 통합 저장
@@ -313,11 +313,11 @@ def render_sales_entry():
                                 
                                 st.session_state["sales_entry_success_message"] = message
                                 st.session_state["sales_entry_message_type"] = "success"
-                                st.rerun()
+                                # Phase 0 STEP 4: 저장 성공 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
                             else:
                                 st.session_state["sales_entry_success_message"] = f"❌ 저장 실패: {result.get('message', '알 수 없는 오류')}"
                                 st.session_state["sales_entry_message_type"] = "error"
-                                st.rerun()
+                                # Phase 0 STEP 4: 저장 실패 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
                         except Exception as e:
                             # 예외 발생 시 상세한 에러 메시지
                             error_msg = str(e)
@@ -333,7 +333,7 @@ def render_sales_entry():
                             
                             st.session_state["sales_entry_success_message"] = user_msg
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
         
         else:
             # 일괄 입력 폼
@@ -368,14 +368,14 @@ def render_sales_entry():
                         if not supabase:
                             st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                             return
                         
                         store_id = get_current_store_id()
                         if not store_id:
                             st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                             return
                         
                         errors = []
@@ -456,7 +456,7 @@ def render_sales_entry():
                             message = "\n".join(message_parts)
                             st.session_state["sales_entry_success_message"] = message
                             st.session_state["sales_entry_message_type"] = "error"
-                            st.rerun()
+                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                         elif not real_errors and not warnings:
                             st.info("💡 저장할 데이터가 없습니다.")
     
@@ -534,7 +534,7 @@ def render_sales_entry():
                         if success_count > 0:
                             st.success(f"✅ {success_count}일의 네이버 스마트플레이스 방문자수가 저장되었습니다!")
                             st.balloons()
-                            st.rerun()  # 일괄 저장 완료 후 한 번만 rerun
+                            # Phase 0 STEP 4: 일괄 저장 완료 후 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때

@@ -259,11 +259,33 @@ def _render_home_body(store_id: str) -> None:
     # ZONE 3: 오늘 상태판 (숫자, 크기 축소)
     _render_zone3_status_board(store_id, year, month, kpis, unofficial_days)
     
-    # ZONE 4: 이번 주 우선순위 TOP3
-    _render_zone4_weekly_priorities(store_id, year, month)
+    # ZONE 4: 이번 주 우선순위 TOP3 - lazy loading (expander)
+    # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+    if 'home_zone4_expanded' not in st.session_state:
+        st.session_state['home_zone4_expanded'] = False
     
-    # ZONE 5: 가게 구조 스냅샷 (보조)
-    _render_zone5_design_snapshot(store_id, year, month)
+    with st.expander("📋 이번 주 우선순위 TOP3", expanded=st.session_state['home_zone4_expanded']):
+        if st.session_state['home_zone4_expanded']:
+            _render_zone4_weekly_priorities(store_id, year, month)
+        else:
+            st.info("💡 펼치면 이번 주 우선순위 TOP3를 확인할 수 있습니다.")
+            if st.button("📋 우선순위 보기", key="home_expand_zone4", use_container_width=True):
+                st.session_state['home_zone4_expanded'] = True
+                st.rerun()
+    
+    # ZONE 5: 가게 구조 스냅샷 (보조) - lazy loading (expander)
+    # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+    if 'home_zone5_expanded' not in st.session_state:
+        st.session_state['home_zone5_expanded'] = False
+    
+    with st.expander("🟣 가게 구조 스냅샷", expanded=st.session_state['home_zone5_expanded']):
+        if st.session_state['home_zone5_expanded']:
+            _render_zone5_design_snapshot(store_id, year, month)
+        else:
+            st.info("💡 펼치면 가게 구조 스냅샷을 확인할 수 있습니다.")
+            if st.button("🟣 구조 스냅샷 보기", key="home_expand_zone5", use_container_width=True):
+                st.session_state['home_zone5_expanded'] = True
+                st.rerun()
 
     # ===== HOME v3: 오늘 하나만 추천은 ZONE 0에 통합됨 =====
 

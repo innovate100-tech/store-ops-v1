@@ -269,16 +269,18 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             # 강제로 템플릿에서 다시 로드 (값 복원 포함)
             _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
             st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
-            st.rerun()
+            # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
     
-    # 연/월이 변경되면 rerun (템플릿 자동 로드 + Phase D: 자동매출 재계산)
+    # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
     if selected_year != year or selected_month != month:
         # Phase D: 월 변경 시 자동매출 재계산
         auto_sales_key = f"settlement_auto_sales_{selected_year}_{selected_month}"
         if auto_sales_key not in st.session_state:
             auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
             st.session_state[auto_sales_key] = auto_sales
-        st.rerun()
+        # Phase 0 STEP 4: Streamlit 위젯 변경(number_input) 자체가 rerun을 유발하므로 중복 rerun 제거
+        st.session_state["settlement_year"] = selected_year
+        st.session_state["settlement_month"] = selected_month
     
     render_section_divider()
     
@@ -336,7 +338,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 st.session_state[auto_sales_key] = auto_sales
                 st.session_state[total_sales_key] = auto_sales
                 st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
-                st.rerun()
+                # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             except Exception as e:
                 # Phase G: 예외 발생 시 기존 값 유지, 에러 메시지 표시
                 st.error(f"❌ 매출 불러오기 실패: {str(e)}")
@@ -348,7 +350,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             if auto_sales_key in st.session_state:
                 st.session_state[total_sales_key] = st.session_state[auto_sales_key]
                 st.success(f"✅ 자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
-                st.rerun()
+                # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             else:
                 st.warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
     
@@ -475,6 +477,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                             # 확정 후 DB 값 복원 (force_restore)
                             _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
                             st.success(f"✅ 이번달 정산이 확정되었습니다. ({saved_count}개 항목 저장됨, 읽기 전용)")
+                            # Phase 0 STEP 4: 확정 후 상태 변경은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (readonly 상태 변경)
                             st.rerun()
                         else:
                             st.warning("⚠️ 확정 처리 중 오류가 발생했습니다.")
@@ -493,6 +496,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                         # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
                         get_month_settlement_status.clear()
                         st.warning("⚠️ 확정이 해제되었습니다. 다시 수정할 수 있습니다.")
+                        # Phase 0 STEP 4: 확정 해제 후 상태 변경은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (readonly 상태 변경)
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ 확정 해제 실패: {str(e)}")
@@ -503,7 +507,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         # 강제로 저장된 값 복원 (덮어쓰기)
         _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
         st.success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
-        st.rerun()
+        # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
     
     # Phase C: 이번달 저장 버튼 (Phase F: readonly일 때 숨김)
     if not readonly:
@@ -543,9 +547,14 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                     
                     if saved_count > 0:
                         st.success(f"✅ {saved_count}개 항목이 저장되었습니다.")
+                        # Phase 0 STEP 4: 저장 성공 시 toast 표시 후 session_state만 갱신 (rerun 불필요)
+                        try:
+                            st.toast(f"✅ {saved_count}개 항목이 저장되었습니다.", icon="✅")
+                        except:
+                            pass
                     else:
                         st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
-                    st.rerun()
+                    # Phase 0 STEP 4: 저장 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
                 except Exception as e:
                     st.error(f"❌ 저장 실패: {str(e)}")
     
@@ -755,7 +764,7 @@ def _render_expense_category(
                                     st.caption("✅ 템플릿 업데이트됨")
                                 except Exception as e:
                                     st.error(f"템플릿 업데이트 실패: {e}")
-                        st.rerun()
+                        # Phase 0 STEP 4: 템플릿 업데이트 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
                 with col_delete:
                     if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", 
                                  disabled=readonly, help="삭제"):
@@ -774,7 +783,7 @@ def _render_expense_category(
                             
                             # session_state에서도 제거
                             expense_items[category].pop(idx)
-                        st.rerun()
+                        # Phase 0 STEP 4: 항목 삭제 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
     
     # 새 항목 추가 (Phase C.5: input_type 선택형, Phase F: readonly일 때 숨김)
     if not readonly:
@@ -847,7 +856,7 @@ def _render_expense_category(
                         'rate': float(new_value) if new_input_type == 'rate' else 0.0,
                     }
                     expense_items[category].append(new_item)
-                    st.rerun()
+                    # Phase 0 STEP 4: 항목 추가 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
                 else:
                     st.error("항목명을 입력해주세요.")
 
@@ -1453,6 +1462,7 @@ def _render_settlement_history(store_id: str):
                     # Phase H.1: 월 이동 (별도 플래그 사용)
                     st.session_state['settlement_navigate_to_year'] = year
                     st.session_state['settlement_navigate_to_month'] = month
+                    # Phase 0 STEP 4: 월 이동은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (페이지 상태 변경)
                     st.rerun()
         
         # Phase H.1: 더 보기 버튼 (상태 유지)
@@ -1564,11 +1574,33 @@ def render_settlement_actual():
         # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
         _render_expense_section(store_id, year, month, total_sales, readonly)
         
-        # 분석 영역 (Phase E: 성적표)
-        _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
+        # 분석 영역 (Phase E: 성적표) - lazy loading (expander)
+        # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+        if 'settlement_analysis_expanded' not in st.session_state:
+            st.session_state['settlement_analysis_expanded'] = False
         
-        # Phase H: 월별 히스토리 섹션
-        _render_settlement_history(store_id)
+        with st.expander("📊 이번 달 성적표 (목표 대비)", expanded=st.session_state['settlement_analysis_expanded']):
+            if st.session_state['settlement_analysis_expanded']:
+                _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
+            else:
+                st.info("💡 펼치면 이번 달 성적표를 확인할 수 있습니다.")
+                if st.button("📊 성적표 보기", key="settlement_expand_analysis", use_container_width=True):
+                    st.session_state['settlement_analysis_expanded'] = True
+                    st.rerun()
+        
+        # Phase H: 월별 히스토리 섹션 - lazy loading (expander)
+        # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+        if 'settlement_history_expanded' not in st.session_state:
+            st.session_state['settlement_history_expanded'] = False
+        
+        with st.expander("📊 월별 성적 히스토리", expanded=st.session_state['settlement_history_expanded']):
+            if st.session_state['settlement_history_expanded']:
+                _render_settlement_history(store_id)
+            else:
+                st.info("💡 펼치면 최근 월별 성적 히스토리를 확인할 수 있습니다.")
+                if st.button("📅 히스토리 보기", key="settlement_expand_history", use_container_width=True):
+                    st.session_state['settlement_history_expanded'] = True
+                    st.rerun()
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시
@@ -1658,6 +1690,7 @@ def _render_structure_report_section(store_id: str, year: int, month: int):
             if st.button("✅ 이번 달 구조 판결 확인 완료 처리", key="mark_monthly_review_done", use_container_width=True):
                 mark_monthly_review_done(store_id)
                 st.success("이번 달 구조 판결 확인 완료 처리되었습니다!")
+                # Phase 0 STEP 4: 루틴 상태 변경은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (상태 변경)
                 st.rerun()
         else:
             st.info("✅ 이번 달 판결 확인 완료")
