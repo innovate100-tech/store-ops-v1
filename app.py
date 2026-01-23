@@ -1512,39 +1512,41 @@ with st.sidebar:
                 else:
                     st.error("모드 변경에 실패했습니다.")
     
-    # 사이드바 네비게이션 - 카테고리별 구분 (Phase 9: 정보 구조 재편)
+    # 사이드바 네비게이션 - 카테고리별 구분 (Phase 10: 최종 구조 정리)
     # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경
     menu_categories = {
-        "🟡 오늘 가게": [
+        "🏠 HOME": [
             ("홈", "홈"),
-        ],
-        "🟢 오늘 입력": [
-            ("점장 마감", "점장 마감"),
-            ("매출·네이버방문자 보정", "매출 등록"),
-            ("판매량 보정", "판매량 등록"),
-        ],
-        "🔵 내일 준비": [
-            ("발주 관리", "발주 관리"),
-            ("재료 사용량", "재료 사용량 집계"),
-            # TODO: 재고 현황 페이지 추가 예정
-        ],
-        "🟣 장사 분석": [
-            ("매출 분석", "매출 관리"),
-            ("판매·메뉴 분석", "판매 관리"),
-            ("원가 분석", "원가 파악"),
-        ],
-        "🔴 성적표": [
-            ("월간 성적표", "실제정산"),
-            ("주간 리포트", "주간 리포트"),
         ],
         "🔥 가게 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
             ("메뉴 포트폴리오 설계실", "메뉴 등록"),
-            ("재료 구조 설계실 (원가 집중 · 대체재 · 발주 구조)", "재료 등록"),
             ("메뉴 수익 구조 설계실", "메뉴 수익 구조 설계실"),  # 가격·마진 분석
+            ("재료 구조 설계실", "재료 등록"),
             ("수익 구조 설계실", "수익 구조 설계실"),  # 가게 전체 돈 구조
-            ("목표 비용 구조 (입력)", "목표 비용구조"),
-            ("목표 매출 구조", "목표 매출구조"),
+        ],
+        "🚨 문제 분석": [
+            # ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),  # TODO: 향후 추가 예정
+            ("매출 분석", "매출 관리"),
+            ("판매·메뉴 분석", "판매 관리"),
+            # ("방문·객단가 분석", "방문 객단가 분석"),  # TODO: 향후 추가 예정
+            ("원가 분석", "원가 파악"),
+        ],
+        "🛠 운영 입력 · 관리": [
+            ("점장 마감", "점장 마감"),
+            ("매출·네이버방문자 보정", "매출 등록"),
+            ("판매량 보정", "판매량 등록"),
+            ("메뉴 관리", "메뉴 등록"),  # 메뉴 등록 페이지 (중복 키이지만 라벨만 다름)
+            ("재료 관리", "재료 등록"),  # 재료 등록 페이지 (중복 키이지만 라벨만 다름)
+            ("레시피 관리", "레시피 등록"),
+            ("목표 비용 구조(입력)", "목표 비용구조"),
+            ("목표 매출 구조(입력)", "목표 매출구조"),
+        ],
+        "📄 성적표 · 리포트": [
+            ("월간 성적표", "실제정산"),
+            ("주간 리포트", "주간 리포트"),
+        ],
+        "👥 운영 도구": [
             ("직원 연락망", "직원 연락망"),
             ("협력사 연락망", "협력사 연락망"),
             ("게시판", "게시판"),
@@ -1570,23 +1572,27 @@ with st.sidebar:
                 st.session_state.current_page = key
                 st.rerun()
     
+    # "🔥 가게 설계"를 최상단에 먼저 렌더링
+    design_category = "🔥 가게 설계"
+    if design_category in menu_categories and menu_categories[design_category]:
+        with st.sidebar.expander("🔥 가게 설계", expanded=False):
+            _render_menu_buttons(menu_categories[design_category], st)
+    
+    # 나머지 카테고리 렌더링 (가게 설계 제외)
     for category_name, items in menu_categories.items():
         if not items:
             continue
-        # 가게 설계는 항목이 많으므로 expander로 표시
-        is_design = category_name == "🔥 가게 설계"
-        if is_design:
-            with st.sidebar.expander("🔥 가게 설계", expanded=False):
-                _render_menu_buttons(items, st)
-        else:
-            st.sidebar.markdown(f"""
-            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
-                    {category_name}
-                </div>
+        if category_name == design_category:
+            continue  # 이미 위에서 렌더링했으므로 건너뜀
+        
+        st.sidebar.markdown(f"""
+        <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                {category_name}
             </div>
-            """, unsafe_allow_html=True)
-            _render_menu_buttons(items, st.sidebar)
+        </div>
+        """, unsafe_allow_html=True)
+        _render_menu_buttons(items, st.sidebar)
     
     # 사이드바 하단: 테마 설정 (모든 메뉴 카테고리 아래에 배치)
     st.sidebar.markdown("---")
