@@ -210,20 +210,9 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     load_time = time.time() - load_start
     logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id}, coaching_enabled={coaching_enabled})")
 
-    if coaching_enabled and day_level:
-        try:
-            if day_level == "DAY1":
-                st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
-            elif day_level == "DAY3":
-                st.success("**이제 가게가 숫자로 보이기 시작했습니다.**\n\n지금부터 홈은 '기록 앱'이 아니라 '코치 화면'으로 바뀌기 시작합니다.")
-            elif day_level == "DAY7":
-                st.success("**이제 이 앱은 사장님의 '매장 코치' 모드입니다.**\n\n오늘부터는 기록보다, '무엇을 고칠지'가 먼저 보입니다.")
-        except Exception:
-            pass
-    if coaching_enabled and "coach_mode_welcomed" not in st.session_state:
-        st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
-        st.session_state["coach_mode_welcomed"] = True
-
+    # ===== 첫 화면 구성 (스크롤 0~1회) =====
+    
+    # 1. 빠른 이동
     render_section_divider()
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -240,25 +229,59 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
             st.rerun()
     render_section_divider()
 
-    st.markdown("### 📊 상태판")
-    c1, c2 = st.columns(2)
-    with c1:
-        if monthly_sales > 0:
-            st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; text-align: center;"><div style="font-size: 0.9rem; opacity: 0.9;">이번 달 매출</div><div style="font-size: 2rem; font-weight: 700;">{monthly_sales:,}원</div></div>""", unsafe_allow_html=True)
-        else:
-            st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;"><h4 style="color: #856404;">이번 달 매출 데이터가 없습니다</h4><p style="color: #856404; font-size: 0.9rem;">점장마감 또는 매출 입력을 시작하세요.</p></div>""", unsafe_allow_html=True)
-            if st.button("📋 점장 마감", key="home_btn_close_sales", use_container_width=True):
-                st.session_state["current_page"] = "점장 마감"
-                st.rerun()
-    with c2:
+    # 2. 상태 요약 (5 KPI 카드) - 중립 톤, 일관된 스타일
+    st.markdown("### 📊 상태 요약")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    with k1:
+        _kpi_card_unified("이번 달 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None)
+    with k2:
+        pct = int(close_rate * 100) if closed_days > 0 else 0
+        close_text = f"{pct}%" if closed_days > 0 else "-"
         if closed_days > 0:
-            pct = int(close_rate * 100)
-            st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; color: white; text-align: center;"><div style="font-size: 0.9rem;">마감률</div><div style="font-size: 2rem; font-weight: 700;">{pct}%</div><div style="font-size: 0.85rem;">({closed_days}/{total_days}일)</div>{f'<div style="font-size: 0.9rem;">🔥 연속 {streak_days}일</div>' if streak_days > 0 else ''}</div>""", unsafe_allow_html=True)
+            close_sub = f"{closed_days}/{total_days}일"
+            if streak_days > 0:
+                close_sub = f"{close_sub} 🔥{streak_days}일"
         else:
-            st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;"><h4 style="color: #856404;">마감 데이터가 없습니다</h4><p style="color: #856404; font-size: 0.9rem;">오늘부터 마감을 시작하세요.</p></div>""", unsafe_allow_html=True)
-            if st.button("📋 점장 마감", type="primary", key="home_btn_close_rate", use_container_width=True):
-                st.session_state["current_page"] = "점장 마감"
-                st.rerun()
+            close_sub = None
+        _kpi_card_unified("마감률", close_text, close_sub)
+    with k3:
+        _kpi_card_unified("오늘 매출", f"{today_sales:,}원" if today_sales > 0 else "-", None)
+    with k4:
+        v = f"{avg_customer_spend:,}원" if (avg_customer_spend or 0) > 0 else "-"
+        _kpi_card_unified("객단가", v, None)
+    with k5:
+        profit_text = f"{monthly_profit:,}원" if monthly_profit is not None else "-"
+        _kpi_card_unified("이번 달 이익", profit_text, None)
+    render_section_divider()
+
+    # 3. 이상 징후 (최대 2개)
+    try:
+        _render_anomaly_signals(store_id, coaching_enabled)
+    except Exception:
+        pass
+    render_section_divider()
+
+    # 4. 문제 TOP1 / 잘한 점 TOP1
+    try:
+        _render_problems_good_points(store_id, coaching_enabled)
+    except Exception:
+        pass
+    render_section_divider()
+
+    # ===== Coach Only 섹션 (첫 화면 이후) =====
+    if coaching_enabled and day_level:
+        try:
+            if day_level == "DAY1":
+                st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
+            elif day_level == "DAY3":
+                st.success("**이제 가게가 숫자로 보이기 시작했습니다.**\n\n지금부터 홈은 '기록 앱'이 아니라 '코치 화면'으로 바뀌기 시작합니다.")
+            elif day_level == "DAY7":
+                st.success("**이제 이 앱은 사장님의 '매장 코치' 모드입니다.**\n\n오늘부터는 기록보다, '무엇을 고칠지'가 먼저 보입니다.")
+        except Exception:
+            pass
+    if coaching_enabled and "coach_mode_welcomed" not in st.session_state:
+        st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
+        st.session_state["coach_mode_welcomed"] = True
     render_section_divider()
 
     if coaching_enabled:
@@ -266,23 +289,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
             _render_coach_missions(store_id, year, month, kpis)
         except Exception:
             pass
-    render_section_divider()
-
-    st.markdown("### 💰 핵심 숫자 카드")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        _kpi_card("오늘 매출", f"{today_sales:,}원" if today_sales > 0 else "-", "#667eea 0%, #764ba2 100%" if today_sales > 0 else None)
-    with c2:
-        _kpi_card("이번 달 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", "#f093fb 0%, #f5576c 100%" if monthly_sales > 0 else None)
-    with c3:
-        v = f"{avg_customer_spend:,}원" if (avg_customer_spend or 0) > 0 else "-"
-        _kpi_card("객단가", v, "#4facfe 0%, #00f2fe 100%" if (avg_customer_spend or 0) > 0 else None)
-    with c4:
-        if monthly_profit is not None:
-            _kpi_card("이번 달 이익", f"{monthly_profit:,}원", "#43e97b 0%, #38f9d7 100%" if monthly_profit >= 0 else "#f5576c 0%, #38f9d7 100%")
-        else:
-            _kpi_card("이번 달 이익", "-", None)
-    render_section_divider()
+        render_section_divider()
 
     if coaching_enabled:
         try:
@@ -302,18 +309,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
                 pass
     render_section_divider()
 
-    try:
-        _render_problems_good_points(store_id, coaching_enabled)
-    except Exception:
-        pass
-    render_section_divider()
-
-    try:
-        _render_anomaly_signals(store_id, coaching_enabled)
-    except Exception:
-        pass
-    render_section_divider()
-
+    # ===== Lazy 영역 (expander) =====
     st.markdown("### 📈 미니 차트")
     st.markdown("""<div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;"><p style="color: #6c757d;">차트를 표시하려면 마감 데이터가 필요합니다.</p></div>""", unsafe_allow_html=True)
     if st.button("📋 점장 마감으로 이동", use_container_width=True, key="home_btn_chart_close"):
@@ -332,11 +328,38 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     render_lazy_insights(store_id, year, month)
 
 
+def _kpi_card_unified(label: str, value: str, subtitle: str | None = None) -> None:
+    """
+    통일된 KPI 카드 스타일 (중립 톤, 일관된 레이아웃)
+    - 높이: 120px 고정
+    - 패딩: 1.2rem
+    - 폰트: label 0.85rem, value 1.4rem, subtitle 0.75rem
+    - 배경: #f8f9fa (중립 회색)
+    - 테두리: 1px solid #e9ecef
+    """
+    sub_html = f'<div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.3rem;">{subtitle}</div>' if subtitle else ""
+    st.markdown(f"""
+    <div style="
+        padding: 1.2rem;
+        background: #ffffff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        text-align: center;
+        height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    ">
+        <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 500;">{label}</div>
+        <div style="font-size: 1.4rem; font-weight: 700; color: #212529; line-height: 1.2;">{value}</div>
+        {sub_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def _kpi_card(label: str, value: str, gradient: str | None) -> None:
-    if gradient:
-        st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, {gradient}); border-radius: 8px; text-align: center; color: white;"><div style="font-size: 0.9rem;">{label}</div><div style="font-size: 1.5rem; font-weight: 700;">{value}</div></div>""", unsafe_allow_html=True)
-    else:
-        st.markdown(f"""<div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center;"><div style="font-size: 0.9rem; color: #6c757d;">{label}</div><div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">{value}</div></div>""", unsafe_allow_html=True)
+    """레거시 함수 (하위 호환용)"""
+    _kpi_card_unified(label, value, None)
 
 
 def _render_coach_missions(store_id: str, year: int, month: int, kpis: dict) -> None:
@@ -392,10 +415,9 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
     with col1:
         st.markdown("#### 🔴 문제")
         try:
-            # 경량 버전: TOP1만 계산
             problems = get_problems_top1(store_id)
             if not problems:
-                st.warning("아직 분석할 데이터가 충분하지 않습니다.")
+                st.info("아직 분석할 데이터가 충분하지 않습니다.")
                 if st.button("📋 점장 마감 시작하기", key="home_btn_pf", use_container_width=True):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
@@ -405,20 +427,18 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
                 g = ""
                 if coaching_enabled:
                     if "매출" in t and ("감소" in t or "떨어" in t):
-                        g = "<div style='color:#856404;font-size:0.85rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
                     elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
-                        g = "<div style='color:#856404;font-size:0.85rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
                     elif "메뉴" in t and "50%" in t:
-                        g = "<div style='color:#856404;font-size:0.85rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
-                st.markdown(f"""<div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24;">{t}</div>{g}</div>""", unsafe_allow_html=True)
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
+                st.markdown(f"""<div style="padding: 1rem; background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 8px; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24; font-size: 0.95rem;">{t}</div>{g}</div>""", unsafe_allow_html=True)
                 if st.button("보러가기", key="home_btn_p_1", use_container_width=True):
                     st.session_state["current_page"] = p.get("target_page", "점장 마감")
                     st.rerun()
-                # 자세히 보기 버튼
                 if st.button("📋 자세히 보기 (TOP3)", key="home_btn_p_detail", use_container_width=True):
                     st.session_state["_home_problems_expanded"] = True
                     st.rerun()
-            # TOP3 확장 영역
             if st.session_state.get("_home_problems_expanded", False):
                 with st.expander("🔴 문제 TOP3 전체", expanded=True):
                     if "_home_problems_top3" not in st.session_state:
@@ -426,7 +446,7 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
                     problems_full = st.session_state["_home_problems_top3"]
                     for i, p in enumerate(problems_full, 1):
                         t = p.get("text", "")
-                        st.markdown(f"""<div style="padding: 0.8rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24;">{i}. {t}</div></div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 8px; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24; font-size: 0.9rem;">{i}. {t}</div></div>""", unsafe_allow_html=True)
                         if st.button("보러가기", key=f"home_btn_p_full_{i}", use_container_width=True):
                             st.session_state["current_page"] = p.get("target_page", "점장 마감")
                             st.rerun()
@@ -435,31 +455,28 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
     with col2:
         st.markdown("#### 🟢 잘한 점")
         try:
-            # 경량 버전: TOP1만 계산
             good = get_good_points_top1(store_id)
             if not good:
-                st.warning("데이터가 쌓이면 자동 분석됩니다.")
+                st.info("데이터가 쌓이면 자동 분석됩니다.")
                 if st.button("📋 점장 마감 시작하기", key="home_btn_gf", use_container_width=True):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             else:
                 g = good[0]
-                st.markdown(f"""<div style="padding: 1rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724;">{g.get('text','')}</div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="padding: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #28a745; border-radius: 8px; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724; font-size: 0.95rem;">{g.get('text','')}</div></div>""", unsafe_allow_html=True)
                 if st.button("보러가기", key="home_btn_g_1", use_container_width=True):
                     st.session_state["current_page"] = g.get("target_page", "점장 마감")
                     st.rerun()
-                # 자세히 보기 버튼
                 if st.button("📋 자세히 보기 (TOP3)", key="home_btn_g_detail", use_container_width=True):
                     st.session_state["_home_good_points_expanded"] = True
                     st.rerun()
-            # TOP3 확장 영역
             if st.session_state.get("_home_good_points_expanded", False):
                 with st.expander("🟢 잘한 점 TOP3 전체", expanded=True):
                     if "_home_good_points_top3" not in st.session_state:
                         st.session_state["_home_good_points_top3"] = get_good_points_top3(store_id)
                     good_full = st.session_state["_home_good_points_top3"]
                     for i, g in enumerate(good_full, 1):
-                        st.markdown(f"""<div style="padding: 0.8rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724;">{i}. {g.get('text','')}</div></div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #28a745; border-radius: 8px; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #155724; font-size: 0.9rem;">{i}. {g.get('text','')}</div></div>""", unsafe_allow_html=True)
                         if st.button("보러가기", key=f"home_btn_g_full_{i}", use_container_width=True):
                             st.session_state["current_page"] = g.get("target_page", "점장 마감")
                             st.rerun()
@@ -471,30 +488,27 @@ def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
     """이상 징후 경량 버전 (1-2개) + 자세히 보기 버튼 (전체 3개 lazy load)."""
     st.markdown("### ⚠️ 이상 징후")
     try:
-        # 경량 버전: 1-2개만 계산
         signals = get_anomaly_signals_light(store_id)
         if not signals:
-            st.success("현재 감지된 이상 징후가 없습니다. 정상 범위로 보입니다.")
+            st.info("현재 감지된 이상 징후가 없습니다. 정상 범위로 보입니다.")
         else:
             for i, s in enumerate(signals, 1):
                 t = s.get("text", "")
                 g = ""
                 if coaching_enabled:
                     if "매출" in t and ("감소" in t or "떨어" in t):
-                        g = "<div style='color:#856404;font-size:0.85rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
                     elif "마감" in t and ("누락" in t or "없습니다" in t):
-                        g = "<div style='color:#856404;font-size:0.85rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
                     elif "판매량" in t or "판매" in t:
-                        g = "<div style='color:#856404;font-size:0.85rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
-                st.markdown(f"""<div style="padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;"><span style="font-size:1.2rem;">{s.get('icon','')}</span> <strong>{t}</strong>{g}</div>""", unsafe_allow_html=True)
+                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
+                st.markdown(f"""<div style="padding: 1rem; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem;"><span style="font-size:1.1rem;">{s.get('icon','')}</span> <strong style="color:#92400e;">{t}</strong>{g}</div>""", unsafe_allow_html=True)
                 if st.button("보러가기", key=f"home_btn_a_{i}", use_container_width=True):
                     st.session_state["current_page"] = s.get("target_page", "점장 마감")
                     st.rerun()
-            # 자세히 보기 버튼
             if st.button("📋 자세히 보기 (전체)", key="home_btn_a_detail", use_container_width=True):
                 st.session_state["_home_anomaly_expanded"] = True
                 st.rerun()
-        # 전체 확장 영역
         if st.session_state.get("_home_anomaly_expanded", False):
             with st.expander("⚠️ 이상 징후 전체 (최대 3개)", expanded=True):
                 if "_home_anomaly_full" not in st.session_state:
@@ -505,7 +519,7 @@ def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
                 else:
                     for i, s in enumerate(signals_full, 1):
                         t = s.get("text", "")
-                        st.markdown(f"""<div style="padding: 0.8rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;"><span style="font-size:1.2rem;">{s.get('icon','')}</span> <strong>{t}</strong></div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div style="padding: 0.8rem; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem;"><span style="font-size:1.1rem;">{s.get('icon','')}</span> <strong style="color:#92400e;">{t}</strong></div>""", unsafe_allow_html=True)
                         if st.button("보러가기", key=f"home_btn_a_full_{i}", use_container_width=True):
                             st.session_state["current_page"] = s.get("target_page", "점장 마감")
                             st.rerun()
