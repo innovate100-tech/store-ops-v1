@@ -61,6 +61,21 @@ def render_health_check_page():
     session_id = st.session_state.get('health_session_id')
     view_mode = st.session_state.get('health_check_view_mode', 'input')  # 'input' or 'result' or 'history'
     
+    # 세션이 있으면 완료 여부 확인
+    if session_id:
+        session = get_health_session(session_id)
+        if session and session.get('completed_at'):
+            # 완료된 세션이면 session_state 초기화하고 시작 화면으로
+            if 'health_session_id' in st.session_state:
+                del st.session_state['health_session_id']
+            if 'health_check_view_mode' in st.session_state:
+                del st.session_state['health_check_view_mode']
+            # 답변 개수 캐시도 초기화
+            answer_count_key = f"health_check_answer_count_{session_id}"
+            if answer_count_key in st.session_state:
+                del st.session_state[answer_count_key]
+            session_id = None
+    
     # 최근 미완료 세션 확인
     if not session_id:
         latest_open = load_latest_open_session(store_id)
@@ -145,22 +160,37 @@ def render_start_screen(store_id: str):
                             st.write(f"**Supabase 클라이언트 확인 오류**: {e}")
 
 
+@st.cache_data(ttl=10, show_spinner=False)  # 10초 캐시로 성능 개선, 스피너 숨김
+def _load_answers_cached(session_id: str):
+    """답변 로드 (캐싱)"""
+    return get_health_answers(session_id)
+
+def _invalidate_answers_cache(session_id: str):
+    """답변 캐시 무효화"""
+    _load_answers_cached.clear()
+
 def render_input_form(store_id: str, session_id: str):
     """입력 폼 렌더링 (9개 섹션)"""
-    # 기존 답변 로드
-    existing_answers = get_health_answers(session_id)
+    # 기존 답변 로드 (캐싱 적용)
+    existing_answers = _load_answers_cached(session_id)
     answers_dict = {}
     for ans in existing_answers:
         key = f"{ans['category']}_{ans['question_code']}"
         answers_dict[key] = ans['raw_value']
     
-    # session_state에 답변 개수 초기화 (처음 로드 시 또는 DB에서 로드한 값으로)
-    answer_count_key = f"health_check_answer_count_{session_id}"
-    if answer_count_key not in st.session_state:
-        st.session_state[answer_count_key] = len(answers_dict)
+    # 진행률 계산 (DB에서 실제 로드한 답변 개수 사용)
+    answered_count_db = len(answers_dict)
     
-    # 진행률 계산 (session_state의 실시간 답변 개수 사용)
-    answered_count = st.session_state[answer_count_key]
+    # session_state의 답변 개수도 확인 (실시간 업데이트 반영)
+    answer_count_key = f"health_check_answer_count_{session_id}"
+    answered_count_state = st.session_state.get(answer_count_key, answered_count_db)
+    
+    # 두 값 중 큰 값을 사용 (더 정확한 진행률 표시)
+    answered_count = max(answered_count_db, answered_count_state)
+    
+    # session_state 업데이트 (다음 렌더링을 위해)
+    st.session_state[answer_count_key] = answered_count
+    
     progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0
     can_complete = progress_ratio >= MIN_COMPLETION_RATIO
     
@@ -172,7 +202,8 @@ def render_input_form(store_id: str, session_id: str):
         st.success(f"✅ 완료 가능합니다! ({answered_count}개 답변 완료)")
     else:
         needed = int(TOTAL_QUESTIONS * MIN_COMPLETION_RATIO)
-        st.info(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개)")
+        remaining = needed - answered_count
+        st.info(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개, 남은 문항: {remaining}개)")
     
     st.markdown("---")
     
@@ -200,9 +231,19 @@ def render_input_form(store_id: str, session_id: str):
     with col2:
         if can_complete:
             if st.button("✅ 검진 완료", type="primary", use_container_width=True):
+                # 캐시 무효화
+                _invalidate_answers_cache(session_id)
                 success = finalize_health_session(store_id, session_id)
                 if success:
-                    st.session_state['health_check_view_mode'] = 'result'
+                    # 세션 상태 초기화
+                    if 'health_session_id' in st.session_state:
+                        del st.session_state['health_session_id']
+                    if 'health_check_view_mode' in st.session_state:
+                        del st.session_state['health_check_view_mode']
+                    # 답변 개수 캐시도 초기화
+                    answer_count_key = f"health_check_answer_count_{session_id}"
+                    if answer_count_key in st.session_state:
+                        del st.session_state[answer_count_key]
                     st.success("검진이 완료되었습니다!")
                     st.rerun()
                 else:
@@ -286,6 +327,21 @@ def render_category_questions(
         if new_raw_value != stored_value:
             # debounce: 같은 키를 연속으로 저장하지 않음
             if last_saved_key != key:
+                # session_state에 먼저 저장 (즉시 반영, rerun 최소화)
+                st.session_state[answer_state_key] = new_raw_value
+                st.session_state['last_saved_key'] = key
+                st.session_state['last_saved_time'] = datetime.now()
+                
+                # 답변 개수 업데이트 (새 답변이면 증가)
+                answer_count_key = f"health_check_answer_count_{session_id}"
+                if answer_count_key not in st.session_state:
+                    st.session_state[answer_count_key] = 0
+                
+                # stored_value가 None이면 새 답변
+                if stored_value is None:
+                    st.session_state[answer_count_key] = st.session_state.get(answer_count_key, 0) + 1
+                
+                # DB 저장은 백그라운드로 처리 (에러는 로그만)
                 try:
                     success = upsert_health_answer(
                         store_id=store_id,
@@ -295,27 +351,11 @@ def render_category_questions(
                         raw_value=new_raw_value,
                         memo=None
                     )
-                    if success:
-                        st.session_state['last_saved_key'] = key
-                        st.session_state['last_saved_time'] = datetime.now()
-                        st.session_state[answer_state_key] = new_raw_value
-                        
-                        # 답변 개수 업데이트 (새 답변이면 증가, 기존 답변 수정이면 유지)
-                        answer_count_key = f"health_check_answer_count_{session_id}"
-                        if answer_count_key not in st.session_state:
-                            st.session_state[answer_count_key] = 0
-                        
-                        # stored_value가 None이면 새 답변, 아니면 기존 답변 수정
-                        if stored_value is None:
-                            st.session_state[answer_count_key] = st.session_state.get(answer_count_key, 0) + 1
-                        
-                        # 작은 성공 메시지 (선택적, rerun 방지를 위해 주석 처리)
-                        # st.success("✓", icon="✅")
-                    else:
-                        st.warning(f"⚠️ 저장 실패: {question_code}")
+                    if not success:
+                        logger.warning(f"Failed to save answer: {question_code}")
                 except Exception as e:
                     logger.error(f"Error saving answer: {e}")
-                    st.warning(f"⚠️ 저장 중 오류 발생: {question_code}")
+                    # 에러 발생 시에도 UI는 유지 (사용자 경험 개선)
 
 
 def render_result_report(store_id: str, session_id: str):
