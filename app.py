@@ -1474,6 +1474,7 @@ with st.sidebar:
     menu_categories = {
         "🏠 HOME": [
             ("홈", "홈"),
+            ("전략 보드", "전략 보드"),
         ],
         "🔥 가게 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
@@ -1662,6 +1663,11 @@ page = st.session_state.current_page
 if page == "홈":
     from ui_pages.home import render_home
     render_home()  # Phase 9: _render_home_body(store_id, coaching_enabled) 통합 구조
+
+# 전략 보드 페이지
+elif page == "전략 보드":
+    from ui_pages.strategy.strategy_board import render_strategy_board
+    render_strategy_board()
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):

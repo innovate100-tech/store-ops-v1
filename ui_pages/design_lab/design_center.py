@@ -39,13 +39,19 @@ def render_design_center():
     
     # 이번 주 점검 완료 버튼
     routine_status = get_routine_status(store_id)
-    if not routine_status["weekly_design_check_done"]:
-        if st.button("✅ 이번 주 구조 점검 완료 처리", key="mark_weekly_check_done", use_container_width=True):
-            mark_weekly_check_done(store_id)
-            st.success("이번 주 구조 점검 완료 처리되었습니다!")
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if not routine_status["weekly_design_check_done"]:
+            if st.button("✅ 이번 주 구조 점검 완료 처리", key="mark_weekly_check_done", use_container_width=True):
+                mark_weekly_check_done(store_id)
+                st.success("이번 주 구조 점검 완료 처리되었습니다!")
+                st.rerun()
+        else:
+            st.info("✅ 이번 주 점검 완료")
+    with col2:
+        if st.button("📌 이번 달 전략 보드", key="design_center_to_strategy_board", use_container_width=True):
+            st.session_state["current_page"] = "전략 보드"
             st.rerun()
-    else:
-        st.info("✅ 이번 주 점검 완료")
     
     # 통합 요약 데이터 로드
     summary = get_design_center_summary(store_id)

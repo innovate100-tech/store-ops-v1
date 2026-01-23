@@ -775,6 +775,13 @@ def _render_zone1_status_board(store_id: str, year: int, month: int, kpis: dict,
     if unofficial_days > 0:
         st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
     
+    # 전략 보드 진입 버튼
+    col_strategy, _ = st.columns([1, 3])
+    with col_strategy:
+        if st.button("📌 이번 달 전략 보기", key="home_to_strategy_board", use_container_width=True):
+            st.session_state["current_page"] = "전략 보드"
+            st.rerun()
+    
     # KPI 4개: 어제 매출, 이번 달 누적 매출, 이번 달 평균 일매출, 네이버방문자 또는 객단가
     k1, k2, k3, k4 = st.columns(4, gap="medium")
     with k1:
