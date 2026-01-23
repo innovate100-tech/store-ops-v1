@@ -296,25 +296,33 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
 
 def render_input_form(store_id: str, session_id: str):
     """입력 폼 렌더링 (9개 섹션) - 임시 저장 방식"""
+    # session_state 초기화 (초기 1회만 DB 로드) - 최상단에서 먼저 실행
+    _initialize_health_check_state(store_id, session_id)
+    
     # 강제 초기화 옵션 (항상 표시 - 문제 해결용)
     col1, col2 = st.columns([3, 1])
     with col2:
         if st.button("🔄 상태 초기화", type="secondary", use_container_width=True):
             # 모든 건강검진 관련 session_state 초기화
             keys_to_remove = []
-            for key in st.session_state.keys():
+            for key in list(st.session_state.keys()):
                 if (key.startswith("hc_") or 
                     key.startswith("answer_") or 
                     key.startswith("q_") or 
                     key.startswith("health_check_answer_count_")):
                     keys_to_remove.append(key)
             for key in keys_to_remove:
-                del st.session_state[key]
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            # 라디오 버튼의 이전 값도 모두 초기화
+            radio_prev_keys = [k for k in st.session_state.keys() if k.endswith("_prev")]
+            for key in radio_prev_keys:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
             st.success("상태가 초기화되었습니다. 페이지를 새로고침합니다.")
             st.rerun()
-    
-    # session_state 초기화 (초기 1회만 DB 로드)
-    _initialize_health_check_state(store_id, session_id)
     
     hc_answers_key = "hc_answers"
     hc_dirty_key = "hc_dirty"
@@ -499,11 +507,16 @@ def render_category_questions(store_id: str, session_id: str, category: str):
                 # 첫 렌더링: 이전 값 저장만 하고 session_state에는 저장하지 않음
                 st.session_state[radio_prev_key] = selected
                 # current_value가 None이면 저장하지 않음 (아직 선택하지 않은 상태)
+                # 단, DB에서 로드한 값이 있으면 유지
                 if current_value is None:
+                    # 기본값(첫 번째 옵션)이 선택되었지만 저장하지 않음
                     continue
+                else:
+                    # DB에서 로드한 값이 있으면 유지 (이미 저장되어 있음)
+                    pass
             
             # 이전 선택값과 다르면 사용자가 변경한 것으로 간주
-            if previous_selected != selected:
+            elif previous_selected != selected:
                 # 이전 값 업데이트
                 st.session_state[radio_prev_key] = selected
                 
@@ -516,6 +529,8 @@ def render_category_questions(store_id: str, session_id: str, category: str):
                 if hc_dirty_key not in st.session_state:
                     st.session_state[hc_dirty_key] = set()
                 st.session_state[hc_dirty_key].add(key)
+            
+            # 이전 선택값과 같으면 아무것도 하지 않음 (rerun만 발생, 저장 안 함)
         
         # 질문 간 간격
         st.markdown("<br>", unsafe_allow_html=True)
