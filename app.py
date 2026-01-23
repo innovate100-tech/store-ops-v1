@@ -1469,49 +1469,6 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
     
-    # 모드 전환 UI (Phase 9: 확인 단계 제거, 바로 전환)
-    from src.auth import get_onboarding_mode, set_onboarding_mode
-    user_id = st.session_state.get('user_id')
-    if user_id:
-        current_mode = get_onboarding_mode(user_id)
-        if current_mode:
-            mode_label = "코치 모드" if current_mode == 'coach' else "빠른 모드"
-            mode_emoji = "🎓" if current_mode == 'coach' else "⚡"
-            st.markdown("---")
-            st.markdown(f"**{mode_emoji} 현재 모드: {mode_label}**")
-            
-            # 디버깅 정보 (개발 모드에서만)
-            if st.secrets.get("app", {}).get("dev_mode", False):
-                with st.expander("🔍 모드 디버깅", expanded=False):
-                    st.write(f"**Current Mode**: {current_mode}")
-                    st.write(f"**Mode Type**: {type(current_mode)}")
-                    st.write(f"**Will render**: {'Fast Home' if current_mode == 'fast' else 'Coach Home'}")
-            
-            # 모드 변경 버튼 (확인 단계 없이 바로 전환)
-            new_mode = 'fast' if current_mode == 'coach' else 'coach'
-            new_mode_label = "빠른 모드" if new_mode == 'fast' else "코치 모드"
-            new_mode_emoji = "⚡" if new_mode == 'fast' else "🎓"
-            
-            # 모드 변경 버튼 클릭 시 바로 전환
-            if st.button(f"🔄 {new_mode_emoji} {new_mode_label}로 변경", use_container_width=True, key="switch_mode_btn"):
-                if set_onboarding_mode(user_id, new_mode):
-                    # 캐시 클리어 (모드 변경 후 홈 재구성을 위해)
-                    try:
-                        st.cache_data.clear()
-                        st.cache_resource.clear()
-                    except:
-                        pass
-                    # 세션 상태에 모드 변경 플래그 설정 (홈 재구성 강제)
-                    st.session_state["_mode_changed"] = True
-                    # 페이지를 홈으로 강제 이동하여 재구성
-                    if st.session_state.get("current_page") == "홈":
-                        st.rerun()
-                    else:
-                        st.session_state.current_page = "홈"
-                        st.rerun()
-                else:
-                    st.error("모드 변경에 실패했습니다.")
-    
     # 사이드바 네비게이션 - 카테고리별 구분 (Phase 10: 최종 구조 정리)
     # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경
     menu_categories = {

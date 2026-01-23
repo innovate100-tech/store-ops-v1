@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 import streamlit as st
 
 from src.ui_helpers import render_page_header, render_section_divider
-from src.auth import get_current_store_id, get_onboarding_mode
+from src.auth import get_current_store_id
 from ui_pages.home.home_data import (
     load_home_kpis,
     get_monthly_close_stats,
@@ -116,7 +116,7 @@ def get_month_status_summary(store_id: str, year: int, month: int, day_level: st
         return "이번 달 상태를 확인 중입니다."
 
 
-def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False) -> dict:
+def get_today_one_action(store_id: str, level: int) -> dict:
     """오늘 하나만 추천 (룰 기반)."""
     fallback = {"title": "오늘 마감부터 시작", "reason": "데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.", "button_label": "📋 점장 마감 하러가기", "target_page": "점장 마감"}
     try:
@@ -134,27 +134,23 @@ def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False)
             memos = get_monthly_memos(store_id, cy, cm, limit=1)
             if not memos:
                 return {"title": "마감에 특이사항 1줄 남기기", "reason": "숫자 변화의 원인을 기억하면 다음 달 전략이 쉬워집니다.", "button_label": "📋 점장 마감 하러가기", "target_page": "점장 마감"}
-            if is_coach_mode:
-                problems = get_problems_top3(store_id)
-                has_sales = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
-                if has_sales:
-                    return {"title": "판매 흐름 점검", "reason": "최근 매출이 흔들리고 있어, 오늘은 판매 흐름을 3분만 점검해보세요.", "button_label": "📦 판매 관리 보러가기", "target_page": "매출 관리"}
-                return {"title": "판매 흐름 점검", "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.", "button_label": "📦 판매 관리 보러가기", "target_page": "매출 관리"}
-            return {"title": "판매 흐름 3분 점검", "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.", "button_label": "📦 판매 관리 보러가기", "target_page": "매출 관리"}
+            problems = get_problems_top3(store_id)
+            has_sales = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
+            if has_sales:
+                return {"title": "판매 흐름 점검", "reason": "최근 매출이 흔들리고 있어, 오늘은 판매 흐름을 3분만 점검해보세요.", "button_label": "📦 판매 관리 보러가기", "target_page": "매출 관리"}
+            return {"title": "판매 흐름 점검", "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.", "button_label": "📦 판매 관리 보러가기", "target_page": "매출 관리"}
         if level == 3:
             if not check_actual_settlement_exists(store_id, cy, cm):
                 return {"title": "이번 달 성적표 만들기", "reason": "정산이 있어야 이익/구조판이 자동으로 작동합니다.", "button_label": "🧾 실제정산 하러가기", "target_page": "실제정산"}
-            if is_coach_mode:
-                return {"title": "숫자 구조 복습", "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다. 오늘은 10초만 복습해보세요.", "button_label": "💳 목표 비용구조 보기", "target_page": "목표 비용구조"}
-            return {"title": "숫자 구조 10초 복습", "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다.", "button_label": "💳 목표 비용구조 보기", "target_page": "목표 비용구조"}
+            return {"title": "숫자 구조 복습", "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다. 오늘은 10초만 복습해보세요.", "button_label": "💳 목표 비용구조 보기", "target_page": "목표 비용구조"}
         return fallback
     except Exception:
         return fallback
 
 
-def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mode: bool = False, day_level: str | None = None) -> dict:
+def get_today_one_action_with_day_context(store_id: str, level: int, day_level: str | None = None) -> dict:
     """오늘 하나만 추천 (DAY 톤)."""
-    action = get_today_one_action(store_id, level, is_coach_mode)
+    action = get_today_one_action(store_id, level)
     if day_level == "DAY1":
         action["title"] = "오늘도 마감 습관 만들기"
         action["reason"] = "기록을 쌓는 습관이 생기면, 3일 후부터 가게 흐름이 보이기 시작합니다."
@@ -177,8 +173,8 @@ def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mo
     return action
 
 
-def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
-    """통합 홈 렌더링. coaching_enabled=True면 coach_only 블록 표시."""
+def _render_home_body(store_id: str) -> None:
+    """통합 홈 렌더링."""
     load_start = time.time()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
@@ -200,7 +196,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
                 keys_to_remove = [
                     "_home_problems_expanded", "_home_good_points_expanded", 
                     "_home_anomaly_expanded", "_home_problems_top3", 
-                    "_home_good_points_top3", "coach_mode_welcomed"
+                    "_home_good_points_top3"
                 ]
                 for key in keys_to_remove:
                     if key in st.session_state:
@@ -227,7 +223,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     closed_days, total_days, close_rate, streak_days = close_stats
     
     load_time = time.time() - load_start
-    logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id}, coaching_enabled={coaching_enabled})")
+    logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id})")
 
     # ===== HOME v2 구조 =====
     
@@ -246,48 +242,23 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     # ZONE 5: 사장 학교 1줄 (School Strip)
     _render_zone5_school_strip()
 
-    # ===== Coach Only 섹션 (코치멘트만 표시, 나머지는 동일) =====
-    if coaching_enabled and day_level:
+    # ===== 오늘 하나만 추천 =====
+    try:
+        action = get_today_one_action_with_day_context(store_id, data_level, day_level)
+        st.markdown("### 🎯 오늘 코치의 한 가지 제안")
+        st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; box-shadow: 0 4px 6px rgba(102,126,234,0.3);"><h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.1rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; line-height: 1.5;">{action['reason']}</p></div>""", unsafe_allow_html=True)
+        if st.button(action["button_label"], type="primary", use_container_width=True, key="home_btn_today_one"):
+            st.session_state["current_page"] = action["target_page"]
+            st.rerun()
+    except Exception:
         try:
-            if day_level == "DAY1":
-                st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
-            elif day_level == "DAY3":
-                st.success("**이제 가게가 숫자로 보이기 시작했습니다.**\n\n지금부터 홈은 '기록 앱'이 아니라 '코치 화면'으로 바뀌기 시작합니다.")
-            elif day_level == "DAY7":
-                st.success("**이제 이 앱은 사장님의 '매장 코치' 모드입니다.**\n\n오늘부터는 기록보다, '무엇을 고칠지'가 먼저 보입니다.")
-        except Exception:
-            pass
-    if coaching_enabled and "coach_mode_welcomed" not in st.session_state:
-        st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
-        st.session_state["coach_mode_welcomed"] = True
-    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-
-    # 코치 모드 전용: 시작 미션 3개
-    if coaching_enabled:
-        try:
-            _render_coach_missions(store_id, year, month, kpis)
-        except Exception:
-            pass
-        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-
-    # 코치 모드 전용: 오늘 하나만 추천
-    if coaching_enabled:
-        try:
-            action = get_today_one_action_with_day_context(store_id, data_level, True, day_level)
-            st.markdown("### 🎯 오늘 코치의 한 가지 제안")
-            st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; box-shadow: 0 4px 6px rgba(102,126,234,0.3);"><h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.1rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; line-height: 1.5;">{action['reason']}</p></div>""", unsafe_allow_html=True)
-            if st.button(action["button_label"], type="primary", use_container_width=True, key="home_btn_today_one"):
-                st.session_state["current_page"] = action["target_page"]
+            st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.2);"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
+            if st.button("📊 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
+                st.session_state["current_page"] = "점장 마감"
                 st.rerun()
         except Exception:
-            try:
-                st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.2);"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
-                if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
-                    st.session_state["current_page"] = "점장 마감"
-                    st.rerun()
-            except Exception:
-                pass
-        st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+            pass
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
     # ===== Lazy 영역 (expander, 모던 스타일) =====
     with st.expander("📈 미니 차트", expanded=False):
@@ -296,11 +267,10 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
             st.session_state["current_page"] = "점장 마감"
             st.rerun()
 
-    # 코치 모드 전용: 이번 달 가게 상태 한 줄
-    if coaching_enabled:
-        try:
-            s = get_month_status_summary(store_id, year, month, day_level)
-            st.markdown(f"""
+    # 이번 달 가게 상태 한 줄
+    try:
+        s = get_month_status_summary(store_id, year, month, day_level)
+        st.markdown(f"""
             <div style="padding: 1rem 1.2rem; background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%); border-radius: 10px; border-left: 4px solid #17a2b8; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <div style="font-size: 0.85rem; color: #0c5460; font-weight: 600; margin-bottom: 0.3rem;">📌 이번 달 가게 상태 한 줄</div>
                 <div style="font-size: 0.95rem; color: #495057; line-height: 1.5;">{s}</div>
@@ -510,7 +480,7 @@ def _render_coach_missions(store_id: str, year: int, month: int, kpis: dict) -> 
         st.success("🎉 기본 세팅이 끝났습니다. 이제 홈이 매일 가게를 읽어드립니다.")
 
 
-def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
+def _render_problems_good_points(store_id: str) -> None:
     """문제/잘한 점 TOP1 표시 + 자세히 보기 버튼 (TOP3 lazy load)."""
     st.markdown("### 🔴 문제 / 🟢 잘한 점")
     col1, col2 = st.columns(2)
@@ -527,9 +497,8 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
                 p = problems[0]
                 t = p.get("text", "")
                 g = ""
-                if coaching_enabled:
-                    if "매출" in t and ("감소" in t or "떨어" in t):
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                if "매출" in t and ("감소" in t or "떨어" in t):
+                    g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
                     elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
                         g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
                     elif "메뉴" in t and "50%" in t:
@@ -586,7 +555,7 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
             st.error("잘한 점 분석 중 오류가 발생했습니다.")
 
 
-def _render_compressed_alerts(store_id: str, coaching_enabled: bool) -> None:
+def _render_compressed_alerts(store_id: str) -> None:
     """
     압축된 알림 영역 (이상징후/문제/잘한점, 기본 1개만, 3줄 규격)
     - 결론 한 줄 (굵게 + 숫자)
@@ -769,9 +738,9 @@ def _render_alert_card_3line(icon: str, conclusion: str, importance: str, button
             st.rerun()
 
 
-def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
+def _render_anomaly_signals(store_id: str) -> None:
     """이상 징후 경량 버전 (1-2개) + 자세히 보기 버튼 (전체 3개 lazy load). - 레거시 호환용"""
-    _render_compressed_alerts(store_id, coaching_enabled)
+    _render_compressed_alerts(store_id)
 
 
 def render_home() -> None:
@@ -780,21 +749,11 @@ def render_home() -> None:
     if not user_id:
         st.error("로그인이 필요합니다.")
         return
-    if st.session_state.get("_mode_changed", False):
-        try:
-            st.cache_data.clear()
-            st.cache_resource.clear()
-        except Exception:
-            pass
-        st.session_state["_mode_changed"] = False
-    mode = get_onboarding_mode(user_id)
-    logger.info("render_home: user_id=%s, mode=%s", user_id, mode)
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
         return
-    coaching_enabled = mode != "fast"
-    _render_home_body(store_id, coaching_enabled)
+    _render_home_body(store_id)
 
 
 # ===== HOME v2 ZONE 렌더링 함수 =====
