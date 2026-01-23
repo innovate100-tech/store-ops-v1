@@ -108,6 +108,146 @@ def _is_current_month_settlement_done(store_id: str) -> bool:
         return False
 
 
+def _get_today_recommendations(store_id: str) -> list:
+    """
+    오늘 추천 액션 목록 결정 (다중 추천)
+    
+    우선순위:
+    P1. 오늘 아무 데이터 없으면 → 일일 마감
+    P2. 오늘 매출만 있고 마감 없으면 → 일일 마감
+    P3. 오늘 입력 있고 마감 없으면 → 일일 마감 (마감 완료)
+    P4. 7일간 체크리스트 없으면 → 매장 체크리스트
+    P5. 월초 + 이번달 정산 없으면 → 월간 정산
+    
+    Returns:
+        [
+            {
+                "status": "completed" | "pending" | "waiting",
+                "message": "작업 설명",
+                "button_label": "버튼 라벨",
+                "page_key": "페이지 키",
+                "priority": int (1-5)
+            },
+            ...
+        ]
+    """
+    recommendations = []
+    
+    if not store_id:
+        return [{
+            "status": "pending",
+            "message": "📝 오늘 입력을 시작하세요",
+            "button_label": "📝 일일 마감",
+            "page_key": "일일 입력(통합)",
+            "priority": 1
+        }]
+    
+    try:
+        today = today_kst()
+        status = get_day_record_status(store_id, today)
+        has_close = status.get("has_close", False)
+        has_sales = status.get("has_sales", False)
+        has_visitors = status.get("has_visitors", False)
+        has_any = has_sales or has_visitors or has_close
+        
+        # P1: 오늘 아무 데이터 없으면 → 일일 마감
+        if not has_any:
+            recommendations.append({
+                "status": "pending",
+                "message": "📝 오늘 입력을 시작하세요",
+                "button_label": "📝 일일 마감",
+                "page_key": "일일 입력(통합)",
+                "priority": 1
+            })
+        # P2: 오늘 매출만 있고 마감 없으면 → 일일 마감
+        elif has_sales and not has_close:
+            recommendations.append({
+                "status": "pending",
+                "message": "📝 오늘 입력을 완료하세요",
+                "button_label": "📝 일일 마감",
+                "page_key": "일일 입력(통합)",
+                "priority": 1
+            })
+        # P3: 오늘 입력 있고 마감 없으면 → 일일 마감 (마감 완료)
+        elif has_any and not has_close:
+            recommendations.append({
+                "status": "pending",
+                "message": "📋 오늘 마감을 완료하세요",
+                "button_label": "📝 일일 마감",
+                "page_key": "일일 입력(통합)",
+                "priority": 1
+            })
+        # 마감 완료된 경우
+        else:
+            recommendations.append({
+                "status": "completed",
+                "message": "✅ 오늘 마감 완료",
+                "button_label": "📝 일일 마감",
+                "page_key": "일일 입력(통합)",
+                "priority": 1
+            })
+        
+        # P4: 7일간 체크리스트 없으면 → 매장 체크리스트
+        try:
+            checklist_count = _count_completed_checklists_last_7_days(store_id)
+            if checklist_count == 0:
+                recommendations.append({
+                    "status": "pending",
+                    "message": "📋 이번 주 점검을 한번 해보세요 (3일 남음)",
+                    "button_label": "🩺 매장 체크리스트",
+                    "page_key": "건강검진 실시",
+                    "priority": 4
+                })
+            else:
+                recommendations.append({
+                    "status": "completed",
+                    "message": f"✅ 체크리스트 완료 (최근 7일: {checklist_count}회)",
+                    "button_label": "🩺 매장 체크리스트",
+                    "page_key": "건강검진 실시",
+                    "priority": 4
+                })
+        except Exception:
+            pass
+        
+        # P5: 월초 + 이번달 정산 없으면 → 월간 정산
+        if today.day <= 3:
+            try:
+                is_settlement_done = _is_current_month_settlement_done(store_id)
+                if not is_settlement_done:
+                    recommendations.append({
+                        "status": "pending",
+                        "message": "📅 월초입니다. 이번달 정산을 시작하세요",
+                        "button_label": "📅 월간 정산",
+                        "page_key": "실제정산",
+                        "priority": 5
+                    })
+                else:
+                    recommendations.append({
+                        "status": "completed",
+                        "message": "✅ 이번달 정산 완료",
+                        "button_label": "📅 월간 정산",
+                        "page_key": "실제정산",
+                        "priority": 5
+                    })
+            except Exception:
+                pass
+        
+        # 우선순위로 정렬
+        recommendations.sort(key=lambda x: x["priority"])
+        
+        return recommendations[:5]  # 최대 5개
+    
+    except Exception:
+        # Fallback: 예외 발생 시 기본값 반환
+        return [{
+            "status": "pending",
+            "message": "📝 오늘 입력을 시작하세요",
+            "button_label": "📝 일일 마감",
+            "page_key": "일일 입력(통합)",
+            "priority": 1
+        }]
+
+
 def _get_today_recommendation(store_id: str) -> dict:
     """
     오늘 추천 액션 결정 (규칙 v2 - 요구사항 반영)
@@ -217,20 +357,63 @@ def render_input_hub():
     store_id = get_current_store_id()
     
     # ============================================
-    # A. 오늘 추천 (최상단 고정)
+    # A. 오늘 해야 할 일 (다중 추천 + 진행률)
     # ============================================
-    recommendation = _get_today_recommendation(store_id)
+    recommendations = _get_today_recommendations(store_id)
+    
+    # 진행률 계산
+    total_tasks = len(recommendations)
+    completed_tasks = sum(1 for r in recommendations if r["status"] == "completed")
+    progress_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
     st.markdown(f"""
-    <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                 border-radius: 12px; color: white; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">🎯 오늘 추천</div>
-        <div style="font-size: 1rem; margin-bottom: 1rem;">{recommendation['message']}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div style="font-size: 1.3rem; font-weight: 600;">🎯 오늘 해야 할 일</div>
+            <div style="font-size: 0.9rem; background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px;">
+                {completed_tasks}/{total_tasks} 완료
+            </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background: #4ade80; height: 100%; width: {progress_rate}%; transition: width 0.3s;"></div>
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button(recommendation['button_label'], type="primary", use_container_width=True, key="input_hub_today_recommendation"):
-        st.session_state["current_page"] = recommendation['page_key']
-        st.rerun()
+    # 각 추천 작업 표시
+    for idx, rec in enumerate(recommendations):
+        status_icon = {
+            "completed": "✅",
+            "pending": "⏳",
+            "waiting": "⏸️"
+        }.get(rec["status"], "📋")
+        
+        status_color = {
+            "completed": "#4ade80",
+            "pending": "#fbbf24",
+            "waiting": "#94a3b8"
+        }.get(rec["status"], "#94a3b8")
+        
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.markdown(f"""
+            <div style="padding: 0.8rem; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem;">{status_icon}</span>
+                    <span style="font-size: 0.95rem;">{rec['message']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            if rec["status"] != "completed":
+                if st.button(rec['button_label'], key=f"input_hub_rec_{idx}", use_container_width=True, type="primary"):
+                    st.session_state["current_page"] = rec['page_key']
+                    st.rerun()
+            else:
+                st.button(rec['button_label'], key=f"input_hub_rec_{idx}", use_container_width=True, type="secondary", disabled=True)
     
     st.markdown("---")
     

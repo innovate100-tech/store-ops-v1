@@ -77,12 +77,35 @@ def render_daily_input_hub():
         except:
             pass
     
+    # 메모 확인 (간단히 - 실제로는 입력값 확인 필요)
+    has_memo = False  # 메모는 입력값을 직접 확인해야 하므로 기본값
+    
+    # 진행률 계산
+    total_items = 4  # 매출, 네이버 방문자, 판매량, 메모
+    completed_items = sum([
+        1 if has_sales else 0,
+        1 if has_visitors else 0,
+        1 if has_sales_items else 0,
+        1 if has_memo else 0
+    ])
+    progress_rate = (completed_items / total_items * 100) if total_items > 0 else 0
+    
     # 상태 대시보드
     st.markdown(f"""
     <div style="padding: 1.5rem; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); 
                 border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem;">
-            📅 {selected_date.strftime('%Y년 %m월 %d일')} ({['월', '화', '수', '목', '금', '토', '일'][selected_date.weekday()]}요일)
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div style="font-size: 1.1rem; font-weight: 600;">
+                📅 {selected_date.strftime('%Y년 %m월 %d일')} ({['월', '화', '수', '목', '금', '토', '일'][selected_date.weekday()]}요일)
+            </div>
+            <div style="font-size: 0.9rem; background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px;">
+                {completed_items}/{total_items} 완료
+            </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background: {'#4ade80' if has_close else '#fbbf24' if progress_rate > 0 else '#94a3b8'}; height: 100%; width: {progress_rate}%; transition: width 0.3s;"></div>
+            </div>
         </div>
         <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
             <div style="flex: 1; min-width: 120px;">
@@ -93,17 +116,17 @@ def render_daily_input_hub():
             </div>
         </div>
         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_sales else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_sales else 'none'};">
                 <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">💰 매출</div>
                 <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_sales else '—'}</div>
                 <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{best_total_sales:,.0f}원' if best_total_sales else '—'}</div>
             </div>
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_visitors else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_visitors else 'none'};">
                 <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">👥 네이버 방문자</div>
                 <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_visitors else '—'}</div>
                 <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{visitors_best}명' if visitors_best else '—'}</div>
             </div>
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_sales_items else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_sales_items else 'none'};">
                 <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">📦 판매량</div>
                 <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_sales_items else '⚠' if has_sales or has_visitors else '—'}</div>
                 <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{sales_items_count}개 메뉴' if has_sales_items else '—'}</div>

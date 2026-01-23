@@ -60,6 +60,16 @@ def render_ingredient_input_page():
     if ingredient_df.empty:
         st.info("등록된 재료가 없습니다.")
     else:
+        # 검색 기능
+        search_term = st.text_input("🔍 재료 검색", key="ingredient_search", placeholder="재료명으로 검색...")
+        
+        # 검색어로 필터링
+        if search_term and search_term.strip():
+            ingredient_df = ingredient_df[ingredient_df['재료명'].str.contains(search_term, case=False, na=False)]
+        
+        if ingredient_df.empty:
+            st.info("검색 결과가 없습니다.")
+            return
         # 레시피에서 사용 여부 확인
         from src.auth import get_supabase_client
         supabase = get_supabase_client()

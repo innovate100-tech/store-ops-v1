@@ -77,6 +77,16 @@ def render_menu_input_page():
     if menu_df.empty:
         st.info("등록된 메뉴가 없습니다.")
     else:
+        # 검색 기능
+        search_term = st.text_input("🔍 메뉴 검색", key="menu_search", placeholder="메뉴명으로 검색...")
+        
+        # 검색어로 필터링
+        if search_term and search_term.strip():
+            menu_df = menu_df[menu_df['메뉴명'].str.contains(search_term, case=False, na=False)]
+        
+        if menu_df.empty:
+            st.info("검색 결과가 없습니다.")
+            return
         # 레시피 상태 확인
         from src.auth import get_supabase_client
         supabase = get_supabase_client()
