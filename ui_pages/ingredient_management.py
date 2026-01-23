@@ -442,6 +442,29 @@ def render_ingredient_management():
 def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.DataFrame, high_risk_df: pd.DataFrame):
     """ZONE D: 재료 구조 전략 도구"""
     
+    # 재료명 -> ingredient_id 매핑 생성
+    from src.storage_supabase import load_csv
+    ingredient_df = load_csv('ingredient_master.csv', store_id=store_id, default_columns=['재료명', '단위', '단가'])
+    ingredient_id_map = {}
+    if not ingredient_df.empty and 'id' in ingredient_df.columns:
+        for _, row in ingredient_df.iterrows():
+            ingredient_name = row.get('재료명', '')
+            ingredient_id = row.get('id', '')
+            if ingredient_name and ingredient_id:
+                ingredient_id_map[ingredient_name] = ingredient_id
+    
+    # DB에서 재료 설계 상태 로드
+    from src.storage_supabase import load_ingredient_structure_state
+    db_states_by_id = load_ingredient_structure_state(store_id)
+    ingredient_name_map = {v: k for k, v in ingredient_id_map.items()}  # 역매핑
+    
+    # DB 상태를 재료명 기준으로 변환
+    db_states = {}
+    for ingredient_id, state in db_states_by_id.items():
+        ingredient_name = ingredient_name_map.get(ingredient_id)
+        if ingredient_name:
+            db_states[ingredient_name] = state
+    
     # 1) 고위험 재료 테이블 (핵심)
     st.markdown("#### 🔴 고위험 재료 테이블")
     
@@ -465,7 +488,23 @@ def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.Dat
         
         # 테이블 표시
         for idx, row in display_risk_df.iterrows():
-            with st.expander(f"🔴 {row['재료명']} - 위험도: {row['위험_사유']}", expanded=False):
+            ingredient_name = row['재료명']
+            ingredient_id = ingredient_id_map.get(ingredient_name)
+            
+            # DB에서 초기값 로드 (없으면 기본값)
+            db_state = db_states.get(ingredient_name, {})
+            default_replaceable = db_state.get('is_substitutable', False)
+            default_order_type = db_state.get('order_type', 'unset')
+            
+            # order_type 변환 (영문 -> 한글)
+            if default_order_type == 'single':
+                default_order_type = '단일'
+            elif default_order_type == 'multi':
+                default_order_type = '복수'
+            else:
+                default_order_type = '미설정'
+            
+            with st.expander(f"🔴 {ingredient_name} - 위험도: {row['위험_사유']}", expanded=False):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -476,24 +515,63 @@ def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.Dat
                     st.write(f"**연결 메뉴 수:** {row['연결_메뉴_수']}개")
                     st.write(f"**연결 메뉴:** {row['연결_메뉴_목록']}")
                 
-                # 대체 가능 여부 (session_state)
-                replaceable_key = f"ingredient_replaceable::{store_id}::{row['재료명']}"
-                is_replaceable = st.session_state.get(replaceable_key, False)
-                new_replaceable = st.checkbox("대체 가능", value=is_replaceable, key=f"replaceable_{row['재료명']}")
-                if new_replaceable != is_replaceable:
-                    st.session_state[replaceable_key] = new_replaceable
+                # 대체 가능 여부 (DB 우선)
+                new_replaceable = st.checkbox(
+                    "대체 가능",
+                    value=default_replaceable,
+                    key=f"replaceable_{ingredient_name}"
+                )
                 
-                # 발주 유형 (session_state)
-                order_type_key = f"ingredient_order_type::{store_id}::{row['재료명']}"
-                current_order_type = st.session_state.get(order_type_key, "미설정")
+                # 발주 유형 (DB 우선)
                 new_order_type = st.selectbox(
                     "발주 유형",
                     ["미설정", "단일", "복수"],
-                    index=["미설정", "단일", "복수"].index(current_order_type) if current_order_type in ["미설정", "단일", "복수"] else 0,
-                    key=f"order_type_{row['재료명']}"
+                    index=["미설정", "단일", "복수"].index(default_order_type) if default_order_type in ["미설정", "단일", "복수"] else 0,
+                    key=f"order_type_{ingredient_name}"
                 )
-                if new_order_type != current_order_type:
+                
+                # 변경 감지 및 DB 저장
+                if ingredient_id:
+                    from src.storage_supabase import upsert_ingredient_structure_state
+                    from src.auth import is_dev_mode
+                    
+                    # 값이 변경되었는지 확인
+                    if new_replaceable != default_replaceable or new_order_type != default_order_type:
+                        # order_type 변환 (한글 -> 영문)
+                        order_type_db = None
+                        if new_order_type == '단일':
+                            order_type_db = 'single'
+                        elif new_order_type == '복수':
+                            order_type_db = 'multi'
+                        elif new_order_type == '미설정':
+                            order_type_db = 'unset'
+                        
+                        success = upsert_ingredient_structure_state(
+                            store_id,
+                            ingredient_id,
+                            is_substitutable=new_replaceable,
+                            order_type=order_type_db
+                        )
+                        
+                        if success:
+                            # 성공 시 session_state 캐시 업데이트
+                            cache_key = f"ingredient_structure_state::{store_id}"
+                            if cache_key not in st.session_state:
+                                st.session_state[cache_key] = {}
+                            if ingredient_name not in st.session_state[cache_key]:
+                                st.session_state[cache_key][ingredient_name] = {}
+                            st.session_state[cache_key][ingredient_name]['is_substitutable'] = new_replaceable
+                            st.session_state[cache_key][ingredient_name]['order_type'] = new_order_type
+                        elif is_dev_mode():
+                            st.warning(f"DB 저장 실패: {ingredient_name}")
+                else:
+                    # ingredient_id를 찾을 수 없으면 session_state만 저장 (폴백)
+                    replaceable_key = f"ingredient_replaceable::{store_id}::{ingredient_name}"
+                    order_type_key = f"ingredient_order_type::{store_id}::{ingredient_name}"
+                    st.session_state[replaceable_key] = new_replaceable
                     st.session_state[order_type_key] = new_order_type
+                    if is_dev_mode():
+                        st.warning(f"재료 ID를 찾을 수 없어 session_state에만 저장했습니다: {ingredient_name}")
     
     render_section_divider()
     
@@ -523,29 +601,45 @@ def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.Dat
             for menu in menu_list:
                 st.write(f"- {menu}")
             
+            # DB에서 메모 초기값 로드
+            selected_ingredient_id = ingredient_id_map.get(selected_ingredient)
+            selected_db_state = db_states.get(selected_ingredient, {})
+            default_substitute_memo = selected_db_state.get('substitute_memo', '')
+            default_strategy_memo = selected_db_state.get('strategy_memo', '')
+            
             # 대체 가능 재료 메모
-            memo_key = f"ingredient_replacement_memo::{store_id}::{selected_ingredient}"
-            current_memo = st.session_state.get(memo_key, "")
-            new_memo = st.text_area(
+            new_substitute_memo = st.text_area(
                 "대체 가능 재료 메모",
-                value=current_memo,
+                value=default_substitute_memo,
                 key=f"replacement_memo_{selected_ingredient}",
                 placeholder="예: 돼지고기 → 닭고기, 소고기 → 돼지고기 등"
             )
-            if new_memo != current_memo:
-                st.session_state[memo_key] = new_memo
             
             # 구조 전략 메모
-            strategy_key = f"ingredient_strategy_memo::{store_id}::{selected_ingredient}"
-            current_strategy = st.session_state.get(strategy_key, "")
-            new_strategy = st.text_area(
+            new_strategy_memo = st.text_area(
                 "구조 전략 메모",
-                value=current_strategy,
+                value=default_strategy_memo,
                 key=f"strategy_memo_{selected_ingredient}",
                 placeholder="예: 공급업체 다변화 필요, 계절별 대체재 확보 등"
             )
-            if new_strategy != current_strategy:
-                st.session_state[strategy_key] = new_strategy
+            
+            # 저장 버튼
+            if st.button("메모 저장", key=f"save_memo_{selected_ingredient}"):
+                if selected_ingredient_id:
+                    from src.storage_supabase import upsert_ingredient_structure_state
+                    success = upsert_ingredient_structure_state(
+                        store_id,
+                        selected_ingredient_id,
+                        substitute_memo=new_substitute_memo if new_substitute_memo else None,
+                        strategy_memo=new_strategy_memo if new_strategy_memo else None
+                    )
+                    if success:
+                        st.success("메모가 저장되었습니다.")
+                        st.rerun()
+                    else:
+                        st.error("메모 저장에 실패했습니다.")
+                else:
+                    st.warning(f"재료 ID를 찾을 수 없습니다: {selected_ingredient}")
     
     render_section_divider()
     

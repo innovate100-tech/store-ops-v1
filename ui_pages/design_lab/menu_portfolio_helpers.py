@@ -8,18 +8,110 @@ import pandas as pd
 from typing import Dict, List, Tuple
 
 
+def _get_menu_id_map(store_id: str) -> Dict[str, str]:
+    """메뉴명 -> menu_id 매핑 생성 (캐시)"""
+    cache_key = f"menu_id_map::{store_id}"
+    if cache_key not in st.session_state:
+        from src.storage_supabase import load_csv
+        menu_df = load_csv('menu_master.csv', store_id=store_id, default_columns=['메뉴명', '판매가'])
+        menu_id_map = {}
+        if not menu_df.empty and 'id' in menu_df.columns:
+            for _, row in menu_df.iterrows():
+                menu_name = row.get('메뉴명', '')
+                menu_id = row.get('id', '')
+                if menu_name and menu_id:
+                    menu_id_map[menu_name] = menu_id
+        st.session_state[cache_key] = menu_id_map
+    return st.session_state.get(cache_key, {})
+
+
 def get_menu_portfolio_tags(store_id: str) -> Dict[str, str]:
-    """메뉴별 역할 태그 조회 (session_state)"""
-    key = f"menu_portfolio_tags::{store_id}"
-    return st.session_state.get(key, {})
+    """
+    메뉴별 역할 태그 조회 (DB 우선, session_state 폴백)
+    
+    Returns:
+        dict: {menu_name: role_tag} 형태
+    """
+    if not store_id:
+        return {}
+    
+    # DB에서 로드
+    from src.storage_supabase import load_menu_role_tags
+    db_tags_by_id = load_menu_role_tags(store_id)
+    
+    # menu_id -> menu_name 변환
+    menu_id_map = _get_menu_id_map(store_id)
+    menu_name_map = {v: k for k, v in menu_id_map.items()}  # 역매핑
+    
+    # DB 결과를 menu_name 기준으로 변환
+    db_tags = {}
+    for menu_id, role_tag in db_tags_by_id.items():
+        menu_name = menu_name_map.get(menu_id)
+        if menu_name and role_tag:
+            db_tags[menu_name] = role_tag
+    
+    # session_state 캐시 업데이트 (동기화)
+    cache_key = f"menu_portfolio_tags::{store_id}"
+    if db_tags:
+        st.session_state[cache_key] = db_tags
+    
+    # DB 데이터가 있으면 반환, 없으면 session_state 폴백
+    if db_tags:
+        return db_tags
+    else:
+        return st.session_state.get(cache_key, {})
 
 
 def set_menu_portfolio_tag(store_id: str, menu_name: str, role: str):
-    """메뉴 역할 태그 저장 (session_state)"""
-    key = f"menu_portfolio_tags::{store_id}"
-    if key not in st.session_state:
-        st.session_state[key] = {}
-    st.session_state[key][menu_name] = role
+    """
+    메뉴 역할 태그 저장 (DB 우선, 실패 시 session_state 폴백)
+    """
+    if not store_id or not menu_name:
+        return
+    
+    # menu_id 찾기
+    menu_id_map = _get_menu_id_map(store_id)
+    menu_id = menu_id_map.get(menu_name)
+    
+    if not menu_id:
+        # menu_id를 찾을 수 없으면 session_state만 저장
+        cache_key = f"menu_portfolio_tags::{store_id}"
+        if cache_key not in st.session_state:
+            st.session_state[cache_key] = {}
+        st.session_state[cache_key][menu_name] = role
+        if _is_dev_mode():
+            st.warning(f"메뉴 ID를 찾을 수 없어 session_state에만 저장했습니다: {menu_name}")
+        return
+    
+    # DB에 저장 시도
+    from src.storage_supabase import upsert_menu_role_tag
+    success = upsert_menu_role_tag(store_id, menu_id, role)
+    
+    if success:
+        # 성공 시 session_state도 업데이트 (동기화)
+        cache_key = f"menu_portfolio_tags::{store_id}"
+        if cache_key not in st.session_state:
+            st.session_state[cache_key] = {}
+        st.session_state[cache_key][menu_name] = role
+    else:
+        # 실패 시 session_state만 저장 (폴백)
+        cache_key = f"menu_portfolio_tags::{store_id}"
+        if cache_key not in st.session_state:
+            st.session_state[cache_key] = {}
+        st.session_state[cache_key][menu_name] = role
+        if _is_dev_mode():
+            from src.auth import is_dev_mode as _is_dev_mode
+            if _is_dev_mode():
+                st.warning(f"DB 저장 실패, session_state에만 저장했습니다: {menu_name}")
+
+
+def _is_dev_mode():
+    """개발 모드 확인"""
+    try:
+        from src.auth import is_dev_mode
+        return is_dev_mode()
+    except:
+        return False
 
 
 def get_menu_portfolio_categories(store_id: str) -> Dict[str, str]:

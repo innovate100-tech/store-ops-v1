@@ -4199,3 +4199,269 @@ def load_monthly_settlement_snapshot(store_id: str, year: int, month: int) -> di
             'profit_margin': 0.0,
             'expense_items': {},
         }
+
+
+# ============================================
+# PHASE 10 / STEP 10-4: 설계 데이터 DB화 함수
+# ============================================
+
+def load_menu_role_tags(store_id: str) -> dict:
+    """
+    메뉴별 역할 태그 조회 (DB)
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        dict: {menu_id: role_tag} 형태
+        예: {'uuid-1': '미끼', 'uuid-2': '볼륨', ...}
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return {}
+    
+    if not store_id:
+        return {}
+    
+    try:
+        result = supabase.table("menu_portfolio_state").select("menu_id,role_tag").eq("store_id", store_id).execute()
+        if result.data:
+            return {item['menu_id']: item['role_tag'] for item in result.data if item.get('role_tag')}
+        return {}
+    except Exception as e:
+        logger.error(f"Failed to load menu role tags: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"메뉴 역할 태그 로드 실패: {e}")
+        return {}
+
+
+def upsert_menu_role_tag(store_id: str, menu_id: str, role_tag: str) -> bool:
+    """
+    메뉴 역할 태그 저장/수정 (DB)
+    
+    Args:
+        store_id: 매장 ID
+        menu_id: 메뉴 ID (UUID)
+        role_tag: 역할 태그 ('미끼', '볼륨', '마진' 또는 None)
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not store_id or not menu_id:
+        return False
+    
+    try:
+        # role_tag가 None이거나 빈 문자열이면 삭제 (NULL로 설정)
+        data = {
+            "store_id": store_id,
+            "menu_id": menu_id,
+            "role_tag": role_tag if role_tag and role_tag != "미분류" else None
+        }
+        
+        supabase.table("menu_portfolio_state").upsert(
+            data,
+            on_conflict="store_id,menu_id"
+        ).execute()
+        
+        logger.info(f"Menu role tag upserted: {menu_id} -> {role_tag}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to upsert menu role tag: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"메뉴 역할 태그 저장 실패: {e}")
+        return False
+
+
+def load_ingredient_structure_state(store_id: str) -> dict:
+    """
+    재료별 설계 상태 조회 (DB)
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        dict: {ingredient_id: {is_substitutable, order_type, substitute_memo, strategy_memo}} 형태
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return {}
+    
+    if not store_id:
+        return {}
+    
+    try:
+        result = supabase.table("ingredient_structure_state").select(
+            "ingredient_id,is_substitutable,order_type,substitute_memo,strategy_memo"
+        ).eq("store_id", store_id).execute()
+        
+        if result.data:
+            return {
+                item['ingredient_id']: {
+                    'is_substitutable': item.get('is_substitutable'),
+                    'order_type': item.get('order_type'),
+                    'substitute_memo': item.get('substitute_memo'),
+                    'strategy_memo': item.get('strategy_memo')
+                }
+                for item in result.data
+            }
+        return {}
+    except Exception as e:
+        logger.error(f"Failed to load ingredient structure state: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"재료 설계 상태 로드 실패: {e}")
+        return {}
+
+
+def upsert_ingredient_structure_state(
+    store_id: str,
+    ingredient_id: str,
+    is_substitutable: Optional[bool] = None,
+    order_type: Optional[str] = None,
+    substitute_memo: Optional[str] = None,
+    strategy_memo: Optional[str] = None
+) -> bool:
+    """
+    재료 설계 상태 저장/수정 (DB)
+    
+    Args:
+        store_id: 매장 ID
+        ingredient_id: 재료 ID (UUID)
+        is_substitutable: 대체 가능 여부
+        order_type: 발주 유형 ('single', 'multi', 'unset')
+        substitute_memo: 대체 메모
+        strategy_memo: 전략 메모
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not store_id or not ingredient_id:
+        return False
+    
+    try:
+        # 기존 데이터 조회 (부분 업데이트를 위해)
+        existing = supabase.table("ingredient_structure_state").select("*").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
+        
+        data = {
+            "store_id": store_id,
+            "ingredient_id": ingredient_id
+        }
+        
+        # 기존 데이터가 있으면 기존 값 유지, 없으면 새 값 사용
+        if existing.data:
+            existing_data = existing.data[0]
+            data['is_substitutable'] = is_substitutable if is_substitutable is not None else existing_data.get('is_substitutable')
+            data['order_type'] = order_type if order_type is not None else existing_data.get('order_type')
+            data['substitute_memo'] = substitute_memo if substitute_memo is not None else existing_data.get('substitute_memo')
+            data['strategy_memo'] = strategy_memo if strategy_memo is not None else existing_data.get('strategy_memo')
+        else:
+            data['is_substitutable'] = is_substitutable
+            data['order_type'] = order_type
+            data['substitute_memo'] = substitute_memo
+            data['strategy_memo'] = strategy_memo
+        
+        # order_type 변환 (한글 -> 영문)
+        if data.get('order_type') == '단일':
+            data['order_type'] = 'single'
+        elif data.get('order_type') == '복수':
+            data['order_type'] = 'multi'
+        elif data.get('order_type') == '미설정':
+            data['order_type'] = 'unset'
+        
+        supabase.table("ingredient_structure_state").upsert(
+            data,
+            on_conflict="store_id,ingredient_id"
+        ).execute()
+        
+        logger.info(f"Ingredient structure state upserted: {ingredient_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to upsert ingredient structure state: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"재료 설계 상태 저장 실패: {e}")
+        return False
+
+
+def upsert_design_routine_log(store_id: str, routine_type: str, period_key: str) -> bool:
+    """
+    설계 루틴 로그 저장 (DB)
+    
+    Args:
+        store_id: 매장 ID
+        routine_type: 루틴 타입 ('weekly_design_check', 'monthly_structure_review')
+        period_key: 기간 키 (예: '2026-W04', '2026-01')
+    
+    Returns:
+        bool: 성공 여부
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return False
+    
+    if not store_id:
+        return False
+    
+    try:
+        supabase.table("design_routine_log").upsert(
+            {
+                "store_id": store_id,
+                "routine_type": routine_type,
+                "period_key": period_key
+            },
+            on_conflict="store_id,routine_type,period_key"
+        ).execute()
+        
+        logger.info(f"Design routine log upserted: {routine_type} / {period_key}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to upsert design routine log: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"설계 루틴 로그 저장 실패: {e}")
+        return False
+
+
+def load_design_routine_logs(store_id: str, routine_type: Optional[str] = None, limit: int = 10) -> list:
+    """
+    설계 루틴 로그 조회 (DB)
+    
+    Args:
+        store_id: 매장 ID
+        routine_type: 루틴 타입 필터 (선택, None이면 전체)
+        limit: 최대 조회 개수
+    
+    Returns:
+        list: 루틴 로그 리스트
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return []
+    
+    if not store_id:
+        return []
+    
+    try:
+        query = supabase.table("design_routine_log").select("*").eq("store_id", store_id).order("completed_at", desc=True).limit(limit)
+        
+        if routine_type:
+            query = query.eq("routine_type", routine_type)
+        
+        result = query.execute()
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to load design routine logs: {e}")
+        if _is_dev_mode():
+            import streamlit as st
+            st.error(f"설계 루틴 로그 로드 실패: {e}")
+        return []
