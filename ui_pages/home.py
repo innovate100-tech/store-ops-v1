@@ -2218,16 +2218,20 @@ def render_fast_home():
         try:
             today = now_kst.date()
             supabase = get_supabase_client()
-            today_close = supabase.table("daily_close")\
-                .select("total_sales")\
-                .eq("store_id", store_id)\
-                .eq("date", today.isoformat())\
-                .limit(1)\
-                .execute()
-            
-            if today_close.data and today_close.data[0].get('total_sales'):
-                today_sales = int(float(today_close.data[0].get('total_sales', 0) or 0))
-        except Exception:
+            if supabase:
+                today_close = supabase.table("daily_close")\
+                    .select("total_sales")\
+                    .eq("store_id", store_id)\
+                    .eq("date", today.isoformat())\
+                    .limit(1)\
+                    .execute()
+                
+                if today_close.data and len(today_close.data) > 0:
+                    total_sales_val = today_close.data[0].get('total_sales')
+                    if total_sales_val is not None:
+                        today_sales = int(float(total_sales_val or 0))
+        except Exception as e:
+            # 디버깅을 위해 예외 로깅 (필요시)
             pass
         
         if today_sales > 0:
@@ -2269,18 +2273,27 @@ def render_fast_home():
             if data_level >= 2:
                 # 이번 달 매출과 방문자로 객단가 계산
                 supabase = get_supabase_client()
-                monthly_visitors = supabase.table("daily_close")\
-                    .select("visitors")\
-                    .eq("store_id", store_id)\
-                    .gte("date", f"{current_year}-{current_month:02d}-01")\
-                    .lt("date", f"{current_year}-{current_month+1:02d}-01" if current_month < 12 else f"{current_year+1}-01-01")\
-                    .execute()
-                
-                if monthly_visitors.data:
-                    total_visitors = sum(int(row.get('visitors', 0) or 0) for row in monthly_visitors.data)
-                    if total_visitors > 0 and monthly_sales > 0:
-                        avg_customer_spend = int(monthly_sales / total_visitors)
-        except Exception:
+                if supabase:
+                    # 월 시작/끝 날짜 계산
+                    start_date = f"{current_year}-{current_month:02d}-01"
+                    if current_month == 12:
+                        end_date = f"{current_year+1}-01-01"
+                    else:
+                        end_date = f"{current_year}-{current_month+1:02d}-01"
+                    
+                    monthly_visitors = supabase.table("daily_close")\
+                        .select("visitors")\
+                        .eq("store_id", store_id)\
+                        .gte("date", start_date)\
+                        .lt("date", end_date)\
+                        .execute()
+                    
+                    if monthly_visitors.data and len(monthly_visitors.data) > 0:
+                        total_visitors = sum(int(row.get('visitors', 0) or 0) for row in monthly_visitors.data)
+                        if total_visitors > 0 and monthly_sales > 0:
+                            avg_customer_spend = int(monthly_sales / total_visitors)
+        except Exception as e:
+            # 디버깅을 위해 예외 로깅 (필요시)
             pass
         
         if avg_customer_spend and avg_customer_spend > 0:
@@ -2601,30 +2614,33 @@ def render_fast_home():
     try:
         today = now_kst.date()
         supabase = get_supabase_client()
-        today_close = supabase.table("daily_close")\
-            .select("id")\
-            .eq("store_id", store_id)\
-            .eq("date", today.isoformat())\
-            .limit(1)\
-            .execute()
-        
-        if not today_close.data:
-            today_todos.append("오늘 마감 입력 안 됨")
+        if supabase:
+            today_close = supabase.table("daily_close")\
+                .select("id")\
+                .eq("store_id", store_id)\
+                .eq("date", today.isoformat())\
+                .limit(1)\
+                .execute()
+            
+            if not today_close.data or len(today_close.data) == 0:
+                today_todos.append("오늘 마감 입력 안 됨")
     except Exception:
         pass
     
     # 2. 이번 달 목표 없음
     try:
-        has_targets = supabase.table("targets")\
-            .select("id")\
-            .eq("store_id", store_id)\
-            .eq("year", current_year)\
-            .eq("month", current_month)\
-            .limit(1)\
-            .execute()
-        
-        if not has_targets.data:
-            today_todos.append("이번 달 목표 없음")
+        supabase = get_supabase_client()
+        if supabase:
+            has_targets = supabase.table("targets")\
+                .select("id")\
+                .eq("store_id", store_id)\
+                .eq("year", current_year)\
+                .eq("month", current_month)\
+                .limit(1)\
+                .execute()
+            
+            if not has_targets.data or len(has_targets.data) == 0:
+                today_todos.append("이번 달 목표 없음")
     except Exception:
         pass
     
