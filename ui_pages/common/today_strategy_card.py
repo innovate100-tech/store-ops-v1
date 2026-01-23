@@ -1,0 +1,97 @@
+"""
+오늘의 전략 카드 공통 컴포넌트
+"""
+import streamlit as st
+from typing import Dict, Optional
+
+
+def render_today_strategy_card(strategy: Dict, location: str = "home"):
+    """
+    오늘의 전략 카드 렌더링
+    
+    Args:
+        strategy: {
+            "title": str,  # 짧고 명령형 (예: "마진 메뉴 1개 가격 시뮬")
+            "reason_bullets": List[str],  # 근거 2~3개 (반드시 숫자 포함)
+            "cta_label": str,  # 버튼 텍스트
+            "cta_page": str,  # 이동할 page key
+            "cta_context": Optional[Dict],  # 초기 상태를 잡기 위한 힌트
+        }
+        location: "home" | "design_center" | "sales_drop_flow" 등
+    """
+    if not strategy:
+        _render_data_insufficient_card()
+        return
+    
+    title = strategy.get("title", "오늘 할 일")
+    reason_bullets = strategy.get("reason_bullets", [])
+    cta_label = strategy.get("cta_label", "확인하기")
+    cta_page = strategy.get("cta_page", "홈")
+    cta_context = strategy.get("cta_context", {})
+    
+    # 카드 UI
+    st.markdown("---")
+    st.markdown("### 🎯 오늘의 전략 카드")
+    
+    # 제목 (굵게)
+    st.markdown(f"""
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 1rem; color: white;">
+        <h3 style="color: white; margin: 0 0 1rem 0; font-size: 1.2rem;">{title}</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 근거 bullet
+    if reason_bullets:
+        st.markdown("**근거:**")
+        for bullet in reason_bullets:
+            st.markdown(f"- {bullet}")
+    
+    # CTA 버튼
+    if st.button(cta_label, key=f"strategy_cta_{location}", use_container_width=True, type="primary"):
+        # 세션 변수 세팅
+        st.session_state["current_page"] = cta_page
+        
+        # 컨텍스트 세팅
+        if cta_context:
+            for key, value in cta_context.items():
+                st.session_state[key] = value
+        
+        st.rerun()
+    
+    # 후보 2개가 있으면 expander로 표시
+    alternatives = strategy.get("alternatives", [])
+    if alternatives:
+        with st.expander("다른 추천 보기", expanded=False):
+            for alt in alternatives:
+                alt_title = alt.get("title", "")
+                alt_reason = alt.get("reason", "")
+                alt_cta_label = alt.get("cta_label", "확인하기")
+                alt_cta_page = alt.get("cta_page", "홈")
+                alt_cta_context = alt.get("cta_context", {})
+                
+                st.markdown(f"**{alt_title}**")
+                st.caption(alt_reason)
+                if st.button(alt_cta_label, key=f"alt_strategy_{alt_cta_page}_{location}", use_container_width=True):
+                    st.session_state["current_page"] = alt_cta_page
+                    if alt_cta_context:
+                        for key, value in alt_cta_context.items():
+                            st.session_state[key] = value
+                    st.rerun()
+
+
+def _render_data_insufficient_card():
+    """데이터 부족 시 입력 유도 카드"""
+    st.markdown("---")
+    st.markdown("### 🎯 오늘의 전략 카드")
+    
+    st.info("데이터가 부족해요. 먼저 마감/보정을 입력해 주세요.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📋 점장 마감 하러가기", key="insufficient_goto_close", use_container_width=True):
+            st.session_state["current_page"] = "점장 마감"
+            st.rerun()
+    with col2:
+        if st.button("💰 매출·네이버방문자 보정", key="insufficient_goto_sales", use_container_width=True):
+            st.session_state["current_page"] = "매출 등록"
+            st.rerun()

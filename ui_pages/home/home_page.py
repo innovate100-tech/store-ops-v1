@@ -870,6 +870,19 @@ def _render_zone2_coach_verdict(store_id: str, year: int, month: int, monthly_sa
         logger.error(f"코치 판결 렌더링 오류: {e}")
         st.info("코치 판결을 생성하는 중입니다. 데이터가 더 필요할 수 있습니다.")
     
+    # 오늘의 전략 카드 추가
+    try:
+        from ui_pages.analysis.strategy_engine import pick_primary_strategy
+        from ui_pages.common.today_strategy_card import render_today_strategy_card
+        from datetime import date
+        
+        strategy = pick_primary_strategy(store_id, ref_date=date.today(), window_days=14)
+        if strategy:
+            render_today_strategy_card(strategy, location="home")
+    except Exception as e:
+        logger.error(f"오늘의 전략 카드 렌더링 오류: {e}")
+        # 에러 발생해도 계속 진행
+    
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
 

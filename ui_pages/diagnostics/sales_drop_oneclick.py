@@ -86,6 +86,19 @@ def render_sales_drop_oneclick():
     
     # STEP 3: 어디를 고치나?
     _suggest_fixes(store_id, step1_result, step2_result)
+    
+    # 오늘의 전략 카드 추가 (결과 하단)
+    try:
+        from ui_pages.analysis.strategy_engine import pick_primary_strategy
+        from ui_pages.common.today_strategy_card import render_today_strategy_card
+        
+        strategy = pick_primary_strategy(store_id, ref_date=base_date, window_days=period_days)
+        if strategy:
+            render_today_strategy_card(strategy, location="sales_drop_flow")
+    except Exception as e:
+        if is_dev_mode():
+            st.error(f"오늘의 전략 카드 렌더링 오류: {e}")
+        # 에러 발생해도 계속 진행
 
 
 @st.cache_data(ttl=300)

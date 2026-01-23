@@ -101,6 +101,19 @@ def render_design_center():
         action_button_label=f"{concern_name} 점검하기"
     )
     
+    # 오늘의 전략 카드 추가
+    try:
+        from ui_pages.analysis.strategy_engine import pick_primary_strategy
+        from ui_pages.common.today_strategy_card import render_today_strategy_card
+        from datetime import date
+        
+        strategy = pick_primary_strategy(store_id, ref_date=date.today(), window_days=14)
+        if strategy:
+            render_today_strategy_card(strategy, location="design_center")
+    except Exception as e:
+        # 에러 발생해도 계속 진행
+        pass
+    
     # 카드별 바로가기 버튼 추가
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
