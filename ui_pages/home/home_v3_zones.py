@@ -9,6 +9,7 @@ HOME v3 ZONE 렌더링 함수들
 """
 from __future__ import annotations
 
+import logging
 import streamlit as st
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -21,10 +22,21 @@ from ui_pages.home.home_data import load_home_kpis, get_menu_count, get_close_co
 from ui_pages.home.home_rules import get_problems_top3
 from ui_pages.design_lab.design_state_loader import get_design_state
 
+logger = logging.getLogger(__name__)
+
 
 def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> None:
     """ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)"""
+    # 기본값 초기화 (에러 발생 시에도 표시되도록)
+    action_title = "가게 설계 센터부터 시작"
+    action_cta = {"label": "가게 설계 센터", "page": "가게 설계 센터", "params": {}}
+    evidence_line = "데이터 수집 중"
+    today_action = None
+    
     st.markdown("### 📌 오늘의 운영 지시")
+    
+    # 디버깅: 함수 호출 확인
+    logger.info(f"ZONE 0 렌더링 시작: store_id={store_id}, year={year}, month={month}")
     
     try:
         # 전략 보드 데이터 로드
@@ -33,31 +45,24 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
         roadmap = build_weekly_roadmap(cards_result)
         
         # 오늘의 1순위 행동 결정
-        today_action = None
-        
         # 1순위: 로드맵 1순위
         if roadmap and len(roadmap) > 0:
             today_action = roadmap[0]
-            action_title = today_action.get("task", "")
-            action_cta = today_action.get("cta", {})
+            action_title = today_action.get("task", "가게 설계 센터부터 시작")
+            action_cta = today_action.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}})
         # 2순위: 전략 카드 1순위
         elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
             first_card = cards_result["cards"][0]
             today_action = {
-                "task": first_card.get("title", ""),
+                "task": first_card.get("title", "가게 설계 센터부터 시작"),
                 "why": first_card.get("why", ""),
-                "cta": first_card.get("cta", {})
+                "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}})
             }
             action_title = today_action["task"]
             action_cta = today_action["cta"]
-        # 3순위: Fallback
-        else:
-            action_title = "가게 설계 센터부터 시작"
-            action_cta = {"label": "가게 설계 센터", "page": "가게 설계 센터", "params": {}}
         
         # 근거 1줄 생성
-        evidence_line = ""
-        if today_action and "why" in today_action:
+        if today_action and "why" in today_action and today_action["why"]:
             evidence_line = today_action["why"]
         elif cards_result.get("store_state", {}).get("primary_reason"):
             evidence_line = cards_result["store_state"]["primary_reason"]
@@ -70,52 +75,47 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
                 if break_even > 0:
                     ratio = (monthly_sales / break_even) * 100 if monthly_sales > 0 else 0
                     evidence_line = f"손익분기점 대비 {ratio:.0f}%"
+                else:
+                    evidence_line = "데이터 수집 중"
             except Exception:
                 evidence_line = "데이터 수집 중"
         
-        # 메인 카드 표시
-        st.markdown(f"""
-        <div style="padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); margin-bottom: 1rem;">
-            <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700;">오늘은 '{action_title}'부터 하세요.</h3>
-            <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 1rem; line-height: 1.6;">{evidence_line}</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # action_title이 비어있으면 기본값 사용
+        if not action_title or action_title.strip() == "":
+            action_title = "가게 설계 센터부터 시작"
         
-        # 메인 버튼
-        cta_label = action_cta.get("label", "지금 실행하기")
-        cta_page = action_cta.get("page", "가게 설계 센터")
-        col_main, col_sub = st.columns([2, 1])
-        with col_main:
-            if st.button(cta_label, type="primary", use_container_width=True, key="zone0_main_action", use_container_width=True):
-                st.session_state["current_page"] = cta_page
-                params = action_cta.get("params", {})
-                if params:
-                    for key, value in params.items():
-                        st.session_state[f"_strategy_param_{key}"] = value
-                st.rerun()
-        with col_sub:
-            if st.button("📊 이번 달 전략 보기", key="zone0_to_strategy_board", use_container_width=True):
-                st.session_state["current_page"] = "전략 보드"
-                st.rerun()
-    
     except Exception as e:
-        # 데이터 부족 시 Fallback
-        st.markdown("""
-        <div style="padding: 2rem; background: #fff3cd; border-radius: 16px; border-left: 4px solid #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.2);">
-            <h3 style="color: #856404; margin-bottom: 1rem; font-size: 1.2rem;">아직 데이터가 부족합니다.</h3>
-            <p style="color: #856404; margin: 0; font-size: 0.95rem;">먼저 마감 또는 설계를 시작하세요.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        # 에러 발생 시 Fallback (에러 메시지도 표시)
+        logger.error(f"ZONE 0 데이터 로드 오류: {e}", exc_info=True)
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("오늘 마감하기", type="primary", use_container_width=True, key="zone0_fallback_close"):
-                st.session_state["current_page"] = "점장 마감"
-                st.rerun()
-        with col2:
-            if st.button("가게 설계 센터", use_container_width=True, key="zone0_fallback_design"):
-                st.session_state["current_page"] = "가게 설계 센터"
-                st.rerun()
+        # DEV 모드에서만 에러 상세 표시
+        if st.session_state.get("_dev_mode", False):
+            st.error(f"ZONE 0 데이터 로드 오류: {str(e)}")
+    
+    # 메인 카드 표시 (항상 표시되도록 try 블록 밖으로 이동)
+    st.markdown(f"""
+    <div style="padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); margin-bottom: 1rem;">
+        <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700;">오늘은 '{action_title}'부터 하세요.</h3>
+        <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 1rem; line-height: 1.6;">{evidence_line}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 메인 버튼 (항상 표시되도록)
+    cta_label = action_cta.get("label", "지금 실행하기")
+    cta_page = action_cta.get("page", "가게 설계 센터")
+    col_main, col_sub = st.columns([2, 1])
+    with col_main:
+        if st.button(cta_label, type="primary", use_container_width=True, key="zone0_main_action"):
+            st.session_state["current_page"] = cta_page
+            params = action_cta.get("params", {})
+            if params:
+                for key, value in params.items():
+                    st.session_state[f"_strategy_param_{key}"] = value
+            st.rerun()
+    with col_sub:
+        if st.button("📊 이번 달 전략 보기", key="zone0_to_strategy_board", use_container_width=True):
+            st.session_state["current_page"] = "전략 보드"
+            st.rerun()
     
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
