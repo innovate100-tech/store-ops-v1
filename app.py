@@ -24,7 +24,7 @@ if not check_login():
     show_login_page()
     st.stop()
 
-# 온보딩 모드 선택이 필요하면 온보딩 화면으로 이동
+# 온보딩 모드 선택이 필요하면 온보딩 화면으로 이동 (매장 체크 전에 먼저 확인)
 user_id = st.session_state.get('user_id')
 if user_id and needs_onboarding(user_id):
     from ui_pages.onboarding_mode_select import render_onboarding_mode_select
@@ -36,6 +36,13 @@ store_id = get_current_store_id()
 if not store_id:
     from ui_pages.store_setup import render_store_setup_page
     render_store_setup_page()
+    st.stop()
+
+# 매장 생성 후 온보딩 모드가 아직 NULL이면 다시 온보딩 화면으로 이동
+# (매장 생성 화면에서 온보딩을 건너뛸 수 있으므로 재확인)
+if user_id and needs_onboarding(user_id):
+    from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+    render_onboarding_mode_select()
     st.stop()
 
 # Supabase 연결 진단 함수
@@ -1475,7 +1482,7 @@ with st.sidebar:
     }
     
     if "current_page" not in st.session_state:
-        st.session_state.current_page = "점장 마감"
+        st.session_state.current_page = "홈"
     
     selected_page_key = st.session_state.current_page
     
