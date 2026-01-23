@@ -139,7 +139,7 @@ def render_input_hub():
             st.rerun()
     
     with col2:
-        if st.button("🩺 건강검진", use_container_width=True, type="secondary", key="input_hub_health_check"):
+        if st.button("📋 매장 체크리스트", use_container_width=True, type="secondary", key="input_hub_health_check"):
             st.session_state["current_page"] = "건강검진 실시"
             st.rerun()
     

@@ -1,6 +1,6 @@
 """
-건강검진 페이지
-QSCPPPMHF 9개 영역 건강검진 UI
+매장 체크리스트 페이지
+QSCPPPMHF 9개 영역 매장 체크리스트 UI
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -29,7 +29,7 @@ from src.health_check.questions_bank import (
 logger = logging.getLogger(__name__)
 
 # 주의: bootstrap은 app.py에서 이미 호출됨 (중복 호출 방지)
-# bootstrap(page_title="가게 건강검진")  # 주석 처리 - app.py에서 이미 호출됨
+# bootstrap(page_title="매장 체크리스트")  # 주석 처리 - app.py에서 이미 호출됨
 
 # 로그인 체크 (app.py에서도 체크하지만, 추가 안전장치)
 from src.auth import check_login, show_login_page
@@ -43,8 +43,8 @@ TOTAL_QUESTIONS = 90  # 전체 문항 수
 
 
 def render_health_check_page():
-    """건강검진 페이지 렌더링"""
-    render_page_header("가게 건강검진", "🩺")
+    """매장 체크리스트 페이지 렌더링"""
+    render_page_header("매장 체크리스트", "📋")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -53,7 +53,7 @@ def render_health_check_page():
     
     # 페이지 설명
     st.info("""
-    **월 2-3회, 7-10분 정기 건강검진**
+    **월 2-3회, 7-10분 정기 매장 체크리스트**
     
     결과는 HOME/전략엔진에 반영됩니다(예정)
     """)
@@ -94,7 +94,7 @@ def render_health_check_page():
             for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
                 if key in st.session_state:
                     del st.session_state[key]
-            st.info(f"📝 진행 중인 검진이 있습니다. 이어서 진행하세요. (시작: {latest_open['started_at'][:10]})")
+            st.info(f"📝 진행 중인 체크가 있습니다. 이어서 진행하세요. (시작: {latest_open['started_at'][:10]})")
     
     # 탭: 입력 / 결과 / 이력
     if session_id:
@@ -102,7 +102,7 @@ def render_health_check_page():
         session = get_health_session(session_id)
         if view_mode == 'result' and session and session.get('completed_at'):
             # 결과 리포트를 먼저 표시 (보기 버튼 클릭 시)
-            st.info("📊 검진 결과를 확인하세요.")
+            st.info("📊 체크 결과를 확인하세요.")
             try:
                 render_result_report(store_id, session_id)
             except Exception as e:
@@ -115,11 +115,11 @@ def render_health_check_page():
             st.markdown("---")
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
-                if st.button("← 검진 입력으로 돌아가기", use_container_width=True):
+                if st.button("← 체크 입력으로 돌아가기", use_container_width=True):
                     st.session_state['health_check_view_mode'] = 'input'
                     st.rerun()
         else:
-            tab1, tab2, tab3 = st.tabs(["📝 검진 입력", "📊 결과 리포트", "📋 검진 이력"])
+            tab1, tab2, tab3 = st.tabs(["📝 체크 입력", "📊 결과 리포트", "📋 체크 이력"])
             
             with tab1:
                 render_input_form(store_id, session_id)
@@ -147,23 +147,23 @@ def render_health_check_page():
 
 
 def render_start_screen(store_id: str):
-    """검진 시작 화면"""
-    st.markdown("### 🚀 새 검진 시작")
+    """체크 시작 화면"""
+    st.markdown("### 🚀 새 체크 시작")
     
     col1, col2 = st.columns([2, 1])
     with col1:
         st.markdown("""
-        건강검진을 시작하면 9개 영역(Q, S, C, P1, P2, P3, M, H, F)에 대해
+        매장 체크리스트를 시작하면 9개 영역(Q, S, C, P1, P2, P3, M, H, F)에 대해
         각 10문항씩 총 90문항을 답변하게 됩니다.
         
         **예상 소요 시간**: 7-10분
         """)
     
     with col2:
-        if st.button("🩺 새 검진 시작", type="primary", use_container_width=True):
+        if st.button("📋 새 체크 시작", type="primary", use_container_width=True):
             session_id, error_msg = create_health_session(store_id, check_type='monthly')
             if session_id:
-                # 기존 답변 상태 완전 초기화 (새 검진 시작)
+                # 기존 답변 상태 완전 초기화 (새 체크 시작)
                 for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
                     if key in st.session_state:
                         del st.session_state[key]
@@ -180,10 +180,10 @@ def render_start_screen(store_id: str):
                 
                 st.session_state['health_session_id'] = session_id
                 st.session_state['health_check_view_mode'] = 'input'
-                st.success("검진이 시작되었습니다!")
+                st.success("체크가 시작되었습니다!")
                 st.rerun()
             else:
-                st.error(f"검진 시작에 실패했습니다.\n\n{error_msg or '알 수 없는 오류가 발생했습니다.'}")
+                st.error(f"체크 시작에 실패했습니다.\n\n{error_msg or '알 수 없는 오류가 발생했습니다.'}")
                 
                 # 테이블 미생성 안내
                 if error_msg and "테이블이 생성되지 않았습니다" in error_msg:
@@ -217,7 +217,7 @@ def render_start_screen(store_id: str):
 
 
 def _initialize_health_check_state(store_id: str, session_id: str):
-    """건강검진 session_state 초기화 (초기 1회만 DB 로드)"""
+    """매장 체크리스트 session_state 초기화 (초기 1회만 DB 로드)"""
     hc_loaded_key = "hc_loaded_session_id"
     hc_answers_key = "hc_answers"
     hc_dirty_key = "hc_dirty"
@@ -318,7 +318,7 @@ def render_input_form(store_id: str, session_id: str):
     col1, col2 = st.columns([3, 1])
     with col2:
         if st.button("🔄 상태 초기화", type="secondary", use_container_width=True):
-            # 모든 건강검진 관련 session_state 초기화
+            # 모든 매장 체크리스트 관련 session_state 초기화
             keys_to_remove = []
             for key in list(st.session_state.keys()):
                 if (key.startswith("hc_") or 
@@ -410,7 +410,7 @@ def render_input_form(store_id: str, session_id: str):
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         if can_complete:
-            if st.button("✅ 검진 완료", type="primary", use_container_width=True):
+            if st.button("✅ 체크 완료", type="primary", use_container_width=True):
                 # dirty가 있으면 먼저 저장
                 if dirty_count > 0:
                     success, error_msg = _save_answers_batch(store_id, session_id)
@@ -430,10 +430,10 @@ def render_input_form(store_id: str, session_id: str):
                     for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
                         if key in st.session_state:
                             del st.session_state[key]
-                    st.success("검진이 완료되었습니다!")
+                    st.success("체크가 완료되었습니다!")
                     st.rerun()
                 else:
-                    st.error("검진 완료 처리에 실패했습니다.")
+                    st.error("체크 완료 처리에 실패했습니다.")
         else:
             st.button("⏳ 완료 불가", disabled=True, use_container_width=True)
     
@@ -586,7 +586,7 @@ def render_result_report(store_id: str, session_id: str):
         
         # 완료되지 않은 세션
         if not session.get('completed_at'):
-            st.info("검진을 완료하면 결과를 확인할 수 있습니다.")
+            st.info("체크를 완료하면 결과를 확인할 수 있습니다.")
             return
     except Exception as e:
         logger.error(f"Error loading session: {e}")
@@ -594,7 +594,7 @@ def render_result_report(store_id: str, session_id: str):
         return
     
     # 전체 점수/등급/병목
-    st.markdown("### 📊 검진 결과")
+    st.markdown("### 📊 체크 결과")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -622,7 +622,7 @@ def render_result_report(store_id: str, session_id: str):
         return
     
     if not results:
-        st.warning("결과 데이터가 없습니다. 검진이 완료되었지만 결과가 저장되지 않았을 수 있습니다.")
+        st.warning("결과 데이터가 없습니다. 체크가 완료되었지만 결과가 저장되지 않았을 수 있습니다.")
         return
     
     try:
@@ -712,7 +712,7 @@ def render_result_report(store_id: str, session_id: str):
         st.markdown("---")
         st.markdown("### 💡 다음에 할 것")
         st.info("""
-        검진 결과를 바탕으로 HOME에서 요약을 확인하고,
+        체크 결과를 바탕으로 HOME에서 요약을 확인하고,
         전략 엔진에서 개선 전략을 수립하세요.
         
         (향후 HOME/전략엔진 연결 예정)
@@ -726,13 +726,13 @@ def render_result_report(store_id: str, session_id: str):
 
 
 def render_history(store_id: str):
-    """검진 이력 렌더링"""
-    st.markdown("### 📋 검진 이력 (최근 10개)")
+    """체크 이력 렌더링"""
+    st.markdown("### 📋 체크 이력 (최근 10개)")
     
     sessions = list_health_sessions(store_id, limit=10)
     
     if not sessions:
-        st.info("완료된 검진이 없습니다.")
+        st.info("완료된 체크가 없습니다.")
         return
     
     # 이력 목록

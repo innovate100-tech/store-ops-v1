@@ -1,6 +1,6 @@
 """
-검진 히스토리 페이지
-검진 회차별 비교 및 트렌드 표시
+체크 히스토리 페이지
+체크 회차별 비교 및 트렌드 표시
 """
 import streamlit as st
 import logging
@@ -21,12 +21,12 @@ from src.health_check.questions_bank import CATEGORY_LABELS
 logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
-bootstrap(page_title="검진 히스토리")
+bootstrap(page_title="체크 히스토리")
 
 
 def render_health_check_history():
-    """검진 히스토리 페이지 렌더링"""
-    render_page_header("검진 히스토리", "📊")
+    """체크 히스토리 페이지 렌더링"""
+    render_page_header("체크 히스토리", "📊")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -34,7 +34,7 @@ def render_health_check_history():
         return
     
     try:
-        # 완료 검진 세션 리스트 로드 (최근 10개)
+        # 완료 체크 세션 리스트 로드 (최근 10개)
         sessions = _load_completed_sessions(store_id, limit=10)
         
         if not sessions:
@@ -42,7 +42,7 @@ def render_health_check_history():
             return
         
         # 회차 리스트 표시
-        st.markdown("### 📋 검진 회차 리스트")
+        st.markdown("### 📋 체크 회차 리스트")
         
         for idx, session in enumerate(sessions, 1):
             _render_session_card(session, idx)
@@ -55,12 +55,12 @@ def render_health_check_history():
     
     except Exception as e:
         logger.error(f"render_health_check_history: Error - {e}", exc_info=True)
-        st.error("검진 히스토리를 불러오는 중 오류가 발생했습니다.")
+        st.error("체크 히스토리를 불러오는 중 오류가 발생했습니다.")
 
 
 @st.cache_data(ttl=300)
 def _load_completed_sessions(store_id: str, limit: int = 10) -> List[Dict]:
-    """완료 검진 세션 리스트 로드"""
+    """완료 체크 세션 리스트 로드"""
     try:
         from src.auth import get_supabase_client
         supabase = get_supabase_client()
@@ -83,18 +83,18 @@ def _load_completed_sessions(store_id: str, limit: int = 10) -> List[Dict]:
 def _render_no_history_view(store_id: str):
     """히스토리 없음 안내"""
     st.info("""
-    **완료된 검진이 없습니다.**
+    **완료된 체크가 없습니다.**
     
-    첫 건강검진을 실시하면 여기서 회차별 변화를 추적할 수 있습니다.
+    첫 매장 체크리스트를 실시하면 여기서 회차별 변화를 추적할 수 있습니다.
     """)
     
-    if st.button("건강검진 실시하기", type="primary", use_container_width=True):
+    if st.button("매장 체크리스트 실시하기", type="primary", use_container_width=True):
         st.session_state["current_page"] = "건강검진 실시"
         st.rerun()
 
 
 def _render_session_card(session: Dict, rank: int):
-    """검진 회차 카드 렌더링"""
+    """체크 회차 카드 렌더링"""
     session_id = session["id"]
     completed_at = session.get("completed_at")
     overall_score = session.get("overall_score", 0)
@@ -141,7 +141,7 @@ def _render_session_card(session: Dict, rank: int):
     
     with col3:
         if st.button("결과 보기", key=f"history_{session_id}_view", use_container_width=True):
-            st.session_state["current_page"] = "검진 결과 요약"
+            st.session_state["current_page"] = "검진 결과 요약"  # page key 유지
             st.session_state["_health_check_session_id"] = session_id
             st.rerun()
     

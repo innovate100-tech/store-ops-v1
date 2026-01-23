@@ -1,6 +1,6 @@
 """
-검진 결과 요약 페이지 (실행형 리포트)
-최근 완료 검진 기준으로 상세 결과 표시
+체크 결과 요약 페이지 (실행형 리포트)
+최근 완료 체크 기준으로 상세 결과 표시
 """
 import streamlit as st
 import logging
@@ -23,12 +23,12 @@ from ui_pages.home.home_data import load_latest_health_diag
 logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
-bootstrap(page_title="검진 결과 요약")
+bootstrap(page_title="체크 결과 요약")
 
 
 def render_health_check_result():
-    """검진 결과 요약 페이지 렌더링"""
-    render_page_header("검진 결과 요약", "🩺")
+    """체크 결과 요약 페이지 렌더링"""
+    render_page_header("체크 결과 요약", "📋")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -45,7 +45,7 @@ def render_health_check_result():
                 # 완료되지 않은 세션이면 최신 완료 세션으로 fallback
                 session = _load_latest_completed_session(store_id)
         else:
-            # 최신 완료 검진 세션 로드
+            # 최신 완료 체크 세션 로드
             session = _load_latest_completed_session(store_id)
         
         if not session:
@@ -87,15 +87,15 @@ def render_health_check_result():
     
     except Exception as e:
         logger.error(f"render_health_check_result: Error - {e}", exc_info=True)
-        st.error("검진 결과를 불러오는 중 오류가 발생했습니다.")
-        if st.button("건강검진 실시하기", key="error_retry_health_check"):
+        st.error("체크 결과를 불러오는 중 오류가 발생했습니다.")
+        if st.button("매장 체크리스트 실시하기", key="error_retry_health_check"):
             st.session_state["current_page"] = "건강검진 실시"
             st.rerun()
 
 
 @st.cache_data(ttl=300)
 def _load_latest_completed_session(store_id: str) -> Optional[Dict]:
-    """최신 완료 검진 세션 로드"""
+    """최신 완료 체크 세션 로드"""
     try:
         from src.auth import get_supabase_client
         supabase = get_supabase_client()
@@ -118,14 +118,14 @@ def _load_latest_completed_session(store_id: str) -> Optional[Dict]:
 
 
 def _render_no_session_view(store_id: str):
-    """검진 없음 안내"""
+    """체크 없음 안내"""
     st.info("""
-    **완료된 검진이 없습니다.**
+    **완료된 체크가 없습니다.**
     
-    건강검진을 통해 운영 전반의 위험 신호를 조기에 발견할 수 있습니다.
+    매장 체크리스트를 통해 운영 전반의 위험 신호를 조기에 발견할 수 있습니다.
     """)
     
-    if st.button("건강검진 실시하기", type="primary", use_container_width=True):
+    if st.button("매장 체크리스트 실시하기", type="primary", use_container_width=True):
         st.session_state["current_page"] = "건강검진 실시"
         st.rerun()
 
@@ -149,11 +149,11 @@ def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
     pattern_description = primary_pattern.get("description", "")
     
     insight_summary = health_diag.get("insight_summary", []) if health_diag else []
-    verdict_line = insight_summary[0] if insight_summary else "검진 결과를 확인하세요."
+    verdict_line = insight_summary[0] if insight_summary else "체크 결과를 확인하세요."
     
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.markdown(f"### 최근 검진: {date_str}")
+        st.markdown(f"### 최근 체크: {date_str}")
         st.markdown(f"**{pattern_title}** 패턴")
     with col2:
         overall_score = session.get("overall_score", 0)
@@ -221,7 +221,7 @@ def _render_zone2_top3_risks(health_diag: Optional[Dict]):
     st.markdown("### ⚠️ Top3 리스크")
     
     if not health_diag:
-        st.info("검진 판독 데이터가 없습니다.")
+        st.info("체크 판독 데이터가 없습니다.")
         return
     
     risk_axes = health_diag.get("risk_axes", [])
@@ -248,9 +248,9 @@ def _render_zone2_top3_risks(health_diag: Optional[Dict]):
                 if st.button("바로 고치기", key=f"risk_{idx}_fix", use_container_width=True):
                     # 해당 축에 맞는 페이지로 이동
                     route_map = {
-                        "H": "건강검진 실시",  # 운영 개선
-                        "S": "건강검진 실시",
-                        "C": "건강검진 실시",
+                        "H": "매장 체크리스트",  # 운영 개선
+                        "S": "매장 체크리스트",
+                        "C": "매장 체크리스트",
                         "P1": "수익 구조 설계실",
                         "F": "수익 구조 설계실",
                         "Q": "메뉴 포트폴리오 설계실",
@@ -268,7 +268,7 @@ def _render_zone3_recommended_actions(health_diag: Optional[Dict]):
     st.markdown("### 🎯 권장 액션 TOP3")
     
     if not health_diag:
-        st.info("검진 판독 데이터가 없습니다.")
+        st.info("체크 판독 데이터가 없습니다.")
         return
     
     actions = _build_health_actions(health_diag)
@@ -313,7 +313,7 @@ def _build_health_actions(health_diag: Dict) -> List[Dict]:
             "code": "OPERATION_QSC_RECOVERY",
             "title": "운영 품질(QSC) 복구",
             "reason": "인적자원/서비스/청결 축이 동시에 낮아 운영 붕괴 위험이 큽니다.",
-            "route": "건강검진 실시"
+            "route": "건강검진 실시"  # page key 유지
         })
     
     # P1/F 위험 → FINANCE_SURVIVAL_LINE
@@ -347,17 +347,17 @@ def _build_health_actions(health_diag: Dict) -> List[Dict]:
 
 
 def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
-    """ZONE 4: 이전 검진 대비"""
-    st.markdown("### 📈 이전 검진 대비")
+    """ZONE 4: 이전 체크 대비"""
+    st.markdown("### 📈 이전 체크 대비")
     
     try:
         from src.auth import get_supabase_client
         supabase = get_supabase_client()
         if not supabase:
-            st.info("이전 검진 데이터를 불러올 수 없습니다.")
+            st.info("이전 체크 데이터를 불러올 수 없습니다.")
             return
         
-        # 현재 검진 제외하고 이전 검진 1개 조회
+        # 현재 체크 제외하고 이전 체크 1개 조회
         result = supabase.table("health_check_sessions").select(
             "id, completed_at, overall_score"
         ).eq("store_id", store_id).not_.is_("completed_at", "null").neq(
@@ -365,7 +365,7 @@ def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
         ).order("completed_at", desc=True).limit(1).execute()
         
         if not result.data:
-            st.info("첫 검진입니다. 다음 검진에서 변화가 추적됩니다.")
+            st.info("첫 체크입니다. 다음 체크에서 변화가 추적됩니다.")
             return
         
         prev_session = result.data[0]
@@ -373,7 +373,7 @@ def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
         current_diag = get_health_diagnosis(current_session_id)
         
         if not prev_diag or not current_diag:
-            st.info("이전 검진 판독 데이터가 없습니다.")
+            st.info("이전 체크 판독 데이터가 없습니다.")
             return
         
         # 축별 점수 비교
@@ -381,7 +381,7 @@ def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
         current_results = get_health_results(current_session_id)
         
         if not prev_results or not current_results:
-            st.info("이전 검진 점수 데이터가 없습니다.")
+            st.info("이전 체크 점수 데이터가 없습니다.")
             return
         
         # 축별 점수 매핑
@@ -410,29 +410,29 @@ def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
             for change in changes[:3]:
                 st.markdown(f"- {change['axis']}: {change['direction']} {abs(change['change']):.1f}점")
         else:
-            st.info("이전 검진 대비 큰 변화가 없습니다.")
+            st.info("이전 체크 대비 큰 변화가 없습니다.")
     
     except Exception as e:
         logger.warning(f"_render_zone4_previous_comparison: Error - {e}")
-        st.info("이전 검진 비교 데이터를 불러올 수 없습니다.")
+        st.info("이전 체크 비교 데이터를 불러올 수 없습니다.")
 
 
 def _render_zone5_next_checkup(store_id: str):
-    """ZONE 5: 다음 검진 안내"""
-    st.markdown("### 📅 다음 검진")
+    """ZONE 5: 다음 체크 안내"""
+    st.markdown("### 📅 다음 체크")
     
     st.info("""
     **권장 주기:** 월 2-3회 (약 2주마다)
     
-    정기적인 건강검진을 통해 운영 전반의 위험 신호를 조기에 발견하고 개선할 수 있습니다.
+    정기적인 매장 체크리스트를 통해 운영 전반의 위험 신호를 조기에 발견하고 개선할 수 있습니다.
     """)
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("건강검진 다시하기", type="primary", use_container_width=True):
+        if st.button("매장 체크리스트 다시하기", type="primary", use_container_width=True):
             st.session_state["current_page"] = "건강검진 실시"
             st.rerun()
     with col2:
-        if st.button("검진 히스토리 보기", use_container_width=True):
+        if st.button("체크 히스토리 보기", use_container_width=True):
             st.session_state["current_page"] = "검진 히스토리"
             st.rerun()
