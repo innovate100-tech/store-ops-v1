@@ -798,10 +798,45 @@ def is_auto_coach_mode(store_id: str) -> bool:
         return False
 
 
-def get_coach_summary(store_id: str) -> str:
+def detect_owner_day_level(store_id: str) -> str:
+    """
+    사장 단계 판별 (DAY1 / DAY3 / DAY7)
+    
+    Returns:
+        str: "DAY1" | "DAY3" | "DAY7" | None (문자열 또는 None)
+    """
+    try:
+        close_count = get_close_count(store_id)
+        
+        # DAY1: daily_close 존재 AND daily_close_count < 3
+        if close_count > 0 and close_count < 3:
+            return "DAY1"
+        
+        # DAY3 또는 DAY7: daily_close_count >= 3
+        if close_count >= 3:
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            has_settlement = check_actual_settlement_exists(store_id, now_kst.year, now_kst.month)
+            
+            # DAY3: 이번 달 actual_settlement 없음
+            if not has_settlement:
+                return "DAY3"
+            
+            # DAY7: 이번 달 actual_settlement 존재
+            return "DAY7"
+        
+        # 데이터 거의 없음 (DAY0)
+        return None
+        
+    except Exception:
+        return None
+
+
+def get_coach_summary(store_id: str, day_level: str = None) -> str:
     """
     코치 요약 문장 생성 (자동 코치 모드용)
     기존 데이터를 활용한 룰 기반 문장
+    STEP 5-4: DAY 단계에 따라 톤 단계화
     
     Returns:
         str: 코치 요약 문장
@@ -811,10 +846,30 @@ def get_coach_summary(store_id: str) -> str:
         good_points = get_good_points_top3(store_id)
         signals = get_anomaly_signals(store_id)
         
+        # STEP 5-4: DAY1일 때는 문제/이상징후 표현 금지
+        if day_level == "DAY1":
+            return "아직은 데이터를 쌓는 중입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다."
+        
         # 문제 수와 이상 징후 수
         problem_count = len([p for p in problems if "데이터를 불러올 수 없습니다" not in p.get("text", "") and "아직 분석할 데이터가 충분하지 않습니다" not in p.get("text", "")])
         signal_count = len(signals)
         
+        # STEP 5-4: DAY3일 때는 이상징후 약화
+        if day_level == "DAY3":
+            # 문제/잘한점만 사용, 이상징후는 무시
+            has_good_sales = any("매출" in g.get("text", "") and ("증가" in g.get("text", "") or "최고" in g.get("text", "")) for g in good_points)
+            has_good_close = any("마감" in g.get("text", "") for g in good_points)
+            
+            if has_good_sales and has_good_close:
+                return "이번 달은 구조가 안정적이고, 운영 리듬도 잘 유지되고 있습니다."
+            elif has_good_sales:
+                return "이번 달은 매출 흐름이 양호하고, 운영이 안정적으로 진행되고 있습니다."
+            elif problem_count == 0:
+                return "이번 달은 전반적으로 안정적인 상태를 유지하고 있습니다."
+            else:
+                return "이번 달 가게 상태를 점검 중입니다."
+        
+        # STEP 5-4: DAY7일 때는 전체 활성화 (기존 로직)
         # 매출 감소 관련 문제 확인
         has_sales_decline = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
         
@@ -847,9 +902,10 @@ def get_coach_summary(store_id: str) -> str:
         return "이번 달 가게 상태를 확인 중입니다."
 
 
-def get_month_status_summary(store_id: str, year: int, month: int) -> str:
+def get_month_status_summary(store_id: str, year: int, month: int, day_level: str = None) -> str:
     """
     이번 달 가게 상태 한 줄 요약
+    STEP 5-5: DAY 단계에 따라 prefix 변경
     
     Returns:
         str: 상태 요약 문장
@@ -869,23 +925,85 @@ def get_month_status_summary(store_id: str, year: int, month: int) -> str:
         except:
             pass
         
+        # 상태 문장 생성
+        status_text = ""
         if problem_count == 0 and signal_count == 0 and has_settlement:
             if monthly_sales > 0:
-                return "이번 달은 '구조 안정 + 운영 리듬 양호' 상태입니다."
+                status_text = "'구조 안정 + 운영 리듬 양호' 상태입니다."
             else:
-                return "이번 달은 '데이터 수집 중' 상태입니다."
+                status_text = "'데이터 수집 중' 상태입니다."
         elif problem_count > 0 or signal_count > 0:
             if has_settlement:
-                return "이번 달은 '변동성 증가, 원인 추적 필요' 상태입니다."
+                status_text = "'변동성 증가, 원인 추적 필요' 상태입니다."
             else:
-                return "이번 달은 '관리 필요, 데이터 보완 필요' 상태입니다."
+                status_text = "'관리 필요, 데이터 보완 필요' 상태입니다."
         elif has_settlement:
-            return "이번 달은 '매출은 유지, 이익은 관리 필요' 상태입니다."
+            status_text = "'매출은 유지, 이익은 관리 필요' 상태입니다."
         else:
-            return "이번 달은 '데이터 수집 중' 상태입니다."
+            status_text = "'데이터 수집 중' 상태입니다."
+        
+        # STEP 5-5: DAY 단계에 따라 prefix 변경
+        if day_level == "DAY1":
+            return f"이번 달은 아직 구조를 만드는 중입니다. ({status_text})"
+        elif day_level == "DAY3":
+            return f"이번 달 가게 상태가 정리되기 시작했습니다. ({status_text})"
+        elif day_level == "DAY7":
+            return f"이번 달 가게 상태 요약입니다. ({status_text})"
+        else:
+            return f"이번 달은 {status_text}"
             
     except Exception:
         return "이번 달 상태를 확인 중입니다."
+
+
+def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mode: bool = False, day_level: str = None) -> dict:
+    """
+    오늘 하나만 추천 액션 결정 (DAY 단계별 톤 튜닝)
+    기존 get_today_one_action()을 래핑하여 DAY 단계에 따라 문구 톤 조정
+    
+    Returns:
+        dict: {
+            "title": str,
+            "reason": str,
+            "button_label": str,
+            "target_page": str
+        }
+    """
+    # 기존 함수 호출
+    action = get_today_one_action(store_id, level, is_coach_mode)
+    
+    # DAY 단계에 따라 문구 톤 튜닝
+    if day_level == "DAY1":
+        # DAY1: 무조건 점장마감 중심, "습관 / 기록 / 쌓기" 톤
+        if "마감" in action['title'] or "마감" in action['button_label']:
+            action['title'] = "오늘도 마감 습관 만들기"
+            action['reason'] = "기록을 쌓는 습관이 생기면, 3일 후부터 가게 흐름이 보이기 시작합니다."
+        else:
+            # 다른 액션이어도 마감으로 유도
+            action['title'] = "오늘도 마감 습관 만들기"
+            action['reason'] = "기록을 쌓는 습관이 생기면, 3일 후부터 가게 흐름이 보이기 시작합니다."
+            action['button_label'] = "📋 점장 마감 하러가기"
+            action['target_page'] = "점장 마감"
+    
+    elif day_level == "DAY3":
+        # DAY3: 마감 + 판매관리/메모 중심, "흐름 보기 / 패턴 / 감각 만들기" 톤
+        if "마감" in action['title'] or "마감" in action['button_label']:
+            action['reason'] = "마감을 꾸준히 하면 패턴이 보이기 시작합니다. 오늘도 기록을 쌓아보세요."
+        elif "판매" in action['title'] or "판매" in action['button_label']:
+            action['reason'] = "이제 판매 흐름을 보면 패턴이 보이기 시작합니다. 메뉴별 흐름을 확인해보세요."
+        elif "메모" in action['title']:
+            action['reason'] = "특이사항을 기록하면 나중에 패턴을 찾을 때 도움이 됩니다."
+    
+    elif day_level == "DAY7":
+        # DAY7: 실제정산, 숫자 구조, 문제/이상징후 연동, "고치기 / 결정 / 구조 이해" 톤
+        if "성적표" in action['title'] or "실제정산" in action['button_label']:
+            action['reason'] = "이번 달 성적표를 만들면 가게 구조가 완성되고, 무엇을 고칠지 결정할 수 있습니다."
+        elif "숫자 구조" in action['title'] or "비용구조" in action['button_label']:
+            action['reason'] = "가게 구조를 이해하면 매출이 오를 때 얼마가 남는지 바로 알 수 있습니다."
+        elif "판매" in action['title'] or "문제" in action.get('reason', ''):
+            action['reason'] = "문제를 발견했다면 지금 고치면 다음 달이 달라집니다."
+    
+    return action
 
 
 def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False) -> dict:
@@ -1310,6 +1428,21 @@ def render_home():
     
     st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
     
+    # STEP 5-1: 사장 단계 판별
+    day_level = detect_owner_day_level(store_id)
+    
+    # STEP 5-2: 홈 상단 성장 단계 메시지 (DAY0 아닌 홈 최상단)
+    if day_level:
+        try:
+            if day_level == "DAY1":
+                st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
+            elif day_level == "DAY3":
+                st.success("**이제 가게가 숫자로 보이기 시작했습니다.**\n\n지금부터 홈은 '기록 앱'이 아니라 '코치 화면'으로 바뀌기 시작합니다.")
+            elif day_level == "DAY7":
+                st.success("**이제 이 앱은 사장님의 '매장 코치' 모드입니다.**\n\n오늘부터는 기록보다, '무엇을 고칠지'가 먼저 보입니다.")
+        except Exception:
+            pass
+    
     # 자동 코치 모드 확인
     is_coach_mode = is_auto_coach_mode(store_id)
     
@@ -1322,7 +1455,7 @@ def render_home():
     # STEP 4-1: 코치 요약 문장 (자동 코치 모드일 때만)
     if is_coach_mode:
         try:
-            coach_summary = get_coach_summary(store_id)
+            coach_summary = get_coach_summary(store_id, day_level)
             st.markdown(f"**📋 이번 달 우리 가게 코치 요약**\n\n{coach_summary}")
             st.markdown("<br>", unsafe_allow_html=True)
         except Exception:
@@ -1658,8 +1791,8 @@ def render_home():
             else:
                 st.markdown("### 🎯 오늘 하나만 (매일 1개 추천)")
             
-            # 추천 액션 결정
-            action = get_today_one_action(store_id, data_level, is_coach_mode)
+            # STEP 5-3: 추천 액션 결정 (DAY 단계별 톤 튜닝)
+            action = get_today_one_action_with_day_context(store_id, data_level, is_coach_mode, day_level)
             
             # 추천 카드 표시
             st.markdown(f"""
@@ -1861,7 +1994,7 @@ def render_home():
             now_kst = datetime.now(KST)
             current_year = now_kst.year
             current_month = now_kst.month
-            status_summary = get_month_status_summary(store_id, current_year, current_month)
+            status_summary = get_month_status_summary(store_id, current_year, current_month, day_level)
             st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{status_summary}")
             st.markdown("<br>", unsafe_allow_html=True)
         except Exception:
