@@ -1504,6 +1504,9 @@ with st.sidebar:
             ("월간 성적표", "실제정산"),
             ("주간 리포트", "주간 리포트"),
         ],
+        "🩺 가게 건강검진": [
+            ("종합 건강검진", "종합 건강검진"),
+        ],
         "👥 운영 도구": [
             ("직원 연락망", "직원 연락망"),
             ("협력사 연락망", "협력사 연락망"),
@@ -3325,6 +3328,11 @@ elif page == "협력사 연락망":
     render_vendor_contacts()
 
 # 게시판 페이지
+# 건강검진 페이지
+elif page == "종합 건강검진":
+    from ui_pages.health_check.health_check_page import render_health_check_page
+    render_health_check_page()
+
 elif page == "게시판":
     from ui_pages.board import render_board
     render_board()

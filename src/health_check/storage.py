@@ -275,3 +275,59 @@ def get_health_results(session_id: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"get_health_results: Error - {e}")
         return []
+
+
+def load_latest_open_session(store_id: str) -> Optional[Dict]:
+    """
+    최근 미완료 세션 조회
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        세션 정보 dict 또는 None
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return None
+        
+        # NULL 체크: completed_at이 NULL인 세션 조회
+        result = supabase.table("health_check_sessions").select("*").eq(
+            "store_id", store_id
+        ).is_("completed_at", "null").order("started_at", desc=True).limit(1).execute()
+        
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    
+    except Exception as e:
+        logger.error(f"load_latest_open_session: Error - {e}")
+        return None
+
+
+def list_health_sessions(store_id: str, limit: int = 10) -> List[Dict]:
+    """
+    건강검진 세션 목록 조회 (최근 완료된 세션)
+    
+    Args:
+        store_id: 매장 ID
+        limit: 조회할 최대 개수
+    
+    Returns:
+        세션 리스트
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return []
+        
+        result = supabase.table("health_check_sessions").select("*").eq(
+            "store_id", store_id
+        ).not_.is_("completed_at", "null").order("completed_at", desc=True).limit(limit).execute()
+        
+        return result.data if result.data else []
+    
+    except Exception as e:
+        logger.error(f"list_health_sessions: Error - {e}")
+        return []
