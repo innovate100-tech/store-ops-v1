@@ -183,7 +183,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     now = datetime.now(kst)
     year, month = now.year, now.month
     
-    # 새로고침 버튼 (캐시 무효화)
+    # 새로고침 버튼 (캐시 무효화 강화)
     render_page_header("사장 계기판", "🏠")
     col_refresh, _ = st.columns([1, 5])
     with col_refresh:
@@ -193,13 +193,17 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
                 st.cache_data.clear()
                 st.cache_resource.clear()
                 # 세션 상태도 일부 클리어
-                if "_home_problems_expanded" in st.session_state:
-                    del st.session_state["_home_problems_expanded"]
-                if "_home_good_points_expanded" in st.session_state:
-                    del st.session_state["_home_good_points_expanded"]
-                if "_home_anomaly_expanded" in st.session_state:
-                    del st.session_state["_home_anomaly_expanded"]
-                logger.info("홈 캐시 무효화 완료")
+                keys_to_remove = [
+                    "_home_problems_expanded", "_home_good_points_expanded", 
+                    "_home_anomaly_expanded", "_home_problems_top3", 
+                    "_home_good_points_top3", "coach_mode_welcomed"
+                ]
+                for key in keys_to_remove:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                # 강제 리로드를 위한 타임스탬프 추가
+                st.session_state["_home_last_refresh"] = time.time()
+                logger.info("홈 캐시 무효화 완료 (강화)")
                 st.rerun()
             except Exception as e:
                 logger.error(f"캐시 무효화 실패: {e}")
@@ -275,9 +279,9 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
         v = f"{revenue_per_visit:,}원" if (revenue_per_visit or 0) > 0 else "-"
         _kpi_card_modern("유입당 매출(참고)", v, "네이버 유입 기준", gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
     
-    # 상태 해석 스트립 (KPI 바로 아래, 1줄)
+    # 상태 해석 스트립 (KPI 바로 아래, 1줄, 모던 스타일)
     _render_status_strip(store_id, monthly_sales, target_sales, target_ratio, close_rate, closed_days, total_days)
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
     # 3. 이상 징후 / 문제 / 잘한 점 (압축, 기본 1개만, 모던 스타일)
     try:
