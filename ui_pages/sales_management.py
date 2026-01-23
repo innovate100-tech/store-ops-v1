@@ -26,6 +26,13 @@ def render_sales_management():
     """매출 관리 페이지 렌더링"""
     render_page_header("매출 관리", "📊")
     
+    # 매출 하락 원인 찾기 버튼 (상단 CTA)
+    if st.button("📉 매출 하락 원인 찾기", type="primary", use_container_width=True, key="sales_mgmt_btn_sales_drop"):
+        st.session_state["current_page"] = "매출 하락 원인 찾기"
+        st.rerun()
+    
+    st.markdown("---")
+    
     # store_id: st.session_state._active_store_id만 사용 (SSOT)
     store_id = st.session_state.get("_active_store_id")
     if not store_id:

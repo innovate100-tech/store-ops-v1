@@ -1684,8 +1684,8 @@ elif page == "매출 등록":
 
 # 매출 하락 원인 찾기 페이지 (원클릭 플로우)
 elif page == "매출 하락 원인 찾기":
-    from ui_pages.diagnostics.sales_drop_oneclick import render_sales_drop_oneclick
-    render_sales_drop_oneclick()
+    from ui_pages.analysis.sales_drop_investigation import render_sales_drop_investigation
+    render_sales_drop_investigation()
 
 # 오늘의 전략 실행 (미션 상세)
 elif page == "오늘의 전략 실행" or page == "미션 상세":
