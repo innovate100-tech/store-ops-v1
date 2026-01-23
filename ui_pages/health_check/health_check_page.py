@@ -347,12 +347,19 @@ def render_input_form(store_id: str, session_id: str):
 
 
 def render_category_questions(store_id: str, session_id: str, category: str):
-    """카테고리별 질문 렌더링 (임시 저장 방식)"""
+    """카테고리별 질문 렌더링 (임시 저장 방식, 1클릭 라디오)"""
     category_questions = QUESTIONS.get(category, [])
     hc_answers_key = "hc_answers"
     hc_dirty_key = "hc_dirty"
     
-    # 각 질문 렌더링
+    # session_state에서 답변 가져오기
+    answers = st.session_state.get(hc_answers_key, {})
+    
+    # radio 옵션
+    options = ["예", "애매함", "아니다"]
+    raw_value_map = {"예": "yes", "애매함": "maybe", "아니다": "no"}
+    
+    # 각 질문을 1행으로 표시 (질문 텍스트 + 오른쪽 라디오)
     for question_item in category_questions:
         question_code = question_item.get("code", "")
         question_text = question_item.get("text", "")
@@ -361,12 +368,7 @@ def render_category_questions(store_id: str, session_id: str, category: str):
         
         # session_state에서 현재 값 가져오기
         key = (category, question_code)
-        answers = st.session_state.get(hc_answers_key, {})
         current_value = answers.get(key)
-        
-        # radio 옵션
-        options = ["예", "애매함", "아니다"]
-        raw_value_map = {"예": "yes", "애매함": "maybe", "아니다": "no"}
         
         # 현재 값에 맞는 인덱스 찾기
         index = None
@@ -379,36 +381,47 @@ def render_category_questions(store_id: str, session_id: str, category: str):
         # index가 None이면 기본값 0 사용 (첫 번째 옵션)
         radio_index = index if (index is not None and 0 <= index < len(options)) else 0
         
-        try:
-            selected = st.radio(
-                question_text,
-                options=options,
-                index=radio_index,
-                key=f"hc_{session_id}_{category}_{question_code}",
-                horizontal=True
-            )
-        except Exception as e:
-            logger.error(f"Error rendering radio for {question_code}: {e}")
-            continue
+        # 1행 레이아웃: 질문 텍스트(왼쪽) + 라디오 버튼(오른쪽)
+        col1, col2 = st.columns([3, 1])
         
-        # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵
-        if selected is None or selected not in options or selected not in raw_value_map:
-            continue
+        with col1:
+            st.markdown(f"**{question_code}** {question_text}")
         
-        # 값 변환
-        new_raw_value = raw_value_map[selected]
-        
-        # 값이 변경되었으면 session_state에 저장 (DB 저장 안 함)
-        if new_raw_value != current_value:
-            # session_state 업데이트
-            if hc_answers_key not in st.session_state:
-                st.session_state[hc_answers_key] = {}
-            st.session_state[hc_answers_key][key] = new_raw_value
+        with col2:
+            try:
+                selected = st.radio(
+                    "",  # 라벨 없음 (col1에 질문 표시)
+                    options=options,
+                    index=radio_index,
+                    key=f"hc_{session_id}_{category}_{question_code}",
+                    horizontal=True,
+                    label_visibility="collapsed"
+                )
+            except Exception as e:
+                logger.error(f"Error rendering radio for {question_code}: {e}")
+                continue
             
-            # dirty에 추가
-            if hc_dirty_key not in st.session_state:
-                st.session_state[hc_dirty_key] = set()
-            st.session_state[hc_dirty_key].add(key)
+            # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵
+            if selected is None or selected not in options or selected not in raw_value_map:
+                continue
+            
+            # 값 변환
+            new_raw_value = raw_value_map[selected]
+            
+            # 값이 변경되었으면 session_state에 저장 (DB 저장 안 함)
+            if new_raw_value != current_value:
+                # session_state 업데이트
+                if hc_answers_key not in st.session_state:
+                    st.session_state[hc_answers_key] = {}
+                st.session_state[hc_answers_key][key] = new_raw_value
+                
+                # dirty에 추가
+                if hc_dirty_key not in st.session_state:
+                    st.session_state[hc_dirty_key] = set()
+                st.session_state[hc_dirty_key].add(key)
+        
+        # 질문 간 간격
+        st.markdown("<br>", unsafe_allow_html=True)
 
 
 def render_result_report(store_id: str, session_id: str):
