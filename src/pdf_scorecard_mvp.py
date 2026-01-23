@@ -22,27 +22,81 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# 한글 폰트 등록 시도 (실패 시 fallback)
-FONT_REGISTERED = False
-try:
-    # Windows 기본 한글 폰트 경로 시도
-    import platform
-    if platform.system() == "Windows":
-        try:
-            pdfmetrics.registerFont(TTFont('NanumGothic', 'C:/Windows/Fonts/malgun.ttf'))
-            FONT_REGISTERED = True
-        except:
-            try:
-                pdfmetrics.registerFont(TTFont('NanumGothic', 'C:/Windows/Fonts/gulim.ttc'))
-                FONT_REGISTERED = True
-            except:
-                pass
-except Exception:
-    pass
 
-# 폰트 설정
-FONT_NAME = 'NanumGothic' if FONT_REGISTERED else 'Helvetica'
-FONT_FALLBACK = not FONT_REGISTERED
+def register_korean_font() -> Dict:
+    """
+    한글 폰트 등록 시도 (STEP 2-A)
+    
+    우선순위:
+    1. 프로젝트 assets/fonts/ 폴더의 폰트 파일
+    2. Windows 기본 폰트
+    3. Fallback: Helvetica (한글 최소화 모드)
+    
+    Returns:
+        dict: {"ok": bool, "font_name": str, "reason": str}
+    """
+    result = {
+        "ok": False,
+        "font_name": "Helvetica",
+        "reason": "폰트 파일을 찾을 수 없습니다. Helvetica로 fallback합니다."
+    }
+    
+    if not REPORTLAB_AVAILABLE:
+        result["reason"] = "ReportLab이 설치되지 않았습니다."
+        return result
+    
+    # 우선순위 1: 프로젝트 assets/fonts/ 폴더
+    import os
+    font_paths = [
+        "assets/fonts/NotoSansKR-Regular.ttf",
+        "assets/fonts/Pretendard-Regular.ttf",
+        "assets/fonts/AppleSDGothicNeo.ttf"
+    ]
+    
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                result["ok"] = True
+                result["font_name"] = "KoreanFont"
+                result["reason"] = f"폰트 등록 성공: {font_path}"
+                logger.info(f"Korean font registered: {font_path}")
+                return result
+            except Exception as e:
+                logger.warning(f"Failed to register font {font_path}: {e}")
+                continue
+    
+    # 우선순위 2: Windows 기본 폰트
+    try:
+        import platform
+        if platform.system() == "Windows":
+            windows_fonts = [
+                "C:/Windows/Fonts/malgun.ttf",
+                "C:/Windows/Fonts/gulim.ttc",
+                "C:/Windows/Fonts/batang.ttc"
+            ]
+            for font_path in windows_fonts:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                        result["ok"] = True
+                        result["font_name"] = "KoreanFont"
+                        result["reason"] = f"폰트 등록 성공: {font_path}"
+                        logger.info(f"Korean font registered: {font_path}")
+                        return result
+                    except Exception as e:
+                        logger.warning(f"Failed to register font {font_path}: {e}")
+                        continue
+    except Exception as e:
+        logger.warning(f"Failed to check Windows fonts: {e}")
+    
+    # Fallback: Helvetica
+    logger.info("Using Helvetica fallback (Korean font not available)")
+    return result
+
+
+# 전역 폰트 정보 (build_scorecard_pdf_bytes에서 초기화)
+FONT_INFO = None
 
 
 def can_generate_scorecard(store_id: str, year: int, month: int) -> Tuple[bool, str]:
@@ -120,7 +174,11 @@ def gather_scorecard_mvp_data(store_id: str, year: int, month: int) -> Dict:
         "anomaly_signals": [],
         "coach_summary": "",
         "coach_actions": [],
-        "month_status_summary": ""
+        "month_status_summary": "",
+        # STEP 2-C: 5P/7P 데이터
+        "ingredient_top10": [],
+        "menu_top10": [],
+        "menu_concentration_ratio": None
     }
     
     try:
@@ -286,6 +344,212 @@ def gather_scorecard_mvp_data(store_id: str, year: int, month: int) -> Dict:
         else:
             data["coach_actions"] = ["데이터가 쌓이면 자동으로 분석됩니다."]
         
+        # STEP 2-C: 5P 원가 구조 데이터 (재료 사용 단가 TOP 10)
+        try:
+            from src.analytics import calculate_ingredient_usage
+            from src.storage_supabase import load_csv
+            
+            # 이번 달 기간
+            KST = ZoneInfo("Asia/Seoul")
+            start_date = date(year, month, 1)
+            if month == 12:
+                end_date = date(year + 1, 1, 1)
+            else:
+                end_date = date(year, month + 1, 1)
+            
+            # 판매 데이터 로드
+            daily_sales_result = supabase.table("v_daily_sales_items_effective")\
+                .select("date, menu_id, qty")\
+                .eq("store_id", store_id)\
+                .gte("date", start_date.isoformat())\
+                .lt("date", end_date.isoformat())\
+                .execute()
+            
+            if daily_sales_result.data:
+                # 메뉴 ID -> 메뉴명 매핑
+                menu_result = supabase.table("menu_master")\
+                    .select("id, name")\
+                    .eq("store_id", store_id)\
+                    .execute()
+                menu_map = {m['id']: m['name'] for m in menu_result.data if menu_result.data}
+                
+                # 일일 판매 DataFrame 생성
+                import pandas as pd
+                daily_sales_list = []
+                for row in daily_sales_result.data:
+                    menu_id = row.get('menu_id')
+                    menu_name = menu_map.get(menu_id, f"Menu_{menu_id}")
+                    date_str = row.get('date')
+                    qty = int(row.get('qty', 0) or 0)
+                    if date_str and qty > 0:
+                        daily_sales_list.append({
+                            '날짜': date_str,
+                            '메뉴명': menu_name,
+                            '판매수량': qty
+                        })
+                
+                if daily_sales_list:
+                    daily_sales_df = pd.DataFrame(daily_sales_list)
+                    
+                    # 레시피 로드
+                    recipe_result = supabase.table("recipes")\
+                        .select("menu_id, ingredient_id, qty")\
+                        .eq("store_id", store_id)\
+                        .execute()
+                    
+                    # 재료 정보 로드
+                    ingredient_result = supabase.table("ingredients")\
+                        .select("id, name, unit_cost")\
+                        .eq("store_id", store_id)\
+                        .execute()
+                    
+                    if recipe_result.data and ingredient_result.data:
+                        # 재료 ID -> 재료명/단가 매핑
+                        ingredient_map = {}
+                        for ing in ingredient_result.data:
+                            ing_id = ing.get('id')
+                            ingredient_map[ing_id] = {
+                                'name': ing.get('name', ''),
+                                'unit_cost': float(ing.get('unit_cost', 0) or 0)
+                            }
+                        
+                        # 레시피 DataFrame 생성
+                        recipe_list = []
+                        for r in recipe_result.data:
+                            menu_id = r.get('menu_id')
+                            menu_name = menu_map.get(menu_id)
+                            if menu_name:
+                                ing_id = r.get('ingredient_id')
+                                ing_info = ingredient_map.get(ing_id)
+                                if ing_info:
+                                    recipe_list.append({
+                                        '메뉴명': menu_name,
+                                        '재료명': ing_info['name'],
+                                        '사용량': float(r.get('qty', 0))
+                                    })
+                        
+                        if recipe_list:
+                            recipe_df = pd.DataFrame(recipe_list)
+                            
+                            # 재료 사용량 계산
+                            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+                            
+                            if not usage_df.empty:
+                                # 재료별 집계
+                                ingredient_summary = usage_df.groupby('재료명')['총사용량'].sum().reset_index()
+                                
+                                # 재료 단가 조인
+                                ingredient_cost_list = []
+                                for ing in ingredient_result.data:
+                                    ing_id = ing.get('id')
+                                    ing_info = ingredient_map.get(ing_id)
+                                    if ing_info:
+                                        ingredient_cost_list.append({
+                                            '재료명': ing_info['name'],
+                                            '단가': ing_info['unit_cost']
+                                        })
+                                
+                                if ingredient_cost_list:
+                                    ingredient_cost_df = pd.DataFrame(ingredient_cost_list)
+                                    ingredient_summary = pd.merge(
+                                        ingredient_summary,
+                                        ingredient_cost_df,
+                                        on='재료명',
+                                        how='left'
+                                    )
+                                    ingredient_summary['단가'] = ingredient_summary['단가'].fillna(0)
+                                    ingredient_summary['총사용단가'] = ingredient_summary['총사용량'] * ingredient_summary['단가']
+                                    
+                                    # TOP 10 정렬
+                                    ingredient_summary = ingredient_summary.sort_values('총사용단가', ascending=False)
+                                    top10 = ingredient_summary.head(10)
+                                    
+                                    data["ingredient_top10"] = [
+                                        {
+                                            "재료명": row['재료명'],
+                                            "사용단가": float(row['총사용단가']),
+                                            "사용량": float(row['총사용량'])
+                                        }
+                                        for _, row in top10.iterrows()
+                                    ]
+        except Exception as e:
+            logger.warning(f"Failed to gather ingredient data: {e}")
+        
+        # STEP 2-C: 7P 메뉴 구조 데이터
+        try:
+            # 이번 달 메뉴별 판매량
+            KST = ZoneInfo("Asia/Seoul")
+            start_date = date(year, month, 1)
+            if month == 12:
+                end_date = date(year + 1, 1, 1)
+            else:
+                end_date = date(year, month + 1, 1)
+            
+            menu_sales_result = supabase.table("v_daily_sales_items_effective")\
+                .select("menu_id, qty")\
+                .eq("store_id", store_id)\
+                .gte("date", start_date.isoformat())\
+                .lt("date", end_date.isoformat())\
+                .execute()
+            
+            if menu_sales_result.data:
+                # 메뉴 정보 로드
+                menu_result = supabase.table("menu_master")\
+                    .select("id, name, price")\
+                    .eq("store_id", store_id)\
+                    .execute()
+                
+                menu_map = {}
+                if menu_result.data:
+                    for m in menu_result.data:
+                        menu_map[m['id']] = {
+                            'name': m.get('name', ''),
+                            'price': float(m.get('price', 0) or 0)
+                        }
+                
+                # 메뉴별 집계
+                import pandas as pd
+                menu_sales_list = []
+                for row in menu_sales_result.data:
+                    menu_id = row.get('menu_id')
+                    menu_info = menu_map.get(menu_id)
+                    if menu_info:
+                        qty = int(row.get('qty', 0) or 0)
+                        if qty > 0:
+                            menu_sales_list.append({
+                                '메뉴명': menu_info['name'],
+                                '판매량': qty,
+                                '판매가': menu_info['price']
+                            })
+                
+                if menu_sales_list:
+                    menu_sales_df = pd.DataFrame(menu_sales_list)
+                    menu_summary = menu_sales_df.groupby('메뉴명').agg({
+                        '판매량': 'sum',
+                        '판매가': 'first'
+                    }).reset_index()
+                    menu_summary['매출'] = menu_summary['판매량'] * menu_summary['판매가']
+                    menu_summary = menu_summary.sort_values('매출', ascending=False)
+                    
+                    top10 = menu_summary.head(10)
+                    data["menu_top10"] = [
+                        {
+                            "메뉴명": row['메뉴명'],
+                            "판매량": int(row['판매량']),
+                            "매출": float(row['매출'])
+                        }
+                        for _, row in top10.iterrows()
+                    ]
+                    
+                    # 메뉴 쏠림도 계산
+                    if len(menu_summary) > 0:
+                        total_qty = menu_summary['판매량'].sum()
+                        if total_qty > 0:
+                            max_qty = menu_summary['판매량'].max()
+                            data["menu_concentration_ratio"] = (max_qty / total_qty) * 100
+        except Exception as e:
+            logger.warning(f"Failed to gather menu data: {e}")
+        
     except Exception as e:
         logger.error(f"Failed to gather scorecard data: {e}")
     
@@ -393,7 +657,7 @@ def _create_page_2_summary(data: Dict, styles) -> List:
         ('TEXTCOLOR', (0, 0), (-1, -1), white),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+        ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('GRID', (0, 0), (-1, -1), 1, white),
     ]))
@@ -426,7 +690,10 @@ def _create_page_2_summary(data: Dict, styles) -> List:
 
 
 def _create_page_3_sales_flow(data: Dict, styles) -> List:
-    """3P. 매출 흐름"""
+    """3P. 매출 흐름 (STEP 2-B: 차트 추가)"""
+    from reportlab.platypus import Image
+    from src.pdf_charts import make_daily_sales_line_chart, make_weekday_sales_bar_chart
+    
     story = []
     
     story.append(Paragraph("매출 흐름", ParagraphStyle(
@@ -439,12 +706,37 @@ def _create_page_3_sales_flow(data: Dict, styles) -> List:
     # 일별 매출 시리즈
     daily_series = data.get("sales_daily_series", [])
     
-    if daily_series:
-        # 최근 7일 표
-        recent_7 = daily_series[-7:] if len(daily_series) >= 7 else daily_series
-        
+    # STEP 2-B: 일별 라인 차트 (데이터 3개 이상일 때만)
+    if len(daily_series) >= 3:
+        try:
+            chart_bytes = make_daily_sales_line_chart(daily_series, "Daily Sales")
+            if chart_bytes:
+                chart_img = Image(BytesIO(chart_bytes), width=150*mm, height=60*mm)
+                story.append(chart_img)
+                story.append(Spacer(1, 10*mm))
+        except Exception as e:
+            logger.warning(f"Failed to create line chart: {e}")
+            # 차트 실패 시 표로 대체
+            recent_7 = daily_series[-7:] if len(daily_series) >= 7 else daily_series
+            table_data = [["날짜", "매출"]]
+            for date_label, total in recent_7:
+                table_data.append([date_label, _format_currency(total)])
+            
+            sales_table = Table(table_data, colWidths=[40*mm, 60*mm])
+            sales_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f8f9fa')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, HexColor('#dee2e6')),
+            ]))
+            story.append(sales_table)
+            story.append(Spacer(1, 10*mm))
+    elif daily_series:
+        # 데이터 부족: 표로 표시
         table_data = [["날짜", "매출"]]
-        for date_label, total in recent_7:
+        for date_label, total in daily_series:
             table_data.append([date_label, _format_currency(total)])
         
         sales_table = Table(table_data, colWidths=[40*mm, 60*mm])
@@ -452,24 +744,37 @@ def _create_page_3_sales_flow(data: Dict, styles) -> List:
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f8f9fa')),
             ('TEXTCOLOR', (0, 0), (-1, 0), black),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
             ('FONTSIZE', (0, 0), (-1, -1), 10),
             ('GRID', (0, 0), (-1, -1), 1, HexColor('#dee2e6')),
         ]))
         story.append(sales_table)
         story.append(Spacer(1, 10*mm))
-        
-        # 요약 지표
-        if len(daily_series) >= 3:
-            recent_3_avg = sum([s[1] for s in daily_series[-3:]]) / 3
-            prev_3_avg = sum([s[1] for s in daily_series[-6:-3]]) / 3 if len(daily_series) >= 6 else recent_3_avg
-            change_pct = ((recent_3_avg - prev_3_avg) / prev_3_avg * 100) if prev_3_avg > 0 else 0
-            story.append(Paragraph(f"최근 3일 평균: {_format_currency(recent_3_avg)}", styles['Normal']))
-            if len(daily_series) >= 6:
-                change_text = "증가" if change_pct > 0 else "감소"
-                story.append(Paragraph(f"직전 3일 대비 {abs(change_pct):.1f}% {change_text}", styles['Normal']))
     else:
         story.append(Paragraph("아직 매출 데이터가 없습니다.", styles['Normal']))
+        story.append(Spacer(1, 10*mm))
+    
+    # STEP 2-B: 요일별 바 차트
+    weekday_series = data.get("sales_weekday_series")
+    if weekday_series:
+        try:
+            chart_bytes = make_weekday_sales_bar_chart(weekday_series, "Weekday Average Sales")
+            if chart_bytes:
+                chart_img = Image(BytesIO(chart_bytes), width=150*mm, height=60*mm)
+                story.append(chart_img)
+        except Exception as e:
+            logger.warning(f"Failed to create bar chart: {e}")
+    
+    # 요약 지표
+    if len(daily_series) >= 3:
+        recent_3_avg = sum([s[1] for s in daily_series[-3:]]) / 3
+        prev_3_avg = sum([s[1] for s in daily_series[-6:-3]]) / 3 if len(daily_series) >= 6 else recent_3_avg
+        change_pct = ((recent_3_avg - prev_3_avg) / prev_3_avg * 100) if prev_3_avg > 0 else 0
+        story.append(Spacer(1, 10*mm))
+        story.append(Paragraph(f"최근 3일 평균: {_format_currency(recent_3_avg)}", styles['Normal']))
+        if len(daily_series) >= 6:
+            change_text = "증가" if change_pct > 0 else "감소"
+            story.append(Paragraph(f"직전 3일 대비 {abs(change_pct):.1f}% {change_text}", styles['Normal']))
     
     return story
 
@@ -503,7 +808,7 @@ def _create_page_4_profit_structure(data: Dict, styles) -> List:
             ('TEXTCOLOR', (0, 0), (-1, -1), white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
             ('FONTSIZE', (0, 0), (-1, -1), 12),
             ('GRID', (0, 0), (-1, -1), 1, white),
         ]))
@@ -535,7 +840,7 @@ def _create_page_4_profit_structure(data: Dict, styles) -> List:
                 ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f8f9fa')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), black),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+                ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('GRID', (0, 0), (-1, -1), 1, HexColor('#dee2e6')),
             ]))
@@ -631,6 +936,149 @@ def _create_page_6_problems_goods(data: Dict, styles) -> List:
     return story
 
 
+def _create_page_5_cost_structure(data: Dict, styles) -> List:
+    """5P. 원가 구조 (STEP 2-C)"""
+    story = []
+    
+    story.append(Paragraph("원가 구조", ParagraphStyle(
+        'PageTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=15
+    )))
+    
+    ingredient_top10 = data.get("ingredient_top10", [])
+    
+    if ingredient_top10:
+        # 재료 사용 단가 TOP 10 테이블
+        table_data = [["순위", "재료명", "사용단가", "사용량"]]
+        for idx, item in enumerate(ingredient_top10[:10], 1):
+            table_data.append([
+                str(idx),
+                item.get("재료명", ""),
+                _format_currency(item.get("사용단가", 0)),
+                f"{item.get('사용량', 0):.2f}"
+            ])
+        
+        ingredient_table = Table(table_data, colWidths=[20*mm, 60*mm, 50*mm, 40*mm])
+        ingredient_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f8f9fa')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # 재료명은 왼쪽 정렬
+            ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#dee2e6')),
+        ]))
+        story.append(ingredient_table)
+        story.append(Spacer(1, 10*mm))
+        
+        # 문장
+        top_ingredient = ingredient_top10[0].get("재료명", "")
+        story.append(Paragraph(
+            f"이번 달 원가를 가장 많이 만든 재료는 {top_ingredient}입니다.",
+            ParagraphStyle(
+                'CostSentence',
+                parent=styles['Normal'],
+                fontSize=12,
+                backColor=HexColor('#d1ecf1'),
+                borderPadding=10,
+                spaceAfter=10
+            )
+        ))
+    else:
+        # 데이터 부족 안내
+        story.append(Paragraph(
+            "판매량/레시피/재료 단가가 있어야 계산됩니다.",
+            ParagraphStyle(
+                'CostInfo',
+                parent=styles['Normal'],
+                fontSize=12,
+                backColor=HexColor('#fff3cd'),
+                borderPadding=10,
+                spaceAfter=10
+            )
+        ))
+        story.append(Paragraph(
+            "메뉴 등록 → 레시피 등록 → 재료 단가 입력 후 다시 시도해주세요.",
+            styles['Normal']
+        ))
+    
+    return story
+
+
+def _create_page_7_menu_structure(data: Dict, styles) -> List:
+    """7P. 메뉴 구조 (STEP 2-C)"""
+    story = []
+    
+    story.append(Paragraph("메뉴 구조", ParagraphStyle(
+        'PageTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        spaceAfter=15
+    )))
+    
+    menu_top10 = data.get("menu_top10", [])
+    
+    if menu_top10:
+        # 메뉴 TOP 10 테이블
+        table_data = [["순위", "메뉴명", "판매량", "매출"]]
+        for idx, item in enumerate(menu_top10[:10], 1):
+            table_data.append([
+                str(idx),
+                item.get("메뉴명", ""),
+                f"{item.get('판매량', 0):,}개",
+                _format_currency(item.get("매출", 0))
+            ])
+        
+        menu_table = Table(table_data, colWidths=[20*mm, 60*mm, 40*mm, 50*mm])
+        menu_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#f8f9fa')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),  # 메뉴명은 왼쪽 정렬
+            ('FONTNAME', (0, 0), (-1, -1), FONT_INFO["font_name"]),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, HexColor('#dee2e6')),
+        ]))
+        story.append(menu_table)
+        story.append(Spacer(1, 10*mm))
+        
+        # 메뉴 쏠림도
+        concentration = data.get("menu_concentration_ratio")
+        if concentration is not None:
+            story.append(Paragraph(
+                f"상위 1개 메뉴 비중: {concentration:.1f}%",
+                ParagraphStyle(
+                    'MenuConcentration',
+                    parent=styles['Normal'],
+                    fontSize=12,
+                    backColor=HexColor('#fff3cd'),
+                    borderPadding=10,
+                    spaceAfter=10
+                )
+            ))
+    else:
+        # 데이터 부족 안내
+        story.append(Paragraph(
+            "판매량(마감) 데이터가 필요합니다.",
+            ParagraphStyle(
+                'MenuInfo',
+                parent=styles['Normal'],
+                fontSize=12,
+                backColor=HexColor('#fff3cd'),
+                borderPadding=10,
+                spaceAfter=10
+            )
+        ))
+        story.append(Paragraph(
+            "점장 마감에서 판매량을 입력하면 메뉴별 분석이 가능합니다.",
+            styles['Normal']
+        ))
+    
+    return story
+
+
 def _create_page_8_coach_summary(data: Dict, styles) -> List:
     """8P. 코치 총평"""
     story = []
@@ -707,6 +1155,12 @@ def build_scorecard_pdf_bytes(store_id: str, year: int, month: int) -> bytes:
     if not REPORTLAB_AVAILABLE:
         raise ImportError("ReportLab이 설치되지 않았습니다. requirements.txt에 reportlab을 추가해주세요.")
     
+    # STEP 2-A: 폰트 등록 (1회만)
+    global FONT_INFO
+    if FONT_INFO is None:
+        FONT_INFO = register_korean_font()
+        logger.info(f"Font registration: {FONT_INFO['reason']}")
+    
     # 데이터 수집
     data = gather_scorecard_mvp_data(store_id, year, month)
     
@@ -725,10 +1179,11 @@ def build_scorecard_pdf_bytes(store_id: str, year: int, month: int) -> bytes:
     styles = getSampleStyleSheet()
     
     # 스타일 한글 폰트 적용
+    font_name = FONT_INFO["font_name"]
     for style_name in styles.byName:
         style = styles[style_name]
         if hasattr(style, 'fontName'):
-            style.fontName = FONT_NAME
+            style.fontName = font_name
     
     # 스토리 구성
     story = []
@@ -751,6 +1206,14 @@ def build_scorecard_pdf_bytes(store_id: str, year: int, month: int) -> bytes:
     
     # 6P. 문제 & 잘한 점
     story.extend(_create_page_6_problems_goods(data, styles))
+    story.append(PageBreak())
+    
+    # STEP 2-C: 5P. 원가 구조
+    story.extend(_create_page_5_cost_structure(data, styles))
+    story.append(PageBreak())
+    
+    # STEP 2-C: 7P. 메뉴 구조
+    story.extend(_create_page_7_menu_structure(data, styles))
     story.append(PageBreak())
     
     # 8P. 코치 총평
