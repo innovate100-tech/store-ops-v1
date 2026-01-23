@@ -1530,6 +1530,22 @@ with st.sidebar:
                 if st.button(f"🔄 {new_mode_emoji} {new_mode_label}로 변경", use_container_width=True, key="switch_mode_btn"):
                     st.session_state["_mode_switch_pending"] = True
                     st.rerun()
+            
+            # 온보딩 다시 보기 버튼 (Step 4)
+            st.markdown("---")
+            from src.auth import reset_onboarding
+            if st.button("🔄 처음 화면 다시 선택하기", use_container_width=True, key="reset_onboarding_btn"):
+                if reset_onboarding(user_id):
+                    # 캐시 클리어
+                    try:
+                        st.cache_data.clear()
+                        st.cache_resource.clear()
+                    except:
+                        pass
+                    st.success("온보딩 선택 화면으로 이동합니다.")
+                    st.rerun()
+                else:
+                    st.error("온보딩 리셋에 실패했습니다.")
     
     # 사이드바 네비게이션 - 카테고리별 구분 (Phase 2: 사장 중심 구조/용어 통일)
     # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경

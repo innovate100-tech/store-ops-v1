@@ -680,6 +680,49 @@ def set_onboarding_mode(user_id: str, mode: str) -> bool:
         return False
 
 
+def reset_onboarding(user_id: str = None) -> bool:
+    """
+    온보딩을 리셋하여 다시 온보딩 선택 화면으로 이동하게 함
+    
+    조건:
+    - user_profiles.onboarding_mode를 NULL로 설정
+    
+    Args:
+        user_id: 사용자 UUID (None이면 현재 로그인한 사용자)
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        if not user_id:
+            try:
+                user_id = st.session_state.get('user_id')
+            except (AttributeError, RuntimeError):
+                # Streamlit이 아직 초기화되지 않은 경우
+                return False
+        
+        if not user_id:
+            logger.warning("reset_onboarding: user_id가 없음")
+            return False
+        
+        client = get_supabase_client()
+        if not client:
+            logger.error("reset_onboarding: Supabase client를 가져올 수 없음")
+            return False
+        
+        # onboarding_mode를 NULL로 설정
+        client.table("user_profiles").update({
+            "onboarding_mode": None
+        }).eq("id", user_id).execute()
+        
+        logger.info(f"Onboarding reset: {user_id} -> NULL")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Failed to reset onboarding: {e}")
+        return False
+
+
 def needs_onboarding(user_id: str = None) -> bool:
     """
     온보딩이 필요한지 확인
