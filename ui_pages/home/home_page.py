@@ -236,7 +236,16 @@ def _render_home_body(store_id: str) -> None:
     # ===== HOME v3 구조 (운영 지시 홈) =====
     
     # ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)
-    _render_zone0_today_instruction(store_id, year, month)
+    try:
+        _render_zone0_today_instruction(store_id, year, month)
+    except Exception as e:
+        logger.error(f"ZONE 0 호출 오류: {e}", exc_info=True)
+        # 최소한 제목이라도 표시
+        st.markdown("### 📌 오늘의 운영 지시")
+        st.error(f"운영 지시를 불러오는 중 오류가 발생했습니다: {str(e)}")
+        if st.button("가게 설계 센터", key="zone0_error_fallback"):
+            st.session_state["current_page"] = "가게 설계 센터"
+            st.rerun()
     
     # ZONE 1: 이번 달 가게 전략 요약
     _render_zone1_strategy_summary(store_id, year, month)
