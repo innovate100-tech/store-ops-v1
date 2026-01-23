@@ -201,19 +201,20 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     day_level = detect_owner_day_level(store_id)
     kpis = load_home_kpis(store_id, year, month)
     monthly_sales = kpis["monthly_sales"]
-    today_sales = kpis["today_sales"]
+    yesterday_sales = kpis["yesterday_sales"]
     close_stats = kpis["close_stats"]
-    avg_customer_spend = kpis["avg_customer_spend"]
+    revenue_per_visit = kpis["revenue_per_visit"]
     monthly_profit = kpis["monthly_profit"]
+    target_sales = kpis["target_sales"]
+    target_ratio = kpis["target_ratio"]
     closed_days, total_days, close_rate, streak_days = close_stats
     
     load_time = time.time() - load_start
     logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id}, coaching_enabled={coaching_enabled})")
 
-    # ===== 첫 화면 구성 (스크롤 0~1회) =====
+    # ===== 첫 화면 구성 (스크롤 최소화) =====
     
-    # 1. 빠른 이동
-    render_section_divider()
+    # 1. 빠른 이동 (제목 제거, 간격 축소)
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("📋 점장마감", type="primary", use_container_width=True, key="home_btn_quick_close"):
@@ -227,14 +228,23 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
         if st.button("🧾 실제정산", type="primary", use_container_width=True, key="home_btn_quick_settlement"):
             st.session_state["current_page"] = "실제정산"
             st.rerun()
-    render_section_divider()
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # 2. 상태 요약 (5 KPI 카드) - 중립 톤, 일관된 스타일
-    st.markdown("### 📊 상태 요약")
-    k1, k2, k3, k4, k5 = st.columns(5)
+    # 2. KPI 한눈 영역 (2줄 고정, 높이 축소)
+    st.markdown("### 📊 핵심 지표")
+    # 첫 번째 줄: 이번달 누적 매출, 목표 대비 %, 마감률
+    k1, k2, k3 = st.columns(3)
     with k1:
-        _kpi_card_unified("이번 달 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None)
+        _kpi_card_compact("이번달 누적 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None)
     with k2:
+        if target_ratio is not None:
+            target_text = f"{target_ratio}%"
+            target_color = "#28a745" if target_ratio >= 100 else "#ffc107" if target_ratio >= 80 else "#dc3545"
+        else:
+            target_text = "-"
+            target_color = "#6c757d"
+        _kpi_card_compact("목표 대비 %", target_text, None, target_color)
+    with k3:
         pct = int(close_rate * 100) if closed_days > 0 else 0
         close_text = f"{pct}%" if closed_days > 0 else "-"
         if closed_days > 0:
@@ -243,32 +253,27 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
                 close_sub = f"{close_sub} 🔥{streak_days}일"
         else:
             close_sub = None
-        _kpi_card_unified("마감률", close_text, close_sub)
-    with k3:
-        _kpi_card_unified("오늘 매출", f"{today_sales:,}원" if today_sales > 0 else "-", None)
+        _kpi_card_compact("마감률", close_text, close_sub)
+    # 두 번째 줄: 어제 매출, 유입당 매출(참고)
+    k4, k5 = st.columns(2)
     with k4:
-        v = f"{avg_customer_spend:,}원" if (avg_customer_spend or 0) > 0 else "-"
-        _kpi_card_unified("객단가", v, None)
+        _kpi_card_compact("어제 매출", f"{yesterday_sales:,}원" if yesterday_sales > 0 else "-", None)
     with k5:
-        profit_text = f"{monthly_profit:,}원" if monthly_profit is not None else "-"
-        _kpi_card_unified("이번 달 이익", profit_text, None)
-    render_section_divider()
+        v = f"{revenue_per_visit:,}원" if (revenue_per_visit or 0) > 0 else "-"
+        _kpi_card_compact("유입당 매출(참고)", v, "네이버 유입 기준")
+    
+    # 상태 해석 스트립 (KPI 바로 아래, 1줄)
+    _render_status_strip(store_id, monthly_sales, target_sales, target_ratio, close_rate, closed_days, total_days)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. 이상 징후 (최대 2개)
+    # 3. 이상 징후 / 문제 / 잘한 점 (압축, 기본 1개만, 제목 제거)
     try:
-        _render_anomaly_signals(store_id, coaching_enabled)
+        _render_compressed_alerts(store_id, coaching_enabled)
     except Exception:
         pass
-    render_section_divider()
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. 문제 TOP1 / 잘한 점 TOP1
-    try:
-        _render_problems_good_points(store_id, coaching_enabled)
-    except Exception:
-        pass
-    render_section_divider()
-
-    # ===== Coach Only 섹션 (첫 화면 이후) =====
+    # ===== Coach Only 섹션 (첫 화면 이후, 간격 축소) =====
     if coaching_enabled and day_level:
         try:
             if day_level == "DAY1":
@@ -282,40 +287,36 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     if coaching_enabled and "coach_mode_welcomed" not in st.session_state:
         st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
         st.session_state["coach_mode_welcomed"] = True
-    render_section_divider()
 
     if coaching_enabled:
         try:
             _render_coach_missions(store_id, year, month, kpis)
         except Exception:
             pass
-        render_section_divider()
 
     if coaching_enabled:
         try:
             action = get_today_one_action_with_day_context(store_id, data_level, True, day_level)
             st.markdown("### 🎯 오늘 코치의 한 가지 제안")
-            st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;"><h4 style="color: white;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9);">{action['reason']}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;"><h4 style="color: white; margin-bottom: 0.5rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0;">{action['reason']}</p></div>""", unsafe_allow_html=True)
             if st.button(action["button_label"], type="primary", use_container_width=True, key="home_btn_today_one"):
                 st.session_state["current_page"] = action["target_page"]
                 st.rerun()
         except Exception:
             try:
-                st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;"><h4 style="color: #856404;">오늘 마감부터 시작</h4><p style="color: #856404;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
+                st.markdown("""<div style="padding: 1.2rem; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
                 if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             except Exception:
                 pass
-    render_section_divider()
 
-    # ===== Lazy 영역 (expander) =====
-    st.markdown("### 📈 미니 차트")
-    st.markdown("""<div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;"><p style="color: #6c757d;">차트를 표시하려면 마감 데이터가 필요합니다.</p></div>""", unsafe_allow_html=True)
-    if st.button("📋 점장 마감으로 이동", use_container_width=True, key="home_btn_chart_close"):
-        st.session_state["current_page"] = "점장 마감"
-        st.rerun()
-    render_section_divider()
+    # ===== Lazy 영역 (expander, 제목 제거) =====
+    with st.expander("📈 미니 차트", expanded=False):
+        st.markdown("""<div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;"><p style="color: #6c757d;">차트를 표시하려면 마감 데이터가 필요합니다.</p></div>""", unsafe_allow_html=True)
+        if st.button("📋 점장 마감으로 이동", use_container_width=True, key="home_btn_chart_close"):
+            st.session_state["current_page"] = "점장 마감"
+            st.rerun()
 
     if coaching_enabled:
         try:
@@ -323,43 +324,131 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
             st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{s}")
         except Exception:
             pass
-    render_section_divider()
 
     render_lazy_insights(store_id, year, month)
 
 
-def _kpi_card_unified(label: str, value: str, subtitle: str | None = None) -> None:
+def _kpi_card_compact(label: str, value: str, subtitle: str | None = None, value_color: str | None = None) -> None:
     """
-    통일된 KPI 카드 스타일 (중립 톤, 일관된 레이아웃)
-    - 높이: 120px 고정
-    - 패딩: 1.2rem
-    - 폰트: label 0.85rem, value 1.4rem, subtitle 0.75rem
-    - 배경: #f8f9fa (중립 회색)
+    압축된 KPI 카드 스타일 (한눈형 계기판용)
+    - 높이: 90px 고정 (축소)
+    - 패딩: 0.8rem (축소)
+    - 폰트: label 0.75rem, value 1.2rem, subtitle 0.7rem
+    - 배경: #ffffff
     - 테두리: 1px solid #e9ecef
     """
-    sub_html = f'<div style="font-size: 0.75rem; color: #6c757d; margin-top: 0.3rem;">{subtitle}</div>' if subtitle else ""
+    sub_html = f'<div style="font-size: 0.7rem; color: #6c757d; margin-top: 0.2rem;">{subtitle}</div>' if subtitle else ""
+    value_color_style = f"color: {value_color};" if value_color else "color: #212529;"
     st.markdown(f"""
     <div style="
-        padding: 1.2rem;
+        padding: 0.8rem;
         background: #ffffff;
         border: 1px solid #e9ecef;
-        border-radius: 8px;
+        border-radius: 6px;
         text-align: center;
-        height: 120px;
+        height: 90px;
         display: flex;
         flex-direction: column;
         justify-content: center;
     ">
-        <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 500;">{label}</div>
-        <div style="font-size: 1.4rem; font-weight: 700; color: #212529; line-height: 1.2;">{value}</div>
+        <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 0.3rem; font-weight: 500;">{label}</div>
+        <div style="font-size: 1.2rem; font-weight: 700; {value_color_style} line-height: 1.2;">{value}</div>
         {sub_html}
     </div>
     """, unsafe_allow_html=True)
 
 
+def _kpi_card_unified(label: str, value: str, subtitle: str | None = None) -> None:
+    """
+    통일된 KPI 카드 스타일 (중립 톤, 일관된 레이아웃) - 레거시 호환용
+    """
+    _kpi_card_compact(label, value, subtitle)
+
+
 def _kpi_card(label: str, value: str, gradient: str | None) -> None:
     """레거시 함수 (하위 호환용)"""
-    _kpi_card_unified(label, value, None)
+    _kpi_card_compact(label, value, None)
+
+
+def _render_status_strip(store_id: str, monthly_sales: int, target_sales: int, target_ratio: float | None, close_rate: float, closed_days: int, total_days: int) -> None:
+    """
+    상태 해석 스트립 (KPI 바로 아래, 1줄 요약)
+    """
+    try:
+        from src.storage_supabase import get_fixed_costs, calculate_break_even_sales
+        from src.auth import get_supabase_client
+        kst = ZoneInfo("Asia/Seoul")
+        now = datetime.now(kst)
+        year, month = now.year, now.month
+        
+        status_parts = []
+        
+        # 목표 대비 상태
+        if target_ratio is not None and target_sales > 0:
+            if target_ratio >= 100:
+                status_parts.append(f"목표 대비 {target_ratio}% 달성")
+            else:
+                remaining = target_sales - monthly_sales
+                if remaining > 0:
+                    status_parts.append(f"목표 대비 {target_ratio}%, 약 {remaining:,}원 남음")
+        
+        # 손익분기점 정보
+        try:
+            break_even = calculate_break_even_sales(store_id, year, month)
+            if break_even > 0 and monthly_sales > 0:
+                if monthly_sales < break_even:
+                    gap = break_even - monthly_sales
+                    status_parts.append(f"손익분기점까지 약 {gap:,}원 남음")
+                else:
+                    status_parts.append("손익분기점 달성")
+        except Exception:
+            pass
+        
+        # 마감률 상태
+        if closed_days > 0:
+            if close_rate >= 0.9:
+                status_parts.append("마감률 양호")
+            elif close_rate < 0.7:
+                missing = total_days - closed_days
+                status_parts.append(f"마감 누락 {missing}일")
+        
+        # 최근 7일 평균 매출 비교
+        try:
+            supabase = get_supabase_client()
+            if supabase:
+                from datetime import timedelta
+                today = now.date()
+                seven_ago = today - timedelta(days=7)
+                start_m = f"{year}-{month:02d}-01"
+                end_m = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+                
+                recent_sales = supabase.table("sales").select("total_sales").eq("store_id", store_id).gte(
+                    "date", seven_ago.isoformat()
+                ).lte("date", today.isoformat()).execute()
+                
+                month_sales_list = supabase.table("sales").select("total_sales").eq("store_id", store_id).gte(
+                    "date", start_m
+                ).lt("date", end_m).execute()
+                
+                if recent_sales.data and month_sales_list.data and len(month_sales_list.data) > 0:
+                    recent_avg = sum(float(r.get("total_sales", 0) or 0) for r in recent_sales.data) / max(len(recent_sales.data), 1)
+                    month_avg = sum(float(r.get("total_sales", 0) or 0) for r in month_sales_list.data) / max(len(month_sales_list.data), 1)
+                    if month_avg > 0:
+                        ratio = recent_avg / month_avg
+                        if ratio < 0.9:
+                            status_parts.append("최근 7일 평균이 이번 달 평균보다 낮음")
+        except Exception:
+            pass
+        
+        if status_parts:
+            status_text = " • ".join(status_parts)
+            st.markdown(f"""
+            <div style="padding: 0.6rem 1rem; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #17a2b8; margin-top: 0.5rem;">
+                <div style="font-size: 0.9rem; color: #495057; line-height: 1.4;">{status_text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    except Exception:
+        pass
 
 
 def _render_coach_missions(store_id: str, year: int, month: int, kpis: dict) -> None:
@@ -484,47 +573,188 @@ def _render_problems_good_points(store_id: str, coaching_enabled: bool) -> None:
             st.error("잘한 점 분석 중 오류가 발생했습니다.")
 
 
-def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
-    """이상 징후 경량 버전 (1-2개) + 자세히 보기 버튼 (전체 3개 lazy load)."""
-    st.markdown("### ⚠️ 이상 징후")
+def _render_compressed_alerts(store_id: str, coaching_enabled: bool) -> None:
+    """
+    압축된 알림 영역 (이상징후/문제/잘한점, 기본 1개만, 3줄 규격)
+    - 결론 한 줄 (굵게 + 숫자)
+    - 왜 중요한지 한 줄
+    - 다음 행동 버튼 1개
+    """
     try:
+        # 우선순위: 이상징후 > 문제 > 잘한점
         signals = get_anomaly_signals_light(store_id)
-        if not signals:
-            st.info("현재 감지된 이상 징후가 없습니다. 정상 범위로 보입니다.")
-        else:
-            for i, s in enumerate(signals, 1):
-                t = s.get("text", "")
-                g = ""
-                if coaching_enabled:
-                    if "매출" in t and ("감소" in t or "떨어" in t):
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
-                    elif "마감" in t and ("누락" in t or "없습니다" in t):
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
-                    elif "판매량" in t or "판매" in t:
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
-                st.markdown(f"""<div style="padding: 1rem; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem;"><span style="font-size:1.1rem;">{s.get('icon','')}</span> <strong style="color:#92400e;">{t}</strong>{g}</div>""", unsafe_allow_html=True)
-                if st.button("보러가기", key=f"home_btn_a_{i}", use_container_width=True):
-                    st.session_state["current_page"] = s.get("target_page", "점장 마감")
-                    st.rerun()
-            if st.button("📋 자세히 보기 (전체)", key="home_btn_a_detail", use_container_width=True):
-                st.session_state["_home_anomaly_expanded"] = True
-                st.rerun()
-        if st.session_state.get("_home_anomaly_expanded", False):
-            with st.expander("⚠️ 이상 징후 전체 (최대 3개)", expanded=True):
-                if "_home_anomaly_full" not in st.session_state:
-                    st.session_state["_home_anomaly_full"] = get_anomaly_signals(store_id)
-                signals_full = st.session_state["_home_anomaly_full"]
-                if not signals_full:
-                    st.info("추가 이상 징후가 없습니다.")
-                else:
-                    for i, s in enumerate(signals_full, 1):
-                        t = s.get("text", "")
-                        st.markdown(f"""<div style="padding: 0.8rem; background: #fffbeb; border: 1px solid #fef3c7; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 0.5rem;"><span style="font-size:1.1rem;">{s.get('icon','')}</span> <strong style="color:#92400e;">{t}</strong></div>""", unsafe_allow_html=True)
-                        if st.button("보러가기", key=f"home_btn_a_full_{i}", use_container_width=True):
-                            st.session_state["current_page"] = s.get("target_page", "점장 마감")
-                            st.rerun()
+        problems = get_problems_top1(store_id)
+        good_points = get_good_points_top1(store_id)
+        
+        # 이상징후 우선 표시
+        if signals and len(signals) > 0:
+            s = signals[0]
+            text = s.get("text", "")
+            icon = s.get("icon", "⚠️")
+            target_page = s.get("target_page", "점장 마감")
+            
+            # 숫자 추출 (3줄 규격용)
+            import re
+            numbers = re.findall(r'\d+', text)
+            number_text = f" {numbers[0]}" if numbers else ""
+            
+            # 중요성 문구
+            importance = ""
+            if "매출" in text and ("감소" in text or "누락" in text):
+                importance = "누락되면 월 성과 분석이 왜곡됩니다."
+            elif "마감" in text and ("누락" in text or "없습니다" in text):
+                importance = "데이터가 끊기면 가게 상태도 같이 안 보입니다."
+            elif "판매량" in text or "판매" in text:
+                importance = "판매 흐름 변화는 메뉴별 데이터를 보면 확인됩니다."
+            else:
+                importance = "조기 발견하면 대응이 빠릅니다."
+            
+            # 버튼 라벨
+            if "마감" in target_page:
+                button_label = "점장마감 하러가기"
+            elif "매출" in target_page or "판매" in target_page:
+                button_label = "매출 관리 보러가기"
+            else:
+                button_label = "보러가기"
+            
+            _render_alert_card_3line(
+                icon=icon,
+                conclusion=f"{text}{number_text}",
+                importance=importance,
+                button_label=button_label,
+                target_page=target_page,
+                card_type="warning"
+            )
+            return
+        
+        # 문제 표시
+        if problems and len(problems) > 0:
+            p = problems[0]
+            text = p.get("text", "")
+            target_page = p.get("target_page", "점장 마감")
+            
+            # 숫자 추출
+            import re
+            numbers = re.findall(r'\d+', text)
+            number_text = f" {numbers[0]}" if numbers else ""
+            
+            # 중요성 문구
+            importance = ""
+            if "매출" in text and ("감소" in text or "떨어" in text):
+                importance = "요일/메뉴/유입 흐름에서 원인이 보입니다."
+            elif "마감" in text and ("공백" in text or "누락" in text or "없는 날" in text):
+                importance = "데이터가 끊기면 가게 상태도 같이 안 보입니다."
+            elif "메뉴" in text and "50%" in text:
+                importance = "메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다."
+            else:
+                importance = "지금 고치면 다음 달이 달라집니다."
+            
+            # 버튼 라벨
+            if "마감" in target_page:
+                button_label = "점장마감 하러가기"
+            elif "매출" in target_page:
+                button_label = "매출 관리 보러가기"
+            elif "판매" in target_page:
+                button_label = "판매 관리 보러가기"
+            else:
+                button_label = "보러가기"
+            
+            _render_alert_card_3line(
+                icon="🔴",
+                conclusion=f"{text}{number_text}",
+                importance=importance,
+                button_label=button_label,
+                target_page=target_page,
+                card_type="problem"
+            )
+            return
+        
+        # 잘한 점 표시
+        if good_points and len(good_points) > 0:
+            g = good_points[0]
+            text = g.get("text", "")
+            target_page = g.get("target_page", "점장 마감")
+            
+            # 숫자 추출
+            import re
+            numbers = re.findall(r'\d+', text)
+            number_text = f" {numbers[0]}" if numbers else ""
+            
+            # 중요성 문구
+            importance = "이런 패턴을 유지하면 안정적인 운영이 가능합니다."
+            
+            # 버튼 라벨
+            if "마감" in target_page:
+                button_label = "점장마감 보러가기"
+            elif "매출" in target_page:
+                button_label = "매출 관리 보러가기"
+            elif "판매" in target_page:
+                button_label = "판매 관리 보러가기"
+            else:
+                button_label = "보러가기"
+            
+            _render_alert_card_3line(
+                icon="🟢",
+                conclusion=f"{text}{number_text}",
+                importance=importance,
+                button_label=button_label,
+                target_page=target_page,
+                card_type="good"
+            )
+            return
+        
+        # 아무것도 없으면 빈 상태
+        st.info("현재 특별한 알림이 없습니다. 정상 범위로 보입니다.")
+        
     except Exception:
-        st.error("이상 징후 분석 중 오류가 발생했습니다.")
+        st.error("알림 분석 중 오류가 발생했습니다.")
+
+
+def _render_alert_card_3line(icon: str, conclusion: str, importance: str, button_label: str, target_page: str, card_type: str) -> None:
+    """
+    3줄 규격 알림 카드
+    - 결론 한 줄 (굵게 + 숫자)
+    - 왜 중요한지 한 줄
+    - 다음 행동 버튼 1개
+    """
+    if card_type == "warning":
+        bg_color = "#fffbeb"
+        border_color = "#ffc107"
+        text_color = "#92400e"
+    elif card_type == "problem":
+        bg_color = "#fff5f5"
+        border_color = "#dc3545"
+        text_color = "#721c24"
+    else:  # good
+        bg_color = "#f0fdf4"
+        border_color = "#28a745"
+        text_color = "#155724"
+    
+    st.markdown(f"""
+    <div style="padding: 0.8rem 1rem; background: {bg_color}; border: 1px solid {border_color}; border-left: 4px solid {border_color}; border-radius: 6px; margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: flex-start; margin-bottom: 0.4rem;">
+            <span style="font-size: 1.1rem; margin-right: 0.5rem;">{icon}</span>
+            <div style="flex: 1;">
+                <div style="font-weight: 700; color: {text_color}; font-size: 0.95rem; line-height: 1.4; margin-bottom: 0.3rem;">{conclusion}</div>
+                <div style="color: {text_color}; font-size: 0.85rem; opacity: 0.85; line-height: 1.3;">{importance}</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button(button_label, key=f"home_btn_alert_{card_type}", use_container_width=True):
+        st.session_state["current_page"] = target_page
+        st.rerun()
+    
+    # 전체 보기 버튼 (선택적)
+    if st.button("📋 전체 보기", key=f"home_btn_alert_expand_{card_type}", use_container_width=False):
+        st.session_state[f"_home_{card_type}_expanded"] = True
+        st.rerun()
+
+
+def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
+    """이상 징후 경량 버전 (1-2개) + 자세히 보기 버튼 (전체 3개 lazy load). - 레거시 호환용"""
+    _render_compressed_alerts(store_id, coaching_enabled)
 
 
 def render_home() -> None:

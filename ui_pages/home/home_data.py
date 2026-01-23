@@ -55,14 +55,16 @@ def get_monthly_close_stats(store_id: str, year: int, month: int) -> Tuple[int, 
 def load_home_kpis(store_id: str, year: int, month: int) -> dict:
     """
     홈 최초 진입 시 필요한 핵심 KPI만 로드.
-    Returns: monthly_sales, today_sales, close_stats, avg_customer_spend, monthly_profit
+    Returns: monthly_sales, yesterday_sales, close_stats, revenue_per_visit, monthly_profit, target_sales, target_ratio
     """
     out = {
         "monthly_sales": 0,
-        "today_sales": 0,
+        "yesterday_sales": 0,
         "close_stats": (0, 0, 0.0, 0),
-        "avg_customer_spend": None,
+        "revenue_per_visit": None,
         "monthly_profit": None,
+        "target_sales": 0,
+        "target_ratio": None,
     }
     if not store_id:
         return out
@@ -70,6 +72,7 @@ def load_home_kpis(store_id: str, year: int, month: int) -> dict:
         kst = ZoneInfo("Asia/Seoul")
         now = datetime.now(kst)
         today = now.date()
+        yesterday = today - timedelta(days=1)
         start = f"{year}-{month:02d}-01"
         end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
 
@@ -79,22 +82,44 @@ def load_home_kpis(store_id: str, year: int, month: int) -> dict:
 
         supabase = get_supabase_client()
         if supabase:
-            today_close = supabase.table("daily_close").select("total_sales").eq(
+            # 어제 매출 또는 마지막 마감 매출 조회
+            yesterday_close = supabase.table("daily_close").select("total_sales, date").eq(
                 "store_id", store_id
-            ).eq("date", today.isoformat()).limit(1).execute()
-            if today_close.data and len(today_close.data) > 0:
-                v = today_close.data[0].get("total_sales")
+            ).eq("date", yesterday.isoformat()).limit(1).execute()
+            if yesterday_close.data and len(yesterday_close.data) > 0:
+                v = yesterday_close.data[0].get("total_sales")
                 if v is not None:
-                    out["today_sales"] = int(float(v or 0))
+                    out["yesterday_sales"] = int(float(v or 0))
+            else:
+                # 어제 마감이 없으면 최근 마감 매출 조회
+                last_close = supabase.table("daily_close").select("total_sales, date").eq(
+                    "store_id", store_id
+                ).lt("date", today.isoformat()).order("date", desc=True).limit(1).execute()
+                if last_close.data and len(last_close.data) > 0:
+                    v = last_close.data[0].get("total_sales")
+                    if v is not None:
+                        out["yesterday_sales"] = int(float(v or 0))
 
+            # 유입당 매출 계산 (네이버 유입 기준)
             if monthly_sales and monthly_sales > 0:
-                vis = supabase.table("daily_close").select("visitors").eq(
+                naver_visits = supabase.table("naver_visitors").select("visitors").eq(
                     "store_id", store_id
                 ).gte("date", start).lt("date", end).execute()
-                if vis.data:
-                    tot_visitors = sum(int(r.get("visitors", 0) or 0) for r in vis.data)
-                    if tot_visitors > 0:
-                        out["avg_customer_spend"] = int(monthly_sales / tot_visitors)
+                if naver_visits.data:
+                    tot_visits = sum(int(r.get("visitors", 0) or 0) for r in naver_visits.data)
+                    if tot_visits > 0:
+                        out["revenue_per_visit"] = int(monthly_sales / tot_visits)
+
+            # 목표 매출 조회
+            target_result = supabase.table("targets").select("target_sales").eq(
+                "store_id", store_id
+            ).eq("year", year).eq("month", month).limit(1).execute()
+            if target_result.data and len(target_result.data) > 0:
+                target_sales = target_result.data[0].get("target_sales")
+                if target_sales is not None:
+                    out["target_sales"] = int(float(target_sales or 0))
+                    if out["target_sales"] > 0 and monthly_sales > 0:
+                        out["target_ratio"] = round((monthly_sales / out["target_sales"]) * 100, 1)
 
         snap = load_monthly_settlement_snapshot(store_id, year, month)
         if snap and snap.get("operating_profit") is not None:
