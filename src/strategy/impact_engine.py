@@ -83,9 +83,29 @@ def estimate_impact(strategy_type: str, context: Dict) -> Dict:
 def _estimate_expected_monthly_sales(store_id: str, year: int, month: int, kpi: Dict) -> float:
     """
     예상 월 매출 계산 (MTD 추세 기반)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+        kpi: {
+            "mtd_sales": int,  # 월 전체 합계 또는 경과 일수까지의 누적
+            "avg_daily_sales": float
+        }
+    
+    Returns:
+        float: 예상 월 매출
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # kpi에서 직접 가져오기
     mtd_sales = kpi.get("mtd_sales")
+    
+    # 디버깅
+    if mtd_sales == 0 or mtd_sales is None:
+        logger.warning(f"[IMPACT_ENGINE] mtd_sales is {mtd_sales} for store_id={store_id}, year={year}, month={month}")
+    
     if mtd_sales and mtd_sales > 0:
         # 경과 일수 계산
         kst = ZoneInfo("Asia/Seoul")

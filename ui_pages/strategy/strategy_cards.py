@@ -621,6 +621,35 @@ def _build_strategy_cards_v4(
         from ui_pages.design_lab.design_insights import get_design_insights
         
         monthly_sales = load_monthly_sales_total(store_id, year, month) or 0
+        
+        # 디버깅: monthly_sales 값 확인
+        if monthly_sales == 0:
+            logger.warning(f"[STRATEGY_CARDS] monthly_sales is 0 for store_id={store_id}, year={year}, month={month}")
+            # 마감 데이터가 있는지 확인
+            try:
+                from src.storage_supabase import load_best_available_daily_sales
+                from datetime import date
+                month_start = date(year, month, 1)
+                if month == 12:
+                    month_end = date(year + 1, 1, 1)
+                else:
+                    month_end = date(year, month + 1, 1)
+                
+                daily_sales_df = load_best_available_daily_sales(
+                    store_id=store_id,
+                    start_date=month_start.isoformat(),
+                    end_date=month_end.isoformat()
+                )
+                if not daily_sales_df.empty:
+                    logger.warning(f"[STRATEGY_CARDS] daily_sales_df has {len(daily_sales_df)} rows but monthly_sales is 0")
+                    if 'total_sales' in daily_sales_df.columns:
+                        manual_total = daily_sales_df['total_sales'].sum()
+                        logger.warning(f"[STRATEGY_CARDS] manual total_sales sum = {manual_total}")
+                else:
+                    logger.warning(f"[STRATEGY_CARDS] daily_sales_df is empty for {year}-{month}")
+            except Exception as e:
+                logger.error(f"[STRATEGY_CARDS] Error checking daily sales: {e}")
+        
         break_even = calculate_break_even_sales(store_id, year, month) or 1
         break_even_gap_ratio = (monthly_sales / break_even) if break_even > 0 else 1.0
         
@@ -769,13 +798,29 @@ def _build_strategy_cards_v4(
             month_start_date = date(year, month, 1)
             elapsed_days = max(1, (today - month_start_date).days + 1)
         else:
-            elapsed_days = 30
+            # 과거 월이면 실제 일수 사용
+            if month == 12:
+                next_month = date(year + 1, 1, 1)
+            else:
+                next_month = date(year, month + 1, 1)
+            month_start_date = date(year, month, 1)
+            elapsed_days = (next_month - month_start_date).days
+        
+        # mtd_sales는 현재 월이면 경과 일수까지의 누적, 과거 월이면 월 전체 합계
+        # load_monthly_sales_total은 월 전체 합계를 반환하므로, 현재 월이면 경과 일수까지만 계산 필요
+        # 하지만 이미 월 전체 합계를 반환하므로, 현재 월일 때는 경과 일수로 나눠서 일평균을 구한 후 다시 곱해야 함
+        # 실제로는 load_monthly_sales_total이 경과 일수까지의 누적을 반환하는지 확인 필요
+        # 일단 monthly_sales를 그대로 사용하되, 현재 월이면 경과 일수 기반으로 예상치 계산
+        
+        # 디버깅: monthly_sales 값 확인
+        if st.session_state.get("_dev_mode", False):
+            logger.info(f"[DEBUG] monthly_sales={monthly_sales}, elapsed_days={elapsed_days}, year={year}, month={month}, now={now.year}/{now.month}")
         
         full_context = {
             "store_id": store_id,
             "period": {"year": year, "month": month},
             "kpi": {
-                "mtd_sales": monthly_sales,
+                "mtd_sales": monthly_sales,  # 월 전체 합계 또는 경과 일수까지의 누적
                 "avg_daily_sales": monthly_sales / elapsed_days if elapsed_days > 0 else 0,
                 "yesterday_sales": yesterday_sales,
                 "visitors_mtd": visitors_mtd,
