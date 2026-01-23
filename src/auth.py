@@ -546,8 +546,8 @@ def login(email: str, password: str) -> tuple[bool, str]:
         error_msg = str(e)
         if "Invalid login credentials" in error_msg:
             return False, "이메일 또는 비밀번호가 올바르지 않습니다."
-        elif "Email not confirmed" in error_msg:
-            return False, "이메일 인증이 필요합니다."
+        elif "Email not confirmed" in error_msg or "email_not_confirmed" in error_msg.lower():
+            return False, "이메일 인증이 필요합니다. Supabase 대시보드에서 이메일을 확인하거나, 관리자에게 문의하세요."
         else:
             return False, f"로그인 오류: {error_msg}"
 
