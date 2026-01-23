@@ -68,10 +68,12 @@ def _render_step1_when(store_id: str):
     with col3:
         pass
     
+    # 기준 날짜 (기본값: 오늘)
+    base_date = date.today()
     with st.expander("고급 옵션", expanded=False):
-        base_date = st.date_input("기준 날짜", value=date.today(), key="step1_base_date")
-    else:
-        base_date = date.today()
+        base_date_input = st.date_input("기준 날짜", value=date.today(), key="step1_base_date")
+        if base_date_input:
+            base_date = base_date_input
     
     # 분석 실행
     if st.button("분석 시작", key="step1_analyze", type="primary", use_container_width=True):

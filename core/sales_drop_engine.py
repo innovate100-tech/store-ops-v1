@@ -224,7 +224,7 @@ def _calculate_quantity_delta(
     """판매량 변화율 계산"""
     try:
         # daily_sales_items 기반 집계
-        from src.storage_supabase import get_supabase_client
+        from src.auth import get_supabase_client
         supabase = get_supabase_client()
         if not supabase:
             return 0.0
@@ -319,7 +319,7 @@ def _analyze_menu_changes(
 ) -> List[Dict]:
     """상위 메뉴 변화 분석"""
     try:
-        from src.storage_supabase import get_supabase_client
+        from src.auth import get_supabase_client
         supabase = get_supabase_client()
         if not supabase:
             return []
