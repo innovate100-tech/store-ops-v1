@@ -176,7 +176,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
 
 
 def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None:
-    """ZONE 1: 이번 달 가게 전략 요약 (v4 포맷: 전략 6개 카드)"""
+    """ZONE 1: 이번 달 가게 전략 요약 (v4 포맷: 전략 카드 TOP3 + Evidence)"""
     st.markdown("### 🧭 이번 달 가게 전략")
     
     try:
@@ -187,13 +187,100 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
         store_state = state_result.get("state", {})
         cards = cards_result.get("cards", [])
         
-        # 전략 6개 카드 표시 (v4 포맷)
-        if cards:
+        # DEV 모드: 디버그 정보 표시
+        if st.session_state.get("_dev_mode", False):
+            with st.expander("🔍 ZONE 1 디버그 정보", expanded=False):
+                st.write(f"**store_state**: {store_state}")
+                st.write(f"**cards 개수**: {len(cards) if cards else 0}")
+                st.write(f"**cards_result keys**: {list(cards_result.keys()) if cards_result else 'None'}")
+                if cards:
+                    st.write(f"**첫 번째 카드**: {cards[0] if len(cards) > 0 else 'None'}")
+        
+        # Evidence 섹션 추가 (PHASE 1-C)
+        try:
+            from ui_pages.strategy.evidence_builder import build_evidence_bundle
+            from ui_pages.design_lab.design_insights import get_design_insights
+            
+            design_insights = get_design_insights(store_id, year, month)
+            evidence_bundle = build_evidence_bundle(
+                store_id=store_id,
+                year=year,
+                month=month,
+                metrics_bundle=None,
+                design_insights=design_insights,
+                health_diag=None
+            )
+            
+            if evidence_bundle:
+                st.markdown("#### 📊 근거")
+                cols = st.columns(min(len(evidence_bundle), 3))
+                for idx, ev in enumerate(evidence_bundle[:3]):
+                    with cols[idx]:
+                        ev_type = ev.get("type", "unknown")
+                        title = ev.get("title", "근거")
+                        summary = ev.get("summary", "")
+                        
+                        type_emoji = {
+                            "numbers": "📊",
+                            "design": "🔥",
+                            "health": "🩺"
+                        }
+                        emoji = type_emoji.get(ev_type, "📌")
+                        
+                        st.markdown(f"""
+                        <div style="
+                            padding: 1rem;
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 0.5rem;
+                            background: rgba(255,255,255,0.05);
+                            margin-bottom: 0.5rem;
+                        ">
+                            <div style="font-size: 1rem; margin-bottom: 0.3rem;">
+                                {emoji} <strong>{title}</strong>
+                            </div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">
+                                {summary}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                st.divider()
+        except Exception as e:
+            logger.warning(f"Evidence 섹션 렌더링 실패: {e}")
+            if st.session_state.get("_dev_mode", False):
+                st.error(f"Evidence 오류: {e}")
+        
+        # 전략 카드 TOP3 표시 (v4 포맷)
+        if cards and len(cards) > 0:
             from ui_pages.common.strategy_card_v4 import render_strategy_card_v4
-            for card in cards[:6]:  # 최대 6개
+            
+            # TOP3만 표시
+            for card in cards[:3]:
                 render_strategy_card_v4(card)
         else:
-            st.info("전략 카드를 생성할 수 없습니다.")
+            # Fallback UI: 전략 카드가 없을 때
+            st.info("""
+            **전략을 계산 중입니다.**
+            
+            데이터가 부족하거나 전략 생성 중 오류가 발생했습니다.
+            - 마감 데이터를 입력하세요
+            - 가게 설계 센터에서 기본 설정을 완료하세요
+            - 건강검진을 실시하세요
+            """)
+            
+            col_fallback1, col_fallback2, col_fallback3 = st.columns(3)
+            with col_fallback1:
+                if st.button("📋 점장 마감", use_container_width=True, key="zone1_fallback_close"):
+                    st.session_state["current_page"] = "점장 마감"
+                    st.rerun()
+            with col_fallback2:
+                if st.button("🔥 가게 설계 센터", use_container_width=True, key="zone1_fallback_design"):
+                    st.session_state["current_page"] = "가게 설계 센터"
+                    st.rerun()
+            with col_fallback3:
+                if st.button("🩺 건강검진 실시", use_container_width=True, key="zone1_fallback_health"):
+                    st.session_state["current_page"] = "건강검진 실시"
+                    st.rerun()
         
         # 버튼
         col_btn1, col_btn2 = st.columns(2)
@@ -208,7 +295,37 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
         
     
     except Exception as e:
-        st.info("전략 요약을 불러오는 중입니다.")
+        # 에러 발생 시 상세 정보 표시
+        logger.error(f"ZONE 1 전략 요약 렌더링 오류: {e}", exc_info=True)
+        
+        # DEV 모드에서만 상세 에러 표시
+        if st.session_state.get("_dev_mode", False):
+            st.error(f"전략 요약 로드 오류: {str(e)}")
+            import traceback
+            with st.expander("상세 에러 정보"):
+                st.code(traceback.format_exc())
+        else:
+            st.info("전략 요약을 불러오는 중입니다.")
+        
+        # Fallback UI
+        st.info("""
+        **전략을 계산할 수 없습니다.**
+        
+        다음을 확인해주세요:
+        - 마감 데이터 입력
+        - 가게 설계 센터 기본 설정
+        - 건강검진 실시
+        """)
+        
+        col_fallback1, col_fallback2 = st.columns(2)
+        with col_fallback1:
+            if st.button("가게 설계 센터로 이동", use_container_width=True, key="zone1_error_fallback_design"):
+                st.session_state["current_page"] = "가게 설계 센터"
+                st.rerun()
+        with col_fallback2:
+            if st.button("전략 보드로 이동", use_container_width=True, key="zone1_error_fallback_strategy"):
+                st.session_state["current_page"] = "전략 보드"
+                st.rerun()
     
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
