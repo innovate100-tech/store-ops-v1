@@ -28,10 +28,10 @@ from src.health_check.questions_bank import (
 
 logger = logging.getLogger(__name__)
 
-# 공통 설정 적용
-bootstrap(page_title="가게 건강검진")
+# 주의: bootstrap은 app.py에서 이미 호출됨 (중복 호출 방지)
+# bootstrap(page_title="가게 건강검진")  # 주석 처리 - app.py에서 이미 호출됨
 
-# 로그인 체크
+# 로그인 체크 (app.py에서도 체크하지만, 추가 안전장치)
 from src.auth import check_login, show_login_page
 if not check_login():
     show_login_page()
