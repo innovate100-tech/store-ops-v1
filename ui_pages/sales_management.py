@@ -42,7 +42,7 @@ def render_sales_management():
         if st.button("🔄 매출 새로고침", key="sales_refresh", use_container_width=True):
             load_csv.clear()
             try:
-                from src.storage_supabase import load_monthly_sales_total
+                # 이미 상단에서 import된 load_monthly_sales_total 사용
                 load_monthly_sales_total.clear()
             except Exception:
                 pass
