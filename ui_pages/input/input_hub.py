@@ -130,7 +130,7 @@ def _get_today_recommendation(store_id: str) -> dict:
     if not store_id:
         return {
             "message": "📝 오늘 입력을 시작하세요",
-            "button_label": "📝 오늘 입력",
+            "button_label": "📝 오늘 입력(통합)",
             "page_key": "일일 입력(통합)"
         }
     
@@ -147,24 +147,24 @@ def _get_today_recommendation(store_id: str) -> dict:
         if not has_any:
             return {
                 "message": "📝 오늘 입력을 시작하세요",
-                "button_label": "📝 오늘 입력",
+                "button_label": "📝 오늘 입력(통합)",
                 "page_key": "일일 입력(통합)"
             }
         
         # P2: 오늘 매출만 있고 마감 없으면 → 오늘 입력 추천
         if has_sales and not has_close:
             return {
-                "message": "📝 오늘 입력을 완료하세요",
-                "button_label": "📝 오늘 입력",
-                "page_key": "일일 입력(통합)"
+            "message": "📝 오늘 입력을 완료하세요",
+            "button_label": "📝 오늘 입력(통합)",
+            "page_key": "일일 입력(통합)"
             }
         
-        # P3: 오늘 입력 있고 마감 없으면 → 점장 마감 추천
+        # P3: 오늘 입력 있고 마감 없으면 → 점장 마감(오늘 입력 페이지)
         if has_any and not has_close:
             return {
                 "message": "📋 오늘 마감을 완료하세요",
-                "button_label": "📋 점장 마감",
-                "page_key": "점장 마감"
+                "button_label": "📝 오늘 입력(통합)",
+                "page_key": "일일 입력(통합)"  # 오늘 입력 페이지로 이동
             }
         
         # P4: 7일간 체크리스트 없으면 → 매장 체크리스트 추천
@@ -197,7 +197,7 @@ def _get_today_recommendation(store_id: str) -> dict:
         # 모든 조건을 통과했으면 기본값 (오늘 입력 추천)
         return {
             "message": "📝 오늘 입력을 시작하세요",
-            "button_label": "📝 오늘 입력",
+            "button_label": "📝 오늘 입력(통합)",
             "page_key": "일일 입력(통합)"
         }
     
@@ -205,7 +205,7 @@ def _get_today_recommendation(store_id: str) -> dict:
         # Fallback: 예외 발생 시 기본값 반환
         return {
             "message": "📝 오늘 입력을 시작하세요",
-            "button_label": "📝 오늘 입력",
+            "button_label": "📝 오늘 입력(통합)",
             "page_key": "일일 입력(통합)"
         }
 
@@ -257,9 +257,9 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**📝 오늘 입력**")
+        st.markdown("**📝 오늘 입력(통합)**")
         st.caption("매일: 매출, 방문자, 판매량, 메모를 기록합니다")
-        if st.button("📝 오늘 입력", use_container_width=True, type="primary", key="input_hub_daily_input"):
+        if st.button("📝 오늘 입력(통합)", use_container_width=True, type="primary", key="input_hub_daily_input"):
             st.session_state["current_page"] = "일일 입력(통합)"  # page key 유지
             st.rerun()
     
@@ -369,15 +369,15 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**🧮 매출 등록**")
+        st.markdown("**🧮 매출 등록(과거/수정)**")
         st.caption("과거/수정: 특정 날짜의 매출을 보정하거나 추가 입력합니다")
-        if st.button("🧮 매출 등록", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
+        if st.button("🧮 매출 등록(과거/수정)", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
             st.session_state["current_page"] = "매출 등록"  # page key 유지
             st.rerun()
     
     with col2:
-        st.markdown("**📦 판매량 등록**")
+        st.markdown("**📦 판매량 등록(과거/수정)**")
         st.caption("과거/수정: 특정 날짜의 판매량을 보정하거나 추가 입력합니다")
-        if st.button("📦 판매량 등록", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
+        if st.button("📦 판매량 등록(과거/수정)", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
             st.session_state["current_page"] = "판매량 등록"  # page key 유지
             st.rerun()
