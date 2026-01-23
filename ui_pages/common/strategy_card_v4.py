@@ -2,7 +2,55 @@
 전략 카드 v4 렌더링 공통 컴포넌트
 """
 import streamlit as st
-from typing import Dict
+from typing import Dict, List
+
+
+def _get_additional_ctas(card_type: str, card: Dict) -> List[Dict]:
+    """
+    카드 타입별 추가 CTA 생성
+    
+    Args:
+        card_type: "SURVIVAL" | "MARGIN" | "COST" | "PORTFOLIO" | "ACQUISITION" | "OPERATIONS"
+        card: 카드 전체 정보
+    
+    Returns:
+        추가 CTA 리스트
+    """
+    additional_ctas = []
+    
+    # 카드 타입 → 추가 CTA 매핑
+    if card_type == "SURVIVAL" or "생존선" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "월간 성적표로", "page": "월간 성적표", "params": {}, "is_primary": False},
+            {"label": "왜 위험한가?", "page": "", "params": {}, "is_primary": False}  # expander로 처리
+        ])
+    elif card_type == "MARGIN" or "마진" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "원가 분석으로", "page": "원가 파악", "params": {}, "is_primary": False},
+            {"label": "가격 시뮬레이터", "page": "메뉴 수익 구조 설계실", "params": {"tab": "simulator"}, "is_primary": False}
+        ])
+    elif card_type == "PORTFOLIO" or "포트폴리오" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "판매·메뉴 분석으로", "page": "판매 관리", "params": {}, "is_primary": False},
+            {"label": "역할 태그 정리하기", "page": "메뉴 등록", "params": {"tab": "portfolio"}, "is_primary": False}
+        ])
+    elif card_type == "COST" or "원가" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "원가 분석으로", "page": "원가 파악", "params": {}, "is_primary": False},
+            {"label": "대체재 정리하기", "page": "재료 등록", "params": {"tab": "alternatives"}, "is_primary": False}
+        ])
+    elif card_type == "ACQUISITION" or "매출 하락" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "매출 분석", "page": "매출 관리", "params": {}, "is_primary": False},
+            {"label": "주간 리포트 생성", "page": "주간 리포트", "params": {}, "is_primary": False}
+        ])
+    elif card_type == "OPERATIONS" or "운영" in card.get("title", ""):
+        additional_ctas.extend([
+            {"label": "건강검진 다시하기", "page": "건강검진 실시", "params": {}, "is_primary": False},
+            {"label": "이번 주 운영 개선 TOP3", "page": "검진 결과 요약", "params": {"section": "actions"}, "is_primary": False}
+        ])
+    
+    return additional_ctas
 
 
 def render_strategy_card_v4(card: Dict):
@@ -85,24 +133,56 @@ def render_strategy_card_v4(card: Dict):
                     for watchout in watchouts:
                         st.caption(f"- {watchout}")
         
-        # CTA 버튼
-        col_cta1, col_cta2 = st.columns([1, 1])
-        with col_cta1:
-            cta_label = cta.get("label", "지금 실행하기")
-            cta_page = cta.get("page", "")
-            if cta_page:
-                if st.button(cta_label, key=f"strategy_card_{rank}_cta", use_container_width=True):
-                    st.session_state["current_page"] = cta_page
-                    params = cta.get("params", {})
-                    if params:
-                        for key, value in params.items():
+        # CTA 버튼 (2~3개)
+        # 기본 CTA + 추가 CTA (카드 타입별)
+        cta_list = []
+        
+        # 기본 CTA
+        if cta and cta.get("page"):
+            cta_list.append({
+                "label": cta.get("label", "지금 실행하기"),
+                "page": cta.get("page", ""),
+                "params": cta.get("params", {}),
+                "is_primary": True
+            })
+        
+        # 추가 CTA (카드 타입별)
+        card_type = card.get("type", "")  # strategy_cards.py에서 전달 필요
+        additional_ctas = _get_additional_ctas(card_type, card)
+        cta_list.extend(additional_ctas)
+        
+        # 최대 3개
+        cta_list = cta_list[:3]
+        
+        # 버튼 렌더링
+        if len(cta_list) == 1:
+            cta_item = cta_list[0]
+            if cta_item.get("page"):
+                if st.button(cta_item["label"], key=f"strategy_card_{rank}_cta_0", use_container_width=True, type="primary" if cta_item.get("is_primary") else "secondary"):
+                    st.session_state["current_page"] = cta_item["page"]
+                    if cta_item.get("params"):
+                        for key, value in cta_item["params"].items():
                             st.session_state[f"_strategy_param_{key}"] = value
                     st.rerun()
-        
-        with col_cta2:
-            if action_plan and action_plan.get("steps"):
-                if st.button("📋 실행 플랜 보기", key=f"strategy_card_{rank}_plan", use_container_width=True):
-                    # expander는 이미 위에 있으므로 스크롤만 이동
-                    pass
+        elif len(cta_list) >= 2:
+            cols = st.columns(len(cta_list))
+            for idx, cta_item in enumerate(cta_list):
+                with cols[idx]:
+                    if cta_item.get("page"):
+                        if st.button(cta_item["label"], key=f"strategy_card_{rank}_cta_{idx}", use_container_width=True, type="primary" if cta_item.get("is_primary") and idx == 0 else "secondary"):
+                            st.session_state["current_page"] = cta_item["page"]
+                            if cta_item.get("params"):
+                                for key, value in cta_item["params"].items():
+                                    st.session_state[f"_strategy_param_{key}"] = value
+                            st.rerun()
+                    else:
+                        # "왜 이건가?" 같은 expander 버튼
+                        with st.expander(cta_item["label"], expanded=False):
+                            if evidence:
+                                st.markdown("**상세 근거:**")
+                                for ev in evidence:
+                                    st.markdown(f"- {ev}")
+                            if why:
+                                st.markdown(f"**이유:** {why}")
         
         st.divider()

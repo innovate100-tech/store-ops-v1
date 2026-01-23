@@ -14,6 +14,9 @@ from src.auth import get_current_store_id
 from ui_pages.strategy.store_state import classify_store_state
 from ui_pages.strategy.strategy_cards import build_strategy_cards
 from ui_pages.strategy.roadmap import build_weekly_roadmap
+from ui_pages.strategy.evidence_builder import build_evidence_bundle
+from ui_pages.design_lab.design_insights import get_design_insights
+from src.auth import get_current_store_id
 
 # 공통 설정 적용
 bootstrap(page_title="전략 보드")
@@ -28,6 +31,9 @@ def render_strategy_board():
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
+    # store_id를 전역으로 사용하기 위해 함수 내부에서 접근 가능하도록
+    # (하지만 함수 파라미터로 전달하는 것이 더 깔끔하므로 수정)
+    
     # 현재 연월
     kst = ZoneInfo("Asia/Seoul")
     now = datetime.now(kst)
@@ -39,7 +45,6 @@ def render_strategy_board():
         state_result = classify_store_state(store_id, current_year, current_month)
         store_state = state_result.get("state", {})
         scores = state_result.get("scores", {})
-        evidence = state_result.get("evidence", [])
         
         # 2. 전략 카드 생성 (v4 엔진 사용: 건강검진 통합)
         cards_result = build_strategy_cards(
@@ -54,14 +59,25 @@ def render_strategy_board():
         # 3. 로드맵 생성
         roadmap = build_weekly_roadmap(cards_result)
         
+        # 4. Evidence Bundle 생성 (숫자+설계+검진)
+        design_insights = get_design_insights(store_id, current_year, current_month)
+        evidence_bundle = build_evidence_bundle(
+            store_id=store_id,
+            year=current_year,
+            month=current_month,
+            metrics_bundle=None,  # state_result에서 추출 가능
+            design_insights=design_insights,
+            health_diag=None  # 내부에서 로드
+        )
+        
         # 상단 배지: 상태 + 점수
         _render_state_badge(store_state, scores)
         
-        # 섹션 1: 근거 (evidence)
-        _render_evidence_section(evidence)
+        # 섹션 1: 근거 (evidence) - 표준화된 3종
+        _render_evidence_section(evidence_bundle)
         
         # 섹션 2: 전략 카드 TOP3
-        _render_strategy_cards_section(cards)
+        _render_strategy_cards_section(cards, store_id)
         
         # 섹션 3: 이번 주 실행 TOP3
         _render_roadmap_section(roadmap)
@@ -108,37 +124,67 @@ def _render_state_badge(store_state: dict, scores: dict):
     st.divider()
 
 
-def _render_evidence_section(evidence: list):
-    """섹션 1: 근거 (evidence) 3개 카드"""
+def _render_evidence_section(evidence_bundle: list):
+    """섹션 1: 근거 (evidence) 3개 카드 - 표준화된 구조"""
     st.markdown("### 📊 근거")
     
-    if not evidence:
+    if not evidence_bundle:
         st.info("데이터가 부족합니다. 먼저 마감/보정을 입력해주세요.")
         return
     
-    # 최대 3개만 표시
-    display_evidence = evidence[:3]
+    # 3개 고정 (숫자/설계/검진)
+    cols = st.columns(3)
     
-    cols = st.columns(len(display_evidence))
-    for idx, ev in enumerate(display_evidence):
+    for idx, ev in enumerate(evidence_bundle[:3]):
         with cols[idx]:
+            ev_type = ev.get("type", "unknown")
             title = ev.get("title", "근거")
-            value = ev.get("value", "")
-            delta = ev.get("delta")
-            note = ev.get("note", "")
+            summary = ev.get("summary", "")
+            detail = ev.get("detail", "")
+            cta = ev.get("cta", {})
             
-            st.markdown(f"**{title}**")
-            if value:
-                st.markdown(f"`{value}`")
-            if delta:
-                st.markdown(f"변화: `{delta}`")
-            if note:
-                st.caption(note)
+            # 타입별 이모지
+            type_emoji = {
+                "numbers": "📊",
+                "design": "🔥",
+                "health": "🩺"
+            }
+            emoji = type_emoji.get(ev_type, "📌")
+            
+            # 카드 스타일
+            st.markdown(f"""
+            <div style="
+                padding: 1rem;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 0.5rem;
+                background: rgba(255,255,255,0.05);
+                margin-bottom: 0.5rem;
+            ">
+                <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">
+                    {emoji} <strong>{title}</strong>
+                </div>
+                <div style="color: rgba(255,255,255,0.8); margin-bottom: 0.5rem;">
+                    {summary}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Detail (expander)
+            if detail:
+                with st.expander("자세히 보기"):
+                    st.markdown(detail)
+            
+            # CTA 버튼
+            if cta and cta.get("route"):
+                cta_label = cta.get("label", "이동하기")
+                if st.button(cta_label, key=f"evidence_{idx}_cta", use_container_width=True):
+                    st.session_state["current_page"] = cta["route"]
+                    st.rerun()
     
     st.divider()
 
 
-def _render_strategy_cards_section(cards: list):
+def _render_strategy_cards_section(cards: list, store_id: str):
     """섹션 2: 전략 카드 TOP3 (v4 포맷)"""
     st.markdown("### 🎯 전략 카드 TOP3")
     
@@ -146,11 +192,38 @@ def _render_strategy_cards_section(cards: list):
         st.info("전략 카드를 생성할 수 없습니다.")
         return
     
+    # 완료 체크 로드 (이번 주)
+    from datetime import date, timedelta
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    completed_actions = _load_completed_actions(store_id, week_start)
+    
+    # 완료 뱃지 표시
+    if completed_actions:
+        completed_count = len(completed_actions)
+        st.caption(f"이번 주 완료: {completed_count}/3")
+    
     # v4 공통 컴포넌트 사용
     from ui_pages.common.strategy_card_v4 import render_strategy_card_v4
     
     for card in cards:
+        card_code = _get_card_code_from_title(card.get("title", ""))
+        is_completed = card_code in completed_actions if card_code else False
+        
         render_strategy_card_v4(card)
+        
+        # 완료 체크 버튼 (카드 하단)
+        if card_code:
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                if is_completed:
+                    st.success("✅ 완료됨")
+                else:
+                    if st.button("✅ 완료", key=f"complete_{card_code}", use_container_width=True):
+                        _save_completed_action(store_id, card_code)
+                        st.rerun()
+        
+        st.divider()
 
 
 def _render_roadmap_section(roadmap: list):

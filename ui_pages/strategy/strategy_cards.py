@@ -843,6 +843,7 @@ def _build_strategy_cards_v4(
                 "goal": reasons[0] if reasons else "",
                 "why": " | ".join(reasons[:2]),
                 "evidence": reasons[:3],
+                "type": strategy.get("type", ""),  # CTA 매핑용
                 "cta": {
                     "label": strategy.get("cta", {}).get("label", "실행하기"),
                     "page": strategy.get("cta", {}).get("page_key", ""),
