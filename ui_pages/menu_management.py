@@ -1,5 +1,5 @@
 """
-메뉴 등록 페이지
+메뉴 포트폴리오 설계실
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -14,7 +14,15 @@ from ui_pages.design_lab.design_lab_frame import (
     render_school_cards,
     render_design_tools_container,
 )
-from ui_pages.design_lab.design_lab_coach_data import get_menu_design_coach_data
+from ui_pages.design_lab.menu_portfolio_helpers import (
+    get_menu_portfolio_tags,
+    set_menu_portfolio_tag,
+    get_menu_portfolio_categories,
+    set_menu_portfolio_category,
+    calculate_portfolio_balance_score,
+    get_portfolio_verdict,
+)
+from typing import Dict
 from src.auth import get_current_store_id
 
 # 공통 설정 적용
@@ -22,75 +30,271 @@ bootstrap(page_title="Menu Management")
 
 
 def render_menu_management():
-    """메뉴 등록 페이지 렌더링 (HOME v2 공통 프레임 적용)"""
-    render_page_header("메뉴 설계실", "🍽️")
+    """메뉴 포트폴리오 설계실 페이지 렌더링 (Design Lab 공통 프레임 적용)"""
+    render_page_header("메뉴 포트폴리오 설계실", "🍽️")
     
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # ZONE A: Coach Board
-    coach_data = get_menu_design_coach_data(store_id)
+    # 데이터 로드
+    menu_df = load_csv('menu_master.csv', store_id=store_id, default_columns=['메뉴명', '판매가'])
+    roles = get_menu_portfolio_tags(store_id)
+    categories = get_menu_portfolio_categories(store_id)
+    
+    # ZONE A: Coach Board (Portfolio Verdict)
+    cards = []
+    
+    # 1) 총 메뉴 수
+    menu_count = len(menu_df) if not menu_df.empty else 0
+    cards.append({
+        "title": "총 메뉴 수",
+        "value": f"{menu_count}개",
+        "subtitle": None
+    })
+    
+    # 2) 평균 가격
+    if not menu_df.empty and '판매가' in menu_df.columns:
+        avg_price = menu_df['판매가'].mean()
+        cards.append({
+            "title": "평균 가격",
+            "value": f"{int(avg_price):,}원",
+            "subtitle": None
+        })
+    else:
+        avg_price = 0
+    
+    # 3) 포트폴리오 균형 점수
+    balance_score, balance_status = calculate_portfolio_balance_score(menu_df, roles, categories)
+    status_emoji = "✅" if balance_status == "균형" else "⚠️" if balance_status == "주의" else "🔴"
+    cards.append({
+        "title": "포트폴리오 균형",
+        "value": f"{balance_score}점",
+        "subtitle": f"{status_emoji} {balance_status}"
+    })
+    
+    # 4) 역할 분포 요약
+    role_counts = {"미끼": 0, "볼륨": 0, "마진": 0, "미분류": 0}
+    for menu_name in menu_df['메뉴명'].tolist() if not menu_df.empty else []:
+        role = roles.get(menu_name, "미분류")
+        if role in role_counts:
+            role_counts[role] += 1
+        else:
+            role_counts["미분류"] += 1
+    
+    role_summary = f"미끼 {role_counts['미끼']} / 볼륨 {role_counts['볼륨']} / 마진 {role_counts['마진']}"
+    if role_counts['미분류'] > 0:
+        role_summary += f" (미분류 {role_counts['미분류']})"
+    cards.append({
+        "title": "역할 분포",
+        "value": role_summary,
+        "subtitle": None
+    })
+    
+    # 판결문 + 추천 액션
+    verdict_text, action_title, action_target_page = get_portfolio_verdict(menu_df, roles, categories, avg_price)
+    
     render_coach_board(
-        cards=coach_data["cards"],
-        verdict_text=coach_data["verdict_text"],
-        action_title=coach_data.get("action_title"),
-        action_reason=coach_data.get("action_reason"),
-        action_target_page=coach_data.get("action_target_page"),
-        action_button_label=coach_data.get("action_button_label")
+        cards=cards,
+        verdict_text=verdict_text,
+        action_title=action_title,
+        action_reason=None,
+        action_target_page=action_target_page,
+        action_button_label=f"{action_title} 하러가기" if action_title else None
     )
     
-    # ZONE B: Structure Map
-    def _render_menu_structure_map():
-        menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    # ZONE B: Structure Map (Portfolio Map)
+    def _render_menu_portfolio_map():
         if menu_df.empty:
-            st.info("메뉴가 등록되지 않았습니다. 메뉴를 등록하면 구조 맵이 표시됩니다.")
-        else:
-            # 간단한 메뉴 분포 차트 (카테고리별)
-            if 'category' in menu_df.columns or '카테고리' in menu_df.columns:
-                category_col = 'category' if 'category' in menu_df.columns else '카테고리'
-                category_counts = menu_df[category_col].value_counts()
-                if not category_counts.empty:
-                    st.bar_chart(category_counts)
-                else:
-                    st.info("카테고리 정보가 없습니다.")
-            else:
-                st.info("메뉴를 등록하면 구조 맵이 표시됩니다.")
+            st.info("메뉴가 등록되지 않았습니다. 메뉴를 등록하면 포트폴리오 맵이 표시됩니다.")
+            return
+        
+        # A) 가격대 분포
+        st.markdown("#### 💰 가격대 분포")
+        if '판매가' in menu_df.columns:
+            # 1만원 단위로 구간 나누기
+            menu_df['가격대'] = (menu_df['판매가'] / 10000).astype(int) * 10000
+            price_dist = menu_df['가격대'].value_counts().sort_index()
+            if not price_dist.empty:
+                st.bar_chart(price_dist)
+        
+        # B) 역할 x 카테고리 매트릭스
+        st.markdown("#### 📊 역할 x 카테고리 매트릭스")
+        
+        # 매트릭스 생성
+        role_list = ["미끼", "볼륨", "마진", "미분류"]
+        category_list = ["대표메뉴", "주력메뉴", "유인메뉴", "보조메뉴", "기타메뉴"]
+        
+        matrix_data = []
+        for role in role_list:
+            row = {"역할": role}
+            for category in category_list:
+                count = 0
+                for menu_name in menu_df['메뉴명'].tolist():
+                    menu_role = roles.get(menu_name, "미분류")
+                    menu_category = categories.get(menu_name, "기타메뉴")
+                    if menu_role == role and menu_category == category:
+                        count += 1
+                row[category] = count
+            matrix_data.append(row)
+        
+        matrix_df = pd.DataFrame(matrix_data)
+        matrix_df = matrix_df.set_index("역할")
+        st.dataframe(matrix_df, use_container_width=True)
     
     render_structure_map_container(
-        content_func=_render_menu_structure_map,
+        content_func=_render_menu_portfolio_map,
         empty_message="메뉴가 등록되지 않았습니다.",
         empty_action_label="메뉴 등록하기",
         empty_action_page="메뉴 등록"
     )
     
-    # ZONE C: Owner School
+    # ZONE C: Owner School (Portfolio Theory)
     school_cards = [
         {
-            "title": "메뉴 구조 설계",
-            "point1": "대표메뉴는 매출의 30% 이상을 차지해야 합니다",
-            "point2": "유인메뉴는 손님을 끌어들이는 역할입니다"
+            "title": "대표/주력/유인/보조는 역할이 다르다",
+            "point1": "대표메뉴는 브랜드 정체성, 주력메뉴는 매출 기여, 유인메뉴는 손님 유입",
+            "point2": "보조메뉴는 선택의 폭을 넓혀 만족도를 높입니다"
         },
         {
-            "title": "가격 전략",
-            "point1": "평균 가격대를 명확히 정하면 손님 선택이 쉬워집니다",
-            "point2": "원가율 50%를 넘는 메뉴는 가격 조정을 고려하세요"
+            "title": "메뉴는 개별 최적화가 아니라 조합 최적화",
+            "point1": "개별 메뉴의 원가율보다 포트폴리오 전체의 수익 구조가 중요합니다",
+            "point2": "미끼/볼륨/마진 메뉴의 균형이 핵심입니다"
         },
         {
-            "title": "메뉴 라인업",
-            "point1": "최소 3개 이상의 메뉴가 있어야 패턴 분석이 시작됩니다",
-            "point2": "카테고리별 균형이 중요합니다"
+            "title": "볼륨은 회전을 만들고, 마진은 생존을 만든다",
+            "point1": "볼륨 메뉴는 판매량으로 회전율을 높입니다",
+            "point2": "마진 메뉴는 수익 기여도로 생존력을 높입니다"
         },
     ]
     render_school_cards(school_cards)
     
-    # ZONE D: Design Tools (기존 기능)
-    render_design_tools_container(_render_menu_design_tools)
+    # ZONE D: Design Tools (Portfolio Tools)
+    render_design_tools_container(lambda: _render_menu_portfolio_tools(store_id, menu_df, roles, categories))
 
 
-def _render_menu_design_tools():
-    """ZONE D: 메뉴 설계 도구 (기존 기능)"""
+def _render_menu_portfolio_tools(store_id: str, menu_df: pd.DataFrame, roles: Dict[str, str], categories: Dict[str, str]):
+    """ZONE D: 메뉴 포트폴리오 설계 도구"""
+    
+    # 1) 메뉴 분류 테이블 (핵심)
+    st.markdown("#### 🏷️ 메뉴 포트폴리오 분류")
+    
+    if menu_df.empty:
+        st.info("메뉴가 등록되지 않았습니다.")
+    else:
+        # 필터 옵션
+        filter_option = st.radio(
+            "필터",
+            ["전체", "미분류만", "카테고리별", "역할별"],
+            horizontal=True,
+            key="menu_portfolio_filter"
+        )
+        
+        # 필터링
+        display_df = menu_df.copy()
+        if filter_option == "미분류만":
+            # 역할 또는 카테고리가 미분류인 메뉴만
+            unclassified = []
+            for menu_name in menu_df['메뉴명'].tolist():
+                role = roles.get(menu_name, "미분류")
+                category = categories.get(menu_name, "기타메뉴")
+                if role == "미분류" or category == "기타메뉴":
+                    unclassified.append(menu_name)
+            display_df = display_df[display_df['메뉴명'].isin(unclassified)]
+        elif filter_option == "카테고리별":
+            category_filter = st.selectbox(
+                "카테고리 선택",
+                ["대표메뉴", "주력메뉴", "유인메뉴", "보조메뉴", "기타메뉴"],
+                key="menu_portfolio_category_filter"
+            )
+            filtered_menus = [name for name, cat in categories.items() if cat == category_filter]
+            display_df = display_df[display_df['메뉴명'].isin(filtered_menus)]
+        elif filter_option == "역할별":
+            role_filter = st.selectbox(
+                "역할 선택",
+                ["미끼", "볼륨", "마진", "미분류"],
+                key="menu_portfolio_role_filter"
+            )
+            filtered_menus = [name for name, role in roles.items() if role == role_filter]
+            display_df = display_df[display_df['메뉴명'].isin(filtered_menus)]
+        
+        if not display_df.empty:
+            # 분류 테이블
+            st.markdown("**메뉴 포트폴리오 분류 테이블**")
+            
+            for idx, row in display_df.iterrows():
+                menu_name = row['메뉴명']
+                price = int(row['판매가'])
+                
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                
+                with col1:
+                    st.write(f"**{menu_name}**")
+                    st.caption(f"{price:,}원")
+                
+                with col2:
+                    current_category = categories.get(menu_name, "기타메뉴")
+                    category_options = ["대표메뉴", "주력메뉴", "유인메뉴", "보조메뉴", "기타메뉴"]
+                    new_category = st.selectbox(
+                        "카테고리",
+                        category_options,
+                        index=category_options.index(current_category) if current_category in category_options else 4,
+                        key=f"portfolio_category_{menu_name}_{store_id}",
+                        label_visibility="collapsed"
+                    )
+                    if new_category != current_category:
+                        set_menu_portfolio_category(store_id, menu_name, new_category)
+                        st.rerun()
+                
+                with col3:
+                    current_role = roles.get(menu_name, "미분류")
+                    role_options = ["미끼", "볼륨", "마진", "미분류"]
+                    new_role = st.selectbox(
+                        "역할",
+                        role_options,
+                        index=role_options.index(current_role) if current_role in role_options else 3,
+                        key=f"portfolio_role_{menu_name}_{store_id}",
+                        label_visibility="collapsed"
+                    )
+                    if new_role != current_role:
+                        set_menu_portfolio_tag(store_id, menu_name, new_role)
+                        st.rerun()
+                
+                with col4:
+                    st.write("")  # 공간 확보
+            
+            st.caption(f"총 {len(display_df)}개 메뉴")
+        else:
+            st.info("해당 조건의 메뉴가 없습니다.")
+    
+    render_section_divider()
+    
+    # 2) 포트폴리오 권장 조합 가이드
+    st.markdown("#### 📋 포트폴리오 권장 조합")
+    st.info("""
+    **권장 메뉴 구성:**
+    - 대표메뉴: 1~2개 (브랜드 정체성)
+    - 주력메뉴: 3~6개 (매출 기여)
+    - 유인메뉴: 1~3개 (손님 유입)
+    - 보조메뉴: 4~8개 (선택의 폭)
+    
+    **권장 역할 구성:**
+    - 미끼: 1~2개 (저가 유인)
+    - 볼륨: 3~5개 (판매량 중심)
+    - 마진: 2~4개 (수익 기여)
+    """)
+    
+    render_section_divider()
+    
+    # 3) 기존 등록/수정/삭제 기능 (하단 유지)
+    _render_menu_management_tools(store_id, menu_df, roles, categories)
+
+
+def _render_menu_management_tools(store_id: str, menu_df: pd.DataFrame, roles: Dict[str, str], categories: Dict[str, str]):
+    """기존 메뉴 등록/수정/삭제 기능"""
+    st.markdown("#### 📝 메뉴 등록/수정/삭제")
+    
     # 입력 모드 선택 (단일 / 일괄)
     input_mode = st.radio(
         "입력 모드",
@@ -222,7 +426,9 @@ def _render_menu_design_tools():
     </div>
     """, unsafe_allow_html=True)
     
-    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    # menu_df는 이미 상단에서 로드됨 (파라미터로 받음)
+    # 다시 로드하지 않고 파라미터 사용
+    # roles와 categories도 파라미터로 받음
     
     if not menu_df.empty:
         # 간단 검색 필터 (메뉴명 부분 일치)
@@ -368,6 +574,8 @@ def _render_menu_design_tools():
                     try:
                         success, message = update_menu_category(row['메뉴명'], new_category)
                         if success:
+                            # session_state도 업데이트
+                            set_menu_portfolio_category(store_id, row['메뉴명'], new_category)
                             # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
                             try:
                                 st.cache_data.clear()
