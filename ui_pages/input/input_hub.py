@@ -155,7 +155,7 @@ def _get_today_recommendations(store_id: str) -> list:
             recommendations.append({
                 "status": "pending",
                 "message": "📝 오늘 입력을 시작하세요",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)",
                 "priority": 1
             })
@@ -164,7 +164,7 @@ def _get_today_recommendations(store_id: str) -> list:
             recommendations.append({
                 "status": "pending",
                 "message": "📝 오늘 입력을 완료하세요",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)",
                 "priority": 1
             })
@@ -173,7 +173,7 @@ def _get_today_recommendations(store_id: str) -> list:
             recommendations.append({
                 "status": "pending",
                 "message": "📋 오늘 마감을 완료하세요",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)",
                 "priority": 1
             })
@@ -182,7 +182,7 @@ def _get_today_recommendations(store_id: str) -> list:
             recommendations.append({
                 "status": "completed",
                 "message": "✅ 오늘 마감 완료",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)",
                 "priority": 1
             })
@@ -194,7 +194,7 @@ def _get_today_recommendations(store_id: str) -> list:
                 recommendations.append({
                     "status": "pending",
                     "message": "📋 이번 주 점검을 한번 해보세요 (3일 남음)",
-                    "button_label": "🩺 매장 체크리스트",
+                    "button_label": "🩺 QSC 입력",
                     "page_key": "건강검진 실시",
                     "priority": 4
                 })
@@ -202,7 +202,7 @@ def _get_today_recommendations(store_id: str) -> list:
                 recommendations.append({
                     "status": "completed",
                     "message": f"✅ 체크리스트 완료 (최근 7일: {checklist_count}회)",
-                    "button_label": "🩺 매장 체크리스트",
+                    "button_label": "🩺 QSC 입력",
                     "page_key": "건강검진 실시",
                     "priority": 4
                 })
@@ -217,7 +217,7 @@ def _get_today_recommendations(store_id: str) -> list:
                     recommendations.append({
                         "status": "pending",
                         "message": "📅 월초입니다. 이번달 정산을 시작하세요",
-                        "button_label": "📅 월간 정산",
+                        "button_label": "📅 월간 정산 입력",
                         "page_key": "실제정산",
                         "priority": 5
                     })
@@ -225,7 +225,7 @@ def _get_today_recommendations(store_id: str) -> list:
                     recommendations.append({
                         "status": "completed",
                         "message": "✅ 이번달 정산 완료",
-                        "button_label": "📅 월간 정산",
+                        "button_label": "📅 월간 정산 입력",
                         "page_key": "실제정산",
                         "priority": 5
                     })
@@ -287,7 +287,7 @@ def _get_today_recommendation(store_id: str) -> dict:
         if not has_any:
             return {
                 "message": "📝 오늘 입력을 시작하세요",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)"
             }
         
@@ -303,7 +303,7 @@ def _get_today_recommendation(store_id: str) -> dict:
         if has_any and not has_close:
             return {
                 "message": "📋 오늘 마감을 완료하세요",
-                "button_label": "📝 일일 마감",
+                "button_label": "📝 일일 마감 입력",
                 "page_key": "일일 입력(통합)"  # 일일 마감 페이지로 이동
             }
         
@@ -313,7 +313,7 @@ def _get_today_recommendation(store_id: str) -> dict:
             if checklist_count == 0:
                 return {
                     "message": "📋 이번 주 점검을 한번 해보세요",
-                    "button_label": "📋 매장 체크리스트",
+                    "button_label": "🩺 QSC 입력",
                     "page_key": "건강검진 실시"
                 }
         except Exception:
@@ -327,7 +327,7 @@ def _get_today_recommendation(store_id: str) -> dict:
                 if not is_settlement_done:
                     return {
                         "message": "📅 월초입니다. 이번달 정산을 시작하세요",
-                        "button_label": "📅 월간 정산",
+                        "button_label": "📅 월간 정산 입력",
                         "page_key": "실제정산"
                     }
             except Exception:
@@ -437,9 +437,9 @@ def render_input_hub():
     st.markdown("### ⚡ 빠른 입력")
     st.caption("매일 사용하는 입력")
     
-    st.markdown("**📝 일일 마감**")
+    st.markdown("**📝 일일 마감 입력**")
     st.caption("매일: 매출, 네이버 방문자, 판매량, 메모를 입력하고 마감하는 페이지입니다")
-    if st.button("📝 일일 마감", use_container_width=True, type="primary", key="input_hub_daily_input"):
+    if st.button("📝 일일 마감 입력", use_container_width=True, type="primary", key="input_hub_daily_input"):
         st.session_state["current_page"] = "일일 입력(통합)"  # page key 유지
         st.rerun()
     
@@ -454,16 +454,16 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**🩺 매장 체크리스트**")
+        st.markdown("**🩺 QSC 입력**")
         st.caption("주 1-2회: 운영 전반을 점검하고 개선점을 찾습니다")
-        if st.button("🩺 매장 체크리스트", use_container_width=True, type="primary", key="input_hub_health_check"):
+        if st.button("🩺 QSC 입력", use_container_width=True, type="primary", key="input_hub_health_check"):
             st.session_state["current_page"] = "건강검진 실시"  # page key 유지
             st.rerun()
     
     with col2:
-        st.markdown("**📅 월간 정산**")
+        st.markdown("**📅 월간 정산 입력**")
         st.caption("월 1회: 실제 성적을 확정하고 정산합니다")
-        if st.button("📅 월간 정산", use_container_width=True, type="primary", key="input_hub_settlement"):
+        if st.button("📅 월간 정산 입력", use_container_width=True, type="primary", key="input_hub_settlement"):
             st.session_state["current_page"] = "실제정산"  # page key 유지
             st.rerun()
     
@@ -509,25 +509,25 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**📘 메뉴 입력**")
+        st.markdown("**📘 판매 메뉴 입력**")
         st.caption("가게의 모든 메뉴를 등록합니다")
-        if st.button("📘 메뉴 입력", use_container_width=True, type="primary", key="input_hub_menu_input"):
+        if st.button("📘 판매 메뉴 입력", use_container_width=True, type="primary", key="input_hub_menu_input"):
             st.session_state["current_page"] = "메뉴 입력"  # page key 변경
             st.rerun()
     
     with col2:
-        st.markdown("**🧺 재료 입력**")
+        st.markdown("**🧺 사용 재료 입력**")
         st.caption("사용하는 모든 재료를 등록합니다")
-        if st.button("🧺 재료 입력", use_container_width=True, type="primary", key="input_hub_ingredient_input"):
+        if st.button("🧺 사용 재료 입력", use_container_width=True, type="primary", key="input_hub_ingredient_input"):
             st.session_state["current_page"] = "재료 입력"  # page key 변경
             st.rerun()
     
     col3, col4 = st.columns(2)
     
     with col3:
-        st.markdown("**🧑‍🍳 레시피 입력**")
+        st.markdown("**🧑‍🍳 판매 레시피 입력**")
         st.caption("메뉴별 레시피와 원가를 등록합니다")
-        if st.button("🧑‍🍳 레시피 입력", use_container_width=True, type="primary", key="input_hub_recipe_input"):
+        if st.button("🧑‍🍳 판매 레시피 입력", use_container_width=True, type="primary", key="input_hub_recipe_input"):
             st.session_state["current_page"] = "레시피 입력"  # page key 변경
             st.rerun()
     
@@ -550,15 +550,15 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**🧮 매출 등록(과거/수정)**")
+        st.markdown("**🧮 일괄 매출/방문자 등록**")
         st.caption("과거/수정: 특정 날짜의 매출을 보정하거나 추가 입력합니다")
-        if st.button("🧮 매출 등록(과거/수정)", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
+        if st.button("🧮 일괄 매출/방문자 등록", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
             st.session_state["current_page"] = "매출 등록"  # page key 유지
             st.rerun()
     
     with col2:
-        st.markdown("**📦 판매량 등록(과거/수정)**")
+        st.markdown("**📦 일괄 메뉴별 판매량 등록**")
         st.caption("과거/수정: 특정 날짜의 판매량을 보정하거나 추가 입력합니다")
-        if st.button("📦 판매량 등록(과거/수정)", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
+        if st.button("📦 일괄 메뉴별 판매량 등록", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
             st.session_state["current_page"] = "판매량 등록"  # page key 유지
             st.rerun()
