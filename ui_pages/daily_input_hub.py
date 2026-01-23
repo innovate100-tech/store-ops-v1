@@ -89,6 +89,9 @@ def render_daily_input_hub():
     # ===== ZONE B: 입력 영역 =====
     st.markdown("### ✏️ 입력")
     
+    # Phase 1 STEP 2: 부분 입력 허용 안내
+    st.info("💡 **하나만 입력해도 저장됩니다.** 나머지는 나중에 추가해도 됩니다.")
+    
     # 기존 매출 값 로드
     supabase = get_supabase_client()
     existing_card_sales = 0.0
@@ -228,46 +231,71 @@ def render_daily_input_hub():
     with col_save:
         if st.button("💾 저장", type="primary", use_container_width=True, key="daily_input_save"):
             try:
-                # 매출/방문자 저장
-                result = save_sales_entry(
-                    date=selected_date,
-                    store_name="",  # store_id로 처리되므로 불필요
+                # Phase 1 STEP 2: 입력 유효성 체크
+                from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+                
+                # 입력 유효성 판정
+                if not has_any_input(
                     card_sales=card_sales,
                     cash_sales=cash_sales,
                     total_sales=total_sales,
-                    visitors=visitors if visitors > 0 else None
-                )
-                
-                if not result.get("success"):
-                    st.error(f"매출 저장 실패: {result.get('message', '알 수 없는 오류')}")
+                    visitors=visitors,
+                    sales_items=sales_items,
+                    memo=memo
+                ):
+                    ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
                     return
                 
-                # 판매량 저장 (모든 메뉴, 0도 저장)
-                for menu_name in menu_list:
-                    qty = 0
-                    # sales_items에서 찾기
-                    for item_name, item_qty in sales_items:
-                        if item_name == menu_name:
-                            qty = item_qty
-                            break
-                    
-                    try:
-                        save_daily_sales_item(
-                            date=selected_date,
-                            menu_name=menu_name,
-                            quantity=qty,
-                            reason="일일 입력 통합 페이지"
-                        )
-                    except Exception as e:
-                        logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
-                        st.warning(f"판매량 저장 실패: {menu_name}")
+                # 매출/방문자 저장 (값이 있는 것만)
+                has_sales = card_sales > 0 or cash_sales > 0 or total_sales > 0
+                has_visitors = visitors > 0
                 
-                # 성공 메시지
-                synced_to_close = result.get("synced_to_close", False)
-                if synced_to_close:
-                    st.success("✅ 공식 마감 매출이 함께 수정되었습니다.")
+                if has_sales or has_visitors:
+                    result = save_sales_entry(
+                        date=selected_date,
+                        store_name="",  # store_id로 처리되므로 불필요
+                        card_sales=card_sales,
+                        cash_sales=cash_sales,
+                        total_sales=total_sales,
+                        visitors=visitors if has_visitors else None
+                    )
+                    
+                    if not result.get("success"):
+                        st.error(f"매출 저장 실패: {result.get('message', '알 수 없는 오류')}")
+                        return
+                
+                # 판매량 저장 (값이 있는 것만)
+                has_sales_items = False
+                if sales_items:
+                    for menu_name, qty in sales_items:
+                        if qty > 0:
+                            has_sales_items = True
+                            try:
+                                save_daily_sales_item(
+                                    date=selected_date,
+                                    menu_name=menu_name,
+                                    quantity=qty,
+                                    reason="일일 입력 통합 페이지"
+                                )
+                            except Exception as e:
+                                logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
+                                st.warning(f"판매량 저장 실패: {menu_name}")
+                
+                # 성공 메시지 (부분 저장 안내)
+                saved_items = []
+                if has_sales:
+                    saved_items.append("매출")
+                if has_visitors:
+                    saved_items.append("방문자")
+                if has_sales_items:
+                    saved_items.append("판매량")
+                if memo and memo.strip():
+                    saved_items.append("메모")
+                
+                if saved_items:
+                    ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
                 else:
-                    st.success("✅ 임시 기록이 저장되었습니다.")
+                    ui_flash_success("저장되었습니다.")
                 
                 st.balloons()
                 st.rerun()
@@ -279,6 +307,9 @@ def render_daily_input_hub():
     with col_close:
         if st.button("📋 이 날짜 마감하기", use_container_width=True, key="daily_input_close"):
             try:
+                # Phase 1 STEP 2: 입력 유효성 체크
+                from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+                
                 # issues는 기본값으로 설정
                 issues = {
                     '품절': False,
@@ -298,6 +329,19 @@ def render_daily_input_hub():
                             break
                     all_sales_items.append((menu_name, qty))
                 
+                # 입력 유효성 판정
+                if not has_any_input(
+                    card_sales=card_sales,
+                    cash_sales=cash_sales,
+                    total_sales=total_sales,
+                    visitors=visitors,
+                    sales_items=all_sales_items,
+                    memo=memo,
+                    issues=issues
+                ):
+                    ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
+                    return
+                
                 # 마감 저장
                 success = save_daily_close(
                     date=selected_date,
@@ -312,7 +356,23 @@ def render_daily_input_hub():
                 )
                 
                 if success:
-                    st.success("✅ 마감이 완료되었습니다.")
+                    # 부분 저장 안내
+                    saved_items = []
+                    if card_sales > 0 or cash_sales > 0 or total_sales > 0:
+                        saved_items.append("매출")
+                    if visitors > 0:
+                        saved_items.append("방문자")
+                    if any(qty > 0 for _, qty in all_sales_items):
+                        saved_items.append("판매량")
+                    if memo and memo.strip():
+                        saved_items.append("메모")
+                    if any(issues.values()):
+                        saved_items.append("이슈")
+                    
+                    if saved_items:
+                        ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
+                    else:
+                        ui_flash_success("✅ 마감이 완료되었습니다.")
                     st.balloons()
                     st.rerun()
                 else:

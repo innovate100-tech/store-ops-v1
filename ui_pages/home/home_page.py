@@ -181,6 +181,67 @@ def get_today_one_action_with_day_context(store_id: str, level: int, day_level: 
     return action
 
 
+def _render_new_user_home(store_id: str) -> None:
+    """
+    Phase 1 STEP 1: 신규 사용자 홈 화면 (데이터 0건)
+    - 입력 유도 화면 표시
+    """
+    render_page_header("사장 계기판", "🏠")
+    
+    # 메인 메시지 카드
+    st.markdown("""
+    <div style="padding: 3rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); 
+                margin-bottom: 2rem; text-align: center;">
+        <h2 style="color: white; margin-bottom: 1rem; font-size: 1.8rem; font-weight: 700;">
+            아직 매장 데이터가 없습니다
+        </h2>
+        <p style="color: rgba(255,255,255,0.95); font-size: 1.1rem; line-height: 1.6; margin: 0;">
+            오늘 상황을 하나만 입력해도<br>분석이 시작됩니다
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 안내 메시지
+    st.info("""
+    **💡 시작하기**
+    
+    매출과 방문자 수만 입력하면, 당장 다음 달 수익을 높일 수 있는 전략을 제시해드립니다.
+    
+    - 오늘 또는 어제 데이터를 입력하세요
+    - 매출(카드/현금)과 네이버 방문자 수만 입력하면 됩니다
+    - 메뉴나 판매량은 나중에 입력해도 됩니다
+    """)
+    
+    # 입력 버튼 (2개 옵션)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📝 오늘 데이터 입력하기", type="primary", use_container_width=True, key="new_user_daily_input"):
+            st.session_state["current_page"] = "일일 입력(통합)"
+            st.rerun()
+    
+    with col2:
+        if st.button("📋 점장 마감하기", use_container_width=True, key="new_user_manager_close"):
+            st.session_state["current_page"] = "점장 마감"
+            st.rerun()
+    
+    # 추가 안내
+    st.markdown("---")
+    with st.expander("💡 더 알아보기", expanded=False):
+        st.markdown("""
+        **입력 방법:**
+        
+        1. **일일 입력(통합)**: 빠르게 매출과 방문자만 입력 (추천)
+        2. **점장 마감**: 상세한 마감 정보 입력 (메뉴별 판매량 포함)
+        
+        **다음 단계:**
+        - 첫 데이터 입력 후, 홈에서 오늘의 운영 지시를 확인할 수 있습니다
+        - 3일 이상 입력하면 패턴 분석이 시작됩니다
+        - 가게 설계 센터에서 목표와 구조를 설정할 수 있습니다
+        """)
+
+
 def _render_home_body(store_id: str) -> None:
     """통합 홈 렌더링."""
     load_start = time.time()
@@ -222,6 +283,13 @@ def _render_home_body(store_id: str) -> None:
     data_level = detect_data_level(store_id)
     st.session_state["home_data_level"] = data_level
     day_level = detect_owner_day_level(store_id)
+    
+    # Phase 1 STEP 1: 신규 사용자 모드 (data_level == 0) - 입력 유도 화면 표시
+    if data_level == 0:
+        _render_new_user_home(store_id)
+        return  # 신규 사용자는 여기서 종료 (기존 ZONE 렌더링 건너뜀)
+    
+    # 기존 사용자: 기존 로직 유지
     kpis = load_home_kpis(store_id, year, month)
     monthly_sales = kpis["monthly_sales"]
     yesterday_sales = kpis["yesterday_sales"]

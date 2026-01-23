@@ -472,3 +472,63 @@ def invalidate_keys(targets: List[str], reason: str = "user_action") -> None:
     except Exception as e:
         logger.warning(f"invalidate_keys 실패: {e}")
         # 실패해도 계속 진행 (non-critical)
+
+
+# ============================================
+# Phase 1 STEP 2: 입력 유효성 판정 함수
+# ============================================
+
+def has_any_input(
+    card_sales: float = 0.0,
+    cash_sales: float = 0.0,
+    total_sales: float = 0.0,
+    visitors: int = 0,
+    sales_items: list = None,
+    memo: str = "",
+    issues: dict = None
+) -> bool:
+    """
+    입력 유효성 판정: 하나라도 입력되었는지 확인
+    
+    Phase 1 STEP 2: 부분 입력 허용을 위한 함수
+    - 숫자 0은 "입력"으로 보지 않음 (단, 의도적으로 0을 저장해야 하는 필드는 예외)
+    - 메모는 공백 제거 후 체크
+    - issues는 True인 항목이 하나라도 있으면 입력으로 간주
+    
+    Args:
+        card_sales: 카드 매출
+        cash_sales: 현금 매출
+        total_sales: 총 매출
+        visitors: 네이버 방문자 수
+        sales_items: 판매량 리스트 [(menu_name, qty), ...]
+        memo: 메모
+        issues: 이슈 딕셔너리 {'품절': bool, '컴플레인': bool, ...}
+    
+    Returns:
+        bool: 하나라도 입력되었으면 True, 전부 비어있으면 False
+    """
+    # 매출 체크 (하나라도 0보다 크면 입력으로 간주)
+    if card_sales > 0 or cash_sales > 0 or total_sales > 0:
+        return True
+    
+    # 방문자 체크 (0보다 크면 입력으로 간주)
+    if visitors > 0:
+        return True
+    
+    # 판매량 체크 (하나라도 0보다 크면 입력으로 간주)
+    if sales_items:
+        for menu_name, qty in sales_items:
+            if qty > 0:
+                return True
+    
+    # 메모 체크 (공백 제거 후 비어있지 않으면 입력으로 간주)
+    if memo and memo.strip():
+        return True
+    
+    # 이슈 체크 (하나라도 True이면 입력으로 간주)
+    if issues:
+        for key, value in issues.items():
+            if value is True:
+                return True
+    
+    return False

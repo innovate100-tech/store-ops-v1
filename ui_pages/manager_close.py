@@ -35,6 +35,9 @@ def render_manager_close():
     </div>
     """, unsafe_allow_html=True)
     
+    # Phase 1 STEP 2: 부분 입력 허용 안내
+    st.info("💡 **하나만 입력해도 저장됩니다.** 나머지는 나중에 추가해도 됩니다.")
+    
     # 전체 메뉴 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
@@ -111,10 +114,26 @@ def render_manager_close():
     with col2:
         button_label = "✅ 마감 완료" if not has_daily_close else "✅ 마감 수정 저장"
         if st.button(button_label, type="primary", use_container_width=True, key="manager_close_btn"):
+            # Phase 1 STEP 2: 입력 유효성 체크
+            from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+            
             errors = []
             
             if not store or store.strip() == "":
                 errors.append("매장명을 입력해주세요.")
+            
+            # 입력 유효성 판정
+            if not has_any_input(
+                card_sales=card_sales,
+                cash_sales=cash_sales,
+                total_sales=total_sales,
+                visitors=visitors,
+                sales_items=sales_items,
+                memo=memo,
+                issues=issues
+            ):
+                ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
+                return
             
             if errors:
                 for error in errors:
@@ -129,10 +148,29 @@ def render_manager_close():
                     
                     # 저장 결과에 따라 메시지 표시
                     if result:
-                        if has_daily_close:
-                            st.success("✅ 공식 마감 저장 완료! 기존 마감 기록이 갱신되었습니다.")
+                        # Phase 1 STEP 2: 부분 저장 안내
+                        saved_items = []
+                        if card_sales > 0 or cash_sales > 0 or total_sales > 0:
+                            saved_items.append("매출")
+                        if visitors > 0:
+                            saved_items.append("방문자")
+                        if sales_items and any(qty > 0 for _, qty in sales_items):
+                            saved_items.append("판매량")
+                        if memo and memo.strip():
+                            saved_items.append("메모")
+                        if issues and any(issues.values()):
+                            saved_items.append("이슈")
+                        
+                        if saved_items:
+                            if has_daily_close:
+                                ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요. (기존 마감 기록이 갱신되었습니다.)")
+                            else:
+                                ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
                         else:
-                            st.success("✅ 공식 마감 저장 완료! 데이터가 저장되었습니다.")
+                            if has_daily_close:
+                                st.success("✅ 공식 마감 저장 완료! 기존 마감 기록이 갱신되었습니다.")
+                            else:
+                                st.success("✅ 공식 마감 저장 완료! 데이터가 저장되었습니다.")
                     else:
                         # DEV MODE 등에서 저장되지 않은 경우
                         st.warning("⚠️ DEV MODE: 마감 정보는 표시되지만 실제 데이터는 저장되지 않았습니다.")
