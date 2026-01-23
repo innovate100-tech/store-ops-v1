@@ -9,6 +9,7 @@ from src.ui_helpers import render_page_header, render_section_divider
 from src.utils.time_utils import today_kst
 from src.storage_supabase import load_csv
 from src.analytics import calculate_menu_cost
+from src.auth import get_current_store_id
 
 # 공통 설정 적용
 bootstrap(page_title="Sales Analysis")
@@ -18,6 +19,12 @@ def render_sales_analysis():
     """판매 관리 페이지 렌더링"""
     render_page_header("판매 관리", "📦")
     
+    # store_id 확인
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
+        return
+    
     col_refresh, _ = st.columns([1, 4])
     with col_refresh:
         if st.button("🔄 판매 데이터 새로고침", key="sales_analysis_refresh", use_container_width=True):
@@ -25,11 +32,11 @@ def render_sales_analysis():
             st.success("✅ 판매 데이터를 새로고침했습니다.")
             st.rerun()
     
-    # 메뉴 목록 로드
-    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'])
-    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+    # 메뉴 목록 로드 (store_id 명시적으로 전달)
+    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'], store_id=store_id)
+    daily_sales_df = load_csv('daily_sales_items.csv', default_columns=['날짜', '메뉴명', '판매수량'], store_id=store_id)
+    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'], store_id=store_id)
+    ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'], store_id=store_id)
     
     if daily_sales_df.empty or menu_df.empty:
         st.info("판매 분석을 위해서는 메뉴와 일일 판매 데이터가 필요합니다.")
