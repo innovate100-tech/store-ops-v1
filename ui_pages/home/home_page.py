@@ -219,6 +219,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     monthly_profit = kpis["monthly_profit"]
     target_sales = kpis["target_sales"]
     target_ratio = kpis["target_ratio"]
+    unofficial_days = kpis.get("unofficial_days", 0)  # 미마감 날짜 개수
     closed_days, total_days, close_rate, streak_days = close_stats
     
     load_time = time.time() - load_start
@@ -244,6 +245,11 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
 
     # 2. KPI 한눈 영역 (2줄 고정, 모던 스타일, 간격 추가)
     st.markdown("### 📊 핵심 지표")
+    
+    # 미마감 배지 표시
+    if unofficial_days > 0:
+        st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다. [점장 마감 하러가기](javascript:void(0))")
+    
     # 첫 번째 줄: 이번달 누적 매출, 목표 대비 %, 마감률
     k1, k2, k3 = st.columns(3, gap="medium")
     with k1:
@@ -474,31 +480,26 @@ def _render_status_strip(store_id: str, monthly_sales: int, target_sales: int, t
                 missing = total_days - closed_days
                 status_parts.append(f"마감 누락 {missing}일")
         
-        # 최근 7일 평균 매출 비교
+        # 최근 7일 평균 매출 비교 (SSOT: best_available 사용)
         try:
-            supabase = get_supabase_client()
-            if supabase:
-                from datetime import timedelta
-                today = now.date()
-                seven_ago = today - timedelta(days=7)
-                start_m = f"{year}-{month:02d}-01"
-                end_m = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
-                
-                recent_sales = supabase.table("sales").select("total_sales").eq("store_id", store_id).gte(
-                    "date", seven_ago.isoformat()
-                ).lte("date", today.isoformat()).execute()
-                
-                month_sales_list = supabase.table("sales").select("total_sales").eq("store_id", store_id).gte(
-                    "date", start_m
-                ).lt("date", end_m).execute()
-                
-                if recent_sales.data and month_sales_list.data and len(month_sales_list.data) > 0:
-                    recent_avg = sum(float(r.get("total_sales", 0) or 0) for r in recent_sales.data) / max(len(recent_sales.data), 1)
-                    month_avg = sum(float(r.get("total_sales", 0) or 0) for r in month_sales_list.data) / max(len(month_sales_list.data), 1)
-                    if month_avg > 0:
-                        ratio = recent_avg / month_avg
-                        if ratio < 0.9:
-                            status_parts.append("최근 7일 평균이 이번 달 평균보다 낮음")
+            from src.storage_supabase import load_best_available_daily_sales
+            from datetime import timedelta
+            today = now.date()
+            seven_ago = today - timedelta(days=7)
+            start_m = f"{year}-{month:02d}-01"
+            end_m = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+            
+            # best_available 기반으로 조회
+            best_df = load_best_available_daily_sales(store_id=store_id, start_date=seven_ago.isoformat(), end_date=today.isoformat())
+            month_best_df = load_best_available_daily_sales(store_id=store_id, start_date=start_m, end_date=end_m)
+            
+            if not best_df.empty and not month_best_df.empty:
+                recent_avg = best_df['total_sales'].mean() if 'total_sales' in best_df.columns else 0
+                month_avg = month_best_df['total_sales'].mean() if 'total_sales' in month_best_df.columns else 0
+                if month_avg > 0:
+                    ratio = recent_avg / month_avg
+                    if ratio < 0.9:
+                        status_parts.append("최근 7일 평균이 이번 달 평균보다 낮음")
         except Exception:
             pass
         

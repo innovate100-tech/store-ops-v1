@@ -8,7 +8,7 @@ from datetime import timedelta
 from calendar import monthrange
 from src.ui_helpers import render_page_header, render_section_divider, safe_get_value
 from src.utils.time_utils import current_year_kst, current_month_kst, today_kst
-from src.storage_supabase import load_csv, load_monthly_sales_total
+from src.storage_supabase import load_csv, load_monthly_sales_total, load_best_available_daily_sales, count_unofficial_days_in_month
 from src.analytics import merge_sales_visitors, calculate_correlation
 from src.auth import get_current_store_id, is_dev_mode
 
@@ -49,8 +49,22 @@ def render_sales_management():
             st.success("✅ 매출 데이터를 새로고침했습니다.")
             st.rerun()
     
-    # 데이터 로드 (store_id 명시 전달 → 저장된 매출 표와 동일 SSOT)
-    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'], store_id=store_id)
+    # 데이터 로드 (SSOT 정책: 통계/분석은 best_available 사용)
+    # best_available: daily_close 우선, 없으면 sales (is_official=false로 표시)
+    best_available_df = load_best_available_daily_sales(store_id=store_id)
+    if not best_available_df.empty:
+        # DataFrame 컬럼명 매핑 (v_daily_sales_best_available → 기존 형식)
+        sales_df = best_available_df.copy()
+        sales_df['날짜'] = pd.to_datetime(sales_df['date'])
+        sales_df['매장'] = ''  # 매장명은 별도 조회 필요 시 추가
+        sales_df['총매출'] = sales_df['total_sales']
+        sales_df['카드매출'] = sales_df.get('card_sales', 0)
+        sales_df['현금매출'] = sales_df.get('cash_sales', 0)
+        sales_df['is_official'] = sales_df.get('is_official', True)
+        sales_df['source'] = sales_df.get('source', 'daily_close')
+    else:
+        sales_df = pd.DataFrame(columns=['날짜', '매장', '총매출', '카드매출', '현금매출', 'is_official', 'source'])
+    
     visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'], store_id=store_id)
     targets_df = load_csv('targets.csv', default_columns=[
         '연도', '월', '목표매출', '목표원가율', '목표인건비율',
@@ -106,14 +120,11 @@ def render_sales_management():
     else:
         month_data = pd.DataFrame()
     
-    # 월매출: month_data에 데이터가 있으면 우선 사용 (저장된 매출 표와 동일 SSOT)
-    # month_data가 비어있거나 총매출 컬럼이 없을 때만 DB 함수 사용
-    if not month_data.empty and '총매출' in month_data.columns:
-        # month_data에서 직접 계산 (저장된 매출 표와 동일한 방식)
-        month_total_sales = int(month_data['총매출'].fillna(0).sum())
-    else:
-        # month_data에 데이터가 없으면 DB 함수 사용
-        month_total_sales = load_monthly_sales_total(store_id, current_year, current_month)
+    # 월매출: best_available 기반으로 계산 (SSOT 정책)
+    month_total_sales = load_monthly_sales_total(store_id, current_year, current_month)
+    
+    # 미마감 날짜 개수 확인
+    unofficial_days = count_unofficial_days_in_month(store_id, current_year, current_month)
     
     _rows = len(month_data) if not month_data.empty else 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
@@ -151,6 +162,10 @@ def render_sales_management():
             month_avg_daily_sales = month_total_sales / len(month_data) if len(month_data) > 0 else 0
             month_avg_daily_visitors = month_total_visitors / len(month_data) if len(month_data) > 0 else 0
             avg_customer_value = month_total_sales / month_total_visitors if month_total_visitors > 0 else 0
+            
+            # 미마감 배지 표시
+            if unofficial_days > 0:
+                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
             
             col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
@@ -602,6 +617,11 @@ def render_sales_management():
                 display_columns.append('총매출')
             if '방문자수' in display_df.columns:
                 display_columns.append('방문자수')
+            # SSOT: is_official 컬럼 추가 (미마감 표시용)
+            if 'is_official' in display_df.columns:
+                display_columns.append('is_official')
+            if 'source' in display_df.columns:
+                display_columns.append('source')
             
             # 필요한 컬럼만 선택
             if display_columns:
@@ -620,6 +640,12 @@ def render_sales_management():
                     display_df['현금매출'] = display_df['현금매출'].apply(lambda x: f"{int(x):,}원" if pd.notna(x) else "-")
                 if '방문자수' in display_df.columns:
                     display_df['방문자수'] = display_df['방문자수'].apply(lambda x: f"{int(x):,}명" if pd.notna(x) else "-")
+                
+                # SSOT: is_official 포맷팅 (미마감 표시)
+                if 'is_official' in display_df.columns:
+                    display_df['is_official'] = display_df['is_official'].apply(lambda x: "✅ 마감" if x else "⚠️ 미마감" if pd.notna(x) else "-")
+                if 'source' in display_df.columns:
+                    display_df['source'] = display_df['source'].apply(lambda x: "점장마감" if x == 'daily_close' else "매출보정" if x == 'sales' else str(x) if pd.notna(x) else "-")
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         

@@ -270,6 +270,11 @@ def _render_sales_sections(ctx, metrics, raw_data):
         """, unsafe_allow_html=True)
         
         if not month_data.empty:
+            # 미마감 배지 표시
+            unofficial_days = metrics.get('unofficial_days', 0)
+            if unofficial_days > 0:
+                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
+            
             month_avg_daily_sales = month_total_sales / len(month_data) if len(month_data) > 0 else 0
             month_avg_daily_visitors = month_total_visitors / len(month_data) if len(month_data) > 0 else 0
             avg_customer_value = month_total_sales / month_total_visitors if month_total_visitors > 0 else 0

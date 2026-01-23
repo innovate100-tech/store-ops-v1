@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from typing import Tuple
 
 from src.auth import get_supabase_client
-from src.storage_supabase import load_monthly_sales_total, load_monthly_settlement_snapshot
+from src.storage_supabase import load_monthly_sales_total, load_monthly_settlement_snapshot, count_unofficial_days_in_month
 
 
 def get_monthly_close_stats(store_id: str, year: int, month: int) -> Tuple[int, int, float, int]:
@@ -76,29 +76,29 @@ def load_home_kpis(store_id: str, year: int, month: int) -> dict:
         start = f"{year}-{month:02d}-01"
         end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
 
-        monthly_sales = load_monthly_sales_total(store_id, year, month)
+        # SSOT 정책: 통계/KPI는 best_available, 마감 여부는 official
+        monthly_sales = load_monthly_sales_total(store_id, year, month)  # best_available 기반
         out["monthly_sales"] = monthly_sales or 0
-        out["close_stats"] = get_monthly_close_stats(store_id, year, month)
+        out["close_stats"] = get_monthly_close_stats(store_id, year, month)  # official 기반 (마감률)
+        
+        # 미마감 날짜 개수 확인
+        unofficial_days = count_unofficial_days_in_month(store_id, year, month)
+        out["unofficial_days"] = unofficial_days
 
         supabase = get_supabase_client()
         if supabase:
-            # 어제 매출 또는 마지막 마감 매출 조회
-            yesterday_close = supabase.table("daily_close").select("total_sales, date").eq(
-                "store_id", store_id
-            ).eq("date", yesterday.isoformat()).limit(1).execute()
-            if yesterday_close.data and len(yesterday_close.data) > 0:
-                v = yesterday_close.data[0].get("total_sales")
-                if v is not None:
-                    out["yesterday_sales"] = int(float(v or 0))
+            # 어제 매출: best_available 사용 (통계용)
+            from src.storage_supabase import load_best_available_daily_sales
+            yesterday_best = load_best_available_daily_sales(store_id=store_id, start_date=yesterday.isoformat(), end_date=yesterday.isoformat())
+            if not yesterday_best.empty and 'total_sales' in yesterday_best.columns:
+                out["yesterday_sales"] = int(float(yesterday_best.iloc[0]['total_sales'] or 0))
             else:
-                # 어제 마감이 없으면 최근 마감 매출 조회
-                last_close = supabase.table("daily_close").select("total_sales, date").eq(
-                    "store_id", store_id
-                ).lt("date", today.isoformat()).order("date", desc=True).limit(1).execute()
-                if last_close.data and len(last_close.data) > 0:
-                    v = last_close.data[0].get("total_sales")
-                    if v is not None:
-                        out["yesterday_sales"] = int(float(v or 0))
+                # 어제 데이터가 없으면 최근 best_available 매출 조회
+                recent_best = load_best_available_daily_sales(store_id=store_id, start_date=(today - timedelta(days=7)).isoformat(), end_date=(today - timedelta(days=1)).isoformat())
+                if not recent_best.empty and 'total_sales' in recent_best.columns:
+                    # 최근 날짜의 매출 사용
+                    recent_best = recent_best.sort_values('date', ascending=False)
+                    out["yesterday_sales"] = int(float(recent_best.iloc[0]['total_sales'] or 0))
 
             # 유입당 매출 계산 (네이버 유입 기준)
             if monthly_sales and monthly_sales > 0:

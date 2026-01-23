@@ -4,7 +4,7 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header, handle_data_error
-from src.storage_supabase import load_csv, save_daily_close
+from src.storage_supabase import load_csv, save_daily_close, get_day_record_status
 from src.ui import render_manager_closing_input
 
 # 공통 설정 적용
@@ -39,33 +39,58 @@ def render_manager_close():
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
     
-    # 점장 마감 입력 폼
-    date, store, card_sales, cash_sales, total_sales, visitors, sales_items, issues, memo = render_manager_closing_input(menu_list)
-    
-    # STEP 1: 선택한 날짜에 이미 마감 기록이 있는지 확인
+    # query params 또는 session_state에서 날짜 가져오기
     from src.auth import get_current_store_id, get_supabase_client
+    from datetime import date as date_type
+    import urllib.parse
+    
+    # query params 확인
+    query_params = st.query_params
+    initial_date = None
+    if "date" in query_params:
+        try:
+            initial_date = date_type.fromisoformat(query_params["date"])
+        except:
+            pass
+    
+    # session_state에서 날짜 확인 (매출보정에서 승격 버튼 클릭 시)
+    if initial_date is None and "manager_close_date" in st.session_state:
+        initial_date = st.session_state["manager_close_date"]
+        del st.session_state["manager_close_date"]  # 사용 후 삭제
+    
+    # 점장 마감 입력 폼 (초기 날짜 전달)
+    date, store, card_sales, cash_sales, total_sales, visitors, sales_items, issues, memo = render_manager_closing_input(menu_list, initial_date=initial_date)
+    
+    # 날짜 상태 확인
     store_id = get_current_store_id()
+    status = None
     has_daily_close = False
     if store_id and date:
         try:
+            status = get_day_record_status(store_id, date)
+            has_daily_close = status["has_close"]
+            
+            # daily_close 없고 sales/naver_visitors 있으면 승격 안내
+            if not has_daily_close and (status["has_sales"] or status["has_visitors"]):
+                st.markdown("""
+                <div style="padding: 1.2rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                            border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.5rem; margin-right: 0.5rem;">📋</span>
+                        <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">임시 매출/네이버 방문자 승격</h3>
+                    </div>
+                    <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb; margin-top: 0.5rem;">
+                        임시 매출/네이버 방문자가 있습니다. 이 값을 공식 마감으로 확정합니다.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            elif has_daily_close:
+                st.info("ℹ️ **이미 마감된 날짜입니다.** 수정 시 기존 마감 기록이 갱신됩니다.")
+            
+            # 판매량 보정(overrides) 존재 여부 확인
             supabase = get_supabase_client()
             if supabase:
                 date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
-                
-                # daily_close 존재 여부 확인
-                daily_close_check = supabase.table("daily_close")\
-                    .select("id", count="exact")\
-                    .eq("store_id", store_id)\
-                    .eq("date", date_str)\
-                    .limit(1)\
-                    .execute()
-                
-                has_daily_close = daily_close_check.count and daily_close_check.count > 0
-                
-                if has_daily_close:
-                    st.info("ℹ️ **이미 마감된 날짜입니다.** 수정 시 기존 마감 기록이 갱신됩니다.")
-                
-                # 판매량 보정(overrides) 존재 여부 확인
                 overrides_check = supabase.table("daily_sales_items_overrides")\
                     .select("menu_id", count="exact")\
                     .eq("store_id", store_id)\
@@ -115,6 +140,21 @@ def render_manager_close():
                     
                     # 저장 성공 여부와 관계없이 풍선 애니메이션 및 마감 완료 메시지 표시
                     st.balloons()  # 항상 풍선 애니메이션 표시
+                    
+                    # 마감 완료 요약 카드
+                    st.markdown("---")
+                    st.markdown("### ✅ 마감 완료")
+                    
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        st.success(f"📅 **날짜**: {date}")
+                        st.success(f"💰 **총매출**: {total_sales:,}원")
+                        st.success(f"👥 **네이버 방문자**: {visitors}명")
+                    with col2:
+                        if st.button("🛠 매출보정으로 돌아가기", use_container_width=True, key="back_to_sales_entry"):
+                            st.session_state["current_page"] = "매출 보정"
+                            st.rerun()
+                    
                     st.info("💡 **마감 수정 방법**: 같은 날짜로 다시 마감을 입력하시면 기존 데이터가 자동으로 업데이트됩니다.")
                     
                     # 오늘 요약 카드 표시 (rerun 없이 현재 세션에서만 표시)
@@ -137,7 +177,7 @@ def render_manager_close():
                     with col2:
                         st.markdown(f"""
                         <div class="metric-card">
-                            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">방문자수</div>
+                            <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem;">네이버 방문자</div>
                             <div style="font-size: 1.8rem; font-weight: 700; color: #17a2b8;">{visitors}명</div>
                         </div>
                         """, unsafe_allow_html=True)

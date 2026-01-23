@@ -6,7 +6,7 @@ import pandas as pd
 import datetime as dt
 from datetime import timedelta
 import time
-from src.storage_supabase import load_csv, load_monthly_sales_total
+from src.storage_supabase import load_csv, load_monthly_sales_total, count_unofficial_days_in_month
 from src.utils.time_utils import today_kst
 from src.utils.boot_perf import record_compute_call
 from src.utils.cache_tokens import get_data_version
@@ -30,8 +30,19 @@ def compute_merged_sales_visitors(store_id: str, start_date: dt.date, end_date: 
     Returns:
         통합된 DataFrame
     """
-    # 내부에서 데이터 로드 (이미 cache_data된 로더 사용)
-    sales_df = load_csv('sales.csv', default_columns=['날짜', '매장', '총매출'])
+    # SSOT 정책: 통계/분석은 best_available 사용
+    from src.storage_supabase import load_best_available_daily_sales
+    import pandas as pd
+    
+    best_available_df = load_best_available_daily_sales(store_id=store_id)
+    if not best_available_df.empty:
+        sales_df = best_available_df.copy()
+        sales_df['날짜'] = pd.to_datetime(sales_df['date'])
+        sales_df['매장'] = ''
+        sales_df['총매출'] = sales_df['total_sales']
+    else:
+        sales_df = pd.DataFrame(columns=['날짜', '매장', '총매출'])
+    
     visitors_df = load_csv('naver_visitors.csv', default_columns=['날짜', '방문자수'])
     
     return merge_sales_visitors(sales_df, visitors_df)
@@ -273,9 +284,12 @@ def _compute_dashboard_metrics(ctx, raw_data):
         (merged_df['날짜'].dt.month == ctx['month'])
     ].copy() if not merged_df.empty else pd.DataFrame()
     
-    # 월매출: SSOT 함수 사용 (헌법 준수)
+    # 월매출: SSOT 함수 사용 (best_available 기반)
     month_total_sales = load_monthly_sales_total(ctx['store_id'], ctx['year'], ctx['month'])
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
+    
+    # 미마감 날짜 개수 확인
+    unofficial_days = count_unofficial_days_in_month(ctx['store_id'], ctx['year'], ctx['month'])
     
     # 월별 요약 (최근 6개월)
     today = today_kst()
@@ -338,4 +352,5 @@ def _compute_dashboard_metrics(ctx, raw_data):
         'month_total_visitors': month_total_visitors,
         'monthly_summary': monthly_summary,
         'menu_sales_summary': menu_sales_summary,
+        'unofficial_days': unofficial_days,  # 미마감 날짜 개수
     }

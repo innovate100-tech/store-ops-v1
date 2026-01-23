@@ -19,6 +19,7 @@ from src.storage_supabase import (
     load_actual_settlement_items,
     upsert_actual_settlement_item,
     load_monthly_sales_total,
+    count_unofficial_days_in_month,
     load_csv,
     load_expense_structure,
     get_month_settlement_status,
@@ -348,12 +349,40 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             else:
                 st.warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
     
+    # 미마감 날짜 개수 확인
+    unofficial_days = count_unofficial_days_in_month(store_id, selected_year, selected_month)
+    
     # KPI 카드
     expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
     total_sales = _get_total_sales(selected_year, selected_month)
     totals = _calculate_totals(expense_items, total_sales)
     
     st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
+    
+    # 미마감 배지 표시 (KPI 카드 위)
+    if unofficial_days > 0:
+        # 미마감 날짜 목록 조회 (최대 5일)
+        try:
+            from src.storage_supabase import load_best_available_daily_sales
+            start_date = f"{selected_year}-{selected_month:02d}-01"
+            if selected_month == 12:
+                end_date = f"{selected_year + 1}-01-01"
+            else:
+                end_date = f"{selected_year}-{selected_month + 1:02d}-01"
+            
+            best_df = load_best_available_daily_sales(store_id=store_id, start_date=start_date, end_date=end_date)
+            if not best_df.empty and 'is_official' in best_df.columns:
+                unofficial_dates = best_df[best_df['is_official'] == False]['date'].tolist()[:5]
+                dates_str = ", ".join([str(d) for d in unofficial_dates[:5]])
+                if len(unofficial_dates) > 5:
+                    dates_str += f" 외 {len(unofficial_dates) - 5}일"
+                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다. ({dates_str})")
+            else:
+                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
+        except Exception:
+            st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
+    
+    st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("총매출", f"{total_sales:,.0f}원")

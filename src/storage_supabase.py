@@ -391,7 +391,8 @@ def soft_invalidate(reason: str, targets: List[str], session_keys: List[str] = N
         # 2. read 캐시 부분 clear (targets 기반)
         # targets 매핑: 어떤 데이터 타입이 어떤 로더에 영향을 주는지
         cache_mapping = {
-            "sales": ["load_csv"],  # sales.csv
+            "sales": ["load_csv", "load_monthly_sales_total", "load_best_available_daily_sales", "load_official_daily_sales"],  # sales.csv + SSOT views
+            "daily_close": ["load_csv", "load_monthly_sales_total", "load_best_available_daily_sales", "load_official_daily_sales", "load_monthly_official_sales_total"],  # daily_close + SSOT views
             "visitors": ["load_csv"],  # naver_visitors.csv
             "menus": ["load_csv"],  # menu_master.csv
             "recipes": ["load_csv"],  # recipes.csv
@@ -412,6 +413,27 @@ def soft_invalidate(reason: str, targets: List[str], session_keys: List[str] = N
             load_expense_structure.clear()
         if "load_key_menus" in loaders_to_clear or "menus" in targets:
             load_key_menus.clear()
+        # SSOT 함수 캐시 무효화
+        if "load_monthly_sales_total" in loaders_to_clear:
+            try:
+                load_monthly_sales_total.clear()
+            except Exception:
+                pass
+        if "load_best_available_daily_sales" in loaders_to_clear:
+            try:
+                load_best_available_daily_sales.clear()
+            except Exception:
+                pass
+        if "load_official_daily_sales" in loaders_to_clear:
+            try:
+                load_official_daily_sales.clear()
+            except Exception:
+                pass
+        if "load_monthly_official_sales_total" in loaders_to_clear:
+            try:
+                load_monthly_official_sales_total.clear()
+            except Exception:
+                pass
         
         # 3. 세션 캐시 부분 clear
         if session_keys is None:
@@ -1224,7 +1246,7 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
 
 
 def save_visitor(date, visitors):
-    """방문자 데이터 저장"""
+    """네이버 방문자 데이터 저장"""
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
         return False
@@ -1253,6 +1275,115 @@ def save_visitor(date, visitors):
         return True
     except Exception as e:
         logger.error(f"Failed to save visitor: {e}")
+        raise
+
+
+def save_sales_entry(date, store_name, card_sales, cash_sales, total_sales, visitors=None):
+    """
+    매출보정 저장 (통합 함수)
+    
+    SSOT 정책:
+    - 항상 sales / naver_visitors upsert
+    - has_close=true인 경우 daily_close도 동기화 (매출 + 네이버 방문자)
+    - memo / sales_items는 절대 수정하지 않음
+    
+    Args:
+        date: 날짜
+        store_name: 매장명
+        card_sales: 카드 매출
+        cash_sales: 현금 매출
+        total_sales: 총 매출
+        visitors: 네이버 방문자 수 (선택)
+    
+    Returns:
+        dict: {
+            success: bool,
+            synced_to_close: bool,
+            has_close: bool,
+            message: str
+        }
+    """
+    supabase = _check_supabase_for_dev_mode()
+    if not supabase:
+        return {
+            "success": False,
+            "synced_to_close": False,
+            "has_close": False,
+            "message": "데이터베이스 연결 실패"
+        }
+    
+    store_id = get_current_store_id()
+    if not store_id:
+        raise Exception("No store_id found")
+    
+    try:
+        date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+        
+        # 1. 날짜 상태 확인
+        status = get_day_record_status(store_id, date_str)
+        has_close = status["has_close"]
+        
+        # 2. sales upsert
+        supabase.table("sales").upsert({
+            "store_id": store_id,
+            "date": date_str,
+            "card_sales": float(card_sales),
+            "cash_sales": float(cash_sales),
+            "total_sales": float(total_sales)
+        }, on_conflict="store_id,date").execute()
+        
+        # 3. naver_visitors upsert (visitors가 제공된 경우)
+        if visitors is not None:
+            supabase.table("naver_visitors").upsert({
+                "store_id": store_id,
+                "date": date_str,
+                "visitors": int(visitors)
+            }, on_conflict="store_id,date").execute()
+        
+        # 4. has_close=true인 경우 daily_close 동기화
+        synced_to_close = False
+        if has_close:
+            # daily_close의 매출과 네이버 방문자만 업데이트
+            # memo, sales_items는 절대 수정하지 않음
+            update_data = {
+                "card_sales": float(card_sales),
+                "cash_sales": float(cash_sales),
+                "total_sales": float(total_sales)
+            }
+            if visitors is not None:
+                update_data["visitors"] = int(visitors)
+            
+            supabase.table("daily_close")\
+                .update(update_data)\
+                .eq("store_id", store_id)\
+                .eq("date", date_str)\
+                .execute()
+            
+            synced_to_close = True
+            logger.info(f"Daily close synced: {date_str}")
+        
+        # 5. 캐시 무효화
+        soft_invalidate(
+            reason=f"save_sales_entry: {date_str}",
+            targets=["sales", "visitors", "daily_close"] if has_close else ["sales", "visitors"]
+        )
+        
+        # 메시지 구성
+        if synced_to_close:
+            message = "공식 마감 매출이 함께 수정되었습니다."
+        else:
+            message = "임시 매출/네이버 방문자가 저장되었습니다."
+        
+        logger.info(f"Sales entry saved: {date_str}, synced_to_close={synced_to_close}")
+        
+        return {
+            "success": True,
+            "synced_to_close": synced_to_close,
+            "has_close": has_close,
+            "message": message
+        }
+    except Exception as e:
+        logger.error(f"Failed to save sales entry: {e}")
         raise
 
 
@@ -2107,13 +2238,11 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
         
         logger.info(f"Daily close saved (transactional): {date_str}")
         
-        # 캐시 클리어 (데이터 변경 후)
-        try:
-            load_csv.clear()
-            # Phase G: load_monthly_sales_total 캐시도 무효화 (마감 저장 시 월합계도 갱신 필요)
-            load_monthly_sales_total.clear()
-        except Exception:
-            pass
+        # 캐시 무효화 (SSOT 정책: daily_close 변경 시 best_available/official 모두 무효화)
+        soft_invalidate(
+            reason=f"save_daily_close: {date_str}",
+            targets=["daily_close"]  # daily_close 변경 시 관련 모든 캐시 무효화
+        )
         
         # ========== 재고 자동 차감 기능 ==========
         # 공식 엔진 함수 사용 (헌법 준수)
@@ -3485,6 +3614,121 @@ def load_official_daily_sales(store_id: str = None, start_date: str = None, end_
         return pd.DataFrame()
 
 
+def get_day_record_status(store_id: str, date) -> dict:
+    """
+    특정 날짜의 기록 상태 조회 (최소 쿼리)
+    
+    SSOT 정책:
+    - daily_close 존재 여부 (has_close)
+    - sales 존재 여부 (has_sales)
+    - naver_visitors 존재 여부 (has_visitors)
+    - best_available / official 뷰에서 매출/방문자 조회
+    
+    Args:
+        store_id: 매장 ID
+        date: 날짜 (datetime.date 또는 str)
+    
+    Returns:
+        dict: {
+            has_close: bool,
+            has_sales: bool,
+            has_visitors: bool,
+            best_total_sales: float | None,
+            official_total_sales: float | None,
+            visitors_best: int | None,
+            visitors_official: int | None
+        }
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            return {
+                "has_close": False,
+                "has_sales": False,
+                "has_visitors": False,
+                "best_total_sales": None,
+                "official_total_sales": None,
+                "visitors_best": None,
+                "visitors_official": None
+            }
+        
+        date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+        
+        # 1. daily_close 존재 여부 및 값
+        daily_close_result = supabase.table("daily_close")\
+            .select("total_sales, visitors")\
+            .eq("store_id", store_id)\
+            .eq("date", date_str)\
+            .limit(1)\
+            .execute()
+        
+        has_close = daily_close_result.data and len(daily_close_result.data) > 0
+        official_total_sales = None
+        visitors_official = None
+        if has_close:
+            official_total_sales = float(daily_close_result.data[0].get('total_sales', 0) or 0)
+            visitors_official = int(daily_close_result.data[0].get('visitors', 0) or 0)
+        
+        # 2. sales 존재 여부
+        sales_result = supabase.table("sales")\
+            .select("total_sales")\
+            .eq("store_id", store_id)\
+            .eq("date", date_str)\
+            .limit(1)\
+            .execute()
+        
+        has_sales = sales_result.data and len(sales_result.data) > 0
+        
+        # 3. naver_visitors 존재 여부
+        visitors_result = supabase.table("naver_visitors")\
+            .select("visitors")\
+            .eq("store_id", store_id)\
+            .eq("date", date_str)\
+            .limit(1)\
+            .execute()
+        
+        has_visitors = visitors_result.data and len(visitors_result.data) > 0
+        visitors_best = None
+        if has_visitors:
+            visitors_best = int(visitors_result.data[0].get('visitors', 0) or 0)
+        
+        # 4. best_available 뷰에서 매출 조회 (daily_close 우선, 없으면 sales)
+        best_result = supabase.table("v_daily_sales_best_available")\
+            .select("total_sales, visitors")\
+            .eq("store_id", store_id)\
+            .eq("date", date_str)\
+            .limit(1)\
+            .execute()
+        
+        best_total_sales = None
+        if best_result.data and len(best_result.data) > 0:
+            best_total_sales = float(best_result.data[0].get('total_sales', 0) or 0)
+            # best_available의 visitors는 daily_close 우선, 없으면 naver_visitors
+            if 'visitors' in best_result.data[0] and best_result.data[0]['visitors'] is not None:
+                visitors_best = int(best_result.data[0]['visitors'] or 0)
+        
+        return {
+            "has_close": has_close,
+            "has_sales": has_sales,
+            "has_visitors": has_visitors,
+            "best_total_sales": best_total_sales,
+            "official_total_sales": official_total_sales,
+            "visitors_best": visitors_best,
+            "visitors_official": visitors_official
+        }
+    except Exception as e:
+        logger.error(f"Failed to get day record status: {e}")
+        return {
+            "has_close": False,
+            "has_sales": False,
+            "has_visitors": False,
+            "best_total_sales": None,
+            "official_total_sales": None,
+            "visitors_best": None,
+            "visitors_official": None
+        }
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def load_best_available_daily_sales(store_id: str = None, start_date: str = None, end_date: str = None):
     """
@@ -3533,9 +3777,73 @@ def load_best_available_daily_sales(store_id: str = None, start_date: str = None
 
 
 @st.cache_data(ttl=60, show_spinner=False)  # 1분 캐시 (월이 바뀌거나 입력 즉시 반영)
+def load_monthly_official_sales_total(store_id: str, year: int, month: int) -> int:
+    """
+    공식 월매출 합계 조회 (official 전용: daily_close만)
+    
+    SSOT 정책:
+    - 마감률/연속마감/공식 확정 지표에만 사용
+    - 마감 없는 날은 제외
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        int: 공식 월매출 합계 (원 단위, daily_close만)
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            logger.warning("Supabase client not available")
+            return 0
+        
+        # KST 기준 월 시작/끝 계산
+        KST = ZoneInfo("Asia/Seoul")
+        start_kst = datetime(year, month, 1, 0, 0, 0, tzinfo=KST)
+        
+        # 다음달 1일 0시 (미포함)
+        if month == 12:
+            end_kst = datetime(year + 1, 1, 1, 0, 0, 0, tzinfo=KST)
+        else:
+            end_kst = datetime(year, month + 1, 1, 0, 0, 0, tzinfo=KST)
+        
+        # DATE 타입이므로 문자열로 변환 (YYYY-MM-DD)
+        start_date_str = start_kst.date().isoformat()
+        end_date_str = end_kst.date().isoformat()
+        
+        # v_daily_sales_official 뷰 조회: store_id + 날짜 범위 필터
+        # date >= start_date AND date < end_date
+        result = supabase.table("v_daily_sales_official")\
+            .select("total_sales")\
+            .eq("store_id", store_id)\
+            .gte("date", start_date_str)\
+            .lt("date", end_date_str)\
+            .execute()
+        
+        # 합산 (total_sales 컬럼 사용)
+        if result.data:
+            total = sum(float(row.get('total_sales', 0) or 0) for row in result.data)
+            row_count = len(result.data)
+            logger.info(f"Monthly official sales total loaded: {year}-{month}, {row_count} rows, total={total:,.0f}원")
+            return int(total)
+        else:
+            logger.info(f"Monthly official sales total loaded: {year}-{month}, 0 rows, total=0원")
+            return 0
+    except Exception as e:
+        logger.error(f"Failed to load monthly official sales total: {e}")
+        return 0
+
+
+@st.cache_data(ttl=60, show_spinner=False)  # 1분 캐시 (월이 바뀌거나 입력 즉시 반영)
 def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
     """
-    sales 테이블에서 월매출 합계 조회 (KST 기준)
+    월매출 합계 조회 (best_available 기반: daily_close 우선, 없으면 sales)
+    
+    SSOT 정책:
+    - 통계/분석/KPI는 best_available 사용 (마감 없는 날도 포함)
+    - is_official=false인 날짜는 미마감 데이터로 표시
     
     Args:
         store_id: 매장 ID
@@ -3565,10 +3873,10 @@ def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
         start_date_str = start_kst.date().isoformat()
         end_date_str = end_kst.date().isoformat()
         
-        # sales 테이블 조회: store_id + 날짜 범위 필터
+        # v_daily_sales_best_available 뷰 조회: store_id + 날짜 범위 필터
         # date >= start_date AND date < end_date
-        result = supabase.table("sales")\
-            .select("total_sales")\
+        result = supabase.table("v_daily_sales_best_available")\
+            .select("total_sales, is_official")\
             .eq("store_id", store_id)\
             .gte("date", start_date_str)\
             .lt("date", end_date_str)\
@@ -3578,13 +3886,61 @@ def load_monthly_sales_total(store_id: str, year: int, month: int) -> int:
         if result.data:
             total = sum(float(row.get('total_sales', 0) or 0) for row in result.data)
             row_count = len(result.data)
-            logger.info(f"Monthly sales total loaded: {year}-{month}, {row_count} rows, total={total:,.0f}원")
+            # 미마감 날짜 개수 계산 (is_official=false)
+            unofficial_count = sum(1 for row in result.data if not row.get('is_official', True))
+            logger.info(f"Monthly sales total loaded (best_available): {year}-{month}, {row_count} rows, total={total:,.0f}원, unofficial={unofficial_count} days")
             return int(total)
         else:
-            logger.info(f"Monthly sales total loaded: {year}-{month}, 0 rows, total=0원")
+            logger.info(f"Monthly sales total loaded (best_available): {year}-{month}, 0 rows, total=0원")
             return 0
     except Exception as e:
         logger.error(f"Failed to load monthly sales total: {e}")
+        return 0
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def count_unofficial_days_in_month(store_id: str, year: int, month: int) -> int:
+    """
+    해당 월의 미마감 날짜 개수 조회 (is_official=false)
+    
+    Args:
+        store_id: 매장 ID
+        year: 연도
+        month: 월
+    
+    Returns:
+        int: 미마감 날짜 개수
+    """
+    try:
+        supabase = get_read_client()
+        if not supabase:
+            return 0
+        
+        # KST 기준 월 시작/끝 계산
+        KST = ZoneInfo("Asia/Seoul")
+        start_kst = datetime(year, month, 1, 0, 0, 0, tzinfo=KST)
+        if month == 12:
+            end_kst = datetime(year + 1, 1, 1, 0, 0, 0, tzinfo=KST)
+        else:
+            end_kst = datetime(year, month + 1, 1, 0, 0, 0, tzinfo=KST)
+        
+        start_date_str = start_kst.date().isoformat()
+        end_date_str = end_kst.date().isoformat()
+        
+        # v_daily_sales_best_available에서 is_official=false인 날짜 개수
+        result = supabase.table("v_daily_sales_best_available")\
+            .select("date, is_official")\
+            .eq("store_id", store_id)\
+            .gte("date", start_date_str)\
+            .lt("date", end_date_str)\
+            .execute()
+        
+        if result.data:
+            unofficial_count = sum(1 for row in result.data if not row.get('is_official', True))
+            return unofficial_count
+        return 0
+    except Exception as e:
+        logger.error(f"Failed to count unofficial days: {e}")
         return 0
 
 

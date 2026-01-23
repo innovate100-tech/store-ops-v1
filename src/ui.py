@@ -144,9 +144,9 @@ def render_sales_batch_input():
 
 
 def render_visitor_batch_input():
-    """방문자 일괄 입력 폼 렌더링 (여러 날짜)"""
-    st.subheader("👥 방문자 일괄 입력")
-    st.info("💡 여러 날짜의 방문자수를 한 번에 입력할 수 있습니다. 시작일부터 종료일까지 날짜별로 입력하세요.")
+    """네이버 방문자 일괄 입력 폼 렌더링 (여러 날짜)"""
+    st.subheader("👥 네이버 방문자 일괄 입력")
+    st.info("💡 여러 날짜의 네이버 방문자수를 한 번에 입력할 수 있습니다. 시작일부터 종료일까지 날짜별로 입력하세요.")
     
     from datetime import timedelta
     
@@ -178,9 +178,9 @@ def render_visitor_batch_input():
         current_date += timedelta(days=1)
     
     st.markdown("---")
-    st.write(f"**📅 총 {len(date_list)}일의 방문자수 입력**")
+    st.write(f"**📅 총 {len(date_list)}일의 네이버 방문자수 입력**")
     
-    # 각 날짜별 방문자수 입력
+    # 각 날짜별 네이버 방문자수 입력
     visitor_data = []
     for i, date in enumerate(date_list):
         col1, col2 = st.columns([2, 3])
@@ -188,7 +188,7 @@ def render_visitor_batch_input():
             st.write(f"**{date.strftime('%Y-%m-%d (%a)')}**")
         with col2:
             visitors = st.number_input(
-                f"방문자수 (명)",
+                f"네이버 방문자수 (명)",
                 min_value=0,
                 value=0,
                 step=1,
@@ -652,8 +652,8 @@ def render_daily_closing_input(menu_list):
     
     st.markdown("---")
     
-    # 방문자 입력
-    st.write("**👥 방문자 정보**")
+    # 네이버 방문자 입력
+    st.write("**👥 네이버 방문자 정보**")
     visitors = st.number_input(
         "네이버 스마트플레이스 방문자수",
         min_value=0,
@@ -991,12 +991,13 @@ def render_abc_analysis(abc_df, cost_df, a_threshold=70, b_threshold=20, c_thres
         st.info("💡 C등급 메뉴 중 작업복잡도가 높은 메뉴는 수동으로 검토해주세요.")
 
 
-def render_manager_closing_input(menu_list):
+def render_manager_closing_input(menu_list, initial_date=None):
     """
     점장용 마감 입력 폼 렌더링 (간단한 위에서 아래 흐름 구조)
     
     Args:
         menu_list: 전체 메뉴 목록
+        initial_date: 초기 날짜 (query params 또는 session_state에서 전달)
     
     Returns:
         tuple: (date, store, card_sales, cash_sales, total_sales, visitors, 
@@ -1006,9 +1007,84 @@ def render_manager_closing_input(menu_list):
     st.markdown("### 1️⃣ 오늘 마감")
     col1, col2 = st.columns(2)
     with col1:
-        date = st.date_input("📅 날짜", value=today_kst(), key="manager_date")
+        # 초기 날짜가 있으면 사용, 없으면 오늘
+        default_date = initial_date if initial_date else today_kst()
+        date = st.date_input("📅 날짜", value=default_date, key="manager_date")
     with col2:
         store = st.text_input("🏪 매장", value="Plate&Share", key="manager_store")
+    
+    # 날짜 선택 시 기존 데이터 프리필 (daily_close 또는 sales/naver_visitors)
+    from src.auth import get_current_store_id
+    from src.storage_supabase import get_day_record_status, get_read_client
+    
+    store_id = get_current_store_id()
+    prefilled_sales = False
+    prefilled_visitors = False
+    
+    if store_id and date:
+        try:
+            status = get_day_record_status(store_id, date)
+            
+            # daily_close가 있으면 프리필
+            if status["has_close"]:
+                supabase = get_read_client()
+                if supabase:
+                    date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                    daily_close_data = supabase.table("daily_close")\
+                        .select("card_sales, cash_sales, total_sales, visitors")\
+                        .eq("store_id", store_id)\
+                        .eq("date", date_str)\
+                        .limit(1)\
+                        .execute()
+                    
+                    if daily_close_data.data and len(daily_close_data.data) > 0:
+                        data = daily_close_data.data[0]
+                        # 프리필은 session_state에 저장하고, render에서 읽어서 사용
+                        if "manager_prefill_card" not in st.session_state:
+                            st.session_state["manager_prefill_card"] = float(data.get("card_sales", 0) or 0)
+                            st.session_state["manager_prefill_cash"] = float(data.get("cash_sales", 0) or 0)
+                            st.session_state["manager_prefill_visitors"] = int(data.get("visitors", 0) or 0)
+                            prefilled_sales = True
+                            prefilled_visitors = True
+            
+            # daily_close 없고 sales/naver_visitors 있으면 프리필 (승격)
+            elif status["has_sales"] or status["has_visitors"]:
+                supabase = get_read_client()
+                if supabase:
+                    date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
+                    
+                    # sales 프리필
+                    if status["has_sales"]:
+                        sales_data = supabase.table("sales")\
+                            .select("card_sales, cash_sales, total_sales")\
+                            .eq("store_id", store_id)\
+                            .eq("date", date_str)\
+                            .limit(1)\
+                            .execute()
+                        
+                        if sales_data.data and len(sales_data.data) > 0:
+                            data = sales_data.data[0]
+                            if "manager_prefill_card" not in st.session_state:
+                                st.session_state["manager_prefill_card"] = float(data.get("card_sales", 0) or 0)
+                                st.session_state["manager_prefill_cash"] = float(data.get("cash_sales", 0) or 0)
+                                prefilled_sales = True
+                    
+                    # naver_visitors 프리필
+                    if status["has_visitors"]:
+                        visitors_data = supabase.table("naver_visitors")\
+                            .select("visitors")\
+                            .eq("store_id", store_id)\
+                            .eq("date", date_str)\
+                            .limit(1)\
+                            .execute()
+                        
+                        if visitors_data.data and len(visitors_data.data) > 0:
+                            data = visitors_data.data[0]
+                            if "manager_prefill_visitors" not in st.session_state:
+                                st.session_state["manager_prefill_visitors"] = int(data.get("visitors", 0) or 0)
+                                prefilled_visitors = True
+        except Exception:
+            pass
     
     st.markdown("---")
     
@@ -1026,18 +1102,26 @@ def render_manager_closing_input(menu_list):
     
     col1, col2, col3 = st.columns(3)
     with col1:
+        # 프리필 값이 있으면 사용
+        card_default = st.session_state.get("manager_prefill_card", 0)
+        if "manager_prefill_card" in st.session_state:
+            del st.session_state["manager_prefill_card"]  # 사용 후 삭제
         card_sales = st.number_input(
             "💳 카드매출 (원)",
             min_value=0,
-            value=0,
+            value=int(card_default),
             step=10000,
             key="manager_card_sales"
         )
     with col2:
+        # 프리필 값이 있으면 사용
+        cash_default = st.session_state.get("manager_prefill_cash", 0)
+        if "manager_prefill_cash" in st.session_state:
+            del st.session_state["manager_prefill_cash"]  # 사용 후 삭제
         cash_sales = st.number_input(
             "💵 현금매출 (원)",
             min_value=0,
-            value=0,
+            value=int(cash_default),
             step=10000,
             key="manager_cash_sales"
         )
@@ -1055,10 +1139,14 @@ def render_manager_closing_input(menu_list):
     
     # 3) 네이버 스마트플레이스 방문자
     st.markdown("### 3️⃣ 네이버 스마트플레이스 방문자")
+    # 프리필 값이 있으면 사용
+    visitors_default = st.session_state.get("manager_prefill_visitors", 0)
+    if "manager_prefill_visitors" in st.session_state:
+        del st.session_state["manager_prefill_visitors"]  # 사용 후 삭제
     visitors = st.number_input(
         "👥 네이버 스마트플레이스 방문자 수",
         min_value=0,
-        value=0,
+        value=int(visitors_default),
         step=1,
         key="manager_visitors"
     )
