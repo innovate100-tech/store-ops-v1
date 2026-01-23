@@ -615,6 +615,10 @@ def get_onboarding_mode(user_id: str = None) -> str:
         
         mode = profile_result.data[0].get('onboarding_mode')
         
+        # NULL이면 None 반환 (온보딩 필요)
+        if mode is None:
+            return None
+        
         # 값 검증 (coach 또는 fast만 허용)
         if mode in ['coach', 'fast']:
             return mode
@@ -679,10 +683,13 @@ def needs_onboarding(user_id: str = None) -> bool:
                 return False
         
         if not user_id:
+            logger.debug("needs_onboarding: user_id가 없음")
             return False
         
         mode = get_onboarding_mode(user_id)
-        return mode is None
+        needs = mode is None
+        logger.info(f"needs_onboarding: user_id={user_id}, mode={mode}, needs={needs}")
+        return needs
     
     except Exception as e:
         logger.error(f"Failed to check onboarding status: {e}")
