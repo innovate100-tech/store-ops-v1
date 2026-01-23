@@ -90,6 +90,10 @@ def render_health_check_page():
         if latest_open:
             session_id = latest_open['id']
             st.session_state['health_session_id'] = session_id
+            # 기존 답변 상태 초기화 (이어하기 시에도 새로 로드)
+            for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.info(f"📝 진행 중인 검진이 있습니다. 이어서 진행하세요. (시작: {latest_open['started_at'][:10]})")
     
     # 탭: 입력 / 결과 / 이력
@@ -159,6 +163,21 @@ def render_start_screen(store_id: str):
         if st.button("🩺 새 검진 시작", type="primary", use_container_width=True):
             session_id, error_msg = create_health_session(store_id, check_type='monthly')
             if session_id:
+                # 기존 답변 상태 완전 초기화 (새 검진 시작)
+                for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                # 기존 키들도 정리
+                keys_to_remove = []
+                for key in st.session_state.keys():
+                    if (key.startswith("answer_") or 
+                        key.startswith("q_") or 
+                        key.startswith("health_check_answer_count_")):
+                        keys_to_remove.append(key)
+                for key in keys_to_remove:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                
                 st.session_state['health_session_id'] = session_id
                 st.session_state['health_check_view_mode'] = 'input'
                 st.success("검진이 시작되었습니다!")
@@ -424,8 +443,8 @@ def render_category_questions(store_id: str, session_id: str, category: str):
                     index = i
                     break
         
-        # index가 None이면 기본값 0 사용 (첫 번째 옵션)
-        radio_index = index if (index is not None and 0 <= index < len(options)) else 0
+        # index가 None이면 None으로 유지 (선택 안 함 상태)
+        radio_index = index if (index is not None and 0 <= index < len(options)) else None
         
         # 1행 레이아웃: 질문 텍스트(왼쪽) + 라디오 버튼(오른쪽)
         col1, col2 = st.columns([3, 1])
@@ -435,10 +454,14 @@ def render_category_questions(store_id: str, session_id: str, category: str):
         
         with col2:
             try:
+                # index가 None이면 기본값 0 사용 (첫 번째 옵션 선택)
+                # 하지만 사용자가 선택하지 않은 상태를 구분하기 위해 index=None을 허용하지 않음
+                final_index = radio_index if radio_index is not None else 0
+                
                 selected = st.radio(
                     "",  # 라벨 없음 (col1에 질문 표시)
                     options=options,
-                    index=radio_index,
+                    index=final_index,
                     key=f"hc_{session_id}_{category}_{question_code}",
                     horizontal=True,
                     label_visibility="collapsed"
