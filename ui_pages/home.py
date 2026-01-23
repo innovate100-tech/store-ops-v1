@@ -2188,10 +2188,8 @@ def render_fast_home():
     # 데이터 단계 판별
     data_level = detect_data_level(store_id)
     
-    # DAY 0 전용 홈 화면 표시
-    if data_level == 0:
-        render_day0_home()
-        return
+    # DAY 0일 때도 Fast Mode 홈 화면 표시 (미션 포함)
+    # render_day0_home() 대신 간소화된 Fast Home 표시
     
     # Fast Mode 홈 화면 렌더링
     render_page_header("사장 계기판", "🏠")
@@ -2225,13 +2223,37 @@ def render_fast_home():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        # 오늘 매출 (간단히 표시)
-        st.markdown("""
-        <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
-            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">오늘 매출</div>
-            <div style="font-size: 1.3rem; font-weight: 700;">-</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # 오늘 매출 (실제 데이터 조회)
+        today_sales = 0
+        try:
+            today = now_kst.date()
+            supabase = get_supabase_client()
+            today_close = supabase.table("daily_close")\
+                .select("total_sales")\
+                .eq("store_id", store_id)\
+                .eq("date", today.isoformat())\
+                .limit(1)\
+                .execute()
+            
+            if today_close.data and today_close.data[0].get('total_sales'):
+                today_sales = int(float(today_close.data[0].get('total_sales', 0) or 0))
+        except Exception:
+            pass
+        
+        if today_sales > 0:
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">오늘 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{today_sales:,}원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">오늘 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     with col2:
         # 이번 달 매출
@@ -2251,12 +2273,38 @@ def render_fast_home():
             """, unsafe_allow_html=True)
     
     with col3:
-        # 객단가
-        if data_level >= 2:
-            st.markdown("""
+        # 객단가 (실제 데이터 계산)
+        avg_customer_spend = None
+        try:
+            if data_level >= 2:
+                # 이번 달 매출과 방문자로 객단가 계산
+                supabase = get_supabase_client()
+                monthly_visitors = supabase.table("daily_close")\
+                    .select("visitors")\
+                    .eq("store_id", store_id)\
+                    .gte("date", f"{current_year}-{current_month:02d}-01")\
+                    .lt("date", f"{current_year}-{current_month+1:02d}-01" if current_month < 12 else f"{current_year+1}-01-01")\
+                    .execute()
+                
+                if monthly_visitors.data:
+                    total_visitors = sum(int(row.get('visitors', 0) or 0) for row in monthly_visitors.data)
+                    if total_visitors > 0 and monthly_sales > 0:
+                        avg_customer_spend = int(monthly_sales / total_visitors)
+        except Exception:
+            pass
+        
+        if avg_customer_spend and avg_customer_spend > 0:
+            st.markdown(f"""
             <div style="padding: 1.2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
                 <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">객단가</div>
-                <div style="font-size: 1.3rem; font-weight: 700;">계산 예정</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{avg_customer_spend:,}원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif data_level >= 2:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">객단가</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -2307,6 +2355,61 @@ def render_fast_home():
             st.rerun()
     
     render_section_divider()
+    
+    # ========== 섹션 2.5: 시작 미션 3개 (신규 회원용, data_level == 0일 때만) ==========
+    if data_level == 0:
+        try:
+            with st.container():
+                st.markdown("### 🚀 시작 미션 3개")
+                
+                # 미션 진행률 조회
+                menu_count = get_menu_count(store_id)
+                close_count = get_close_count(store_id)
+                has_settlement = check_actual_settlement_exists(store_id, current_year, current_month)
+                
+                # 미션 완료 여부 계산
+                mission1_complete = menu_count >= 3
+                mission2_complete = close_count >= 3
+                mission3_complete = has_settlement
+                
+                # 진행률 계산
+                completed_count = sum([mission1_complete, mission2_complete, mission3_complete])
+                progress_percentage = (completed_count / 3.0) * 100
+                
+                # 진행률 바 표시
+                st.progress(progress_percentage / 100.0)
+                st.caption(f"온보딩 진행률 {int(progress_percentage)}%")
+                
+                # 미션 3개 간단히 표시
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    status = "✅" if mission1_complete else f"⬜ ({menu_count}/3)"
+                    st.markdown(f"**미션 1: 메뉴 3개**\n\n{status}")
+                    if not mission1_complete:
+                        if st.button("메뉴 등록", key="fast_mission1", use_container_width=True):
+                            st.session_state.current_page = "메뉴 등록"
+                            st.rerun()
+                
+                with col2:
+                    status = "✅" if mission2_complete else f"⬜ ({close_count}/3)"
+                    st.markdown(f"**미션 2: 마감 3회**\n\n{status}")
+                    if not mission2_complete:
+                        if st.button("점장 마감", key="fast_mission2", use_container_width=True):
+                            st.session_state.current_page = "점장 마감"
+                            st.rerun()
+                
+                with col3:
+                    status = "✅" if mission3_complete else "⬜"
+                    st.markdown(f"**미션 3: 성적표 1회**\n\n{status}")
+                    if not mission3_complete:
+                        if st.button("실제정산", key="fast_mission3", use_container_width=True):
+                            st.session_state.current_page = "실제정산"
+                            st.rerun()
+                
+                render_section_divider()
+        except Exception:
+            pass
     
     # ========== 섹션 3: 오늘 할 일 1줄 ==========
     st.markdown("### ✅ 오늘 할 일")
@@ -2365,12 +2468,32 @@ def render_fast_home():
     # ========== 섹션 4: 이번 달 이익 (가능하면) ==========
     if data_level >= 3:
         st.markdown("### 💵 이번 달 이익")
-        st.markdown("""
-        <div style="padding: 1.2rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
-            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">이번 달 이익</div>
-            <div style="font-size: 1.3rem; font-weight: 700;">계산 예정</div>
-        </div>
-        """, unsafe_allow_html=True)
+        
+        # 실제 이익 계산
+        monthly_profit = None
+        try:
+            from src.storage_supabase import load_monthly_settlement_snapshot
+            snapshot = load_monthly_settlement_snapshot(store_id, current_year, current_month)
+            if snapshot and snapshot.get('operating_profit') is not None:
+                monthly_profit = int(snapshot.get('operating_profit', 0))
+        except Exception:
+            pass
+        
+        if monthly_profit is not None:
+            profit_color = "#43e97b" if monthly_profit >= 0 else "#f5576c"
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, {profit_color} 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">이번 달 이익</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{monthly_profit:,}원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">이번 달 이익</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def render_home():
