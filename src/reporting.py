@@ -26,21 +26,148 @@ plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
 
 
+def find_windows_korean_fonts():
+    """
+    Windows에서 사용 가능한 한글 폰트 파일 찾기
+    
+    Returns:
+        list: 찾은 폰트 파일 경로 리스트
+    """
+    fonts_found = []
+    
+    try:
+        if platform.system() == "Windows":
+            fonts_dir = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts')
+            
+            if not os.path.exists(fonts_dir):
+                return fonts_found
+            
+            # 폰트 디렉토리에서 한글 폰트 파일 검색
+            korean_font_patterns = [
+                'malgun', 'gulim', 'batang', 'gungsuh', 'dotum',
+                'NanumGothic', 'NanumBarunGothic', 'NotoSansKR'
+            ]
+            
+            # 디렉토리 내 모든 파일 검색
+            try:
+                for filename in os.listdir(fonts_dir):
+                    filename_lower = filename.lower()
+                    # 한글 폰트 패턴과 일치하는 파일 찾기
+                    for pattern in korean_font_patterns:
+                        if pattern.lower() in filename_lower and (
+                            filename_lower.endswith('.ttf') or 
+                            filename_lower.endswith('.ttc')
+                        ):
+                            font_path = os.path.join(fonts_dir, filename)
+                            if os.path.exists(font_path):
+                                fonts_found.append(font_path)
+                                break
+            except Exception as e:
+                logger.warning(f"Failed to list fonts directory: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to find Windows fonts: {e}")
+    
+    return fonts_found
+
+
 def register_korean_font():
     """
     한글 폰트 등록 시도
     
     우선순위:
-    1. 프로젝트 assets/fonts/ 폴더의 폰트 파일
-    2. Windows 기본 폰트
-    3. Fallback: Helvetica (한글 최소화 모드)
+    1. Windows 기본 폰트 (가장 확실한 방법)
+    2. 프로젝트 assets/fonts/ 폴더의 폰트 파일
+    3. Fallback: Helvetica (한글 미지원, 경고 표시)
     
     Returns:
-        str: 등록된 폰트 이름 (KoreanFont 또는 Helvetica)
+        tuple: (font_name: str, success: bool, message: str)
     """
-    font_name = "Helvetica"  # 기본값
+    font_name = "Helvetica"
+    success = False
+    message = "한글 폰트를 찾을 수 없습니다."
     
-    # 우선순위 1: 프로젝트 assets/fonts/ 폴더
+    # 우선순위 1: Windows 기본 폰트 (가장 확실)
+    try:
+        if platform.system() == "Windows":
+            # 실제 존재하는 폰트 파일 찾기
+            found_fonts = find_windows_korean_fonts()
+            
+            # 맑은 고딕 우선 정렬
+            found_fonts.sort(key=lambda x: 0 if 'malgun' in x.lower() else 1)
+            
+            # 찾은 폰트들로 등록 시도
+            for font_path in found_fonts:
+                try:
+                    # 폰트 등록
+                    pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                    
+                    # 등록 확인
+                    try:
+                        # 등록 확인 - 여러 방법 시도
+                        try:
+                            registered_names = pdfmetrics.getRegisteredFontNames()
+                            if 'KoreanFont' in registered_names:
+                                # 추가 확인: 폰트 객체 가져오기
+                                try:
+                                    test_font = pdfmetrics.getFont('KoreanFont')
+                                    if test_font:
+                                        font_name = "KoreanFont"
+                                        success = True
+                                        message = f"한글 폰트 등록 성공: {os.path.basename(font_path)}"
+                                        logger.info(f"Korean font registered: {font_path}")
+                                        print(f"[PDF] {message}")
+                                        return (font_name, success, message)
+                                except:
+                                    # 폰트 객체 가져오기 실패해도 등록은 됐을 수 있음
+                                    pass
+                        except Exception as check_e:
+                            logger.warning(f"Font registration check failed: {check_e}")
+                        
+                        # 등록 확인 실패해도 등록은 됐을 수 있으니 시도
+                        font_name = "KoreanFont"
+                        success = True
+                        message = f"한글 폰트 등록: {os.path.basename(font_path)} (확인 불가)"
+                        logger.info(f"Korean font registered (verification failed): {font_path}")
+                        print(f"[PDF] {message}")
+                        return (font_name, success, message)
+                    except Exception as check_e:
+                        # 등록 확인 실패해도 등록은 됐을 수 있음
+                        font_name = "KoreanFont"
+                        success = True
+                        message = f"한글 폰트 등록: {os.path.basename(font_path)} (확인 불가)"
+                        logger.info(f"Korean font registered (check failed): {font_path}")
+                        print(f"[PDF] {message}")
+                        return (font_name, success, message)
+                except Exception as e:
+                    logger.warning(f"Failed to register font {font_path}: {e}")
+                    continue
+            
+            # 찾은 폰트가 없으면 고정 경로 시도
+            fonts_dir = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts')
+            fixed_paths = [
+                os.path.join(fonts_dir, 'malgun.ttf'),
+                os.path.join(fonts_dir, 'gulim.ttc'),
+                os.path.join(fonts_dir, 'batang.ttc'),
+            ]
+            
+            for font_path in fixed_paths:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                        font_name = "KoreanFont"
+                        success = True
+                        message = f"한글 폰트 등록 성공: {os.path.basename(font_path)}"
+                        logger.info(f"Korean font registered: {font_path}")
+                        print(f"[PDF] {message}")
+                        return (font_name, success, message)
+                    except Exception as e:
+                        logger.warning(f"Failed to register font {font_path}: {e}")
+                        continue
+    except Exception as e:
+        logger.warning(f"Failed to check Windows fonts: {e}")
+        message = f"Windows 폰트 확인 실패: {e}"
+    
+    # 우선순위 2: 프로젝트 assets/fonts/ 폴더
     base_dir = Path(__file__).parent.parent
     font_paths = [
         base_dir / "assets/fonts/NotoSansKR-Regular.ttf",
@@ -52,59 +179,30 @@ def register_korean_font():
         if font_path.exists():
             try:
                 pdfmetrics.registerFont(TTFont('KoreanFont', str(font_path)))
-                font_name = "KoreanFont"
-                logger.info(f"Korean font registered: {font_path}")
-                return font_name
+                try:
+                    registered_font = pdfmetrics.getFont('KoreanFont')
+                    if registered_font:
+                        font_name = "KoreanFont"
+                        success = True
+                        message = f"한글 폰트 등록 성공: {font_path}"
+                        logger.info(message)
+                        print(f"[PDF] {message}")
+                        return (font_name, success, message)
+                except:
+                    pass
             except Exception as e:
                 logger.warning(f"Failed to register font {font_path}: {e}")
                 continue
     
-    # 우선순위 2: Windows 기본 폰트
-    try:
-        if platform.system() == "Windows":
-            # TTF 파일 우선 시도
-            windows_fonts_ttf = [
-                "C:/Windows/Fonts/malgun.ttf",
-                "C:/Windows/Fonts/NanumGothic.ttf",
-                "C:/Windows/Fonts/NanumBarunGothic.ttf"
-            ]
-            for font_path in windows_fonts_ttf:
-                if os.path.exists(font_path):
-                    try:
-                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
-                        font_name = "KoreanFont"
-                        logger.info(f"Korean font registered: {font_path}")
-                        return font_name
-                    except Exception as e:
-                        logger.warning(f"Failed to register font {font_path}: {e}")
-                        continue
-            
-            # TTC 파일 시도 (reportlab이 자동으로 첫 번째 폰트 사용)
-            windows_fonts_ttc = [
-                "C:/Windows/Fonts/gulim.ttc",
-                "C:/Windows/Fonts/batang.ttc"
-            ]
-            for font_path in windows_fonts_ttc:
-                if os.path.exists(font_path):
-                    try:
-                        # TTC 파일은 자동으로 첫 번째 폰트를 사용
-                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
-                        font_name = "KoreanFont"
-                        logger.info(f"Korean font registered: {font_path}")
-                        return font_name
-                    except Exception as e:
-                        logger.warning(f"Failed to register font {font_path}: {e}")
-                        continue
-    except Exception as e:
-        logger.warning(f"Failed to check Windows fonts: {e}")
-    
-    # Fallback: Helvetica
-    logger.info("Using Helvetica fallback (Korean font not available)")
-    return font_name
+    # Fallback: Helvetica (한글 미지원)
+    logger.warning(f"Using Helvetica fallback - {message}")
+    print(f"[PDF] 경고: {message} - Helvetica 사용 (한글 깨짐 가능)")
+    return (font_name, success, message)
 
 
-# 전역 폰트 이름 (함수 호출 시 초기화)
+# 전역 폰트 정보 (함수 호출 시 초기화)
 KOREAN_FONT_NAME = None
+KOREAN_FONT_SUCCESS = False
 
 
 def get_reports_dir():
@@ -192,10 +290,21 @@ def generate_weekly_report(
     
     filepath = reports_dir / filename
     
-    # 한글 폰트 등록
-    global KOREAN_FONT_NAME
-    if KOREAN_FONT_NAME is None:
-        KOREAN_FONT_NAME = register_korean_font()
+    # 한글 폰트 등록 (매번 새로 등록하여 최신 상태 유지)
+    global KOREAN_FONT_NAME, KOREAN_FONT_SUCCESS
+    KOREAN_FONT_NAME, KOREAN_FONT_SUCCESS, font_message = register_korean_font()
+    
+    # 폰트 등록 확인 및 디버깅 정보
+    if KOREAN_FONT_SUCCESS:
+        try:
+            # 등록된 폰트 재확인
+            registered = pdfmetrics.getRegisteredFontNames()
+            if 'KoreanFont' not in registered:
+                logger.warning("KoreanFont가 등록 목록에 없습니다. 재등록 시도...")
+                # 재등록 시도
+                KOREAN_FONT_NAME, KOREAN_FONT_SUCCESS, font_message = register_korean_font()
+        except Exception as e:
+            logger.warning(f"폰트 등록 확인 중 오류: {e}")
     
     # PDF 문서 생성
     doc = SimpleDocTemplate(
@@ -210,11 +319,20 @@ def generate_weekly_report(
     # 스타일 설정
     styles = getSampleStyleSheet()
     
+    # 폰트 등록 실패 시 경고 스타일 준비
+    if not KOREAN_FONT_SUCCESS:
+        logger.error(f"한글 폰트 등록 실패: {font_message}")
+        print(f"[PDF] 경고: {font_message}")
+    
     # 한글 지원을 위한 스타일 (한글 폰트 사용)
+    # 폰트 이름이 None이면 Helvetica 사용
+    actual_font_name = KOREAN_FONT_NAME if KOREAN_FONT_NAME else 'Helvetica'
+    table_font = actual_font_name  # 테이블에서 사용할 폰트 이름
+    
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontName=KOREAN_FONT_NAME,
+        fontName=actual_font_name,
         fontSize=20,
         textColor=colors.HexColor('#1f4788'),
         spaceAfter=30,
@@ -224,7 +342,7 @@ def generate_weekly_report(
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontName=KOREAN_FONT_NAME,
+        fontName=actual_font_name,
         fontSize=14,
         textColor=colors.HexColor('#2c3e50'),
         spaceAfter=12,
@@ -235,12 +353,29 @@ def generate_weekly_report(
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
-        fontName=KOREAN_FONT_NAME,
+        fontName=actual_font_name,
         fontSize=10
     )
     
     # 스토리 리스트
     story = []
+    
+    # 폰트 등록 실패 시 경고 메시지 추가
+    if not KOREAN_FONT_SUCCESS:
+        warning_style = ParagraphStyle(
+            'WarningStyle',
+            parent=styles['Normal'],
+            fontName='Helvetica',  # 경고는 영문 폰트로
+            fontSize=10,
+            textColor=colors.HexColor('#dc3545'),
+            backColor=colors.HexColor('#fff3cd'),
+            borderPadding=10,
+            borderColor=colors.HexColor('#ffc107'),
+            borderWidth=2
+        )
+        warning_text = f"WARNING: Korean font registration failed. Korean text may appear broken. ({font_message})"
+        story.append(Paragraph(warning_text, warning_style))
+        story.append(Spacer(1, 0.5*cm))
     
     # 제목
     title = Paragraph(f"매장 운영 주간 리포트", title_style)
@@ -280,12 +415,12 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 0), (-1, 0), table_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 12),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 1), (-1, -1), table_font),
                 ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(sales_table)
@@ -321,12 +456,12 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 0), (-1, 0), table_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 12),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 1), (-1, -1), table_font),
                 ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(visitor_table)
@@ -374,13 +509,13 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 0), (-1, 0), table_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 1), (-1, -1), table_font),
                 ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(menu_table)
@@ -430,13 +565,13 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 0), (-1, 0), table_font),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTNAME', (0, 1), (-1, -1), table_font),
                 ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(usage_table)
@@ -481,13 +616,13 @@ def generate_weekly_report(
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
+                    ('FONTNAME', (0, 0), (-1, 0), table_font),
                     ('FONTSIZE', (0, 0), (-1, 0), 11),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
                     ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                    ('FONTNAME', (0, 1), (-1, -1), table_font),
                     ('FONTSIZE', (0, 1), (-1, -1), 10)
                 ]))
                 story.append(order_table)

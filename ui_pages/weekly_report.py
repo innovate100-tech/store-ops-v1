@@ -46,19 +46,29 @@ def render_weekly_report():
                     
                     # 리포트 생성
                     with st.spinner("리포트 생성 중..."):
-                        pdf_path = generate_weekly_report(
-                            sales_df,
-                            visitors_df,
-                            daily_sales_df,
-                            recipe_df,
-                            ingredient_df,
-                            inventory_df,
-                            usage_df,
-                            start_date,
-                            end_date
-                        )
-                    
-                    st.success(f"리포트가 생성되었습니다! 📄")
+                        try:
+                            pdf_path = generate_weekly_report(
+                                sales_df,
+                                visitors_df,
+                                daily_sales_df,
+                                recipe_df,
+                                ingredient_df,
+                                inventory_df,
+                                usage_df,
+                                start_date,
+                                end_date
+                            )
+                            
+                            # 폰트 등록 상태 확인
+                            from src.reporting import KOREAN_FONT_SUCCESS, KOREAN_FONT_NAME
+                            if not KOREAN_FONT_SUCCESS:
+                                st.warning("⚠️ **한글 폰트 등록 실패**: PDF의 한글이 깨져 보일 수 있습니다. Windows 폰트 폴더에 한글 폰트가 있는지 확인해주세요.")
+                                st.info("💡 해결 방법: `C:\\Windows\\Fonts\\` 폴더에 `malgun.ttf` 파일이 있는지 확인하세요.")
+                            else:
+                                st.success(f"리포트가 생성되었습니다! 📄 (폰트: {KOREAN_FONT_NAME})")
+                        except Exception as e:
+                            st.error(f"리포트 생성 중 오류가 발생했습니다: {e}")
+                            raise
                     
                     # PDF 다운로드 버튼
                     with open(pdf_path, 'rb') as f:
