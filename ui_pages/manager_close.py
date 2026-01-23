@@ -35,8 +35,11 @@ def render_manager_close():
     </div>
     """, unsafe_allow_html=True)
     
-    # Phase 1 STEP 2: 부분 입력 허용 안내
-    st.info("💡 **하나만 입력해도 저장됩니다.** 나머지는 나중에 추가해도 됩니다.")
+    # Phase 1 STEP 2 최종: 저장/분석 정책 안내
+    st.info("""
+    💡 **방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
+    하지만 분석과 코칭은 **'매출'**이 있어야 시작됩니다.
+    """)
     
     # 전체 메뉴 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -148,29 +151,56 @@ def render_manager_close():
                     
                     # 저장 결과에 따라 메시지 표시
                     if result:
-                        # Phase 1 STEP 2: 부분 저장 안내
-                        saved_items = []
-                        if card_sales > 0 or cash_sales > 0 or total_sales > 0:
-                            saved_items.append("매출")
-                        if visitors > 0:
-                            saved_items.append("방문자")
-                        if sales_items and any(qty > 0 for _, qty in sales_items):
-                            saved_items.append("판매량")
-                        if memo and memo.strip():
-                            saved_items.append("메모")
-                        if issues and any(issues.values()):
-                            saved_items.append("이슈")
+                        # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
+                        from src.ui_helpers import has_sales_input
                         
-                        if saved_items:
+                        has_sales = has_sales_input(card_sales, cash_sales, total_sales)
+                        
+                        if has_sales:
+                            # 매출이 있으면 분석 시작 안내
+                            saved_items = []
+                            if has_sales:
+                                saved_items.append("매출")
+                            if visitors > 0:
+                                saved_items.append("방문자")
+                            if sales_items and any(qty > 0 for _, qty in sales_items):
+                                saved_items.append("판매량")
+                            if memo and memo.strip():
+                                saved_items.append("메모")
+                            if issues and any(issues.values()):
+                                saved_items.append("이슈")
+                            
                             if has_daily_close:
-                                ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요. (기존 마감 기록이 갱신되었습니다.)")
+                                if len(saved_items) > 1:
+                                    ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)}) - 기존 마감 기록이 갱신되었습니다.")
+                                else:
+                                    ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다. (기존 마감 기록이 갱신되었습니다.)")
                             else:
-                                ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
+                                if len(saved_items) > 1:
+                                    ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
+                                else:
+                                    ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
                         else:
-                            if has_daily_close:
-                                st.success("✅ 공식 마감 저장 완료! 기존 마감 기록이 갱신되었습니다.")
+                            # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
+                            saved_items = []
+                            if visitors > 0:
+                                saved_items.append("방문자")
+                            if sales_items and any(qty > 0 for _, qty in sales_items):
+                                saved_items.append("판매량")
+                            if memo and memo.strip():
+                                saved_items.append("메모")
+                            if issues and any(issues.values()):
+                                saved_items.append("이슈")
+                            
+                            if saved_items:
+                                ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
                             else:
-                                st.success("✅ 공식 마감 저장 완료! 데이터가 저장되었습니다.")
+                                ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                            
+                            # 매출 입력하러 가기 버튼 표시
+                            if st.button("💰 오늘 매출 입력하러 가기", type="primary", use_container_width=True, key="go_to_sales_input_manager"):
+                                st.session_state["current_page"] = "일일 입력(통합)"
+                                st.rerun()
                     else:
                         # DEV MODE 등에서 저장되지 않은 경우
                         st.warning("⚠️ DEV MODE: 마감 정보는 표시되지만 실제 데이터는 저장되지 않았습니다.")

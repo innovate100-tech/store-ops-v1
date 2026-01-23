@@ -181,6 +181,113 @@ def get_today_one_action_with_day_context(store_id: str, level: int, day_level: 
     return action
 
 
+def _check_has_any_records_without_sales(store_id: str) -> bool:
+    """
+    Phase 1 STEP 2 최종: sales=0이지만 visitors/items/memo가 있는지 체크
+    
+    Returns:
+        bool: sales는 없지만 다른 기록이 있으면 True
+    """
+    try:
+        from src.auth import get_supabase_client
+        supabase = get_supabase_client()
+        if not supabase:
+            return False
+        
+        # 방문자 체크
+        visitors_result = supabase.table("naver_visitors")\
+            .select("id", count="exact")\
+            .eq("store_id", store_id)\
+            .limit(1)\
+            .execute()
+        visitors_count = visitors_result.count if hasattr(visitors_result, "count") and visitors_result.count is not None else (len(visitors_result.data) if visitors_result.data else 0)
+        if visitors_count > 0:
+            return True
+        
+        # 판매량 체크
+        items_result = supabase.table("v_daily_sales_items_effective")\
+            .select("menu_id", count="exact")\
+            .eq("store_id", store_id)\
+            .limit(1)\
+            .execute()
+        items_count = items_result.count if hasattr(items_result, "count") and items_result.count is not None else (len(items_result.data) if items_result.data else 0)
+        if items_count > 0:
+            return True
+        
+        # 메모 체크 (daily_close의 memo 필드)
+        memo_result = supabase.table("daily_close")\
+            .select("memo")\
+            .eq("store_id", store_id)\
+            .not_.is_("memo", "null")\
+            .neq("memo", "")\
+            .limit(1)\
+            .execute()
+        if memo_result.data and len(memo_result.data) > 0:
+            # 공백 제거 후 비어있지 않은 메모가 있는지 체크
+            for row in memo_result.data:
+                memo = row.get("memo", "")
+                if memo and memo.strip():
+                    return True
+        
+        return False
+    except Exception as e:
+        logger.warning(f"_check_has_any_records_without_sales 실패: {e}")
+        return False
+
+
+def _render_records_without_sales_home(store_id: str) -> None:
+    """
+    Phase 1 STEP 2 최종: 기록은 있으나 분석 불가 상태 홈 화면
+    - sales=0 AND visitors/items/memo 존재
+    """
+    render_page_header("사장 계기판", "🏠")
+    
+    # 메인 메시지 카드 (신규 모드와 시각적으로 구분)
+    st.markdown("""
+    <div style="padding: 3rem 2rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.4); 
+                margin-bottom: 2rem; text-align: center;">
+        <h2 style="color: white; margin-bottom: 1rem; font-size: 1.8rem; font-weight: 700;">
+            📌 아직 매출이 입력되지 않았습니다
+        </h2>
+        <p style="color: rgba(255,255,255,0.95); font-size: 1.1rem; line-height: 1.6; margin: 0;">
+            방문자/메모 기록은 저장되었습니다.<br>매출이 있어야 가게 분석과 지시가 시작됩니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 안내 메시지
+    st.info("""
+    **💡 다음 단계**
+    
+    방문자 수나 메모는 이미 기록되었습니다. 이제 매출만 입력하면 분석이 시작됩니다.
+    
+    - 오늘 또는 어제 매출을 입력하세요
+    - 매출(카드/현금)만 입력하면 됩니다
+    - 입력 즉시 가게 분석과 운영 지시가 시작됩니다
+    """)
+    
+    # 매출 입력 버튼 (강조)
+    if st.button("💰 오늘 매출 입력하기", type="primary", use_container_width=True, key="records_without_sales_input"):
+        st.session_state["current_page"] = "일일 입력(통합)"
+        st.rerun()
+    
+    # 추가 안내
+    st.markdown("---")
+    with st.expander("💡 더 알아보기", expanded=False):
+        st.markdown("""
+        **왜 매출이 필요한가요?**
+        
+        - 매출 데이터가 있어야 가게의 수익성을 분석할 수 있습니다
+        - 매출과 방문자 수를 함께 보면 객단가를 계산할 수 있습니다
+        - 매출 패턴을 분석하면 매출 향상 전략을 제시할 수 있습니다
+        
+        **입력 방법:**
+        - 일일 입력(통합) 페이지에서 매출만 입력하세요
+        - 카드 매출과 현금 매출을 입력하면 자동으로 총 매출이 계산됩니다
+        """)
+
+
 def _render_new_user_home(store_id: str) -> None:
     """
     Phase 1 STEP 1: 신규 사용자 홈 화면 (데이터 0건)
@@ -284,9 +391,17 @@ def _render_home_body(store_id: str) -> None:
     st.session_state["home_data_level"] = data_level
     day_level = detect_owner_day_level(store_id)
     
+    # Phase 1 STEP 2 최종: 중간 상태 체크 (sales=0 AND visitors/items/memo 존재)
+    has_any_records = _check_has_any_records_without_sales(store_id)
+    
     # Phase 1 STEP 1: 신규 사용자 모드 (data_level == 0) - 입력 유도 화면 표시
     if data_level == 0:
-        _render_new_user_home(store_id)
+        if has_any_records:
+            # 중간 상태: 기록은 있으나 분석 불가
+            _render_records_without_sales_home(store_id)
+        else:
+            # 완전 신규: 데이터 0건
+            _render_new_user_home(store_id)
         return  # 신규 사용자는 여기서 종료 (기존 ZONE 렌더링 건너뜀)
     
     # 기존 사용자: 기존 로직 유지

@@ -89,8 +89,11 @@ def render_daily_input_hub():
     # ===== ZONE B: 입력 영역 =====
     st.markdown("### ✏️ 입력")
     
-    # Phase 1 STEP 2: 부분 입력 허용 안내
-    st.info("💡 **하나만 입력해도 저장됩니다.** 나머지는 나중에 추가해도 됩니다.")
+    # Phase 1 STEP 2 최종: 저장/분석 정책 안내
+    st.info("""
+    💡 **방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
+    하지만 분석과 코칭은 **'매출'**이 있어야 시작됩니다.
+    """)
     
     # 기존 매출 값 로드
     supabase = get_supabase_client()
@@ -281,21 +284,46 @@ def render_daily_input_hub():
                                 logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
                                 st.warning(f"판매량 저장 실패: {menu_name}")
                 
-                # 성공 메시지 (부분 저장 안내)
-                saved_items = []
-                if has_sales:
-                    saved_items.append("매출")
-                if has_visitors:
-                    saved_items.append("방문자")
-                if has_sales_items:
-                    saved_items.append("판매량")
-                if memo and memo.strip():
-                    saved_items.append("메모")
+                # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
+                from src.ui_helpers import has_sales_input
                 
-                if saved_items:
-                    ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
+                has_sales = has_sales_input(card_sales, cash_sales, total_sales)
+                
+                if has_sales:
+                    # 매출이 있으면 분석 시작 안내
+                    saved_items = []
+                    if has_sales:
+                        saved_items.append("매출")
+                    if has_visitors:
+                        saved_items.append("방문자")
+                    if has_sales_items:
+                        saved_items.append("판매량")
+                    if memo and memo.strip():
+                        saved_items.append("메모")
+                    
+                    if len(saved_items) > 1:
+                        ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
+                    else:
+                        ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
                 else:
-                    ui_flash_success("저장되었습니다.")
+                    # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
+                    saved_items = []
+                    if has_visitors:
+                        saved_items.append("방문자")
+                    if has_sales_items:
+                        saved_items.append("판매량")
+                    if memo and memo.strip():
+                        saved_items.append("메모")
+                    
+                    if saved_items:
+                        ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                    else:
+                        ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                    
+                    # 매출 입력하러 가기 버튼 표시
+                    if st.button("💰 오늘 매출 입력하러 가기", type="primary", use_container_width=True, key="go_to_sales_input"):
+                        st.session_state["current_page"] = "일일 입력(통합)"
+                        st.rerun()
                 
                 st.balloons()
                 st.rerun()
@@ -369,10 +397,51 @@ def render_daily_input_hub():
                     if any(issues.values()):
                         saved_items.append("이슈")
                     
-                    if saved_items:
-                        ui_flash_success(f"입력된 항목만 저장했습니다: {', '.join(saved_items)}. 나머지는 나중에 추가할 수 있어요.")
+                    # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
+                    from src.ui_helpers import has_sales_input
+                    
+                    has_sales = has_sales_input(card_sales, cash_sales, total_sales)
+                    
+                    if has_sales:
+                        # 매출이 있으면 분석 시작 안내
+                        saved_items = []
+                        if has_sales:
+                            saved_items.append("매출")
+                        if visitors > 0:
+                            saved_items.append("방문자")
+                        if any(qty > 0 for _, qty in all_sales_items):
+                            saved_items.append("판매량")
+                        if memo and memo.strip():
+                            saved_items.append("메모")
+                        if any(issues.values()):
+                            saved_items.append("이슈")
+                        
+                        if len(saved_items) > 1:
+                            ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
+                        else:
+                            ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
                     else:
-                        ui_flash_success("✅ 마감이 완료되었습니다.")
+                        # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
+                        saved_items = []
+                        if visitors > 0:
+                            saved_items.append("방문자")
+                        if any(qty > 0 for _, qty in all_sales_items):
+                            saved_items.append("판매량")
+                        if memo and memo.strip():
+                            saved_items.append("메모")
+                        if any(issues.values()):
+                            saved_items.append("이슈")
+                        
+                        if saved_items:
+                            ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                        else:
+                            ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                        
+                        # 매출 입력하러 가기 버튼 표시
+                        if st.button("💰 오늘 매출 입력하러 가기", type="primary", use_container_width=True, key="go_to_sales_input_close"):
+                            st.session_state["current_page"] = "일일 입력(통합)"
+                            st.rerun()
+                    
                     st.balloons()
                     st.rerun()
                 else:

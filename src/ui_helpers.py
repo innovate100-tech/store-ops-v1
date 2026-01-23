@@ -532,3 +532,26 @@ def has_any_input(
                 return True
     
     return False
+
+
+def has_sales_input(
+    card_sales: float = 0.0,
+    cash_sales: float = 0.0,
+    total_sales: float = 0.0
+) -> bool:
+    """
+    매출 입력 여부 판정: 분석 시작 조건
+    
+    Phase 1 STEP 2 최종: 분석/코칭 활성화의 최소 조건은 '매출 입력'
+    - card_sales, cash_sales, total_sales 중 하나라도 > 0이면 True
+    - 매출이 있어야 홈/분석/코칭이 본격 활성화
+    
+    Args:
+        card_sales: 카드 매출
+        cash_sales: 현금 매출
+        total_sales: 총 매출
+    
+    Returns:
+        bool: 매출이 입력되었으면 True, 없으면 False
+    """
+    return card_sales > 0 or cash_sales > 0 or total_sales > 0
