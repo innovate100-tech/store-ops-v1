@@ -5,17 +5,90 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header
-from src.auth import get_current_store_id
-from src.storage_supabase import get_day_record_status
+from src.auth import get_current_store_id, get_supabase_client
+from src.storage_supabase import get_day_record_status, load_actual_settlement_items
 from src.utils.time_utils import today_kst
+from datetime import timedelta
 
 # 공통 설정 적용
 bootstrap(page_title="Input Hub")
 
 
+def _count_completed_checklists_last_7_days(store_id: str) -> int:
+    """
+    최근 7일 내 완료된 체크리스트 개수 조회
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        int: 완료된 체크리스트 개수 (에러 시 0)
+    """
+    if not store_id:
+        return 0
+    
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return 0
+        
+        today = today_kst()
+        cutoff_date = (today - timedelta(days=6)).isoformat()  # 총 7일 (오늘 포함)
+        
+        result = supabase.table("health_check_sessions").select("id", count="exact").eq(
+            "store_id", store_id
+        ).not_.is_("completed_at", "null").gte("completed_at", cutoff_date).execute()
+        
+        return result.count if result.count is not None else 0
+    
+    except Exception as e:
+        # 에러 발생 시 조용히 0 반환 (페이지 크래시 방지)
+        return 0
+
+
+def _is_monthly_settlement_done_for_prev_month(store_id: str) -> bool:
+    """
+    지난달 실제정산 완료 여부 확인
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        bool: 완료 여부 (에러/판단 불가 시 False)
+    """
+    if not store_id:
+        return False
+    
+    try:
+        today = today_kst()
+        prev_month = today.month - 1
+        prev_year = today.year
+        
+        if prev_month == 0:
+            prev_month = 12
+            prev_year -= 1
+        
+        # actual_settlement_items 조회
+        items = load_actual_settlement_items(store_id, prev_year, prev_month)
+        
+        # 항목이 1개 이상 있으면 완료로 간주
+        return len(items) > 0
+    
+    except Exception as e:
+        # 에러 발생 시 False 반환 (추천 로직에서 P4 건너뛰도록)
+        return False
+
+
 def _get_today_recommendation(store_id: str) -> dict:
     """
-    오늘 추천 액션 결정 (규칙 v1)
+    오늘 추천 액션 결정 (규칙 v2)
+    
+    우선순위:
+    P1. 오늘 입력(통합)이 "매출도 없고 기록도 없음" → "📝 오늘 입력(통합)"
+    P2. 오늘 매출/기록은 있는데 "마감 없음" → "📋 점장 마감"
+    P3. 오늘 마감까지 완료했는데, 최근 7일 내 체크리스트 완료가 0회 → "📋 매장 체크리스트"
+    P4. 월초(1~3일)이고 지난달 실제정산 미완료 → "📅 월간 정산(실제 입력)"
+    Fallback. 예외 발생/판단 불가 → "📝 오늘 입력(통합)"
     
     Returns:
         {
@@ -36,24 +109,62 @@ def _get_today_recommendation(store_id: str) -> dict:
         status = get_day_record_status(store_id, today)
         has_close = status.get("has_close", False)
         has_sales = status.get("has_sales", False)
+        has_visitors = status.get("has_visitors", False)
+        # 기록 있음 = 매출 또는 방문자 또는 마감 중 하나라도 있으면 True
+        has_any = has_sales or has_visitors or has_close
         
-        # 오늘 데이터가 없으면: 오늘 입력 추천
-        if not has_close and not has_sales:
+        # P1: 오늘 매출도 없고 기록도 없음 → 오늘 입력 추천
+        if not has_sales and not has_any:
             return {
                 "message": "📝 오늘 입력을 시작하세요",
                 "button_label": "📝 오늘 입력(통합)",
                 "page_key": "일일 입력(통합)"
             }
         
-        # 오늘 데이터가 있으면: 점장 마감 추천
-        # TODO: 주간 리포트는 요일이 월요일이면 추천 (향후 구현)
+        # P2: 오늘 매출/기록은 있는데 마감 없음 → 점장 마감 추천
+        if not has_close:
+            return {
+                "message": "📋 오늘 마감을 완료하세요",
+                "button_label": "📋 점장 마감",
+                "page_key": "점장 마감"
+            }
+        
+        # P3: 오늘 마감까지 완료했는데, 최근 7일 내 체크리스트 완료가 0회 → 매장 체크리스트 추천
+        try:
+            checklist_count = _count_completed_checklists_last_7_days(store_id)
+            if checklist_count == 0:
+                return {
+                    "message": "📋 이번 주 점검을 한번 해보세요",
+                    "button_label": "📋 매장 체크리스트",
+                    "page_key": "건강검진 실시"
+                }
+        except Exception:
+            # 체크리스트 조회 실패 시 P3 건너뛰고 P4로 진행
+            pass
+        
+        # P4: 월초(1~3일)이고 지난달 실제정산 미완료 → 월간 정산 추천
+        if today.day <= 3:
+            try:
+                is_settlement_done = _is_monthly_settlement_done_for_prev_month(store_id)
+                if not is_settlement_done:
+                    return {
+                        "message": "📅 월초입니다. 지난달 정산을 마무리하세요",
+                        "button_label": "📅 월간 정산(실제 입력)",
+                        "page_key": "실제정산"
+                    }
+            except Exception:
+                # 월간 정산 조회 실패 시 P4 건너뛰고 fallback으로
+                pass
+        
+        # 모든 조건을 통과했으면 기본값 (오늘 입력 추천)
         return {
-            "message": "📋 오늘 마감을 완료하세요",
-            "button_label": "📋 점장 마감",
-            "page_key": "점장 마감"
+            "message": "📝 오늘 입력을 시작하세요",
+            "button_label": "📝 오늘 입력(통합)",
+            "page_key": "일일 입력(통합)"
         }
+    
     except Exception:
-        # 에러 발생 시 기본값 반환
+        # Fallback: 예외 발생 시 기본값 반환
         return {
             "message": "📝 오늘 입력을 시작하세요",
             "button_label": "📝 오늘 입력(통합)",
