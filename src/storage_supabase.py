@@ -1114,7 +1114,12 @@ def load_key_menus() -> List[str]:
 
 def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check_conflict=True):
     """
-    매출 데이터 저장
+    매출 데이터 저장 (매출 보정)
+    
+    SSOT 정책:
+    - sales만 upsert (보조 입력 채널)
+    - daily_close는 절대 수정하지 않음 (공식 SSOT)
+    - daily_close가 있으면 충돌 경고만 표시
     
     Args:
         date: 날짜
@@ -1178,23 +1183,23 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
                 }
                 logger.warning(f"Sales conflict detected: {date_str}, existing={existing_total}, new={total_sales}, has_daily_close={has_daily_close}")
         
-        # STEP 1: 매출 우선순위 고정 - sales를 SSOT로, daily_close도 동기화
-        # RPC 함수 사용 (트랜잭션 보장)
-        supabase.rpc('save_sales_with_daily_close_sync', {
-            'p_date': date_str,
-            'p_store_id': str(store_id),
-            'p_card_sales': float(card_sales),
-            'p_cash_sales': float(cash_sales),
-            'p_total_sales': float(total_sales)
-        }).execute()
+        # SSOT 정책: 매출 보정은 sales만 upsert, daily_close는 절대 수정하지 않음
+        # daily_close는 공식 SSOT이므로 매출 보정으로는 수정할 수 없음
+        supabase.table("sales").upsert({
+            "store_id": store_id,
+            "date": date_str,
+            "card_sales": float(card_sales),
+            "cash_sales": float(cash_sales),
+            "total_sales": float(total_sales)
+        }, on_conflict="store_id,date").execute()
         
-        logger.info(f"Sales saved (with daily_close sync): {date_str}, {total_sales}")
+        logger.info(f"Sales saved (보조 입력 채널): {date_str}, {total_sales}")
         
         # 소프트 무효화 (token bump + 부분 clear)
-        # daily_close도 무효화 (동기화되었으므로)
+        # daily_close는 무효화하지 않음 (수정하지 않았으므로)
         soft_invalidate(
             reason=f"save_sales: {date_str}",
-            targets=["sales", "daily_close"]
+            targets=["sales"]  # sales만 무효화
         )
         
         # Phase G: load_monthly_sales_total 캐시도 무효화 (매출 저장 시 월합계도 갱신 필요)
@@ -1701,11 +1706,20 @@ def delete_recipe(menu_name, ingredient_name):
         raise
 
 
-def save_daily_sales_item(date, menu_name, quantity):
+def save_daily_sales_item(date, menu_name, quantity, reason=None):
     """
-    일일 판매 아이템 저장 (override 레이어)
-    - daily_sales_items_overrides에 UPSERT (최종값 overwrite, 누적 금지)
-    - 마감보다 우선 적용. daily_sales_items에는 쓰지 않음.
+    일일 판매 아이템 저장 (판매량 보정)
+    
+    SSOT 정책 변경:
+    - ❌ DELETE 금지: daily_sales_items에서 DELETE 사용하지 않음
+    - ✅ UPSERT 구조: 메뉴 단위로 upsert하며 변경 이력 기록
+    - ✅ Audit 로깅: 모든 변경사항을 daily_sales_items_audit에 기록
+    
+    Args:
+        date: 판매 날짜
+        menu_name: 메뉴명
+        quantity: 판매 수량 (0이면 soft_delete 처리)
+        reason: 변경 사유 (선택사항)
     """
     supabase = _check_supabase_for_dev_mode()
     if not supabase:
@@ -1721,35 +1735,93 @@ def save_daily_sales_item(date, menu_name, quantity):
     try:
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
         
+        # 메뉴 ID 찾기
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
         if not menu_result.data:
             raise Exception(f"메뉴 '{menu_name}'를 찾을 수 없습니다.")
         menu_id = menu_result.data[0]['id']
         
-        updated_by = None
+        # 현재 사용자 ID 가져오기 (audit용)
+        changed_by = None
         try:
             session = supabase.auth.get_session()
             if session and getattr(session, "user", None):
                 u = getattr(session.user, "id", None)
                 if u:
-                    updated_by = u
+                    changed_by = str(u)
         except Exception:
             pass
         
-        payload = {
-            "store_id": store_id,
-            "sale_date": date_str,
-            "menu_id": menu_id,
-            "qty": int(quantity),
-            "note": None,
-        }
-        if updated_by is not None:
-            payload["updated_by"] = updated_by
+        # 기존 qty 조회 (audit용)
+        old_qty = None
+        try:
+            existing = supabase.table("daily_sales_items").select("qty").eq("store_id", store_id).eq("date", date_str).eq("menu_id", menu_id).execute()
+            if existing.data:
+                old_qty = existing.data[0].get('qty', 0)
+        except Exception:
+            old_qty = None
         
-        supabase.table("daily_sales_items_overrides").upsert(
-            payload,
-            on_conflict="store_id,sale_date,menu_id",
-        ).execute()
+        if old_qty is None:
+            old_qty = 0
+        
+        new_qty = int(quantity)
+        
+        # UPSERT: daily_sales_items에 직접 저장
+        if new_qty > 0:
+            # INSERT or UPDATE
+            supabase.table("daily_sales_items").upsert({
+                "store_id": store_id,
+                "date": date_str,
+                "menu_id": menu_id,
+                "qty": new_qty
+            }, on_conflict="store_id,date,menu_id").execute()
+            
+            # Audit 기록
+            action = 'insert' if old_qty == 0 else 'update'
+            audit_reason = reason or '판매량 보정'
+            
+            # RPC로 audit 로깅
+            try:
+                supabase.rpc('log_daily_sales_item_change', {
+                    'p_store_id': str(store_id),
+                    'p_date': date_str,
+                    'p_menu_id': str(menu_id),
+                    'p_action': action,
+                    'p_old_qty': old_qty,
+                    'p_new_qty': new_qty,
+                    'p_source': 'override',
+                    'p_reason': audit_reason,
+                    'p_changed_by': changed_by
+                }).execute()
+            except Exception as audit_error:
+                logger.warning(f"Audit 로깅 실패 (무시하고 계속): {audit_error}")
+        else:
+            # qty가 0이면 soft_delete (실제 삭제는 하지 않고 audit만 기록)
+            if old_qty > 0:
+                # qty=0으로 업데이트
+                supabase.table("daily_sales_items").upsert({
+                    "store_id": store_id,
+                    "date": date_str,
+                    "menu_id": menu_id,
+                    "qty": 0
+                }, on_conflict="store_id,date,menu_id").execute()
+                
+                # Audit 기록
+                audit_reason = reason or '판매량 보정 (qty=0)'
+                try:
+                    supabase.rpc('log_daily_sales_item_change', {
+                        'p_store_id': str(store_id),
+                        'p_date': date_str,
+                        'p_menu_id': str(menu_id),
+                        'p_action': 'soft_delete',
+                        'p_old_qty': old_qty,
+                        'p_new_qty': 0,
+                        'p_source': 'override',
+                        'p_reason': audit_reason,
+                        'p_changed_by': changed_by
+                    }).execute()
+                except Exception as audit_error:
+                    logger.warning(f"Audit 로깅 실패 (무시하고 계속): {audit_error}")
         
         logger.info(f"Daily sales item saved (override): {date_str}, {menu_name}, {quantity}")
         
@@ -1977,6 +2049,11 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
     """
     일일 마감 데이터 통합 저장 (트랜잭션 처리)
     
+    SSOT 정책:
+    - daily_close가 공식 매출 SSOT
+    - daily_sales_items는 DELETE 금지, UPSERT + audit 구조
+    - sales, naver_visitors는 파생 동기화용
+    
     Phase 3: SQL 함수 기반 트랜잭션 처리
     - 여러 테이블 저장 작업의 원자성 보장
     - 실패 시 자동 롤백
@@ -1992,6 +2069,17 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
     date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
     
     try:
+        # 현재 사용자 ID 가져오기 (audit용)
+        changed_by = None
+        try:
+            session = supabase.auth.get_session()
+            if session and getattr(session, "user", None):
+                u = getattr(session.user, "id", None)
+                if u:
+                    changed_by = str(u)
+        except Exception:
+            pass
+        
         # sales_items를 JSONB 배열로 전달 (리스트 그대로 전달 → DB에서 배열로 수신)
         # json.dumps 문자열로 보내면 스칼라로 들어가 jsonb_array_length 시 "cannot get array length of a scalar" 발생
         sales_items_payload = None
@@ -2014,6 +2102,7 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
             'p_staff_issue': bool(issues.get('직원이슈', False)),
             'p_memo': str(memo) if memo else None,
             'p_sales_items': sales_items_payload,
+            'p_changed_by': changed_by,  # audit용 사용자 ID
         }).execute()
         
         logger.info(f"Daily close saved (transactional): {date_str}")
@@ -3343,6 +3432,104 @@ def calculate_break_even_sales(store_id: str, year: int, month: int) -> float:
     except Exception as e:
         logger.error(f"Failed to calculate break even sales: {e}")
         return 0.0
+
+
+# ============================================
+# SSOT VIEW 기반 조회 함수
+# ============================================
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_official_daily_sales(store_id: str = None, start_date: str = None, end_date: str = None):
+    """
+    공식 매출 SSOT 조회 (daily_close 기준)
+    
+    SSOT 정책:
+    - daily_close가 공식 매출 SSOT
+    - is_official=true, source='daily_close'로 표시
+    
+    Args:
+        store_id: 매장 ID (None이면 현재 매장)
+        start_date: 시작일 (YYYY-MM-DD, 선택사항)
+        end_date: 종료일 (YYYY-MM-DD, 선택사항)
+    
+    Returns:
+        pd.DataFrame: 공식 매출 데이터 (store_id, date, total_sales, card_sales, cash_sales, visitors, memo, is_official, source)
+    """
+    try:
+        if store_id is None:
+            store_id = get_current_store_id()
+        if not store_id:
+            return pd.DataFrame()
+        
+        supabase = get_read_client()
+        if not supabase:
+            return pd.DataFrame()
+        
+        query = supabase.table("v_daily_sales_official").select("*").eq("store_id", store_id)
+        
+        if start_date:
+            query = query.gte("date", start_date)
+        if end_date:
+            query = query.lte("date", end_date)
+        
+        result = query.order("date", desc=False).execute()
+        
+        if not result.data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(result.data)
+        logger.info(f"Loaded {len(df)} official daily sales records")
+        return df
+    except Exception as e:
+        logger.error(f"Failed to load official daily sales: {e}")
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_best_available_daily_sales(store_id: str = None, start_date: str = None, end_date: str = None):
+    """
+    최선의 매출 데이터 조회 (daily_close 우선, 없으면 sales 사용)
+    
+    SSOT 정책:
+    - daily_close 있으면 is_official=true, source='daily_close'
+    - sales만 있으면 is_official=false, source='sales'
+    
+    Args:
+        store_id: 매장 ID (None이면 현재 매장)
+        start_date: 시작일 (YYYY-MM-DD, 선택사항)
+        end_date: 종료일 (YYYY-MM-DD, 선택사항)
+    
+    Returns:
+        pd.DataFrame: 매출 데이터 (store_id, date, total_sales, card_sales, cash_sales, visitors, memo, is_official, source)
+    """
+    try:
+        if store_id is None:
+            store_id = get_current_store_id()
+        if not store_id:
+            return pd.DataFrame()
+        
+        supabase = get_read_client()
+        if not supabase:
+            return pd.DataFrame()
+        
+        query = supabase.table("v_daily_sales_best_available").select("*").eq("store_id", store_id)
+        
+        if start_date:
+            query = query.gte("date", start_date)
+        if end_date:
+            query = query.lte("date", end_date)
+        
+        result = query.order("date", desc=False).execute()
+        
+        if not result.data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(result.data)
+        logger.info(f"Loaded {len(df)} best available daily sales records")
+        return df
+    except Exception as e:
+        logger.error(f"Failed to load best available daily sales: {e}")
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=60, show_spinner=False)  # 1분 캐시 (월이 바뀌거나 입력 즉시 반영)
