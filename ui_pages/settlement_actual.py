@@ -1458,6 +1458,9 @@ def render_settlement_actual():
         </div>
         """, unsafe_allow_html=True)
         
+        # PHASE 7-4: PDF 성적표 다운로드 버튼 (임시로 여기 배치, 나중에 year/month 확인 후 이동 가능)
+        # 일단 여기서는 year/month를 아직 모르므로, _render_header_section 이후에 추가
+        
         # Phase H: 히스토리에서 이동한 경우 우선 처리
         # 플래그가 있으면 해당 연/월을 사용하고, 위젯 키를 강제로 변경하기 위한 플래그 설정
         if "settlement_navigate_to_year" in st.session_state:
@@ -1483,6 +1486,43 @@ def render_settlement_actual():
         year, month, expense_items, total_sales, totals, readonly = _render_header_section(
             store_id, initial_year, initial_month, readonly=False
         )
+        
+        # PHASE 7-4: PDF 성적표 다운로드 버튼
+        try:
+            from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
+            
+            col1, col2 = st.columns([3, 1])
+            with col2:
+                if st.button("📄 이번 달 성적표 PDF 받기", key="pdf_scorecard_download", use_container_width=True, type="primary"):
+                    # 생성 가능 여부 확인
+                    can_generate, reason = can_generate_scorecard(store_id, year, month)
+                    if not can_generate:
+                        st.warning(reason)
+                    else:
+                        # PDF 생성
+                        with st.spinner("PDF 생성 중..."):
+                            try:
+                                pdf_bytes = build_scorecard_pdf_bytes(store_id, year, month)
+                                filename = f"성적표_{year}년{month:02d}월.pdf"
+                                st.download_button(
+                                    label="📥 PDF 다운로드",
+                                    data=pdf_bytes,
+                                    file_name=filename,
+                                    mime="application/pdf",
+                                    key="pdf_download_button",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                logger.error(f"PDF generation error: {e}")
+                                st.error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
+        except ImportError as e:
+            # PDF 모듈이 없으면 버튼 숨김
+            pass
+        except Exception as e:
+            logger.error(f"PDF button error: {e}")
+            # 에러가 나도 페이지는 계속 렌더링
+        
+        render_section_divider()
         
         # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
         _render_expense_section(store_id, year, month, total_sales, readonly)
