@@ -1,5 +1,5 @@
 """
-재료 등록 페이지
+재료 구조 설계실 (원가 집중 · 대체재 · 발주 구조 전략화)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -14,7 +14,13 @@ from ui_pages.design_lab.design_lab_frame import (
     render_school_cards,
     render_design_tools_container,
 )
-from ui_pages.design_lab.design_lab_coach_data import get_ingredient_design_coach_data
+from ui_pages.design_lab.ingredient_structure_helpers import (
+    calculate_ingredient_usage_cost,
+    calculate_cost_concentration,
+    identify_high_risk_ingredients,
+    check_order_structure_status,
+    get_ingredient_structure_verdict,
+)
 
 # 공통 설정 적용
 bootstrap(page_title="Ingredient Management")
@@ -272,36 +278,126 @@ def _show_ingredient_query_diagnostics():
 
 
 def render_ingredient_management():
-    """재료 등록 페이지 렌더링 (HOME v2 공통 프레임 적용)"""
-    render_page_header("재료 구조 설계실", "🥬")
+    """재료 구조 설계실 페이지 렌더링 (Design Lab 공통 프레임 적용)"""
+    render_page_header("재료 구조 설계실 (원가 집중 · 대체재 · 발주 구조)", "🥬")
     
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # ZONE A: Coach Board
-    coach_data = get_ingredient_design_coach_data(store_id)
-    render_coach_board(
-        cards=coach_data["cards"],
-        verdict_text=coach_data["verdict_text"],
-        action_title=coach_data.get("action_title"),
-        action_reason=coach_data.get("action_reason"),
-        action_target_page=coach_data.get("action_target_page"),
-        action_button_label=coach_data.get("action_button_label")
+    # 데이터 로드
+    ingredient_df = load_csv('ingredient_master.csv', store_id=store_id, default_columns=['재료명', '단위', '단가'])
+    ingredient_usage_df = calculate_ingredient_usage_cost(store_id)
+    
+    # 집중도 계산
+    top3_concentration, top5_concentration = calculate_cost_concentration(ingredient_usage_df)
+    
+    # 고위험 재료 판별
+    high_risk_df = identify_high_risk_ingredients(ingredient_usage_df, cost_threshold=20.0, menu_threshold=3)
+    
+    # 발주 구조 상태
+    order_status, order_reason = check_order_structure_status(store_id)
+    
+    # ZONE A: Coach Board (Ingredient Structure Verdict)
+    cards = []
+    
+    # 1) 총 재료 수
+    ingredient_count = len(ingredient_df) if not ingredient_df.empty else 0
+    cards.append({
+        "title": "총 재료 수",
+        "value": f"{ingredient_count}개",
+        "subtitle": None
+    })
+    
+    # 2) 원가 TOP3 집중도
+    cards.append({
+        "title": "원가 TOP3 집중도",
+        "value": f"{top3_concentration:.1f}%",
+        "subtitle": "⚠️ 70% 이상 위험" if top3_concentration >= 70 else "✅ 안정" if top3_concentration < 50 else "⚠️ 주의"
+    })
+    
+    # 3) 고위험 재료 수
+    high_risk_count = len(high_risk_df) if not high_risk_df.empty else 0
+    risk_emoji = "🔴" if high_risk_count > 0 else "✅"
+    cards.append({
+        "title": "고위험 재료 수",
+        "value": f"{high_risk_count}개",
+        "subtitle": f"{risk_emoji} 원가 20%+ & 메뉴 3개+"
+    })
+    
+    # 4) 발주 구조 상태
+    status_emoji = "✅" if order_status == "안전" else "⚠️" if order_status == "주의" else "🔴"
+    cards.append({
+        "title": "발주 구조 상태",
+        "value": order_status,
+        "subtitle": f"{status_emoji} {order_reason}"
+    })
+    
+    # 판결문 + 추천 액션
+    verdict_text, action_title, action_target_page = get_ingredient_structure_verdict(
+        store_id, ingredient_usage_df, high_risk_df, top3_concentration
     )
     
-    # ZONE B: Structure Map
+    render_coach_board(
+        cards=cards,
+        verdict_text=verdict_text,
+        action_title=action_title,
+        action_reason=None,
+        action_target_page=action_target_page,
+        action_button_label=f"{action_title} 하러가기" if action_title else None
+    )
+    
+    # ZONE B: Structure Map (Ingredient Structure Map)
     def _render_ingredient_structure_map():
-        ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
-        if ingredient_df.empty:
+        if ingredient_usage_df.empty:
             st.info("재료가 등록되지 않았습니다. 재료를 등록하면 구조 맵이 표시됩니다.")
-        else:
-            # 간단한 재료 단가 분포 차트
-            if '단가' in ingredient_df.columns:
-                st.bar_chart(ingredient_df['단가'].head(10))
+            return
+        
+        # 1) 재료 원가 집중도 Pareto 차트
+        st.markdown("#### 📊 재료 원가 집중도 (Pareto)")
+        
+        # 누적 비율 계산
+        cumulative_pct = []
+        cumulative_cost = 0.0
+        total_cost = ingredient_usage_df['총_사용금액'].sum()
+        
+        for _, row in ingredient_usage_df.iterrows():
+            cumulative_cost += row['총_사용금액']
+            cumulative_pct.append((cumulative_cost / total_cost * 100) if total_cost > 0 else 0.0)
+        
+        pareto_df = ingredient_usage_df.copy()
+        pareto_df['누적_비율_%'] = cumulative_pct
+        
+        # 차트 데이터 준비 (상위 10개)
+        chart_df = pareto_df.head(10)[['재료명', '누적_비율_%']].copy()
+        chart_df = chart_df.set_index('재료명')
+        
+        st.bar_chart(chart_df)
+        
+        # 70%, 90% 기준선 표시
+        st.caption("📌 기준선: 70% (위험), 90% (매우 위험)")
+        
+        # 2) 재료 영향도 테이블
+        st.markdown("#### 📋 재료 영향도 테이블")
+        
+        display_df = ingredient_usage_df[['재료명', '총_사용금액', '원가_비중_%', '연결_메뉴_수']].copy()
+        display_df['총_사용금액'] = display_df['총_사용금액'].apply(lambda x: f"{x:,.0f}원")
+        display_df['원가_비중_%'] = display_df['원가_비중_%'].apply(lambda x: f"{x:.1f}%")
+        
+        # 위험도 자동 판정
+        def get_risk_level(row):
+            if row['원가_비중_%'] >= 20 and row['연결_메뉴_수'] >= 3:
+                return "🔴 고위험"
+            elif row['원가_비중_%'] >= 10:
+                return "⚠️ 주의"
             else:
-                st.info("재료를 등록하면 구조 맵이 표시됩니다.")
+                return "✅ 안전"
+        
+        display_df['위험도'] = ingredient_usage_df.apply(get_risk_level, axis=1)
+        display_df.columns = ['재료명', '총 사용금액', '원가 비중', '연결 메뉴 수', '위험도']
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
     
     render_structure_map_container(
         content_func=_render_ingredient_structure_map,
@@ -310,32 +406,147 @@ def render_ingredient_management():
         empty_action_page="재료 등록"
     )
     
-    # ZONE C: Owner School
+    # ZONE C: Owner School (Ingredient Structure Theory)
     school_cards = [
         {
-            "title": "재료 구조 설계",
-            "point1": "재료 집중도가 높으면 가격 변동에 취약합니다",
-            "point2": "안전재고를 설정하면 발주 관리가 쉬워집니다"
+            "title": "원가는 \"비율\"이 아니라 \"집중도\"로 무너진다",
+            "point1": "개별 재료의 원가율보다 상위 재료의 집중도가 더 위험합니다",
+            "point2": "TOP 3 재료가 70% 이상이면 가격 변동에 매우 취약합니다"
         },
         {
-            "title": "원가 관리",
-            "point1": "TOP 3 재료가 전체 사용량의 70% 이상이면 위험합니다",
-            "point2": "재료 단가 변동을 주기적으로 확인하세요"
+            "title": "대체 불가능 재료는 사업 리스크다",
+            "point1": "여러 메뉴에 동시에 사용되는 재료는 대체재를 미리 준비하세요",
+            "point2": "연결 메뉴 3개 이상 + 원가 비중 20% 이상 = 고위험 재료"
         },
         {
-            "title": "발주 단위",
-            "point1": "발주 단위와 사용 단위가 다르면 변환 비율을 정확히 설정하세요",
-            "point2": "단위 통일이 원가 계산 정확도를 높입니다"
+            "title": "발주는 비용이 아니라 구조다",
+            "point1": "단일 공급업체 의존은 공급 리스크를 높입니다",
+            "point2": "발주 단위와 변환 비율을 정확히 설정하면 원가 계산이 정확해집니다"
         },
     ]
     render_school_cards(school_cards)
     
-    # ZONE D: Design Tools (기존 기능)
-    render_design_tools_container(_render_ingredient_design_tools)
+    # ZONE D: Design Tools (Ingredient Strategy Tools)
+    render_design_tools_container(lambda: _render_ingredient_strategy_tools(store_id, ingredient_usage_df, high_risk_df))
 
 
-def _render_ingredient_design_tools():
-    """ZONE D: 재료 설계 도구 (기존 기능)"""
+def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.DataFrame, high_risk_df: pd.DataFrame):
+    """ZONE D: 재료 구조 전략 도구"""
+    
+    # 1) 고위험 재료 테이블 (핵심)
+    st.markdown("#### 🔴 고위험 재료 테이블")
+    
+    if high_risk_df.empty:
+        st.info("고위험 재료가 없습니다. ✅")
+    else:
+        # 필터 옵션
+        filter_option = st.radio(
+            "필터",
+            ["전체", "원가 비중 순", "연결 메뉴 수 순"],
+            horizontal=True,
+            key="ingredient_risk_filter"
+        )
+        
+        display_risk_df = high_risk_df.copy()
+        
+        if filter_option == "원가 비중 순":
+            display_risk_df = display_risk_df.sort_values('원가_비중_%', ascending=False)
+        elif filter_option == "연결 메뉴 수 순":
+            display_risk_df = display_risk_df.sort_values('연결_메뉴_수', ascending=False)
+        
+        # 테이블 표시
+        for idx, row in display_risk_df.iterrows():
+            with st.expander(f"🔴 {row['재료명']} - 위험도: {row['위험_사유']}", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**원가 비중:** {row['원가_비중_%']:.1f}%")
+                    st.write(f"**총 사용금액:** {row['총_사용금액']:,.0f}원")
+                
+                with col2:
+                    st.write(f"**연결 메뉴 수:** {row['연결_메뉴_수']}개")
+                    st.write(f"**연결 메뉴:** {row['연결_메뉴_목록']}")
+                
+                # 대체 가능 여부 (session_state)
+                replaceable_key = f"ingredient_replaceable::{store_id}::{row['재료명']}"
+                is_replaceable = st.session_state.get(replaceable_key, False)
+                new_replaceable = st.checkbox("대체 가능", value=is_replaceable, key=f"replaceable_{row['재료명']}")
+                if new_replaceable != is_replaceable:
+                    st.session_state[replaceable_key] = new_replaceable
+                
+                # 발주 유형 (session_state)
+                order_type_key = f"ingredient_order_type::{store_id}::{row['재료명']}"
+                current_order_type = st.session_state.get(order_type_key, "미설정")
+                new_order_type = st.selectbox(
+                    "발주 유형",
+                    ["미설정", "단일", "복수"],
+                    index=["미설정", "단일", "복수"].index(current_order_type) if current_order_type in ["미설정", "단일", "복수"] else 0,
+                    key=f"order_type_{row['재료명']}"
+                )
+                if new_order_type != current_order_type:
+                    st.session_state[order_type_key] = new_order_type
+    
+    render_section_divider()
+    
+    # 2) 대체 구조 설계 패널
+    st.markdown("#### 🔄 대체 구조 설계")
+    
+    if ingredient_usage_df.empty:
+        st.info("재료가 등록되지 않았습니다.")
+    else:
+        selected_ingredient = st.selectbox(
+            "대체 구조를 설계할 재료 선택",
+            ["선택하세요"] + ingredient_usage_df['재료명'].tolist(),
+            key="ingredient_replacement_select"
+        )
+        
+        if selected_ingredient != "선택하세요":
+            # 선택된 재료 정보
+            selected_row = ingredient_usage_df[ingredient_usage_df['재료명'] == selected_ingredient].iloc[0]
+            
+            st.markdown(f"**재료:** {selected_ingredient}")
+            st.markdown(f"**원가 비중:** {selected_row['원가_비중_%']:.1f}%")
+            st.markdown(f"**연결 메뉴 수:** {selected_row['연결_메뉴_수']}개")
+            
+            # 연결된 메뉴 리스트
+            st.markdown("**이 재료가 빠지면 영향받는 메뉴:**")
+            menu_list = selected_row['연결_메뉴_목록'].split(', ')
+            for menu in menu_list:
+                st.write(f"- {menu}")
+            
+            # 대체 가능 재료 메모
+            memo_key = f"ingredient_replacement_memo::{store_id}::{selected_ingredient}"
+            current_memo = st.session_state.get(memo_key, "")
+            new_memo = st.text_area(
+                "대체 가능 재료 메모",
+                value=current_memo,
+                key=f"replacement_memo_{selected_ingredient}",
+                placeholder="예: 돼지고기 → 닭고기, 소고기 → 돼지고기 등"
+            )
+            if new_memo != current_memo:
+                st.session_state[memo_key] = new_memo
+            
+            # 구조 전략 메모
+            strategy_key = f"ingredient_strategy_memo::{store_id}::{selected_ingredient}"
+            current_strategy = st.session_state.get(strategy_key, "")
+            new_strategy = st.text_area(
+                "구조 전략 메모",
+                value=current_strategy,
+                key=f"strategy_memo_{selected_ingredient}",
+                placeholder="예: 공급업체 다변화 필요, 계절별 대체재 확보 등"
+            )
+            if new_strategy != current_strategy:
+                st.session_state[strategy_key] = new_strategy
+    
+    render_section_divider()
+    
+    # 3) 기존 재료 관리 기능 (하단 유지)
+    st.markdown("#### 📝 재료 등록/수정/삭제")
+    _render_ingredient_management_tools()
+
+
+def _render_ingredient_management_tools():
+    """기존 재료 등록/수정/삭제 기능"""
     # 쿼리 진단 기능 추가
     with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
         _show_ingredient_query_diagnostics()
