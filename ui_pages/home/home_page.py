@@ -256,7 +256,7 @@ def _render_records_without_sales_home(store_id: str) -> None:
     </div>
     """, unsafe_allow_html=True)
     
-    # 안내 메시지
+    # Phase 1 STEP 4: 미니 코칭 카드가 이미 상단에 표시되므로, 여기서는 간단한 안내만
     st.info("""
     **💡 다음 단계**
     
@@ -396,6 +396,11 @@ def _render_home_body(store_id: str) -> None:
     
     # Phase 1 STEP 1: 신규 사용자 모드 (data_level == 0) - 입력 유도 화면 표시
     if data_level == 0:
+        # Phase 1 STEP 4: 미니 코칭 카드 추가 (신규 사용자도 표시)
+        from ui_pages.home.home_minicoach_v1 import build_minicoach_v1, render_minicoach_card
+        coach = build_minicoach_v1(store_id)
+        render_minicoach_card(coach)
+        
         if has_any_records:
             # 중간 상태: 기록은 있으나 분석 불가
             _render_records_without_sales_home(store_id)
@@ -420,6 +425,11 @@ def _render_home_body(store_id: str) -> None:
     logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id})")
 
     # ===== HOME v3 구조 (운영 지시 홈) =====
+    
+    # Phase 1 STEP 4: 미니 코칭 카드 추가 (기존 사용자도 표시)
+    from ui_pages.home.home_minicoach_v1 import build_minicoach_v1, render_minicoach_card
+    coach = build_minicoach_v1(store_id)
+    render_minicoach_card(coach)
     
     # ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)
     # 제목은 이미 위에서 표시됨
