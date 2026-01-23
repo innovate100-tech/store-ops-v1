@@ -358,55 +358,55 @@ def render_ingredient_management():
         )
         
         def _render_ingredient_structure_map():
-        if ingredient_usage_df.empty:
-            st.info("재료가 등록되지 않았습니다. 재료를 등록하면 구조 맵이 표시됩니다.")
-            return
+            if ingredient_usage_df.empty:
+                st.info("재료가 등록되지 않았습니다. 재료를 등록하면 구조 맵이 표시됩니다.")
+                return
+            
+            # 1) 재료 원가 집중도 Pareto 차트
+            st.markdown("#### 📊 재료 원가 집중도 (Pareto)")
+            
+            # 누적 비율 계산
+            cumulative_pct = []
+            cumulative_cost = 0.0
+            total_cost = ingredient_usage_df['총_사용금액'].sum()
+            
+            for _, row in ingredient_usage_df.iterrows():
+                cumulative_cost += row['총_사용금액']
+                cumulative_pct.append((cumulative_cost / total_cost * 100) if total_cost > 0 else 0.0)
+            
+            pareto_df = ingredient_usage_df.copy()
+            pareto_df['누적_비율_%'] = cumulative_pct
+            
+            # 차트 데이터 준비 (상위 10개)
+            chart_df = pareto_df.head(10)[['재료명', '누적_비율_%']].copy()
+            chart_df = chart_df.set_index('재료명')
+            
+            st.bar_chart(chart_df)
+            
+            # 70%, 90% 기준선 표시
+            st.caption("📌 기준선: 70% (위험), 90% (매우 위험)")
+            
+            # 2) 재료 영향도 테이블
+            st.markdown("#### 📋 재료 영향도 테이블")
+            
+            display_df = ingredient_usage_df[['재료명', '총_사용금액', '원가_비중_%', '연결_메뉴_수']].copy()
+            display_df['총_사용금액'] = display_df['총_사용금액'].apply(lambda x: f"{x:,.0f}원")
+            display_df['원가_비중_%'] = display_df['원가_비중_%'].apply(lambda x: f"{x:.1f}%")
+            
+            # 위험도 자동 판정
+            def get_risk_level(row):
+                if row['원가_비중_%'] >= 20 and row['연결_메뉴_수'] >= 3:
+                    return "🔴 고위험"
+                elif row['원가_비중_%'] >= 10:
+                    return "⚠️ 주의"
+                else:
+                    return "✅ 안전"
+            
+            display_df['위험도'] = ingredient_usage_df.apply(get_risk_level, axis=1)
+            display_df.columns = ['재료명', '총 사용금액', '원가 비중', '연결 메뉴 수', '위험도']
+            
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # 1) 재료 원가 집중도 Pareto 차트
-        st.markdown("#### 📊 재료 원가 집중도 (Pareto)")
-        
-        # 누적 비율 계산
-        cumulative_pct = []
-        cumulative_cost = 0.0
-        total_cost = ingredient_usage_df['총_사용금액'].sum()
-        
-        for _, row in ingredient_usage_df.iterrows():
-            cumulative_cost += row['총_사용금액']
-            cumulative_pct.append((cumulative_cost / total_cost * 100) if total_cost > 0 else 0.0)
-        
-        pareto_df = ingredient_usage_df.copy()
-        pareto_df['누적_비율_%'] = cumulative_pct
-        
-        # 차트 데이터 준비 (상위 10개)
-        chart_df = pareto_df.head(10)[['재료명', '누적_비율_%']].copy()
-        chart_df = chart_df.set_index('재료명')
-        
-        st.bar_chart(chart_df)
-        
-        # 70%, 90% 기준선 표시
-        st.caption("📌 기준선: 70% (위험), 90% (매우 위험)")
-        
-        # 2) 재료 영향도 테이블
-        st.markdown("#### 📋 재료 영향도 테이블")
-        
-        display_df = ingredient_usage_df[['재료명', '총_사용금액', '원가_비중_%', '연결_메뉴_수']].copy()
-        display_df['총_사용금액'] = display_df['총_사용금액'].apply(lambda x: f"{x:,.0f}원")
-        display_df['원가_비중_%'] = display_df['원가_비중_%'].apply(lambda x: f"{x:.1f}%")
-        
-        # 위험도 자동 판정
-        def get_risk_level(row):
-            if row['원가_비중_%'] >= 20 and row['연결_메뉴_수'] >= 3:
-                return "🔴 고위험"
-            elif row['원가_비중_%'] >= 10:
-                return "⚠️ 주의"
-            else:
-                return "✅ 안전"
-        
-        display_df['위험도'] = ingredient_usage_df.apply(get_risk_level, axis=1)
-        display_df.columns = ['재료명', '총 사용금액', '원가 비중', '연결 메뉴 수', '위험도']
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-    
         render_structure_map_container(
             content_func=_render_ingredient_structure_map,
             empty_message="재료가 등록되지 않았습니다.",
