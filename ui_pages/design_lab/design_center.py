@@ -218,7 +218,7 @@ def render_design_center():
     # 나머지 액션은 expander로
     remaining_actions = top3_actions[3:] if len(top3_actions) > 3 else []
     all_actions = [
-        {"label": "📉 매출 하락 원인 찾기", "page": "매출 관리", "tab": None},
+        {"label": "📉 매출 하락 원인 찾기", "page": "매출 하락 원인 찾기", "tab": None},
         {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute"},
         {"label": "📊 포트폴리오 미분류 정리", "page": "메뉴 등록", "tab": "execute"},
         {"label": "🥬 원가 집중/대체재 설계", "page": "재료 등록", "tab": "execute"},
@@ -319,7 +319,7 @@ def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
         if not actions:
             actions.append({
                 "label": "📉 매출 하락 원인 찾기",
-                "page": "매출 관리",
+                "page": "매출 하락 원인 찾기",
                 "tab": None,
                 "score": 50
             })
@@ -340,7 +340,7 @@ def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
     except Exception:
         # 에러 시 기본 액션 반환
         return [
-            {"label": "📉 매출 하락 원인 찾기", "page": "매출 관리", "tab": None, "score": 50},
+            {"label": "📉 매출 하락 원인 찾기", "page": "매출 하락 원인 찾기", "tab": None, "score": 50},
             {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute", "score": 40},
             {"label": "📊 포트폴리오 미분류 정리", "page": "메뉴 등록", "tab": "execute", "score": 30},
         ]

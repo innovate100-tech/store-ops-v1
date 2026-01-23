@@ -1483,7 +1483,7 @@ with st.sidebar:
             ("수익 구조 설계실", "수익 구조 설계실"),  # 가게 전체 돈 구조
         ],
         "🚨 문제 분석": [
-            # ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),  # TODO: 향후 추가 예정
+            ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),  # 원클릭 플로우
             ("매출 분석", "매출 관리"),
             ("판매·메뉴 분석", "판매 관리"),
             # ("방문·객단가 분석", "방문 객단가 분석"),  # TODO: 향후 추가 예정
@@ -1681,6 +1681,11 @@ if page == "점장 마감":
 elif page == "매출 등록":
     from ui_pages.sales_entry import render_sales_entry
     render_sales_entry()
+
+# 매출 하락 원인 찾기 페이지 (원클릭 플로우)
+elif page == "매출 하락 원인 찾기":
+    from ui_pages.diagnostics.sales_drop_oneclick import render_sales_drop_oneclick
+    render_sales_drop_oneclick()
 
 # 매출 관리 페이지 (분석 전용)
 elif page == "매출 관리":

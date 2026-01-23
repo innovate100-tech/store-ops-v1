@@ -845,6 +845,12 @@ def _render_zone1_status_board(store_id: str, year: int, month: int, kpis: dict,
             st.session_state["current_page"] = "판매량 등록"
             st.rerun()
     
+    # 매출 하락 원인 찾기 버튼 (상시 노출)
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+    if st.button("📉 매출 하락 원인 찾기", type="primary", use_container_width=True, key="zone1_btn_sales_drop"):
+        st.session_state["current_page"] = "매출 하락 원인 찾기"
+        st.rerun()
+    
     # 루틴 배지 추가 (ZONE 1 아래)
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     _render_routine_badges(store_id)
