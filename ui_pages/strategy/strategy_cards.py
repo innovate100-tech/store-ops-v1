@@ -604,10 +604,17 @@ def _build_strategy_cards_v4(
         scores = state_payload.get("scores", {})
         state_code = store_state.get("code", "unknown")
         
-        # 2. 건강검진 프로필 로드
+        # 2. 건강검진 데이터 로드 (v4: 판독 결과 직접 사용)
+        from ui_pages.home.home_data import load_latest_health_diag
+        from src.health_check.health_integration import health_bias_for_card, should_show_operation_qsc_card
+        
+        health_diag = load_latest_health_diag(store_id)
         health_profile = load_latest_health_profile(store_id, lookback_days=60)
-        if health_profile.get("exists"):
-            debug["rules_fired"].append("건강검진 프로필 로드됨")
+        
+        if health_diag:
+            debug["rules_fired"].append("건강검진 판독 데이터 로드됨")
+        elif health_profile.get("exists"):
+            debug["rules_fired"].append("건강검진 프로필 로드됨 (판독 없음)")
         
         # 3. 컨텍스트 구성
         from src.storage_supabase import calculate_break_even_sales, load_monthly_sales_total
@@ -663,10 +670,47 @@ def _build_strategy_cards_v4(
         base_strategies = build_base_strategies(context)
         debug["rules_fired"].append(f"기본 전략 {len(base_strategies)}개 생성")
         
-        # 5. 건강검진 가중치 적용
-        final_strategies = apply_health_weighting(base_strategies, health_profile)
-        if health_profile.get("exists"):
-            debug["rules_fired"].append("건강검진 가중치 적용됨")
+        # 5. 건강검진 가중치 적용 (v4: health_diag 직접 사용)
+        if health_diag:
+            # health_diag 기반 가중치 적용
+            w_health = 0.30  # 검진 가중치 (30%)
+            
+            for strategy in base_strategies:
+                strategy_type = strategy.get("type", "")
+                
+                # 카드 코드 매핑 (v4_strategy_engine의 StrategyType → 카드 코드)
+                type_to_card_code = {
+                    "SURVIVAL": "FINANCE_SURVIVAL_LINE",
+                    "MARGIN": "MENU_MARGIN_RECOVERY",
+                    "COST": "INGREDIENT_RISK_DIVERSIFY",
+                    "PORTFOLIO": "MENU_PORTFOLIO_REBALANCE",
+                    "ACQUISITION": "SALES_DROP_INVESTIGATION",
+                    "OPERATIONS": "OPERATION_QSC_RECOVERY"
+                }
+                
+                card_code = type_to_card_code.get(strategy_type, "")
+                if card_code:
+                    health_bias = health_bias_for_card(card_code, health_diag)
+                    # priority_score에 health_bias 반영
+                    base_priority = strategy.get("priority_score", 100)
+                    strategy["priority_score"] = base_priority + (w_health * health_bias * 100)
+                    
+                    # OPERATION_QSC_RECOVERY 카드 강화
+                    if card_code == "OPERATION_QSC_RECOVERY" and should_show_operation_qsc_card(health_diag):
+                        strategy["title"] = "운영 품질(QSC) 복구부터 하세요"
+                        strategy["reasons"] = [
+                            "H/S/C 축 동시 저하 → 재방문 붕괴 위험",
+                            "이번 주 운영 개선 TOP3 실행"
+                        ]
+                        strategy["priority_score"] = base_priority + (w_health * 1.0 * 100)  # 최대 가중치
+            
+            debug["rules_fired"].append("건강검진 판독 가중치 적용됨")
+            final_strategies = base_strategies
+        else:
+            # health_diag가 없으면 기존 health_weighting 사용
+            final_strategies = apply_health_weighting(base_strategies, health_profile)
+            if health_profile.get("exists"):
+                debug["rules_fired"].append("건강검진 프로필 가중치 적용됨")
         
         # 6. Impact 및 Action Plan 계산
         from src.strategy.impact_engine import estimate_impact
@@ -774,15 +818,31 @@ def _build_strategy_cards_v4(
                 debug["notes"].append(f"Action Plan 생성 오류 ({strategy_type}): {str(e)}")
                 strategy["action_plan"] = _get_empty_action_plan()
         
-        # 7. v1 형식으로 변환
+        # 7. priority_score로 정렬하여 TOP3 선택
+        final_strategies_sorted = sorted(
+            final_strategies,
+            key=lambda s: s.get("priority_score", 0),
+            reverse=True
+        )
+        
+        # 8. v1 형식으로 변환 (TOP3)
         cards = []
-        for idx, strategy in enumerate(final_strategies[:3], 1):
+        for idx, strategy in enumerate(final_strategies_sorted[:3], 1):
+            # 검진 근거 추가 (health_diag가 있을 때)
+            reasons = strategy.get("reasons", [])
+            if health_diag and idx == 1:  # 1순위 카드에만 검진 근거 추가
+                from src.health_check.health_integration import get_health_evidence_line
+                health_evidence = get_health_evidence_line(health_diag)
+                if health_evidence:
+                    # 기존 reasons에 검진 근거 추가 (최대 1개)
+                    reasons = reasons[:1] + [health_evidence] if reasons else [health_evidence]
+            
             card = {
                 "rank": idx,
                 "title": strategy.get("title", ""),
-                "goal": strategy.get("reasons", [""])[0] if strategy.get("reasons") else "",
-                "why": " | ".join(strategy.get("reasons", [])[:2]),
-                "evidence": strategy.get("reasons", [])[:3],
+                "goal": reasons[0] if reasons else "",
+                "why": " | ".join(reasons[:2]),
+                "evidence": reasons[:3],
                 "cta": {
                     "label": strategy.get("cta", {}).get("label", "실행하기"),
                     "page": strategy.get("cta", {}).get("page_key", ""),

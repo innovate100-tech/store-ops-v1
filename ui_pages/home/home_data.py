@@ -4,16 +4,42 @@
 - get_monthly_close_stats: 마감률/스트릭
 - get_menu_count, get_close_count, check_actual_settlement_exists
 - detect_data_level, detect_owner_day_level
+- load_latest_health_diag: 최신 완료 검진 판독 데이터 로드
 """
 from __future__ import annotations
 
 import streamlit as st
 from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
-from typing import Tuple
+from typing import Tuple, Optional, Dict
 
 from src.auth import get_supabase_client
 from src.storage_supabase import load_monthly_sales_total, load_monthly_settlement_snapshot, count_unofficial_days_in_month
+from src.health_check.health_integration import get_health_diag_for_home
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_latest_health_diag(store_id: str) -> Optional[Dict]:
+    """
+    최신 완료 검진 판독 데이터 로드 (HOME용)
+    
+    캐싱:
+    - 세션 ID 기반으로 캐싱 (같은 검진은 재사용)
+    - TTL 300초 (5분)
+    
+    Args:
+        store_id: 매장 ID
+    
+    Returns:
+        검진 판독 결과 dict 또는 None
+    """
+    try:
+        return get_health_diag_for_home(store_id)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"load_latest_health_diag: Error - {e}")
+        return None
 
 
 def get_monthly_close_stats(store_id: str, year: int, month: int) -> Tuple[int, int, float, int]:

@@ -163,18 +163,24 @@ def build_base_strategies(context: Dict) -> List[Dict]:
             "cta": STRATEGY_CTA_MAP[StrategyType.ACQUISITION]
         })
     
-    # 6. OPERATIONS 전략 (항상 포함)
+    # 6. OPERATIONS 전략 (조건부 포함 - 검진 기반)
+    # 주의: 이 카드는 health_diag가 있을 때만 우선순위가 높아짐
+    # health_diag가 없으면 기본 우선순위로 포함
     strategies.append({
         "type": StrategyType.OPERATIONS.value,
-        "title": "운영 표준화 개선",
-        "priority_score": 100,
+        "title": "운영 품질(QSC) 복구부터 하세요",
+        "priority_score": 50,  # 기본 우선순위 (health_diag로 가중치 추가)
         "success_prob": 0.65,
         "impact_estimate": {"won": 0, "direction": "up"},
         "reasons": [
             "운영 프로세스 개선",
             "표준화 필요"
         ],
-        "cta": STRATEGY_CTA_MAP[StrategyType.OPERATIONS]
+        "cta": {
+            "label": "검진 결과 보기",
+            "page_key": "검진 결과 요약",
+            "params": {}
+        }
     })
     
     # 6개 미만이면 기본 전략으로 채움

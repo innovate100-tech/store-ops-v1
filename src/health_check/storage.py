@@ -15,6 +15,7 @@ from src.health_check.scoring import (
     compute_risk_flags
 )
 from src.health_check.questions_bank import CATEGORIES_ORDER, QUESTIONS
+from src.health_check.health_diagnosis_engine import diagnose_health_check
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +250,34 @@ def finalize_health_session(store_id: str, session_id: str) -> bool:
         # 3. 결과 계산
         results = compute_session_results(answers_by_category)
         
+        # 3.5. 판독 엔진 실행 (경영 해석)
+        axis_scores = {
+            cat: data['score_avg']
+            for cat, data in results['per_category'].items()
+        }
+        
+        # raw answers 로드 (선택적, 판독 엔진에서 사용 가능)
+        axis_raw = {}
+        answers_raw_result = supabase.table("health_check_answers").select(
+            "category, question_code, raw_value"
+        ).eq("store_id", store_id).eq("session_id", session_id).order("question_code").execute()
+        
+        for answer in answers_raw_result.data:
+            category = answer['category']
+            raw_value = answer['raw_value']
+            if category not in axis_raw:
+                axis_raw[category] = []
+            axis_raw[category].append(raw_value)
+        
+        # 판독 실행
+        diagnosis = diagnose_health_check(
+            session_id=session_id,
+            store_id=store_id,
+            axis_scores=axis_scores,
+            axis_raw=axis_raw if axis_raw else None,
+            meta=None
+        )
+        
         # 4. health_check_results에 카테고리별 결과 저장
         for category, category_data in results['per_category'].items():
             # 해당 카테고리의 답변 리스트 가져오기
@@ -271,13 +300,23 @@ def finalize_health_session(store_id: str, session_id: str) -> bool:
                 "updated_at": datetime.utcnow().isoformat() + "Z"
             }, on_conflict="store_id,session_id,category").execute()
         
-        # 5. health_check_sessions 업데이트
-        supabase.table("health_check_sessions").update({
+        # 5. health_check_sessions 업데이트 (판독 결과 포함)
+        import json
+        update_data = {
             "completed_at": datetime.utcnow().isoformat() + "Z",
             "overall_score": results['overall_score'],
             "overall_grade": results['overall_grade'],
             "main_bottleneck": results['main_bottleneck']
-        }).eq("id", session_id).execute()
+        }
+        
+        # 판독 결과를 JSON으로 저장 (diagnosis_json 컬럼이 있으면 사용, 없으면 무시)
+        try:
+            # JSON 필드로 저장 시도
+            update_data["diagnosis_json"] = json.dumps(diagnosis, ensure_ascii=False)
+        except Exception as e:
+            logger.warning(f"diagnosis_json 저장 실패 (컬럼이 없을 수 있음): {e}")
+        
+        supabase.table("health_check_sessions").update(update_data).eq("id", session_id).execute()
         
         logger.info(f"finalize_health_session: Session finalized - {session_id}, score: {results['overall_score']}, grade: {results['overall_grade']}")
         return True
@@ -337,6 +376,48 @@ def get_health_answers(session_id: str) -> List[Dict]:
     except Exception as e:
         logger.error(f"get_health_answers: Error - {e}")
         return []
+
+
+def get_health_diagnosis(session_id: str) -> Optional[Dict]:
+    """
+    건강검진 판독 결과 조회
+    
+    Args:
+        session_id: 세션 ID
+    
+    Returns:
+        판독 결과 dict 또는 None
+        {
+            "risk_axes": [...],
+            "primary_pattern": {...},
+            "insight_summary": [...],
+            "strategy_bias": {...}
+        }
+    """
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            logger.error("get_health_diagnosis: Supabase client not available")
+            return None
+        
+        result = supabase.table("health_check_sessions").select("diagnosis_json").eq("id", session_id).execute()
+        
+        if not result.data or not result.data[0].get("diagnosis_json"):
+            logger.debug(f"get_health_diagnosis: No diagnosis found for session {session_id}")
+            return None
+        
+        import json
+        diagnosis = result.data[0]["diagnosis_json"]
+        
+        # JSONB가 dict로 반환되는 경우와 문자열인 경우 모두 처리
+        if isinstance(diagnosis, str):
+            return json.loads(diagnosis)
+        else:
+            return diagnosis
+    
+    except Exception as e:
+        logger.error(f"get_health_diagnosis: Error - {e}")
+        return None
 
 
 def get_health_results(session_id: str) -> List[Dict]:

@@ -66,11 +66,14 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
             action_title = today_action["task"]
             action_cta = today_action["cta"]
         
-        # 근거 1줄 생성
+        # 근거 1줄 생성 (숫자 근거 + 검진 근거 결합)
+        evidence_parts = []
+        
+        # 숫자 근거
         if today_action and "why" in today_action and today_action["why"]:
-            evidence_line = today_action["why"]
+            evidence_parts.append(today_action["why"])
         elif cards_result.get("store_state", {}).get("primary_reason"):
-            evidence_line = cards_result["store_state"]["primary_reason"]
+            evidence_parts.append(cards_result["store_state"]["primary_reason"])
         else:
             # 기본 근거
             try:
@@ -79,11 +82,27 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
                 break_even = calculate_break_even_sales(store_id, year, month) or 0
                 if break_even > 0:
                     ratio = (monthly_sales / break_even) * 100 if monthly_sales > 0 else 0
-                    evidence_line = f"손익분기점 대비 {ratio:.0f}%"
+                    evidence_parts.append(f"손익분기점 대비 {ratio:.0f}%")
                 else:
-                    evidence_line = "데이터 수집 중"
+                    evidence_parts.append("데이터 수집 중")
             except Exception:
-                evidence_line = "데이터 수집 중"
+                evidence_parts.append("데이터 수집 중")
+        
+        # 검진 근거 추가 (보조 근거로 1줄만)
+        try:
+            from ui_pages.home.home_data import load_latest_health_diag
+            from src.health_check.health_integration import get_health_evidence_line
+            health_diag = load_latest_health_diag(store_id)
+            if health_diag:
+                health_evidence = get_health_evidence_line(health_diag)
+                if health_evidence and len(evidence_parts) > 0:
+                    # 숫자 근거가 있으면 검진 근거를 짧게 추가
+                    evidence_parts.append(f"+ {health_evidence}")
+        except Exception as e:
+            logger.debug(f"검진 근거 추가 실패: {e}")
+        
+        # 최종 근거 문장 생성
+        evidence_line = " | ".join(evidence_parts) if evidence_parts else "데이터 수집 중"
         
         # action_title이 비어있으면 기본값 사용
         if not action_title or action_title.strip() == "":
