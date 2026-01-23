@@ -6,18 +6,105 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from pathlib import Path
 from datetime import datetime
+import os
+import platform
+import logging
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 
+logger = logging.getLogger(__name__)
 
 # 한글 폰트 설정 (matplotlib)
 plt.rcParams['font.family'] = 'Malgun Gothic'
 plt.rcParams['axes.unicode_minus'] = False
+
+
+def register_korean_font():
+    """
+    한글 폰트 등록 시도
+    
+    우선순위:
+    1. 프로젝트 assets/fonts/ 폴더의 폰트 파일
+    2. Windows 기본 폰트
+    3. Fallback: Helvetica (한글 최소화 모드)
+    
+    Returns:
+        str: 등록된 폰트 이름 (KoreanFont 또는 Helvetica)
+    """
+    font_name = "Helvetica"  # 기본값
+    
+    # 우선순위 1: 프로젝트 assets/fonts/ 폴더
+    base_dir = Path(__file__).parent.parent
+    font_paths = [
+        base_dir / "assets/fonts/NotoSansKR-Regular.ttf",
+        base_dir / "assets/fonts/Pretendard-Regular.ttf",
+        base_dir / "assets/fonts/AppleSDGothicNeo.ttf"
+    ]
+    
+    for font_path in font_paths:
+        if font_path.exists():
+            try:
+                pdfmetrics.registerFont(TTFont('KoreanFont', str(font_path)))
+                font_name = "KoreanFont"
+                logger.info(f"Korean font registered: {font_path}")
+                return font_name
+            except Exception as e:
+                logger.warning(f"Failed to register font {font_path}: {e}")
+                continue
+    
+    # 우선순위 2: Windows 기본 폰트
+    try:
+        if platform.system() == "Windows":
+            # TTF 파일 우선 시도
+            windows_fonts_ttf = [
+                "C:/Windows/Fonts/malgun.ttf",
+                "C:/Windows/Fonts/NanumGothic.ttf",
+                "C:/Windows/Fonts/NanumBarunGothic.ttf"
+            ]
+            for font_path in windows_fonts_ttf:
+                if os.path.exists(font_path):
+                    try:
+                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                        font_name = "KoreanFont"
+                        logger.info(f"Korean font registered: {font_path}")
+                        return font_name
+                    except Exception as e:
+                        logger.warning(f"Failed to register font {font_path}: {e}")
+                        continue
+            
+            # TTC 파일 시도 (reportlab이 자동으로 첫 번째 폰트 사용)
+            windows_fonts_ttc = [
+                "C:/Windows/Fonts/gulim.ttc",
+                "C:/Windows/Fonts/batang.ttc"
+            ]
+            for font_path in windows_fonts_ttc:
+                if os.path.exists(font_path):
+                    try:
+                        # TTC 파일은 자동으로 첫 번째 폰트를 사용
+                        pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
+                        font_name = "KoreanFont"
+                        logger.info(f"Korean font registered: {font_path}")
+                        return font_name
+                    except Exception as e:
+                        logger.warning(f"Failed to register font {font_path}: {e}")
+                        continue
+    except Exception as e:
+        logger.warning(f"Failed to check Windows fonts: {e}")
+    
+    # Fallback: Helvetica
+    logger.info("Using Helvetica fallback (Korean font not available)")
+    return font_name
+
+
+# 전역 폰트 이름 (함수 호출 시 초기화)
+KOREAN_FONT_NAME = None
 
 
 def get_reports_dir():
@@ -105,6 +192,11 @@ def generate_weekly_report(
     
     filepath = reports_dir / filename
     
+    # 한글 폰트 등록
+    global KOREAN_FONT_NAME
+    if KOREAN_FONT_NAME is None:
+        KOREAN_FONT_NAME = register_korean_font()
+    
     # PDF 문서 생성
     doc = SimpleDocTemplate(
         str(filepath),
@@ -118,10 +210,11 @@ def generate_weekly_report(
     # 스타일 설정
     styles = getSampleStyleSheet()
     
-    # 한글 지원을 위한 스타일 (기본 스타일 사용)
+    # 한글 지원을 위한 스타일 (한글 폰트 사용)
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
+        fontName=KOREAN_FONT_NAME,
         fontSize=20,
         textColor=colors.HexColor('#1f4788'),
         spaceAfter=30,
@@ -131,10 +224,19 @@ def generate_weekly_report(
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
+        fontName=KOREAN_FONT_NAME,
         fontSize=14,
         textColor=colors.HexColor('#2c3e50'),
         spaceAfter=12,
         spaceBefore=12
+    )
+    
+    # 일반 텍스트 스타일도 한글 폰트 적용
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontName=KOREAN_FONT_NAME,
+        fontSize=10
     )
     
     # 스토리 리스트
@@ -147,10 +249,10 @@ def generate_weekly_report(
     
     # 기간 정보
     period_text = f"기간: {start_date.strftime('%Y년 %m월 %d일')} ~ {end_date.strftime('%Y년 %m월 %d일')}"
-    story.append(Paragraph(period_text, styles['Normal']))
+    story.append(Paragraph(period_text, normal_style))
     story.append(Spacer(1, 0.3*cm))
     from src.utils.time_utils import now_kst
-    story.append(Paragraph(f"생성일시: {now_kst().strftime('%Y년 %m월 %d일 %H:%M')} (KST)", styles['Normal']))
+    story.append(Paragraph(f"생성일시: {now_kst().strftime('%Y년 %m월 %d일 %H:%M')} (KST)", normal_style))
     story.append(Spacer(1, 1*cm))
     
     # 1. 매출 정보
@@ -178,17 +280,19 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
                 ('FONTSIZE', (0, 0), (-1, 0), 12),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(sales_table)
         else:
-            story.append(Paragraph("해당 기간의 매출 데이터가 없습니다.", styles['Normal']))
+            story.append(Paragraph("해당 기간의 매출 데이터가 없습니다.", normal_style))
     else:
-        story.append(Paragraph("매출 데이터가 없습니다.", styles['Normal']))
+        story.append(Paragraph("매출 데이터가 없습니다.", normal_style))
     
     story.append(Spacer(1, 0.5*cm))
     
@@ -217,17 +321,19 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
                 ('FONTSIZE', (0, 0), (-1, 0), 12),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(visitor_table)
         else:
-            story.append(Paragraph("해당 기간의 방문자 데이터가 없습니다.", styles['Normal']))
+            story.append(Paragraph("해당 기간의 방문자 데이터가 없습니다.", normal_style))
     else:
-        story.append(Paragraph("방문자 데이터가 없습니다.", styles['Normal']))
+        story.append(Paragraph("방문자 데이터가 없습니다.", normal_style))
     
     story.append(Spacer(1, 0.5*cm))
     
@@ -240,7 +346,7 @@ def generate_weekly_report(
             story.append(img)
             story.append(Spacer(1, 0.5*cm))
         except Exception as e:
-            story.append(Paragraph(f"차트 생성 중 오류: {str(e)}", styles['Normal']))
+            story.append(Paragraph(f"차트 생성 중 오류: {str(e)}", normal_style))
     
     # 4. 메뉴별 판매 TOP 10
     story.append(Paragraph("4. 메뉴별 판매 TOP 10", heading_style))
@@ -268,18 +374,20 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT')
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(menu_table)
         else:
-            story.append(Paragraph("해당 기간의 판매 데이터가 없습니다.", styles['Normal']))
+            story.append(Paragraph("해당 기간의 판매 데이터가 없습니다.", normal_style))
     else:
-        story.append(Paragraph("판매 데이터가 없습니다.", styles['Normal']))
+        story.append(Paragraph("판매 데이터가 없습니다.", normal_style))
     
     story.append(Spacer(1, 0.5*cm))
     
@@ -322,18 +430,20 @@ def generate_weekly_report(
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
                 ('FONTSIZE', (0, 0), (-1, 0), 11),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT')
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                ('FONTSIZE', (0, 1), (-1, -1), 10)
             ]))
             story.append(usage_table)
         else:
-            story.append(Paragraph("해당 기간의 재료 사용량 데이터가 없습니다.", styles['Normal']))
+            story.append(Paragraph("해당 기간의 재료 사용량 데이터가 없습니다.", normal_style))
     else:
-        story.append(Paragraph("재료 사용량 데이터가 없습니다.", styles['Normal']))
+        story.append(Paragraph("재료 사용량 데이터가 없습니다.", normal_style))
     
     story.append(Spacer(1, 0.5*cm))
     
@@ -371,25 +481,27 @@ def generate_weekly_report(
                     ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTNAME', (0, 0), (-1, 0), KOREAN_FONT_NAME),
                     ('FONTSIZE', (0, 0), (-1, 0), 11),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                     ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
                     ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('ALIGN', (1, 0), (1, -1), 'LEFT')
+                    ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 1), (-1, -1), KOREAN_FONT_NAME),
+                    ('FONTSIZE', (0, 1), (-1, -1), 10)
                 ]))
                 story.append(order_table)
                 
                 # 총 예상 금액
                 total_order_amount = order_df['예상금액'].sum()
                 story.append(Spacer(1, 0.3*cm))
-                story.append(Paragraph(f"총 예상 발주 금액: {int(total_order_amount):,}원", styles['Normal']))
+                story.append(Paragraph(f"총 예상 발주 금액: {int(total_order_amount):,}원", normal_style))
             else:
-                story.append(Paragraph("현재 발주가 필요한 재료가 없습니다.", styles['Normal']))
+                story.append(Paragraph("현재 발주가 필요한 재료가 없습니다.", normal_style))
         except Exception as e:
-            story.append(Paragraph(f"발주 추천 계산 중 오류: {str(e)}", styles['Normal']))
+            story.append(Paragraph(f"발주 추천 계산 중 오류: {str(e)}", normal_style))
     else:
-        story.append(Paragraph("재고 또는 재료 데이터가 없습니다.", styles['Normal']))
+        story.append(Paragraph("재고 또는 재료 데이터가 없습니다.", normal_style))
     
     # PDF 빌드
     doc.build(story)
