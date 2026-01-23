@@ -244,7 +244,8 @@ def _initialize_health_check_state(store_id: str, session_id: str):
         # DB에서 기존 답변 로드 (초기 1회만)
         try:
             existing_answers = get_health_answers(session_id)
-            raw_value_map = {"yes": "예", "maybe": "애매함", "no": "아니다"}
+            # raw_value -> 한국어 옵션 매핑 (역방향)
+            raw_to_korean = {"yes": "예", "maybe": "애매함", "no": "아니다"}
             for ans in existing_answers:
                 category = ans.get('category')
                 question_code = ans.get('question_code')
@@ -257,7 +258,7 @@ def _initialize_health_check_state(store_id: str, session_id: str):
                     radio_key = f"hc_{session_id}_{category}_{question_code}"
                     radio_prev_key = f"{radio_key}_prev"
                     # raw_value를 한국어 옵션으로 변환
-                    korean_option = raw_value_map.get(raw_value, "예")
+                    korean_option = raw_to_korean.get(raw_value, "선택 안 함")
                     st.session_state[radio_prev_key] = korean_option
         except Exception as e:
             logger.error(f"Error loading answers: {e}")
@@ -278,7 +279,8 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
     rows = []
     for (category, question_code) in dirty:
         raw_value = answers.get((category, question_code))
-        if raw_value:
+        # raw_value가 None이면 저장하지 않음 ("선택 안 함" 옵션)
+        if raw_value and raw_value in ["yes", "maybe", "no"]:
             rows.append({
                 "category": category,
                 "question_code": question_code,
@@ -440,9 +442,9 @@ def render_category_questions(store_id: str, session_id: str, category: str):
     # session_state에서 답변 가져오기
     answers = st.session_state.get(hc_answers_key, {})
     
-    # radio 옵션
-    options = ["예", "애매함", "아니다"]
-    raw_value_map = {"예": "yes", "애매함": "maybe", "아니다": "no"}
+    # radio 옵션 (첫 번째 옵션: "선택 안 함" - 초기 상태 표시용)
+    options = ["선택 안 함", "예", "애매함", "아니다"]
+    raw_value_map = {"선택 안 함": None, "예": "yes", "애매함": "maybe", "아니다": "no"}
     
     # 각 질문을 1행으로 표시 (질문 텍스트 + 오른쪽 라디오)
     for question_item in category_questions:
@@ -469,6 +471,9 @@ def render_category_questions(store_id: str, session_id: str, category: str):
                 if raw_value_map[opt] == current_value:
                     index = i
                     break
+        else:
+            # current_value가 None이면 "선택 안 함" 옵션(인덱스 0) 사용
+            index = 0
         
         # 1행 레이아웃: 질문 텍스트(왼쪽) + 라디오 버튼(오른쪽)
         col1, col2 = st.columns([3, 1])
@@ -479,8 +484,15 @@ def render_category_questions(store_id: str, session_id: str, category: str):
         with col2:
             try:
                 # 라디오 버튼 렌더링
-                # index가 None이면 기본값 0 사용 (첫 번째 옵션 선택)
-                radio_index = index if (index is not None and 0 <= index < len(options)) else 0
+                # index가 None이면 "선택 안 함"(0번 인덱스) 사용
+                if index is not None and 0 <= index < len(options):
+                    radio_index = index
+                elif previous_selected and previous_selected in options:
+                    # 이전에 선택한 값이 있으면 그 값 사용
+                    radio_index = options.index(previous_selected)
+                else:
+                    # 기본값: "선택 안 함"
+                    radio_index = 0
                 
                 selected = st.radio(
                     "",  # 라벨 없음 (col1에 질문 표시)
@@ -501,36 +513,51 @@ def render_category_questions(store_id: str, session_id: str, category: str):
             # 값 변환
             new_raw_value = raw_value_map[selected]
             
-            # 중요: 사용자가 실제로 선택을 변경한 경우에만 session_state에 저장
-            # 이전 선택값과 비교하여 변경되었을 때만 저장
-            if previous_selected is None:
-                # 첫 렌더링: 이전 값 저장만 하고 session_state에는 저장하지 않음
-                st.session_state[radio_prev_key] = selected
-                # current_value가 None이면 저장하지 않음 (아직 선택하지 않은 상태)
-                # 단, DB에서 로드한 값이 있으면 유지
-                if current_value is None:
-                    # 기본값(첫 번째 옵션)이 선택되었지만 저장하지 않음
-                    continue
-                else:
-                    # DB에서 로드한 값이 있으면 유지 (이미 저장되어 있음)
-                    pass
-            
-            # 이전 선택값과 다르면 사용자가 변경한 것으로 간주
-            elif previous_selected != selected:
-                # 이전 값 업데이트
-                st.session_state[radio_prev_key] = selected
-                
-                # session_state 업데이트
-                if hc_answers_key not in st.session_state:
-                    st.session_state[hc_answers_key] = {}
-                st.session_state[hc_answers_key][key] = new_raw_value
-                
-                # dirty에 추가
-                if hc_dirty_key not in st.session_state:
-                    st.session_state[hc_dirty_key] = set()
-                st.session_state[hc_dirty_key].add(key)
-            
-            # 이전 선택값과 같으면 아무것도 하지 않음 (rerun만 발생, 저장 안 함)
+            # "선택 안 함"은 저장하지 않음 (None 값)
+            if new_raw_value is None:
+                # "선택 안 함"이 선택된 경우: 이전에 저장된 값이 있으면 제거
+                if previous_selected is None:
+                    # 첫 렌더링이고 "선택 안 함"이면 아무것도 하지 않음
+                    st.session_state[radio_prev_key] = selected
+                elif previous_selected != selected:
+                    # 사용자가 다른 옵션에서 "선택 안 함"으로 변경한 경우
+                    st.session_state[radio_prev_key] = selected
+                    # session_state에서 제거 (답변 취소)
+                    if hc_answers_key in st.session_state and key in st.session_state[hc_answers_key]:
+                        del st.session_state[hc_answers_key][key]
+                    # dirty에도 제거 (이미 저장된 경우)
+                    if hc_dirty_key in st.session_state and key in st.session_state[hc_dirty_key]:
+                        st.session_state[hc_dirty_key].discard(key)
+                # 이전 선택값과 같으면 아무것도 하지 않음
+            else:
+                # 실제 답변이 선택된 경우
+                if previous_selected is None:
+                    # 첫 렌더링: 이전 값 저장만 하고, "선택 안 함"이 아니면 session_state에 저장
+                    st.session_state[radio_prev_key] = selected
+                    if current_value is None:
+                        # DB에 저장된 값이 없고 사용자가 실제 답변을 선택한 경우
+                        if hc_answers_key not in st.session_state:
+                            st.session_state[hc_answers_key] = {}
+                        st.session_state[hc_answers_key][key] = new_raw_value
+                        # dirty에 추가
+                        if hc_dirty_key not in st.session_state:
+                            st.session_state[hc_dirty_key] = set()
+                        st.session_state[hc_dirty_key].add(key)
+                    # DB에서 로드한 값이 있으면 이미 저장되어 있으므로 pass
+                elif previous_selected != selected:
+                    # 이전 선택값과 다르면 사용자가 변경한 것으로 간주
+                    st.session_state[radio_prev_key] = selected
+                    
+                    # session_state 업데이트
+                    if hc_answers_key not in st.session_state:
+                        st.session_state[hc_answers_key] = {}
+                    st.session_state[hc_answers_key][key] = new_raw_value
+                    
+                    # dirty에 추가
+                    if hc_dirty_key not in st.session_state:
+                        st.session_state[hc_dirty_key] = set()
+                    st.session_state[hc_dirty_key].add(key)
+                # 이전 선택값과 같으면 아무것도 하지 않음 (rerun만 발생, 저장 안 함)
         
         # 질문 간 간격
         st.markdown("<br>", unsafe_allow_html=True)
