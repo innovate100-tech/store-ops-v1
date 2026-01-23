@@ -1481,6 +1481,13 @@ with st.sidebar:
             st.markdown("---")
             st.markdown(f"**{mode_emoji} 현재 모드: {mode_label}**")
             
+            # 디버깅 정보 (개발 모드에서만)
+            if st.secrets.get("app", {}).get("dev_mode", False):
+                with st.expander("🔍 모드 디버깅", expanded=False):
+                    st.write(f"**Current Mode**: {current_mode}")
+                    st.write(f"**Mode Type**: {type(current_mode)}")
+                    st.write(f"**Will render**: {'Fast Home' if current_mode == 'fast' else 'Coach Home'}")
+            
             # 모드 변경 버튼
             new_mode = 'fast' if current_mode == 'coach' else 'coach'
             new_mode_label = "빠른 모드" if new_mode == 'fast' else "코치 모드"
@@ -1489,6 +1496,8 @@ with st.sidebar:
             # 확인을 위한 세션 상태 확인
             if st.session_state.get("_mode_switch_pending", False):
                 # 확인 대기 중
+                st.warning(f"'{new_mode_label}'로 변경하시겠습니까?")
+                st.info("변경 후 홈 화면이 새로 구성됩니다.")
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button("✅ 확인", use_container_width=True, key="mode_switch_confirm"):
@@ -1496,13 +1505,19 @@ with st.sidebar:
                             st.session_state["_mode_switch_pending"] = False
                             # 캐시 클리어 (모드 변경 후 홈 재구성을 위해)
                             try:
-                                from src.auth import get_onboarding_mode
-                                # 함수 캐시가 있다면 클리어 (get_onboarding_mode는 캐시 없지만 안전을 위해)
                                 st.cache_data.clear()
+                                st.cache_resource.clear()
                             except:
                                 pass
+                            # 세션 상태에 모드 변경 플래그 설정 (홈 재구성 강제)
+                            st.session_state["_mode_changed"] = True
                             st.success(f"모드가 '{new_mode_label}'로 변경되었습니다.")
-                            st.rerun()
+                            # 페이지를 홈으로 강제 이동하여 재구성
+                            if st.session_state.get("current_page") == "홈":
+                                st.rerun()
+                            else:
+                                st.session_state.current_page = "홈"
+                                st.rerun()
                         else:
                             st.session_state["_mode_switch_pending"] = False
                             st.error("모드 변경에 실패했습니다.")

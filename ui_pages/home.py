@@ -2384,16 +2384,18 @@ def render_home():
         st.error("로그인이 필요합니다.")
         return
     
-    # 온보딩 모드 확인
+    # 모드 변경 플래그가 있으면 캐시 클리어
+    if st.session_state.get("_mode_changed", False):
+        try:
+            st.cache_data.clear()
+            st.cache_resource.clear()
+        except:
+            pass
+        st.session_state["_mode_changed"] = False
+    
+    # 온보딩 모드 확인 (매번 DB에서 직접 조회하여 최신 값 가져오기)
     mode = get_onboarding_mode(user_id)
     logger.info(f"render_home: user_id={user_id}, mode={mode}")
-    
-    # 디버깅 정보 표시 (개발 모드에서만)
-    if st.secrets.get("app", {}).get("dev_mode", False):
-        with st.expander("🔍 홈 모드 디버깅", expanded=False):
-            st.write(f"**Current Mode**: {mode}")
-            st.write(f"**Mode Type**: {type(mode)}")
-            st.write(f"**Will render**: {'Fast Home' if mode == 'fast' else 'Coach Home'}")
     
     # 모드에 따라 분기
     if mode == 'fast':
