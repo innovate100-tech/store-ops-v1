@@ -2097,12 +2097,13 @@ elif page == "레시피 등록":
                         success_msg = f"✅ {success_count}개 레시피가 저장되었습니다!"
                         if cooking_method and cooking_method.strip():
                             success_msg += " (조리방법도 함께 저장되었습니다.)"
-                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                        # Phase 0 STEP 5: key 기반 캐시 무효화 (전체 clear 대신)
                         try:
-                            st.cache_data.clear()
+                            from src.ui_helpers import invalidate_keys
+                            invalidate_keys(targets=["recipes"], reason="레시피 저장")
                         except Exception as e:
                             import logging
-                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 저장): {e}")
+                            logging.getLogger(__name__).warning(f"캐시 무효화 실패 (레시피 저장): {e}")
                         st.success(success_msg)
                         st.balloons()
     
@@ -2313,12 +2314,13 @@ elif page == "레시피 등록":
                                 else:
                                     try:
                                         save_recipe(filter_menu, ing_name, new_qty)
-                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                        # Phase 0 STEP 5: key 기반 캐시 무효화 (전체 clear 대신)
                                         try:
-                                            st.cache_data.clear()
+                                            from src.ui_helpers import invalidate_keys
+                                            invalidate_keys(targets=["recipes"], reason="레시피 수정")
                                         except Exception as e:
                                             import logging
-                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 수정): {e}")
+                                            logging.getLogger(__name__).warning(f"캐시 무효화 실패 (레시피 수정): {e}")
                                         st.success(
                                             f"✅ '{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
                                         )
@@ -2329,12 +2331,13 @@ elif page == "레시피 등록":
                                 try:
                                     success, msg = delete_recipe(filter_menu, ing_name)
                                     if success:
-                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                        # Phase 0 STEP 5: key 기반 캐시 무효화 (전체 clear 대신)
                                         try:
-                                            st.cache_data.clear()
+                                            from src.ui_helpers import invalidate_keys
+                                            invalidate_keys(targets=["recipes"], reason="레시피 삭제")
                                         except Exception as e:
                                             import logging
-                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 삭제): {e}")
+                                            logging.getLogger(__name__).warning(f"캐시 무효화 실패 (레시피 삭제): {e}")
                                         st.success(f"✅ '{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
                                     else:
                                         st.error(msg)

@@ -230,7 +230,8 @@ def safe_clear_cache(cache_func=None, filename: str = None):
             else:
                 cache_func.clear()
         else:
-            # 전체 캐시 클리어 (최후의 수단)
+            # Phase 0 STEP 5: 전체 캐시 클리어는 최후의 수단이지만, 가능하면 key 기반 무효화 사용 권장
+            # 전체 clear는 새로고침 같은 특수한 경우에만 사용
             import streamlit as st
             st.cache_data.clear()
         return True
@@ -377,3 +378,97 @@ def merge_ingredient_with_inventory(ingredient_df: pd.DataFrame, inventory_df: p
         result['안전재고'] = result['안전재고'].fillna(0.0)
     
     return result
+
+
+# ============================================
+# Phase 0 STEP 5: 저장/메시지/상태 갱신 표준화 헬퍼
+# ============================================
+
+def ui_flash_success(msg: str, show_toast: bool = True):
+    """
+    성공 메시지 표시 (표준화)
+    
+    Args:
+        msg: 성공 메시지
+        show_toast: toast 메시지 표시 여부 (기본: True)
+    
+    Returns:
+        None (st.success와 st.toast 호출)
+    """
+    st.success(msg)
+    if show_toast:
+        try:
+            st.toast("✅ " + msg, icon="✅")
+        except Exception:
+            pass  # toast 실패해도 계속 진행
+
+
+def ui_flash_error(msg: str, show_toast: bool = True):
+    """
+    에러 메시지 표시 (표준화)
+    
+    Args:
+        msg: 에러 메시지
+        show_toast: toast 메시지 표시 여부 (기본: True)
+    
+    Returns:
+        None (st.error와 st.toast 호출)
+    """
+    st.error(msg)
+    if show_toast:
+        try:
+            st.toast("❌ " + msg, icon="❌")
+        except Exception:
+            pass  # toast 실패해도 계속 진행
+
+
+def ui_flash_warning(msg: str, show_toast: bool = True):
+    """
+    경고 메시지 표시 (표준화)
+    
+    Args:
+        msg: 경고 메시지
+        show_toast: toast 메시지 표시 여부 (기본: True)
+    
+    Returns:
+        None (st.warning과 st.toast 호출)
+    """
+    st.warning(msg)
+    if show_toast:
+        try:
+            st.toast("⚠️ " + msg, icon="⚠️")
+        except Exception:
+            pass  # toast 실패해도 계속 진행
+
+
+def apply_state_patch(patches: Dict[str, Any]):
+    """
+    session_state에 여러 값을 한 번에 업데이트 (표준화)
+    
+    Args:
+        patches: {key: value} 형태의 딕셔너리
+    
+    Returns:
+        None (st.session_state 업데이트)
+    """
+    for key, value in patches.items():
+        st.session_state[key] = value
+
+
+def invalidate_keys(targets: list, reason: str = "user_action"):
+    """
+    캐시 무효화 (soft_invalidate 래핑, 표준화)
+    
+    Args:
+        targets: 무효화할 데이터 타입 리스트 (예: ["sales", "visitors", "menus"])
+        reason: 무효화 이유 (디버깅용, 기본: "user_action")
+    
+    Returns:
+        None (soft_invalidate 호출)
+    """
+    try:
+        from src.storage_supabase import soft_invalidate
+        soft_invalidate(reason=reason, targets=targets)
+    except Exception as e:
+        logger.warning(f"invalidate_keys 실패: {e}")
+        # 실패해도 계속 진행 (non-critical)

@@ -260,7 +260,7 @@ def _render_home_body(store_id: str) -> None:
     _render_zone3_status_board(store_id, year, month, kpis, unofficial_days)
     
     # ZONE 4: 이번 주 우선순위 TOP3 - lazy loading (expander)
-    # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+    # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
     if 'home_zone4_expanded' not in st.session_state:
         st.session_state['home_zone4_expanded'] = False
     
@@ -270,11 +270,12 @@ def _render_home_body(store_id: str) -> None:
         else:
             st.info("💡 펼치면 이번 주 우선순위 TOP3를 확인할 수 있습니다.")
             if st.button("📋 우선순위 보기", key="home_expand_zone4", use_container_width=True):
+                # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                _render_zone4_weekly_priorities(store_id, year, month)
                 st.session_state['home_zone4_expanded'] = True
-                st.rerun()
     
     # ZONE 5: 가게 구조 스냅샷 (보조) - lazy loading (expander)
-    # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+    # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
     if 'home_zone5_expanded' not in st.session_state:
         st.session_state['home_zone5_expanded'] = False
     
@@ -284,8 +285,9 @@ def _render_home_body(store_id: str) -> None:
         else:
             st.info("💡 펼치면 가게 구조 스냅샷을 확인할 수 있습니다.")
             if st.button("🟣 구조 스냅샷 보기", key="home_expand_zone5", use_container_width=True):
+                # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                _render_zone5_design_snapshot(store_id, year, month)
                 st.session_state['home_zone5_expanded'] = True
-                st.rerun()
 
     # ===== HOME v3: 오늘 하나만 추천은 ZONE 0에 통합됨 =====
 

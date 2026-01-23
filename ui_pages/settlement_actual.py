@@ -10,7 +10,7 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 
 # Phase G: 로깅 설정
 logger = logging.getLogger(__name__)
-from src.ui_helpers import render_section_divider, safe_get_value
+from src.ui_helpers import render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -268,7 +268,8 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                      use_container_width=True):
             # 강제로 템플릿에서 다시 로드 (값 복원 포함)
             _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
-            st.success("✅ 템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
+            # Phase 0 STEP 5: 표준화된 성공 메시지 표시
+            ui_flash_success("템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
             # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
     
     # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
@@ -337,11 +338,13 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 # Phase G: session_state 갱신
                 st.session_state[auto_sales_key] = auto_sales
                 st.session_state[total_sales_key] = auto_sales
-                st.success(f"✅ sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
+                # Phase 0 STEP 5: 표준화된 성공 메시지 표시
+                ui_flash_success(f"sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
                 # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             except Exception as e:
                 # Phase G: 예외 발생 시 기존 값 유지, 에러 메시지 표시
-                st.error(f"❌ 매출 불러오기 실패: {str(e)}")
+                # Phase 0 STEP 5: 표준화된 에러 메시지 표시
+                ui_flash_error(f"매출 불러오기 실패: {str(e)}")
                 logger.error(f"Failed to reload monthly sales: {e}", exc_info=True)
     with sales_col3:
         # Phase D: 자동값으로 되돌리기 버튼 (Phase F: readonly일 때 비활성화)
@@ -349,10 +352,12 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                      disabled=readonly, use_container_width=True):
             if auto_sales_key in st.session_state:
                 st.session_state[total_sales_key] = st.session_state[auto_sales_key]
-                st.success(f"✅ 자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
+                # Phase 0 STEP 5: 표준화된 성공 메시지 표시
+                ui_flash_success(f"자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
                 # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             else:
-                st.warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
+                # Phase 0 STEP 5: 표준화된 경고 메시지 표시
+                ui_flash_warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
     
     # 미마감 날짜 개수 확인
     unofficial_days = count_unofficial_days_in_month(store_id, selected_year, selected_month)
@@ -546,12 +551,8 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                                 saved_count += 1
                     
                     if saved_count > 0:
-                        st.success(f"✅ {saved_count}개 항목이 저장되었습니다.")
-                        # Phase 0 STEP 4: 저장 성공 시 toast 표시 후 session_state만 갱신 (rerun 불필요)
-                        try:
-                            st.toast(f"✅ {saved_count}개 항목이 저장되었습니다.", icon="✅")
-                        except:
-                            pass
+                        # Phase 0 STEP 5: 표준화된 성공 메시지 표시
+                        ui_flash_success(f"{saved_count}개 항목이 저장되었습니다.")
                     else:
                         st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
                     # Phase 0 STEP 4: 저장 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
@@ -1575,7 +1576,7 @@ def render_settlement_actual():
         _render_expense_section(store_id, year, month, total_sales, readonly)
         
         # 분석 영역 (Phase E: 성적표) - lazy loading (expander)
-        # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+        # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
         if 'settlement_analysis_expanded' not in st.session_state:
             st.session_state['settlement_analysis_expanded'] = False
         
@@ -1585,11 +1586,12 @@ def render_settlement_actual():
             else:
                 st.info("💡 펼치면 이번 달 성적표를 확인할 수 있습니다.")
                 if st.button("📊 성적표 보기", key="settlement_expand_analysis", use_container_width=True):
+                    # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                    _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
                     st.session_state['settlement_analysis_expanded'] = True
-                    st.rerun()
         
         # Phase H: 월별 히스토리 섹션 - lazy loading (expander)
-        # Phase 0 STEP 4: 섹션 단위 lazy loading으로 rerun 비용 절감
+        # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
         if 'settlement_history_expanded' not in st.session_state:
             st.session_state['settlement_history_expanded'] = False
         
@@ -1599,8 +1601,9 @@ def render_settlement_actual():
             else:
                 st.info("💡 펼치면 최근 월별 성적 히스토리를 확인할 수 있습니다.")
                 if st.button("📅 히스토리 보기", key="settlement_expand_history", use_container_width=True):
+                    # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                    _render_settlement_history(store_id)
                     st.session_state['settlement_history_expanded'] = True
-                    st.rerun()
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시
