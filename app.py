@@ -29,31 +29,64 @@ user_id = st.session_state.get('user_id')
 import logging
 logger = logging.getLogger(__name__)
 
-# 디버깅: 온보딩 상태 확인 및 화면에 표시
+# 온보딩 상태 캐싱 (세션당 1회만 체크, DB 조회 실패 시 재체크 방지)
+_onboarding_check_key = "_onboarding_checked"
+_onboarding_complete_key = "_onboarding_complete"
+
 if user_id:
-    from src.auth import get_onboarding_mode
-    mode = get_onboarding_mode(user_id)
-    needs = needs_onboarding(user_id)
-    
-    logger.info(f"온보딩 체크: user_id={user_id}, mode={mode}, needs={needs}")
-    
-    # 디버깅 정보를 화면에 표시 (개발 모드에서만)
-    if st.secrets.get("app", {}).get("dev_mode", False):
-        with st.expander("🔍 온보딩 디버깅 정보", expanded=False):
-            st.write(f"**User ID**: {user_id}")
-            st.write(f"**Onboarding Mode**: {mode}")
-            st.write(f"**Mode is None**: {mode is None}")
-            st.write(f"**Needs Onboarding**: {needs}")
-            st.write(f"**Type of mode**: {type(mode)}")
-            st.write(f"**Mode repr**: {repr(mode)}")
-    
-    if needs:
-        logger.info("온보딩 화면으로 이동")
-        from ui_pages.onboarding_mode_select import render_onboarding_mode_select
-        render_onboarding_mode_select()
-        st.stop()
+    # 이미 온보딩 완료로 확인된 경우 재체크하지 않음
+    if st.session_state.get(_onboarding_complete_key, False):
+        logger.debug("온보딩 완료 상태 (캐시됨) - 재체크 건너뜀")
     else:
-        logger.info(f"온보딩 불필요 (mode={mode}) - 다음 단계로 진행")
+        # 온보딩 체크 (세션당 1회만)
+        if not st.session_state.get(_onboarding_check_key, False):
+            try:
+                from src.auth import get_onboarding_mode
+                mode = get_onboarding_mode(user_id)
+                needs = needs_onboarding(user_id)
+                
+                logger.info(f"온보딩 체크: user_id={user_id}, mode={mode}, needs={needs}")
+                
+                # 디버깅 정보를 화면에 표시 (개발 모드에서만)
+                if st.secrets.get("app", {}).get("dev_mode", False):
+                    with st.expander("🔍 온보딩 디버깅 정보", expanded=False):
+                        st.write(f"**User ID**: {user_id}")
+                        st.write(f"**Onboarding Mode**: {mode}")
+                        st.write(f"**Mode is None**: {mode is None}")
+                        st.write(f"**Needs Onboarding**: {needs}")
+                        st.write(f"**Type of mode**: {type(mode)}")
+                        st.write(f"**Mode repr**: {repr(mode)}")
+                
+                # 체크 완료 표시
+                st.session_state[_onboarding_check_key] = True
+                
+                if needs:
+                    logger.info("온보딩 화면으로 이동")
+                    from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+                    render_onboarding_mode_select()
+                    st.stop()
+                else:
+                    # 온보딩 완료 상태 저장 (재체크 방지)
+                    st.session_state[_onboarding_complete_key] = True
+                    logger.info(f"온보딩 불필요 (mode={mode}) - 다음 단계로 진행")
+            except Exception as e:
+                # DB 조회 실패 시 이전 상태 유지 (온보딩 페이지로 이동하지 않음)
+                logger.error(f"온보딩 체크 중 오류 발생: {e}")
+                # 체크 완료 표시하여 무한 재시도 방지
+                st.session_state[_onboarding_check_key] = True
+                # 이전에 완료된 것으로 확인된 경우에만 완료 상태 유지
+                if st.session_state.get(_onboarding_complete_key, False):
+                    logger.warning("온보딩 체크 실패했으나 이전 완료 상태 유지")
+                else:
+                    # 첫 체크 실패 시 온보딩 필요로 간주하지 않음 (안전장치)
+                    logger.warning("온보딩 체크 실패 - 온보딩 페이지로 이동하지 않음")
+        else:
+            # 이미 체크했지만 완료 상태가 없는 경우 (온보딩 필요)
+            if not st.session_state.get(_onboarding_complete_key, False):
+                logger.info("온보딩 체크 완료 - 온보딩 필요 상태 유지")
+                from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+                render_onboarding_mode_select()
+                st.stop()
 else:
     logger.warning("user_id가 없음 - 온보딩 체크 건너뜀")
 
@@ -66,10 +99,19 @@ if not store_id:
 
 # 매장 생성 후 온보딩 모드가 아직 NULL이면 다시 온보딩 화면으로 이동
 # (매장 생성 화면에서 온보딩을 건너뛸 수 있으므로 재확인)
-if user_id and needs_onboarding(user_id):
-    from ui_pages.onboarding_mode_select import render_onboarding_mode_select
-    render_onboarding_mode_select()
-    st.stop()
+# 단, 이미 온보딩 완료로 확인된 경우 재체크하지 않음
+if user_id and not st.session_state.get(_onboarding_complete_key, False):
+    try:
+        if needs_onboarding(user_id):
+            from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+            render_onboarding_mode_select()
+            st.stop()
+    except Exception as e:
+        # DB 조회 실패 시 이전 상태 유지
+        logger.error(f"매장 생성 후 온보딩 체크 중 오류: {e}")
+        # 온보딩 완료 상태가 있으면 유지
+        if st.session_state.get(_onboarding_complete_key, False):
+            logger.warning("온보딩 체크 실패했으나 이전 완료 상태 유지")
 
 # Supabase 연결 진단 함수
 def _diagnose_supabase_connection():
