@@ -1725,7 +1725,7 @@ if st.session_state.get("_show_supabase_diagnosis", False):
     # 플래그는 유지 (사용자가 닫을 때까지 보이도록)
 
 # 입력 허브 페이지
-if page == "입력 허브":
+elif page == "입력 허브":
     from ui_pages.input.input_hub import render_input_hub
     render_input_hub()
 

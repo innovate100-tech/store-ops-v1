@@ -43,6 +43,7 @@ def render_input_hub():
         if st.button("📅 월간 정산(실제 입력)", use_container_width=True, type="secondary", key="input_hub_settlement"):
             st.session_state["current_page"] = "실제정산"
             st.rerun()
+        st.caption("페이지 키: 실제정산 (기존 유지)")
     
     with col2:
         if st.button("🎯 목표 매출 구조(기준 입력)", use_container_width=True, type="secondary", key="input_hub_target_sales"):
