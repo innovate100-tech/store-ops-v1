@@ -154,8 +154,13 @@ def render_input_form(store_id: str, session_id: str):
         key = f"{ans['category']}_{ans['question_code']}"
         answers_dict[key] = ans['raw_value']
     
-    # 진행률 계산
-    answered_count = len(answers_dict)
+    # session_state에 답변 개수 초기화 (처음 로드 시 또는 DB에서 로드한 값으로)
+    answer_count_key = f"health_check_answer_count_{session_id}"
+    if answer_count_key not in st.session_state:
+        st.session_state[answer_count_key] = len(answers_dict)
+    
+    # 진행률 계산 (session_state의 실시간 답변 개수 사용)
+    answered_count = st.session_state[answer_count_key]
     progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0
     can_complete = progress_ratio >= MIN_COMPLETION_RATIO
     
@@ -294,6 +299,16 @@ def render_category_questions(
                         st.session_state['last_saved_key'] = key
                         st.session_state['last_saved_time'] = datetime.now()
                         st.session_state[answer_state_key] = new_raw_value
+                        
+                        # 답변 개수 업데이트 (새 답변이면 증가, 기존 답변 수정이면 유지)
+                        answer_count_key = f"health_check_answer_count_{session_id}"
+                        if answer_count_key not in st.session_state:
+                            st.session_state[answer_count_key] = 0
+                        
+                        # stored_value가 None이면 새 답변, 아니면 기존 답변 수정
+                        if stored_value is None:
+                            st.session_state[answer_count_key] = st.session_state.get(answer_count_key, 0) + 1
+                        
                         # 작은 성공 메시지 (선택적, rerun 방지를 위해 주석 처리)
                         # st.success("✓", icon="✅")
                     else:
