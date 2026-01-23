@@ -249,13 +249,20 @@ def render_category_questions(
         if answer_state_key not in st.session_state:
             st.session_state[answer_state_key] = current_value
         
+        # index가 None이면 기본값 0 사용 (첫 번째 옵션)
+        radio_index = index if index is not None else 0
+        
         selected = st.radio(
             question_text,
             options=options,
-            index=index,
+            index=radio_index,
             key=f"q_{category}_{question_code}",
             horizontal=True
         )
+        
+        # selected가 None이거나 raw_value_map에 없으면 스킵 (안전장치)
+        if selected is None or selected not in raw_value_map:
+            continue
         
         # 값이 변경되었고, 이전에 저장한 키와 다르면 저장 (rerun 폭발 방지)
         new_raw_value = raw_value_map[selected]
