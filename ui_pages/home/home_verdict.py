@@ -18,6 +18,7 @@ from src.storage_supabase import (
 )
 from src.auth import get_supabase_client
 from ui_pages.design_lab.design_insights import get_design_insights
+from ui_pages.design_lab.design_state_loader import get_design_state, get_primary_risk_area
 
 
 def get_coach_verdict(store_id: str, year: int, month: int, monthly_sales: int) -> dict:
@@ -44,11 +45,14 @@ def get_coach_verdict(store_id: str, year: int, month: int, monthly_sales: int) 
         }
     
     try:
-        # 설계 인사이트 로드 (우선 근거)
+        # 설계 상태 로드 (점수화 + 상태 판정)
+        design_state = get_design_state(store_id, year, month)
+        
+        # 설계 인사이트 로드 (상세 데이터)
         insights = get_design_insights(store_id, year, month)
         
-        # 1순위: 설계 DB 기반 판단 (우선순위 높음)
-        design_verdict = _check_design_based_risks(insights, store_id, year, month, monthly_sales)
+        # 1순위: 설계 상태 기반 판단 (우선순위 높음)
+        design_verdict = _check_design_state_risks(design_state, insights)
         if design_verdict:
             return design_verdict
         

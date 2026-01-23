@@ -28,6 +28,71 @@ CREATE TABLE IF NOT EXISTS strategy_missions (
     UNIQUE(store_id, mission_date)  -- 하루 1개만
 );
 
+-- ============================================
+-- STEP 1-1: 기존 테이블에 컬럼 추가 (PHASE 10-7C 확장)
+-- ============================================
+-- 기존 테이블이 있는 경우 컬럼 추가
+DO $$ 
+BEGIN
+    -- status CHECK 제약 업데이트 (기존 제약 삭제 후 재생성)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'strategy_missions_status_check' 
+        AND table_name = 'strategy_missions'
+    ) THEN
+        ALTER TABLE strategy_missions DROP CONSTRAINT strategy_missions_status_check;
+    END IF;
+    
+    -- 컬럼 추가 (없는 경우만)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'strategy_missions' 
+        AND column_name = 'monitor_start_date'
+    ) THEN
+        ALTER TABLE strategy_missions ADD COLUMN monitor_start_date DATE NULL;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'strategy_missions' 
+        AND column_name = 'evaluation_date'
+    ) THEN
+        ALTER TABLE strategy_missions ADD COLUMN evaluation_date DATE NULL;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'strategy_missions' 
+        AND column_name = 'result_type'
+    ) THEN
+        ALTER TABLE strategy_missions ADD COLUMN result_type TEXT NULL;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'strategy_missions' 
+        AND column_name = 'coach_comment'
+    ) THEN
+        ALTER TABLE strategy_missions ADD COLUMN coach_comment TEXT NULL;
+    END IF;
+    
+    -- status CHECK 제약 재생성
+    ALTER TABLE strategy_missions 
+        ADD CONSTRAINT strategy_missions_status_check 
+        CHECK (status IN ('active', 'completed', 'abandoned', 'monitoring', 'evaluated'));
+    
+    -- result_type CHECK 제약 추가
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'strategy_missions_result_type_check' 
+        AND table_name = 'strategy_missions'
+    ) THEN
+        ALTER TABLE strategy_missions 
+            ADD CONSTRAINT strategy_missions_result_type_check 
+            CHECK (result_type IS NULL OR result_type IN ('improved', 'no_change', 'worsened', 'data_insufficient'));
+    END IF;
+END $$;
+
 -- 인덱스
 CREATE INDEX IF NOT EXISTS idx_strategy_missions_store_date 
     ON strategy_missions(store_id, mission_date DESC);

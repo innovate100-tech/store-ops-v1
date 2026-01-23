@@ -16,6 +16,7 @@ from ui_pages.design_lab.design_center_data import (
     get_primary_concern,
 )
 from ui_pages.design_lab.design_insights import get_design_insights
+from ui_pages.design_lab.design_state_loader import get_design_state, get_primary_risk_area
 from ui_pages.coach.coach_adapters import get_design_center_verdict
 from ui_pages.coach.coach_renderer import render_verdict_card
 from ui_pages.routines.routine_state import get_routine_status, mark_weekly_check_done
@@ -341,82 +342,111 @@ def render_design_center():
                     st.rerun()
 
 
-def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
+def _get_top3_launchpad_actions_from_state(design_state: dict, design_insights: dict, store_id: str) -> list:
     """
-    설계 인사이트 기반 Top3 액션 선정
+    설계 상태 기반 Top3 액션 선정 (점수화 + 상태 판정 기반)
+    
+    Args:
+        design_state: get_design_state() 결과
+        design_insights: get_design_insights() 결과
+        store_id: 매장 ID
     
     Returns:
         [{"label": str, "page": str, "tab": str | None, "score": int}, ...]
     """
     try:
-        insights = get_design_insights(store_id, year, month)
-        
-        # 액션 후보와 점수 계산
         actions = []
         
-        # 1) 수익 구조 위험 (break_even_gap_ratio < 0.9)
-        revenue = insights.get("revenue_structure", {})
-        if revenue.get("has_data"):
-            gap_ratio = revenue.get("break_even_gap_ratio", 1.0)
-            if gap_ratio < 0.9:
-                score = 100 if gap_ratio < 0.8 else 80
-                actions.append({
-                    "label": "📈 손익분기점 갱신",
-                    "page": "수익 구조 설계실",
-                    "tab": "execute",
-                    "score": score
-                })
+        # 설계 상태 기반 점수 계산 (점수가 낮을수록 우선순위 높음)
+        # risk 상태: 점수 = (100 - score) * 2
+        # warn 상태: 점수 = (100 - score)
+        # safe 상태: 점수 = 0 (제외)
         
-        # 2) 재료 구조 위험 (top3_concentration >= 0.7 AND missing_substitute_count > 0)
-        ingredient = insights.get("ingredient_structure", {})
-        if ingredient.get("has_data"):
-            top3_concentration = ingredient.get("top3_concentration", 0.0)
-            missing_substitute = ingredient.get("missing_substitute_count", 0)
-            if top3_concentration >= 0.7 and missing_substitute > 0:
-                actions.append({
-                    "label": "🥬 원가 집중/대체재 설계",
-                    "page": "재료 등록",
-                    "tab": "execute",
-                    "score": 90
-                })
+        # 1) 수익 구조 (가장 위험)
+        revenue_state = design_state.get("revenue_structure", {})
+        revenue_status = revenue_state.get("status", "safe")
+        revenue_score = revenue_state.get("score", 100)
+        if revenue_status == "risk":
+            priority_score = (100 - revenue_score) * 2
+            actions.append({
+                "label": "📈 손익분기점 갱신",
+                "page": "수익 구조 설계실",
+                "tab": "execute",
+                "score": priority_score
+            })
+        elif revenue_status == "warn":
+            priority_score = (100 - revenue_score)
+            actions.append({
+                "label": "📈 손익분기점 갱신",
+                "page": "수익 구조 설계실",
+                "tab": "execute",
+                "score": priority_score
+            })
         
-        # 3) 마진 메뉴 0개
-        menu_portfolio = insights.get("menu_portfolio", {})
-        if menu_portfolio.get("has_data"):
-            margin_count = menu_portfolio.get("margin_menu_count", 0)
-            if margin_count == 0:
-                actions.append({
-                    "label": "💰 고원가율 메뉴 정리",
-                    "page": "메뉴 수익 구조 설계실",
-                    "tab": "execute",
-                    "score": 85
-                })
+        # 2) 재료 구조
+        ingredient_state = design_state.get("ingredient_structure", {})
+        ingredient_status = ingredient_state.get("status", "safe")
+        ingredient_score = ingredient_state.get("score", 100)
+        if ingredient_status == "risk":
+            priority_score = (100 - ingredient_score) * 2
+            actions.append({
+                "label": "🥬 원가 집중/대체재 설계",
+                "page": "재료 등록",
+                "tab": "execute",
+                "score": priority_score
+            })
+        elif ingredient_status == "warn":
+            priority_score = (100 - ingredient_score)
+            actions.append({
+                "label": "🥬 원가 집중/대체재 설계",
+                "page": "재료 등록",
+                "tab": "execute",
+                "score": priority_score
+            })
         
-        # 4) 역할 미분류 비율 >= 30%
-        if menu_portfolio.get("has_data"):
-            unclassified_ratio = menu_portfolio.get("role_unclassified_ratio", 0.0)
-            if unclassified_ratio >= 30.0:
-                actions.append({
-                    "label": "📊 포트폴리오 미분류 정리",
-                    "page": "메뉴 등록",
-                    "tab": "execute",
-                    "score": 60
-                })
+        # 3) 메뉴 수익 구조
+        menu_profit_state = design_state.get("menu_profit", {})
+        menu_profit_status = menu_profit_state.get("status", "safe")
+        menu_profit_score = menu_profit_state.get("score", 100)
+        if menu_profit_status == "risk":
+            priority_score = (100 - menu_profit_score) * 2
+            actions.append({
+                "label": "💰 고원가율 메뉴 정리",
+                "page": "메뉴 수익 구조 설계실",
+                "tab": "execute",
+                "score": priority_score
+            })
+        elif menu_profit_status == "warn":
+            priority_score = (100 - menu_profit_score)
+            actions.append({
+                "label": "💰 고원가율 메뉴 정리",
+                "page": "메뉴 수익 구조 설계실",
+                "tab": "execute",
+                "score": priority_score
+            })
         
-        # 5) 고원가율 메뉴 >= 3개
-        menu_profit = insights.get("menu_profit", {})
-        if menu_profit.get("has_data"):
-            high_cogs_count = menu_profit.get("high_cogs_ratio_menu_count", 0)
-            if high_cogs_count >= 3:
-                actions.append({
-                    "label": "💰 고원가율 메뉴 정리",
-                    "page": "메뉴 수익 구조 설계실",
-                    "tab": "execute",
-                    "score": 70
-                })
+        # 4) 메뉴 포트폴리오
+        menu_portfolio_state = design_state.get("menu_portfolio", {})
+        menu_portfolio_status = menu_portfolio_state.get("status", "safe")
+        menu_portfolio_score = menu_portfolio_state.get("score", 100)
+        if menu_portfolio_status == "risk":
+            priority_score = (100 - menu_portfolio_score) * 2
+            actions.append({
+                "label": "📊 포트폴리오 미분류 정리",
+                "page": "메뉴 등록",
+                "tab": "execute",
+                "score": priority_score
+            })
+        elif menu_portfolio_status == "warn":
+            priority_score = (100 - menu_portfolio_score)
+            actions.append({
+                "label": "📊 포트폴리오 미분류 정리",
+                "page": "메뉴 등록",
+                "tab": "execute",
+                "score": priority_score
+            })
         
-        # 6) 운영 데이터 기반 (매출 급락 등 - 기존 로직 활용 가능)
-        # 여기서는 간단히 기본 액션 추가
+        # 5) 기본 액션 (위험이 없을 때)
         if not actions:
             actions.append({
                 "label": "📉 매출 하락 원인 찾기",
@@ -440,6 +470,22 @@ def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
         return unique_actions[:6]
     except Exception:
         # 에러 시 기본 액션 반환
+        return [
+            {"label": "📉 매출 하락 원인 찾기", "page": "매출 하락 원인 찾기", "tab": None, "score": 50},
+            {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute", "score": 40},
+            {"label": "📊 포트폴리오 미분류 정리", "page": "메뉴 등록", "tab": "execute", "score": 30},
+        ]
+
+
+def _get_top3_launchpad_actions(store_id: str, year: int, month: int) -> list:
+    """
+    설계 상태 기반 Top3 액션 선정 (레거시 호환)
+    """
+    try:
+        design_state = get_design_state(store_id, year, month)
+        design_insights = get_design_insights(store_id, year, month)
+        return _get_top3_launchpad_actions_from_state(design_state, design_insights, store_id)
+    except Exception:
         return [
             {"label": "📉 매출 하락 원인 찾기", "page": "매출 하락 원인 찾기", "tab": None, "score": 50},
             {"label": "💰 고원가율 메뉴 정리", "page": "메뉴 수익 구조 설계실", "tab": "execute", "score": 40},
