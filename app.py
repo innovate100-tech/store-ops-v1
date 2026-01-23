@@ -1514,14 +1514,22 @@ with st.sidebar:
             ("홈", "홈"),
         ],
         "✍ 입력": [
-            ("입력 허브", "입력 허브"),
-            ("오늘 입력", "일일 입력(통합)"),  # 라벨 변경, page key 유지
-            ("점장 마감", "점장 마감"),
-            ("매출 보정 입력", "매출 등록"),  # 라벨 변경, page key 유지
-            ("판매량 보정 입력", "판매량 등록"),  # 라벨 변경, page key 유지
-            ("월간 정산 입력", "실제정산"),  # 라벨 변경, page key 유지
-            ("주간 리포트 확인", "주간 리포트"),  # 라벨 변경, page key 유지
-            ("매장 체크리스트 실시", "건강검진 실시"),  # 라벨 변경, page key 유지
+            ("입력 허브", "입력 허브"),  # 항상 노출
+            # 나머지는 expander로 처리 (아래 _render_input_category_expander에서)
+        ],
+        "✍ 입력 (빠른 입력)": [  # expander 내부 항목들
+            ("오늘 입력", "일일 입력(통합)"),  # page key 유지
+            ("매장 체크리스트", "건강검진 실시"),  # page key 유지
+            ("주간 리포트", "주간 리포트"),  # page key 유지
+            ("월간 정산", "실제정산"),  # page key 유지
+            ("목표 매출 구조", "목표 매출구조"),  # page key 유지
+            ("목표 비용 구조", "목표 비용구조"),  # page key 유지
+            ("메뉴 관리", "메뉴 등록"),  # page key 유지
+            ("재료 관리", "재료 등록"),  # page key 유지
+            ("레시피 관리", "레시피 등록"),  # page key 유지
+            # ("재고 관리", "재고 관리"),  # 향후 추가 예정 (현재 라우팅 없음)
+            ("매출 등록", "매출 등록"),  # page key 유지
+            ("판매량 등록", "판매량 등록"),  # page key 유지
         ],
         "📊 분석": [
             ("체크 결과 요약", "검진 결과 요약"),  # 라벨 변경, page key 유지
@@ -1579,7 +1587,7 @@ with st.sidebar:
         "🛠 운영",
     ]
     
-    # 순서대로 렌더링 (모든 카테고리를 일반 카테고리로 렌더링)
+    # 순서대로 렌더링
     for category_name in category_order:
         if category_name not in menu_categories:
             continue
@@ -1588,15 +1596,33 @@ with st.sidebar:
         if not items:
             continue
         
-        # 모든 카테고리를 일반 카테고리로 렌더링
-        st.sidebar.markdown(f"""
-        <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
-                {category_name}
+        # 입력 카테고리는 특별 처리: 입력 허브 항상 노출 + expander로 빠른 입력
+        if category_name == "✍ 입력":
+            st.sidebar.markdown(f"""
+            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                    {category_name}
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-        _render_menu_buttons(items, st.sidebar)
+            """, unsafe_allow_html=True)
+            # 입력 허브는 항상 노출
+            _render_menu_buttons(items, st.sidebar)
+            
+            # 빠른 입력은 expander로
+            quick_input_items = menu_categories.get("✍ 입력 (빠른 입력)", [])
+            if quick_input_items:
+                with st.sidebar.expander("⚡ 빠른 입력", expanded=False):
+                    _render_menu_buttons(quick_input_items, st.sidebar)
+        else:
+            # 다른 카테고리는 일반 렌더링
+            st.sidebar.markdown(f"""
+            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                    {category_name}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            _render_menu_buttons(items, st.sidebar)
     
     # 사이드바 하단: 테마 설정 (모든 메뉴 카테고리 아래에 배치)
     st.sidebar.markdown("---")
