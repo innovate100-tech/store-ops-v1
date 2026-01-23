@@ -1399,8 +1399,8 @@ def render_day0_home():
             st.rerun()
 
 
-def render_home():
-    """홈 (사장 계기판) 페이지 렌더링"""
+def render_coach_home():
+    """Coach Mode 홈 (사장 계기판) 페이지 렌더링 - 기존 홈 화면"""
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
@@ -2176,3 +2176,218 @@ def render_home():
                 <p style="color: #495057; margin: 0;">운영 메모를 불러오는 중 오류가 발생했습니다.</p>
             </div>
             """, unsafe_allow_html=True)
+
+
+def render_fast_home():
+    """Fast Mode 홈 (30초 요약 화면) - 간소화된 홈 화면"""
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
+        return
+    
+    # 데이터 단계 판별
+    data_level = detect_data_level(store_id)
+    
+    # DAY 0 전용 홈 화면 표시
+    if data_level == 0:
+        render_day0_home()
+        return
+    
+    # Fast Mode 홈 화면 렌더링
+    render_page_header("사장 계기판", "🏠")
+    
+    # 이번 달 정보
+    KST = ZoneInfo("Asia/Seoul")
+    now_kst = datetime.now(KST)
+    current_year = now_kst.year
+    current_month = now_kst.month
+    
+    # ========== 섹션 1: 핵심 숫자 카드 (4개) ==========
+    st.markdown("### 💰 핵심 숫자")
+    
+    # 데이터 로드
+    monthly_sales = 0
+    try:
+        monthly_sales = load_monthly_sales_total(store_id, current_year, current_month)
+    except Exception:
+        pass
+    
+    # 마감률 계산
+    close_stats = (0, 0, 0.0, 0)
+    try:
+        close_stats = get_monthly_close_stats(store_id, current_year, current_month)
+    except Exception:
+        pass
+    closed_days, total_days, close_rate, streak_days = close_stats
+    close_rate_pct = int(close_rate * 100) if close_rate > 0 else 0
+    
+    # 4열 레이아웃
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        # 오늘 매출 (간단히 표시)
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
+            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">오늘 매출</div>
+            <div style="font-size: 1.3rem; font-weight: 700;">-</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        # 이번 달 매출
+        if monthly_sales > 0:
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; text-align: center; color: white;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">이번 달 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{monthly_sales:,}원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">이번 달 매출</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        # 객단가
+        if data_level >= 2:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">객단가</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">계산 예정</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">객단가</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col4:
+        # 이번 달 마감률
+        if closed_days > 0:
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
+                <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">마감률</div>
+                <div style="font-size: 1.3rem; font-weight: 700;">{close_rate_pct}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="padding: 1.2rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem;">마감률</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    render_section_divider()
+    
+    # ========== 섹션 2: 바로가기 버튼 3개 ==========
+    st.markdown("### 🚀 빠른 이동")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📋 점장마감", type="primary", use_container_width=True, key="fast_home_btn_close"):
+            st.session_state.current_page = "점장 마감"
+            st.rerun()
+    
+    with col2:
+        if st.button("📊 매출관리", type="primary", use_container_width=True, key="fast_home_btn_sales"):
+            st.session_state.current_page = "매출 관리"
+            st.rerun()
+    
+    with col3:
+        if st.button("🧾 실제정산", type="primary", use_container_width=True, key="fast_home_btn_settlement"):
+            st.session_state.current_page = "실제정산"
+            st.rerun()
+    
+    render_section_divider()
+    
+    # ========== 섹션 3: 오늘 할 일 1줄 ==========
+    st.markdown("### ✅ 오늘 할 일")
+    
+    # 오늘 할 일 체크
+    today_todos = []
+    
+    # 1. 오늘 마감 입력 안 됨
+    try:
+        today = now_kst.date()
+        supabase = get_supabase_client()
+        today_close = supabase.table("daily_close")\
+            .select("id")\
+            .eq("store_id", store_id)\
+            .eq("date", today.isoformat())\
+            .limit(1)\
+            .execute()
+        
+        if not today_close.data:
+            today_todos.append("오늘 마감 입력 안 됨")
+    except Exception:
+        pass
+    
+    # 2. 이번 달 목표 없음
+    try:
+        has_targets = supabase.table("targets")\
+            .select("id")\
+            .eq("store_id", store_id)\
+            .eq("year", current_year)\
+            .eq("month", current_month)\
+            .limit(1)\
+            .execute()
+        
+        if not has_targets.data:
+            today_todos.append("이번 달 목표 없음")
+    except Exception:
+        pass
+    
+    # 3. 이번 달 정산 미완
+    try:
+        has_settlement = check_actual_settlement_exists(store_id, current_year, current_month)
+        if not has_settlement:
+            today_todos.append("이번 달 정산 미완")
+    except Exception:
+        pass
+    
+    # 할 일 표시
+    if today_todos:
+        for todo in today_todos:
+            st.info(f"⚠️ {todo}")
+    else:
+        st.success("✅ 오늘 할 일이 없습니다. 모든 작업이 완료되었습니다!")
+    
+    render_section_divider()
+    
+    # ========== 섹션 4: 이번 달 이익 (가능하면) ==========
+    if data_level >= 3:
+        st.markdown("### 💵 이번 달 이익")
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
+            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">이번 달 이익</div>
+            <div style="font-size: 1.3rem; font-weight: 700;">계산 예정</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def render_home():
+    """홈 페이지 렌더링 - 모드에 따라 분기"""
+    from src.auth import get_onboarding_mode
+    
+    user_id = st.session_state.get('user_id')
+    if not user_id:
+        st.error("로그인이 필요합니다.")
+        return
+    
+    # 온보딩 모드 확인
+    mode = get_onboarding_mode(user_id)
+    
+    # 모드에 따라 분기
+    if mode == 'fast':
+        render_fast_home()
+    else:
+        # 기본값은 coach 모드
+        render_coach_home()

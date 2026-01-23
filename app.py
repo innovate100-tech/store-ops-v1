@@ -37,13 +37,14 @@ if user_id:
     
     logger.info(f"온보딩 체크: user_id={user_id}, mode={mode}, needs={needs}")
     
-    # 디버깅 정보를 화면에 표시 (개발 모드)
-    if st.secrets.get("app", {}).get("dev_mode", False):
-        with st.expander("🔍 온보딩 디버깅 정보", expanded=True):
-            st.write(f"**User ID**: {user_id}")
-            st.write(f"**Onboarding Mode**: {mode}")
-            st.write(f"**Needs Onboarding**: {needs}")
-            st.write(f"**Type of mode**: {type(mode)}")
+    # 디버깅 정보를 화면에 표시 (항상 표시)
+    with st.expander("🔍 온보딩 디버깅 정보", expanded=True):
+        st.write(f"**User ID**: {user_id}")
+        st.write(f"**Onboarding Mode**: {mode}")
+        st.write(f"**Mode is None**: {mode is None}")
+        st.write(f"**Needs Onboarding**: {needs}")
+        st.write(f"**Type of mode**: {type(mode)}")
+        st.write(f"**Mode repr**: {repr(mode)}")
     
     if needs:
         logger.info("온보딩 화면으로 이동")
@@ -1650,7 +1651,7 @@ page = st.session_state.current_page
 # 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
     from ui_pages.home import render_home
-    render_home()
+    render_home()  # 내부에서 모드에 따라 render_coach_home() 또는 render_fast_home() 호출
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):
