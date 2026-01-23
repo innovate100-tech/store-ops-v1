@@ -1728,7 +1728,7 @@ page = st.session_state.current_page
 # 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
     from ui_pages.home import render_home
-    render_home()  # 내부에서 모드에 따라 render_coach_home() 또는 render_fast_home() 호출
+    render_home()  # Phase 9: _render_home_body(store_id, coaching_enabled) 통합 구조
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):

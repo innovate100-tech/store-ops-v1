@@ -1561,10 +1561,10 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
                 # 모두 완료
                 st.success("🎉 기본 세팅이 끝났습니다. 이제 홈이 매일 가게를 읽어드립니다.")
                 st.caption("💡 팁: 매일 점장마감을 하시면 홈이 자동으로 매출 흐름과 문제점을 분석해드립니다.")
-    except Exception as e:
-        # 미션 섹션 오류 시에도 홈이 죽지 않도록
-        pass
-    
+        except Exception as e:
+            # 미션 섹션 오류 시에도 홈이 죽지 않도록
+            pass
+
     render_section_divider()
     
     # ========== 섹션 2: 핵심 숫자 카드 ==========
@@ -1727,23 +1727,23 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
             if st.button(action['button_label'], type="primary", use_container_width=True, key="home_btn_today_one"):
                 st.session_state.current_page = action['target_page']
                 st.rerun()
-    except Exception as e:
-        # Fallback: 예외 발생 시 기본 추천
-        try:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
-                <h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4>
-                <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
-                st.session_state.current_page = "점장 마감"
-                st.rerun()
-        except Exception:
-            pass
-    
+        except Exception as e:
+            # Fallback: 예외 발생 시 기본 추천
+            try:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
+                    st.session_state.current_page = "점장 마감"
+                    st.rerun()
+            except Exception:
+                pass
+
     render_section_divider()
-    
+
     # ========== 섹션 4: 문제 / 잘한 점 ==========
     try:
         with st.container():
