@@ -207,8 +207,8 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("📝 오늘 입력(통합)", use_container_width=True, type="primary", key="input_hub_daily_input"):
-            st.session_state["current_page"] = "일일 입력(통합)"
+        if st.button("📝 오늘 입력", use_container_width=True, type="primary", key="input_hub_daily_input"):
+            st.session_state["current_page"] = "일일 입력(통합)"  # page key 유지
             st.rerun()
     
     with col2:
@@ -223,19 +223,19 @@ def render_input_hub():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📅 월간 정산(실제 입력)", use_container_width=True, type="secondary", key="input_hub_settlement"):
-            st.session_state["current_page"] = "실제정산"
+        if st.button("📅 월간 정산 입력", use_container_width=True, type="secondary", key="input_hub_settlement"):
+            st.session_state["current_page"] = "실제정산"  # page key 유지
             st.rerun()
         st.caption("페이지 키: 실제정산 (기존 유지)")
     
     with col2:
-        if st.button("🎯 목표 매출 구조(기준 입력)", use_container_width=True, type="secondary", key="input_hub_target_sales"):
-            st.session_state["current_page"] = "목표 매출구조"
+        if st.button("🎯 목표 매출 구조 입력", use_container_width=True, type="secondary", key="input_hub_target_sales"):
+            st.session_state["current_page"] = "목표 매출구조"  # page key 유지
             st.rerun()
     
     with col3:
-        if st.button("🧾 목표 비용 구조(기준 입력)", use_container_width=True, type="secondary", key="input_hub_target_cost"):
-            st.session_state["current_page"] = "목표 비용구조"
+        if st.button("🧾 목표 비용 구조 입력", use_container_width=True, type="secondary", key="input_hub_target_cost"):
+            st.session_state["current_page"] = "목표 비용구조"  # page key 유지
             st.rerun()
     
     st.markdown("---")
@@ -245,13 +245,13 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("📈 주간 리포트", use_container_width=True, type="secondary", key="input_hub_weekly_report"):
-            st.session_state["current_page"] = "주간 리포트"
+        if st.button("📈 주간 리포트 확인", use_container_width=True, type="secondary", key="input_hub_weekly_report"):
+            st.session_state["current_page"] = "주간 리포트"  # page key 유지
             st.rerun()
     
     with col2:
-        if st.button("📋 매장 체크리스트", use_container_width=True, type="secondary", key="input_hub_health_check"):
-            st.session_state["current_page"] = "건강검진 실시"
+        if st.button("📋 매장 체크리스트 실시", use_container_width=True, type="secondary", key="input_hub_health_check"):
+            st.session_state["current_page"] = "건강검진 실시"  # page key 유지
             st.rerun()
     
     st.markdown("---")
@@ -261,11 +261,11 @@ def render_input_hub():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🧮 매출 등록(보정)", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
-            st.session_state["current_page"] = "매출 등록"
+        if st.button("🧮 매출 보정 입력", use_container_width=True, type="secondary", key="input_hub_sales_entry"):
+            st.session_state["current_page"] = "매출 등록"  # page key 유지
             st.rerun()
     
     with col2:
-        if st.button("📦 판매량 등록(보정)", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
-            st.session_state["current_page"] = "판매량 등록"
+        if st.button("📦 판매량 보정 입력", use_container_width=True, type="secondary", key="input_hub_sales_volume"):
+            st.session_state["current_page"] = "판매량 등록"  # page key 유지
             st.rerun()
