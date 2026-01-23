@@ -1514,6 +1514,7 @@ with st.sidebar:
             ("홈", "홈"),
         ],
         "✍ 입력": [
+            ("입력 허브", "입력 허브"),
             ("일일 입력(통합)", "일일 입력(통합)"),
             ("점장 마감", "점장 마감"),
             ("매출 등록", "매출 등록"),
@@ -1723,8 +1724,13 @@ if st.session_state.get("_show_supabase_diagnosis", False):
         st.exception(e)
     # 플래그는 유지 (사용자가 닫을 때까지 보이도록)
 
+# 입력 허브 페이지
+if page == "입력 허브":
+    from ui_pages.input.input_hub import render_input_hub
+    render_input_hub()
+
 # 일일 입력 통합 페이지
-if page == "일일 입력(통합)":
+elif page == "일일 입력(통합)":
     from ui_pages.daily_input_hub import render_daily_input_hub
     render_daily_input_hub()
 
