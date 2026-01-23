@@ -222,8 +222,8 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
 
     # ===== 첫 화면 구성 (스크롤 최소화) =====
     
-    # 1. 빠른 이동 (제목 제거, 간격 축소)
-    col1, col2, col3 = st.columns(3)
+    # 1. 빠른 이동 (모던 스타일, 간격 추가)
+    col1, col2, col3 = st.columns(3, gap="medium")
     with col1:
         if st.button("📋 점장마감", type="primary", use_container_width=True, key="home_btn_quick_close"):
             st.session_state["current_page"] = "점장 마감"
@@ -236,22 +236,27 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
         if st.button("🧾 실제정산", type="primary", use_container_width=True, key="home_btn_quick_settlement"):
             st.session_state["current_page"] = "실제정산"
             st.rerun()
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # 2. KPI 한눈 영역 (2줄 고정, 높이 축소)
+    # 2. KPI 한눈 영역 (2줄 고정, 모던 스타일, 간격 추가)
     st.markdown("### 📊 핵심 지표")
     # 첫 번째 줄: 이번달 누적 매출, 목표 대비 %, 마감률
-    k1, k2, k3 = st.columns(3)
+    k1, k2, k3 = st.columns(3, gap="medium")
     with k1:
-        _kpi_card_compact("이번달 누적 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None)
+        _kpi_card_modern("이번달 누적 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None, gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
     with k2:
         if target_ratio is not None:
             target_text = f"{target_ratio}%"
-            target_color = "#28a745" if target_ratio >= 100 else "#ffc107" if target_ratio >= 80 else "#dc3545"
+            if target_ratio >= 100:
+                gradient = "linear-gradient(135deg, #28a745 0%, #20c997 100%)"
+            elif target_ratio >= 80:
+                gradient = "linear-gradient(135deg, #ffc107 0%, #ff9800 100%)"
+            else:
+                gradient = "linear-gradient(135deg, #dc3545 0%, #c82333 100%)"
         else:
             target_text = "-"
-            target_color = "#6c757d"
-        _kpi_card_compact("목표 대비 %", target_text, None, target_color)
+            gradient = "linear-gradient(135deg, #6c757d 0%, #5a6268 100%)"
+        _kpi_card_modern("목표 대비 %", target_text, None, gradient=gradient)
     with k3:
         pct = int(close_rate * 100) if closed_days > 0 else 0
         close_text = f"{pct}%" if closed_days > 0 else "-"
@@ -261,27 +266,27 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
                 close_sub = f"{close_sub} 🔥{streak_days}일"
         else:
             close_sub = None
-        _kpi_card_compact("마감률", close_text, close_sub)
+        _kpi_card_modern("마감률", close_text, close_sub, gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)")
     # 두 번째 줄: 어제 매출, 유입당 매출(참고)
-    k4, k5 = st.columns(2)
+    k4, k5 = st.columns(2, gap="medium")
     with k4:
-        _kpi_card_compact("어제 매출", f"{yesterday_sales:,}원" if yesterday_sales > 0 else "-", None)
+        _kpi_card_modern("어제 매출", f"{yesterday_sales:,}원" if yesterday_sales > 0 else "-", None, gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)")
     with k5:
         v = f"{revenue_per_visit:,}원" if (revenue_per_visit or 0) > 0 else "-"
-        _kpi_card_compact("유입당 매출(참고)", v, "네이버 유입 기준")
+        _kpi_card_modern("유입당 매출(참고)", v, "네이버 유입 기준", gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
     
     # 상태 해석 스트립 (KPI 바로 아래, 1줄)
     _render_status_strip(store_id, monthly_sales, target_sales, target_ratio, close_rate, closed_days, total_days)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. 이상 징후 / 문제 / 잘한 점 (압축, 기본 1개만, 제목 제거)
+    # 3. 이상 징후 / 문제 / 잘한 점 (압축, 기본 1개만, 모던 스타일)
     try:
         _render_compressed_alerts(store_id, coaching_enabled)
     except Exception:
         pass
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # ===== Coach Only 섹션 (첫 화면 이후, 간격 축소) =====
+    # ===== Coach Only 섹션 (코치멘트만 표시, 나머지는 동일) =====
     if coaching_enabled and day_level:
         try:
             if day_level == "DAY1":
@@ -295,75 +300,120 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     if coaching_enabled and "coach_mode_welcomed" not in st.session_state:
         st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
         st.session_state["coach_mode_welcomed"] = True
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
+    # 코치 모드 전용: 시작 미션 3개
     if coaching_enabled:
         try:
             _render_coach_missions(store_id, year, month, kpis)
         except Exception:
             pass
+        st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
 
+    # 코치 모드 전용: 오늘 하나만 추천
     if coaching_enabled:
         try:
             action = get_today_one_action_with_day_context(store_id, data_level, True, day_level)
             st.markdown("### 🎯 오늘 코치의 한 가지 제안")
-            st.markdown(f"""<div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;"><h4 style="color: white; margin-bottom: 0.5rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0;">{action['reason']}</p></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; box-shadow: 0 4px 6px rgba(102,126,234,0.3);"><h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.1rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; line-height: 1.5;">{action['reason']}</p></div>""", unsafe_allow_html=True)
             if st.button(action["button_label"], type="primary", use_container_width=True, key="home_btn_today_one"):
                 st.session_state["current_page"] = action["target_page"]
                 st.rerun()
         except Exception:
             try:
-                st.markdown("""<div style="padding: 1.2rem; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
+                st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.2);"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
                 if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             except Exception:
                 pass
+        st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    # ===== Lazy 영역 (expander, 제목 제거) =====
+    # ===== Lazy 영역 (expander, 모던 스타일) =====
     with st.expander("📈 미니 차트", expanded=False):
-        st.markdown("""<div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;"><p style="color: #6c757d;">차트를 표시하려면 마감 데이터가 필요합니다.</p></div>""", unsafe_allow_html=True)
+        st.markdown("""<div style="padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; text-align: center; border: 2px dashed #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"><p style="color: #6c757d; margin: 0; font-size: 0.9rem;">차트를 표시하려면 마감 데이터가 필요합니다.</p></div>""", unsafe_allow_html=True)
         if st.button("📋 점장 마감으로 이동", use_container_width=True, key="home_btn_chart_close"):
             st.session_state["current_page"] = "점장 마감"
             st.rerun()
 
+    # 코치 모드 전용: 이번 달 가게 상태 한 줄
     if coaching_enabled:
         try:
             s = get_month_status_summary(store_id, year, month, day_level)
-            st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{s}")
+            st.markdown(f"""
+            <div style="padding: 1rem 1.2rem; background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%); border-radius: 10px; border-left: 4px solid #17a2b8; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.85rem; color: #0c5460; font-weight: 600; margin-bottom: 0.3rem;">📌 이번 달 가게 상태 한 줄</div>
+                <div style="font-size: 0.95rem; color: #495057; line-height: 1.5;">{s}</div>
+            </div>
+            """, unsafe_allow_html=True)
         except Exception:
             pass
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
     render_lazy_insights(store_id, year, month)
 
 
+def _kpi_card_modern(label: str, value: str, subtitle: str | None = None, gradient: str | None = None) -> None:
+    """
+    모던한 KPI 카드 스타일 (세련된 디자인)
+    - 높이: 110px 고정
+    - 패딩: 1.2rem
+    - 폰트: label 0.8rem, value 1.4rem, subtitle 0.75rem
+    - 그라데이션 배경 또는 흰색 배경
+    - 그림자 효과
+    - 부드러운 호버 효과
+    """
+    sub_html = f'<div style="font-size: 0.75rem; color: rgba(255,255,255,0.85); margin-top: 0.3rem; font-weight: 400;">{subtitle}</div>' if subtitle else ""
+    
+    if gradient:
+        # 그라데이션 카드 (색상 있는 지표)
+        st.markdown(f"""
+        <div style="
+            padding: 1.2rem;
+            background: {gradient};
+            border-radius: 12px;
+            text-align: center;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
+        ">
+            <div style="font-size: 0.8rem; color: rgba(255,255,255,0.9); margin-bottom: 0.4rem; font-weight: 500; letter-spacing: 0.3px;">{label}</div>
+            <div style="font-size: 1.4rem; font-weight: 700; color: white; line-height: 1.2; letter-spacing: -0.5px;">{value}</div>
+            {sub_html}
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # 흰색 카드 (기본 지표)
+        st.markdown(f"""
+        <div style="
+            padding: 1.2rem;
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            text-align: center;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+            transition: transform 0.2s, box-shadow 0.2s;
+        ">
+            <div style="font-size: 0.8rem; color: #6c757d; margin-bottom: 0.4rem; font-weight: 500; letter-spacing: 0.3px;">{label}</div>
+            <div style="font-size: 1.4rem; font-weight: 700; color: #212529; line-height: 1.2; letter-spacing: -0.5px;">{value}</div>
+            {sub_html}
+        </div>
+        """, unsafe_allow_html=True)
+
+
 def _kpi_card_compact(label: str, value: str, subtitle: str | None = None, value_color: str | None = None) -> None:
     """
-    압축된 KPI 카드 스타일 (한눈형 계기판용)
-    - 높이: 90px 고정 (축소)
-    - 패딩: 0.8rem (축소)
-    - 폰트: label 0.75rem, value 1.2rem, subtitle 0.7rem
-    - 배경: #ffffff
-    - 테두리: 1px solid #e9ecef
+    압축된 KPI 카드 스타일 (한눈형 계기판용) - 레거시 호환용
     """
-    sub_html = f'<div style="font-size: 0.7rem; color: #6c757d; margin-top: 0.2rem;">{subtitle}</div>' if subtitle else ""
-    value_color_style = f"color: {value_color};" if value_color else "color: #212529;"
-    st.markdown(f"""
-    <div style="
-        padding: 0.8rem;
-        background: #ffffff;
-        border: 1px solid #e9ecef;
-        border-radius: 6px;
-        text-align: center;
-        height: 90px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    ">
-        <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 0.3rem; font-weight: 500;">{label}</div>
-        <div style="font-size: 1.2rem; font-weight: 700; {value_color_style} line-height: 1.2;">{value}</div>
-        {sub_html}
-    </div>
-    """, unsafe_allow_html=True)
+    _kpi_card_modern(label, value, subtitle, None)
 
 
 def _kpi_card_unified(label: str, value: str, subtitle: str | None = None) -> None:
@@ -380,7 +430,7 @@ def _kpi_card(label: str, value: str, gradient: str | None) -> None:
 
 def _render_status_strip(store_id: str, monthly_sales: int, target_sales: int, target_ratio: float | None, close_rate: float, closed_days: int, total_days: int) -> None:
     """
-    상태 해석 스트립 (KPI 바로 아래, 1줄 요약)
+    상태 해석 스트립 (KPI 바로 아래, 1줄 요약, 모던 스타일)
     """
     try:
         from src.storage_supabase import get_fixed_costs, calculate_break_even_sales
@@ -451,8 +501,8 @@ def _render_status_strip(store_id: str, monthly_sales: int, target_sales: int, t
         if status_parts:
             status_text = " • ".join(status_parts)
             st.markdown(f"""
-            <div style="padding: 0.6rem 1rem; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #17a2b8; margin-top: 0.5rem;">
-                <div style="font-size: 0.9rem; color: #495057; line-height: 1.4;">{status_text}</div>
+            <div style="padding: 0.8rem 1.2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border-left: 4px solid #17a2b8; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.9rem; color: #495057; line-height: 1.5; font-weight: 500;">{status_text}</div>
             </div>
             """, unsafe_allow_html=True)
     except Exception:
@@ -720,44 +770,48 @@ def _render_compressed_alerts(store_id: str, coaching_enabled: bool) -> None:
 
 def _render_alert_card_3line(icon: str, conclusion: str, importance: str, button_label: str, target_page: str, card_type: str) -> None:
     """
-    3줄 규격 알림 카드
+    3줄 규격 알림 카드 (모던 스타일)
     - 결론 한 줄 (굵게 + 숫자)
     - 왜 중요한지 한 줄
     - 다음 행동 버튼 1개
     """
     if card_type == "warning":
-        bg_color = "#fffbeb"
+        bg_gradient = "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
         border_color = "#ffc107"
         text_color = "#92400e"
+        icon_bg = "#fef3c7"
     elif card_type == "problem":
-        bg_color = "#fff5f5"
+        bg_gradient = "linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%)"
         border_color = "#dc3545"
         text_color = "#721c24"
+        icon_bg = "#fee2e2"
     else:  # good
-        bg_color = "#f0fdf4"
+        bg_gradient = "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)"
         border_color = "#28a745"
         text_color = "#155724"
+        icon_bg = "#dcfce7"
     
     st.markdown(f"""
-    <div style="padding: 0.8rem 1rem; background: {bg_color}; border: 1px solid {border_color}; border-left: 4px solid {border_color}; border-radius: 6px; margin-bottom: 0.5rem;">
-        <div style="display: flex; align-items: flex-start; margin-bottom: 0.4rem;">
-            <span style="font-size: 1.1rem; margin-right: 0.5rem;">{icon}</span>
+    <div style="padding: 1rem 1.2rem; background: {bg_gradient}; border: 1px solid {border_color}; border-left: 4px solid {border_color}; border-radius: 12px; margin-bottom: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: flex-start; margin-bottom: 0.5rem;">
+            <div style="font-size: 1.3rem; margin-right: 0.8rem; padding: 0.3rem; background: {icon_bg}; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-width: 2.5rem; height: 2.5rem;">{icon}</div>
             <div style="flex: 1;">
-                <div style="font-weight: 700; color: {text_color}; font-size: 0.95rem; line-height: 1.4; margin-bottom: 0.3rem;">{conclusion}</div>
-                <div style="color: {text_color}; font-size: 0.85rem; opacity: 0.85; line-height: 1.3;">{importance}</div>
+                <div style="font-weight: 700; color: {text_color}; font-size: 1rem; line-height: 1.4; margin-bottom: 0.4rem; letter-spacing: -0.2px;">{conclusion}</div>
+                <div style="color: {text_color}; font-size: 0.875rem; opacity: 0.9; line-height: 1.4; font-weight: 400;">{importance}</div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button(button_label, key=f"home_btn_alert_{card_type}", use_container_width=True):
-        st.session_state["current_page"] = target_page
-        st.rerun()
-    
-    # 전체 보기 버튼 (선택적)
-    if st.button("📋 전체 보기", key=f"home_btn_alert_expand_{card_type}", use_container_width=False):
-        st.session_state[f"_home_{card_type}_expanded"] = True
-        st.rerun()
+    col_btn1, col_btn2 = st.columns([3, 1])
+    with col_btn1:
+        if st.button(button_label, key=f"home_btn_alert_{card_type}", use_container_width=True):
+            st.session_state["current_page"] = target_page
+            st.rerun()
+    with col_btn2:
+        if st.button("📋 전체", key=f"home_btn_alert_expand_{card_type}", use_container_width=True):
+            st.session_state[f"_home_{card_type}_expanded"] = True
+            st.rerun()
 
 
 def _render_anomaly_signals(store_id: str, coaching_enabled: bool) -> None:
