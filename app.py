@@ -17,11 +17,18 @@ from src.bootstrap import bootstrap
 bootstrap(page_title="App")
 
 # 로그인 체크
-from src.auth import check_login, show_login_page, get_current_store_name, logout
+from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store
 
 # 로그인이 안 되어 있으면 로그인 화면 표시
 if not check_login():
     show_login_page()
+    st.stop()
+
+# 매장이 없으면 매장 생성 화면으로 이동
+store_id = get_current_store_id()
+if not store_id:
+    from ui_pages.store_setup import render_store_setup_page
+    render_store_setup_page()
     st.stop()
 
 # Supabase 연결 진단 함수
@@ -1385,14 +1392,43 @@ with st.sidebar:
     # 커스텀 사이드바 루트 컨테이너 시작
     st.markdown('<div class="ps-sidebar">', unsafe_allow_html=True)
     
-    store_name = get_current_store_name()
+    # 매장 선택 UI
+    user_stores = get_user_stores()
+    current_store_id = get_current_store_id()
+    current_store_name = get_current_store_name()
     
-    st.markdown(f"""
-    <div class="store-tile">
-        <div class="store-tile-label">🏪 현재 매장</div>
-        <div class="store-tile-name">{store_name}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    if len(user_stores) > 1:
+        # 여러 매장이 있는 경우: 드롭다운으로 선택
+        store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
+        current_store_label = None
+        for label, sid in store_options.items():
+            if sid == current_store_id:
+                current_store_label = label
+                break
+        
+        if not current_store_label:
+            current_store_label = list(store_options.keys())[0] if store_options else None
+        
+        selected_label = st.selectbox(
+            "🏪 매장 선택",
+            options=list(store_options.keys()),
+            index=list(store_options.keys()).index(current_store_label) if current_store_label else 0,
+            key="store_selector"
+        )
+        
+        selected_store_id = store_options.get(selected_label)
+        if selected_store_id and selected_store_id != current_store_id:
+            if switch_store(selected_store_id):
+                st.success(f"매장이 '{selected_label.split(' (')[0]}'로 전환되었습니다.")
+                st.rerun()
+    else:
+        # 단일 매장인 경우: 현재 매장만 표시
+        st.markdown(f"""
+        <div class="store-tile">
+            <div class="store-tile-label">🏪 현재 매장</div>
+            <div class="store-tile-name">{current_store_name}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     # 사이드바 네비게이션 - 카테고리별 구분 (Phase 2: 사장 중심 구조/용어 통일)
     # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경

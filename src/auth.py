@@ -461,21 +461,40 @@ def login(email: str, password: str) -> tuple[bool, str]:
             st.session_state.access_token = response.session.access_token
             st.session_state.refresh_token = response.session.refresh_token
             
-            # user_profiles에서 store_id 확인
-            profile_result = client.table("user_profiles").select("store_id, role").eq("id", response.user.id).execute()
+            # user_profiles 확인 (없으면 생성)
+            profile_result = client.table("user_profiles").select("id, default_store_id, store_id, role").eq("id", response.user.id).execute()
             
             if not profile_result.data:
-                return False, "사용자 프로필이 설정되지 않았습니다. 관리자에게 문의하세요."
+                # 프로필이 없으면 자동 생성
+                ensure_user_profile(response.user.id)
+                profile_result = client.table("user_profiles").select("id, default_store_id, store_id, role").eq("id", response.user.id).execute()
             
-            store_id = profile_result.data[0].get('store_id')
-            if not store_id:
-                return False, "매장이 연결되지 않았습니다. 관리자에게 문의하세요."
+            # store_id 확인 (store_members 우선, 없으면 default_store_id, 없으면 store_id)
+            store_id = None
+            if profile_result.data:
+                # store_members에서 첫 번째 매장 확인
+                members_result = client.table("store_members").select("store_id, role").eq("user_id", response.user.id).order("created_at").limit(1).execute()
+                if members_result.data:
+                    store_id = members_result.data[0].get('store_id')
+                    st.session_state.user_role = members_result.data[0].get('role', 'manager')
+                else:
+                    # default_store_id 확인
+                    store_id = profile_result.data[0].get('default_store_id')
+                    if not store_id:
+                        # 레거시 store_id 확인
+                        store_id = profile_result.data[0].get('store_id')
+                    st.session_state.user_role = profile_result.data[0].get('role', 'manager')
             
-            st.session_state.store_id = store_id  # 레거시 호환
-            st.session_state._active_store_id = store_id  # 단일 소스 오브 트루스
-            st.session_state.user_role = profile_result.data[0].get('role', 'manager')
+            # store_id가 없어도 로그인은 성공 (매장 생성 플로우로 연결)
+            if store_id:
+                st.session_state.store_id = store_id  # 레거시 호환
+                st.session_state._active_store_id = store_id  # 단일 소스 오브 트루스
+                logger.info(f"User logged in: {email} (store_id: {store_id})")
+            else:
+                # store_id가 없으면 매장 생성 필요 플래그 설정
+                st.session_state._needs_store_setup = True
+                logger.info(f"User logged in: {email} (no store_id - needs setup)")
             
-            logger.info(f"User logged in: {email} (store_id: {store_id})")
             return True, "로그인 성공"
         else:
             return False, "로그인에 실패했습니다."
@@ -710,6 +729,87 @@ def ensure_store_context():
     return store_id
 
 
+def get_user_stores() -> list[dict]:
+    """
+    현재 사용자가 소속된 모든 매장 목록 반환
+    
+    Returns:
+        list[dict]: 매장 정보 리스트 [{"id": store_id, "name": store_name, "role": role}, ...]
+    """
+    try:
+        user_id = st.session_state.get('user_id')
+        if not user_id:
+            return []
+        
+        client = get_supabase_client()
+        
+        # store_members에서 사용자의 매장 목록 조회
+        members_result = client.table("store_members").select(
+            "store_id, role, stores(id, name)"
+        ).eq("user_id", user_id).execute()
+        
+        if not members_result.data:
+            return []
+        
+        stores = []
+        for member in members_result.data:
+            store_info = member.get("stores")
+            if store_info:
+                stores.append({
+                    "id": store_info.get("id"),
+                    "name": store_info.get("name"),
+                    "role": member.get("role", "manager")
+                })
+        
+        # role 순서로 정렬 (owner 우선)
+        role_order = {"owner": 1, "manager": 2, "staff": 3}
+        stores.sort(key=lambda x: (role_order.get(x.get("role", "manager"), 99), x.get("name", "")))
+        
+        return stores
+    
+    except Exception as e:
+        logger.error(f"Failed to get user stores: {e}")
+        return []
+
+
+def switch_store(store_id: str) -> bool:
+    """
+    현재 매장 전환
+    
+    Args:
+        store_id: 전환할 매장 ID
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        user_id = st.session_state.get('user_id')
+        if not user_id:
+            return False
+        
+        # 사용자가 해당 매장에 소속되어 있는지 확인
+        client = get_supabase_client()
+        member_result = client.table("store_members").select("store_id").eq("user_id", user_id).eq("store_id", store_id).execute()
+        
+        if not member_result.data:
+            return False
+        
+        # 세션 업데이트
+        st.session_state.store_id = store_id  # 레거시 호환
+        st.session_state._active_store_id = store_id  # 단일 소스 오브 트루스
+        
+        # 매장명 캐시 무효화
+        if '_cached_store_name' in st.session_state:
+            del st.session_state['_cached_store_name']
+        
+        logger.info(f"Store switched: {store_id} (user: {user_id})")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Failed to switch store: {e}")
+        return False
+
+
 def get_current_store_name() -> str:
     """
     현재 로그인한 사용자의 매장명 반환
@@ -753,6 +853,61 @@ def get_current_store_name() -> str:
         return store_name
 
 
+def show_signup_page():
+    """
+    회원가입 페이지 UI 표시
+    """
+    st.markdown("""
+    <style>
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    st.markdown('<div class="login-header">', unsafe_allow_html=True)
+    st.title("🏪 매장 운영 시스템")
+    st.markdown("### 회원가입")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    with st.form("signup_form"):
+        email = st.text_input("이메일", placeholder="example@email.com")
+        password = st.text_input("비밀번호", type="password", help="최소 6자 이상")
+        password_confirm = st.text_input("비밀번호 확인", type="password")
+        submit_button = st.form_submit_button("회원가입", type="primary", use_container_width=True)
+        
+        if submit_button:
+            if not email or not password:
+                st.error("이메일과 비밀번호를 모두 입력해주세요.")
+            elif password != password_confirm:
+                st.error("비밀번호가 일치하지 않습니다.")
+            elif len(password) < 6:
+                st.error("비밀번호는 최소 6자 이상이어야 합니다.")
+            else:
+                success, message = signup(email, password)
+                if success:
+                    st.success(message)
+                    st.info("로그인 페이지로 이동합니다...")
+                    st.session_state["_show_signup"] = False
+                    st.rerun()
+                else:
+                    st.error(message)
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # 로그인으로 돌아가기
+    if st.button("← 로그인으로 돌아가기", use_container_width=True):
+        st.session_state["_show_signup"] = False
+        st.rerun()
+
+
 def show_login_page():
     """
     로그인 페이지 UI 표시
@@ -779,21 +934,47 @@ def show_login_page():
     st.title("🏪 매장 운영 시스템")
     st.markdown("</div>", unsafe_allow_html=True)
     
-    with st.form("login_form"):
-        email = st.text_input("이메일", placeholder="example@email.com")
-        password = st.text_input("비밀번호", type="password")
-        submit_button = st.form_submit_button("로그인", type="primary", use_container_width=True)
-        
-        if submit_button:
-            if not email or not password:
-                st.error("이메일과 비밀번호를 모두 입력해주세요.")
-            else:
-                success, message = login(email, password)
-                if success:
-                    st.success(message)
-                    st.rerun()
+    # 회원가입/로그인 탭
+    tab1, tab2 = st.tabs(["로그인", "회원가입"])
+    
+    with tab1:
+        with st.form("login_form"):
+            email = st.text_input("이메일", placeholder="example@email.com", key="login_email")
+            password = st.text_input("비밀번호", type="password", key="login_password")
+            submit_button = st.form_submit_button("로그인", type="primary", use_container_width=True)
+            
+            if submit_button:
+                if not email or not password:
+                    st.error("이메일과 비밀번호를 모두 입력해주세요.")
                 else:
-                    st.error(message)
+                    success, message = login(email, password)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+    
+    with tab2:
+        with st.form("signup_form_tab"):
+            email = st.text_input("이메일", placeholder="example@email.com", key="signup_email")
+            password = st.text_input("비밀번호", type="password", help="최소 6자 이상", key="signup_password")
+            password_confirm = st.text_input("비밀번호 확인", type="password", key="signup_password_confirm")
+            submit_button = st.form_submit_button("회원가입", type="primary", use_container_width=True)
+            
+            if submit_button:
+                if not email or not password:
+                    st.error("이메일과 비밀번호를 모두 입력해주세요.")
+                elif password != password_confirm:
+                    st.error("비밀번호가 일치하지 않습니다.")
+                elif len(password) < 6:
+                    st.error("비밀번호는 최소 6자 이상이어야 합니다.")
+                else:
+                    success, message = signup(email, password)
+                    if success:
+                        st.success(message)
+                        st.info("로그인 탭에서 로그인해주세요.")
+                    else:
+                        st.error(message)
     
     st.markdown("</div>", unsafe_allow_html=True)
     
@@ -802,9 +983,9 @@ def show_login_page():
         st.info("""
         **로그인이 안 되나요?**
         
-        1. Supabase에서 사용자 계정이 생성되어 있는지 확인
-        2. user_profiles 테이블에 프로필이 등록되어 있는지 확인
-        3. store_id가 올바르게 연결되어 있는지 확인
+        1. 회원가입을 먼저 진행해주세요.
+        2. 회원가입 후 자동으로 user_profiles가 생성됩니다.
+        3. 첫 로그인 시 매장 생성 화면으로 이동합니다.
         
-        관리자에게 문의하세요.
+        문제가 지속되면 관리자에게 문의하세요.
         """)
