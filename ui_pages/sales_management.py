@@ -524,7 +524,6 @@ def render_sales_management():
                 m = recent_6m_data[(recent_6m_data['연도'] == year) & (recent_6m_data['월'] == month)]
                 sales_total = int(m['총매출'].fillna(0).sum()) if not m.empty and '총매출' in m.columns else 0
                 visitors_row = visitors_summary[(visitors_summary['연도'] == year) & (visitors_summary['월'] == month)]
-                from src.ui_helpers import safe_get_value
                 days_count = int(safe_get_value(visitors_row, '영업일수', 0)) if not visitors_row.empty else 0
                 avg_daily_sales = sales_total / days_count if days_count > 0 else 0
                 monthly_sales_list.append({
