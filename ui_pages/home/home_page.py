@@ -193,6 +193,9 @@ def _render_home_body(store_id: str) -> None:
     
     # 새로고침 버튼 (캐시 무효화 강화)
     render_page_header("사장 계기판", "🏠")
+    
+    # ZONE 0 제목을 가장 먼저 표시 (데이터 로딩 전에)
+    st.markdown("### 📌 오늘의 운영 지시")
     col_refresh, _ = st.columns([1, 5])
     with col_refresh:
         if st.button("🔄 새로고침", key="home_btn_refresh", use_container_width=True):
@@ -236,13 +239,13 @@ def _render_home_body(store_id: str) -> None:
     # ===== HOME v3 구조 (운영 지시 홈) =====
     
     # ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)
+    # 제목은 이미 위에서 표시됨
     try:
         _render_zone0_today_instruction(store_id, year, month)
     except Exception as e:
         logger.error(f"ZONE 0 호출 오류: {e}", exc_info=True)
-        # 최소한 제목이라도 표시
-        st.markdown("### 📌 오늘의 운영 지시")
-        st.error(f"운영 지시를 불러오는 중 오류가 발생했습니다: {str(e)}")
+        # 에러 발생 시 기본 메시지 표시
+        st.info("운영 지시를 불러오는 중입니다...")
         if st.button("가게 설계 센터", key="zone0_error_fallback"):
             st.session_state["current_page"] = "가게 설계 센터"
             st.rerun()

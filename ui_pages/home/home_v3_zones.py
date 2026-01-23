@@ -27,23 +27,16 @@ logger = logging.getLogger(__name__)
 
 def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> None:
     """ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)"""
-    try:
-        # 기본값 초기화 (에러 발생 시에도 표시되도록)
-        action_title = "가게 설계 센터부터 시작"
-        action_cta = {"label": "가게 설계 센터", "page": "가게 설계 센터", "params": {}}
-        evidence_line = "데이터 수집 중"
-        today_action = None
-        
-        # 제목 표시 (항상 먼저 표시) - 가장 먼저 실행
-        st.markdown("### 📌 오늘의 운영 지시")
-        
-        # 디버깅: 함수 호출 확인
-        logger.info(f"ZONE 0 렌더링 시작: store_id={store_id}, year={year}, month={month}")
-    except Exception as e:
-        # 함수 시작 부분에서도 에러가 발생할 수 있으므로 처리
-        logger.error(f"ZONE 0 함수 시작 오류: {e}", exc_info=True)
-        st.error(f"운영 지시 표시 오류: {str(e)}")
-        return
+    # 기본값 초기화 (에러 발생 시에도 표시되도록)
+    action_title = "가게 설계 센터부터 시작"
+    action_cta = {"label": "가게 설계 센터", "page": "가게 설계 센터", "params": {}}
+    evidence_line = "데이터 수집 중"
+    today_action = None
+    
+    # 디버깅: 함수 호출 확인
+    logger.info(f"ZONE 0 렌더링 시작: store_id={store_id}, year={year}, month={month}")
+    
+    # 제목은 home_page.py에서 이미 표시되므로 여기서는 제목 표시 제거
     
     try:
         # 전략 보드 데이터 로드
