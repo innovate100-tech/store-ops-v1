@@ -24,6 +24,10 @@ def render_menu_profit_design_lab():
     """메뉴 수익 구조 설계실 페이지 렌더링 (Design Lab 공통 프레임 적용)"""
     render_page_header("메뉴 수익 구조 설계실", "💰")
     
+    # 공통 네비게이션 버튼
+    from ui_pages.design_lab.design_lab_nav import render_back_to_design_center_button
+    render_back_to_design_center_button()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -53,16 +57,21 @@ def render_menu_profit_design_lab():
                 "subtitle": None
             })
     
-    render_coach_board(
-        cards=coach_data["cards"],
-        verdict_text=coach_data["verdict_text"],
-        action_title=coach_data.get("action_title"),
-        action_reason=coach_data.get("action_reason"),
-        action_target_page=coach_data.get("action_target_page"),
-        action_button_label=coach_data.get("action_button_label")
-    )
+    # 전략 브리핑 / 전략 실행 탭 분리
+    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
     
-    # ZONE B: Structure Map
+    with tab1:
+        # ZONE A: Coach Board
+        render_coach_board(
+            cards=coach_data["cards"],
+            verdict_text=coach_data["verdict_text"],
+            action_title=coach_data.get("action_title"),
+            action_reason=coach_data.get("action_reason"),
+            action_target_page=coach_data.get("action_target_page"),
+            action_button_label=coach_data.get("action_button_label")
+        )
+        
+        # ZONE B: Structure Map
     def _render_menu_profit_structure_map():
         if cost_df.empty:
             st.info("메뉴, 레시피, 재료 데이터가 모두 필요합니다.")
@@ -96,15 +105,15 @@ def render_menu_profit_design_lab():
                 bottom5['원가'] = bottom5['원가'].apply(lambda x: f"{int(x):,}원")
                 st.dataframe(bottom5, use_container_width=True, hide_index=True)
     
-    render_structure_map_container(
-        content_func=_render_menu_profit_structure_map,
-        empty_message="원가를 계산하려면 메뉴, 레시피, 재료 데이터가 모두 필요합니다.",
-        empty_action_label="데이터 입력하기",
-        empty_action_page="메뉴 등록"
-    )
-    
-    # ZONE C: Owner School
-    school_cards = [
+        render_structure_map_container(
+            content_func=_render_menu_profit_structure_map,
+            empty_message="원가를 계산하려면 메뉴, 레시피, 재료 데이터가 모두 필요합니다.",
+            empty_action_label="데이터 입력하기",
+            empty_action_page="메뉴 등록"
+        )
+        
+        # ZONE C: Owner School
+        school_cards = [
         {
             "title": "원가율과 공헌이익은 다르다",
             "point1": "원가율이 낮아도 판매가가 낮으면 공헌이익은 적습니다",
@@ -120,11 +129,12 @@ def render_menu_profit_design_lab():
             "point1": "미끼 메뉴: 손님을 끌어들이는 저가 메뉴",
             "point2": "볼륨 메뉴: 판매량이 많은 메뉴, 마진 메뉴: 수익 기여도가 높은 메뉴"
         },
-    ]
-    render_school_cards(school_cards)
+        ]
+        render_school_cards(school_cards)
     
-    # ZONE D: Design Tools
-    render_design_tools_container(lambda: _render_menu_profit_design_tools(cost_df, menu_df, recipe_df, ingredient_df))
+    with tab2:
+        # ZONE D: Design Tools
+        render_design_tools_container(lambda: _render_menu_profit_design_tools(cost_df, menu_df, recipe_df, ingredient_df))
 
 
 def _render_menu_profit_design_tools(cost_df: pd.DataFrame, menu_df: pd.DataFrame, recipe_df: pd.DataFrame, ingredient_df: pd.DataFrame):

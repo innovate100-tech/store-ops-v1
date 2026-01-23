@@ -103,17 +103,21 @@ def render_revenue_structure_design_lab():
             coach_data["action_reason"] = None
             coach_data["action_target_page"] = None
     
-    render_coach_board(
-        cards=coach_data["cards"],
-        verdict_text=coach_data["verdict_text"],
-        action_title=coach_data.get("action_title"),
-        action_reason=coach_data.get("action_reason"),
-        action_target_page=coach_data.get("action_target_page"),
-        action_button_label=coach_data.get("action_button_label")
-    )
+    # 전략 브리핑 / 전략 실행 탭 분리
+    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
     
-    # ZONE B: Structure Map
-    def _render_revenue_structure_map():
+    with tab1:
+        # ZONE A: Coach Board
+        render_coach_board(
+            cards=coach_data["cards"],
+            verdict_text=coach_data["verdict_text"],
+            action_title=coach_data.get("action_title"),
+            action_reason=coach_data.get("action_reason"),
+            action_target_page=coach_data.get("action_target_page"),
+            action_button_label=coach_data.get("action_button_label")
+        )
+        
+        def _render_revenue_structure_map():
         if fixed_costs <= 0 or break_even <= 0:
             st.info("고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.")
             return
@@ -169,15 +173,15 @@ def render_revenue_structure_design_lab():
         else:
             st.info("예상 매출을 계산할 수 없습니다.")
     
-    render_structure_map_container(
-        content_func=_render_revenue_structure_map,
-        empty_message="고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.",
-        empty_action_label="비용 구조 입력하기",
-        empty_action_page="목표 비용구조"
-    )
-    
-    # ZONE C: Owner School
-    school_cards = [
+        render_structure_map_container(
+            content_func=_render_revenue_structure_map,
+            empty_message="고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.",
+            empty_action_label="비용 구조 입력하기",
+            empty_action_page="목표 비용구조"
+        )
+        
+        # ZONE C: Owner School
+        school_cards = [
         {
             "title": "손익분기점은 생존선",
             "point1": "손익분기점은 목표가 아니라 생존선입니다",
@@ -193,13 +197,14 @@ def render_revenue_structure_design_lab():
             "point1": "목표 매출은 손익분기점과 이익 목표에서 역산됩니다",
             "point2": "구조(고정비/변동비율)를 바꾸면 목표 매출도 달라집니다"
         },
-    ]
-    render_school_cards(school_cards)
+        ]
+        render_school_cards(school_cards)
     
-    # ZONE D: Design Tools
-    render_design_tools_container(
-        lambda: _render_revenue_structure_design_tools(store_id, current_year, current_month, fixed_costs, variable_ratio, break_even)
-    )
+    with tab2:
+        # ZONE D: Design Tools
+        render_design_tools_container(
+            lambda: _render_revenue_structure_design_tools(store_id, current_year, current_month, fixed_costs, variable_ratio, break_even)
+        )
 
 
 def _render_revenue_structure_design_tools(store_id: str, year: int, month: int, fixed_costs: float, variable_ratio: float, break_even: float):

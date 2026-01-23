@@ -33,6 +33,10 @@ def render_menu_management():
     """메뉴 포트폴리오 설계실 페이지 렌더링 (Design Lab 공통 프레임 적용)"""
     render_page_header("메뉴 포트폴리오 설계실", "🍽️")
     
+    # 공통 네비게이션 버튼
+    from ui_pages.design_lab.design_lab_nav import render_back_to_design_center_button
+    render_back_to_design_center_button()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -95,63 +99,68 @@ def render_menu_management():
     # 판결문 + 추천 액션
     verdict_text, action_title, action_target_page = get_portfolio_verdict(menu_df, roles, categories, avg_price)
     
-    render_coach_board(
-        cards=cards,
-        verdict_text=verdict_text,
-        action_title=action_title,
-        action_reason=None,
-        action_target_page=action_target_page,
-        action_button_label=f"{action_title} 하러가기" if action_title else None
-    )
+    # 전략 브리핑 / 전략 실행 탭 분리
+    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
     
-    # ZONE B: Structure Map (Portfolio Map)
-    def _render_menu_portfolio_map():
-        if menu_df.empty:
-            st.info("메뉴가 등록되지 않았습니다. 메뉴를 등록하면 포트폴리오 맵이 표시됩니다.")
-            return
+    with tab1:
+        # ZONE A: Coach Board
+        render_coach_board(
+            cards=cards,
+            verdict_text=verdict_text,
+            action_title=action_title,
+            action_reason=None,
+            action_target_page=action_target_page,
+            action_button_label=f"{action_title} 하러가기" if action_title else None
+        )
         
-        # A) 가격대 분포
-        st.markdown("#### 💰 가격대 분포")
-        if '판매가' in menu_df.columns:
-            # 1만원 단위로 구간 나누기
-            menu_df['가격대'] = (menu_df['판매가'] / 10000).astype(int) * 10000
-            price_dist = menu_df['가격대'].value_counts().sort_index()
-            if not price_dist.empty:
-                st.bar_chart(price_dist)
+        # ZONE B: Structure Map (Portfolio Map)
+        def _render_menu_portfolio_map():
+            if menu_df.empty:
+                st.info("메뉴가 등록되지 않았습니다. 메뉴를 등록하면 포트폴리오 맵이 표시됩니다.")
+                return
+            
+            # A) 가격대 분포
+            st.markdown("#### 💰 가격대 분포")
+            if '판매가' in menu_df.columns:
+                # 1만원 단위로 구간 나누기
+                menu_df['가격대'] = (menu_df['판매가'] / 10000).astype(int) * 10000
+                price_dist = menu_df['가격대'].value_counts().sort_index()
+                if not price_dist.empty:
+                    st.bar_chart(price_dist)
+            
+            # B) 역할 x 카테고리 매트릭스
+            st.markdown("#### 📊 역할 x 카테고리 매트릭스")
+            
+            # 매트릭스 생성
+            role_list = ["미끼", "볼륨", "마진", "미분류"]
+            category_list = ["대표메뉴", "주력메뉴", "유인메뉴", "보조메뉴", "기타메뉴"]
+            
+            matrix_data = []
+            for role in role_list:
+                row = {"역할": role}
+                for category in category_list:
+                    count = 0
+                    for menu_name in menu_df['메뉴명'].tolist():
+                        menu_role = roles.get(menu_name, "미분류")
+                        menu_category = categories.get(menu_name, "기타메뉴")
+                        if menu_role == role and menu_category == category:
+                            count += 1
+                    row[category] = count
+                matrix_data.append(row)
+            
+            matrix_df = pd.DataFrame(matrix_data)
+            matrix_df = matrix_df.set_index("역할")
+            st.dataframe(matrix_df, use_container_width=True)
         
-        # B) 역할 x 카테고리 매트릭스
-        st.markdown("#### 📊 역할 x 카테고리 매트릭스")
+        render_structure_map_container(
+            content_func=_render_menu_portfolio_map,
+            empty_message="메뉴가 등록되지 않았습니다.",
+            empty_action_label="메뉴 등록하기",
+            empty_action_page="메뉴 등록"
+        )
         
-        # 매트릭스 생성
-        role_list = ["미끼", "볼륨", "마진", "미분류"]
-        category_list = ["대표메뉴", "주력메뉴", "유인메뉴", "보조메뉴", "기타메뉴"]
-        
-        matrix_data = []
-        for role in role_list:
-            row = {"역할": role}
-            for category in category_list:
-                count = 0
-                for menu_name in menu_df['메뉴명'].tolist():
-                    menu_role = roles.get(menu_name, "미분류")
-                    menu_category = categories.get(menu_name, "기타메뉴")
-                    if menu_role == role and menu_category == category:
-                        count += 1
-                row[category] = count
-            matrix_data.append(row)
-        
-        matrix_df = pd.DataFrame(matrix_data)
-        matrix_df = matrix_df.set_index("역할")
-        st.dataframe(matrix_df, use_container_width=True)
-    
-    render_structure_map_container(
-        content_func=_render_menu_portfolio_map,
-        empty_message="메뉴가 등록되지 않았습니다.",
-        empty_action_label="메뉴 등록하기",
-        empty_action_page="메뉴 등록"
-    )
-    
-    # ZONE C: Owner School (Portfolio Theory)
-    school_cards = [
+        # ZONE C: Owner School (Portfolio Theory)
+        school_cards = [
         {
             "title": "대표/주력/유인/보조는 역할이 다르다",
             "point1": "대표메뉴는 브랜드 정체성, 주력메뉴는 매출 기여, 유인메뉴는 손님 유입",
@@ -167,11 +176,12 @@ def render_menu_management():
             "point1": "볼륨 메뉴는 판매량으로 회전율을 높입니다",
             "point2": "마진 메뉴는 수익 기여도로 생존력을 높입니다"
         },
-    ]
-    render_school_cards(school_cards)
+        ]
+        render_school_cards(school_cards)
     
-    # ZONE D: Design Tools (Portfolio Tools)
-    render_design_tools_container(lambda: _render_menu_portfolio_tools(store_id, menu_df, roles, categories))
+    with tab2:
+        # ZONE D: Design Tools (Portfolio Tools)
+        render_design_tools_container(lambda: _render_menu_portfolio_tools(store_id, menu_df, roles, categories))
 
 
 def _render_menu_portfolio_tools(store_id: str, menu_df: pd.DataFrame, roles: Dict[str, str], categories: Dict[str, str]):

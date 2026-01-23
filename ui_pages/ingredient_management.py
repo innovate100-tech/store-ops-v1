@@ -281,6 +281,10 @@ def render_ingredient_management():
     """재료 구조 설계실 페이지 렌더링 (Design Lab 공통 프레임 적용)"""
     render_page_header("재료 구조 설계실 (원가 집중 · 대체재 · 발주 구조)", "🥬")
     
+    # 공통 네비게이션 버튼
+    from ui_pages.design_lab.design_lab_nav import render_back_to_design_center_button
+    render_back_to_design_center_button()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -339,17 +343,21 @@ def render_ingredient_management():
         store_id, ingredient_usage_df, high_risk_df, top3_concentration
     )
     
-    render_coach_board(
-        cards=cards,
-        verdict_text=verdict_text,
-        action_title=action_title,
-        action_reason=None,
-        action_target_page=action_target_page,
-        action_button_label=f"{action_title} 하러가기" if action_title else None
-    )
+    # 전략 브리핑 / 전략 실행 탭 분리
+    tab1, tab2 = st.tabs(["📊 전략 브리핑", "🛠️ 전략 실행"])
     
-    # ZONE B: Structure Map (Ingredient Structure Map)
-    def _render_ingredient_structure_map():
+    with tab1:
+        # ZONE A: Coach Board
+        render_coach_board(
+            cards=cards,
+            verdict_text=verdict_text,
+            action_title=action_title,
+            action_reason=None,
+            action_target_page=action_target_page,
+            action_button_label=f"{action_title} 하러가기" if action_title else None
+        )
+        
+        def _render_ingredient_structure_map():
         if ingredient_usage_df.empty:
             st.info("재료가 등록되지 않았습니다. 재료를 등록하면 구조 맵이 표시됩니다.")
             return
@@ -399,15 +407,15 @@ def render_ingredient_management():
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    render_structure_map_container(
-        content_func=_render_ingredient_structure_map,
-        empty_message="재료가 등록되지 않았습니다.",
-        empty_action_label="재료 등록하기",
-        empty_action_page="재료 등록"
-    )
-    
-    # ZONE C: Owner School (Ingredient Structure Theory)
-    school_cards = [
+        render_structure_map_container(
+            content_func=_render_ingredient_structure_map,
+            empty_message="재료가 등록되지 않았습니다.",
+            empty_action_label="재료 등록하기",
+            empty_action_page="재료 등록"
+        )
+        
+        # ZONE C: Owner School (Ingredient Structure Theory)
+        school_cards = [
         {
             "title": "원가는 \"비율\"이 아니라 \"집중도\"로 무너진다",
             "point1": "개별 재료의 원가율보다 상위 재료의 집중도가 더 위험합니다",
@@ -423,11 +431,12 @@ def render_ingredient_management():
             "point1": "단일 공급업체 의존은 공급 리스크를 높입니다",
             "point2": "발주 단위와 변환 비율을 정확히 설정하면 원가 계산이 정확해집니다"
         },
-    ]
-    render_school_cards(school_cards)
+        ]
+        render_school_cards(school_cards)
     
-    # ZONE D: Design Tools (Ingredient Strategy Tools)
-    render_design_tools_container(lambda: _render_ingredient_strategy_tools(store_id, ingredient_usage_df, high_risk_df))
+    with tab2:
+        # ZONE D: Design Tools (Ingredient Strategy Tools)
+        render_design_tools_container(lambda: _render_ingredient_strategy_tools(store_id, ingredient_usage_df, high_risk_df))
 
 
 def _render_ingredient_strategy_tools(store_id: str, ingredient_usage_df: pd.DataFrame, high_risk_df: pd.DataFrame):
