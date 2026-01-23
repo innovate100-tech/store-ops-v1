@@ -41,12 +41,13 @@ def render_strategy_board():
         scores = state_result.get("scores", {})
         evidence = state_result.get("evidence", [])
         
-        # 2. 전략 카드 생성
+        # 2. 전략 카드 생성 (v4 엔진 사용: 건강검진 통합)
         cards_result = build_strategy_cards(
             store_id,
             current_year,
             current_month,
-            state_payload=state_result
+            state_payload=state_result,
+            use_v4=True
         )
         cards = cards_result.get("cards", [])
         

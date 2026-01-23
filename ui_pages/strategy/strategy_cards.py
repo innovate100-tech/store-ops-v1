@@ -19,7 +19,8 @@ def build_strategy_cards(
     store_id: str,
     year: int,
     month: int,
-    state_payload: Optional[Dict] = None
+    state_payload: Optional[Dict] = None,
+    use_v4: bool = True  # v4 엔진 사용 여부 (건강검진 통합)
 ) -> Dict:
     """
     전략 카드 TOP3 생성
@@ -57,6 +58,11 @@ def build_strategy_cards(
     }
     
     try:
+        # v4 엔진 사용 시 (건강검진 통합)
+        if use_v4:
+            return _build_strategy_cards_v4(store_id, year, month, state_payload, debug)
+        
+        # 기존 v1 엔진 (하위 호환)
         # 1. 가게 상태 분류 (없으면 호출)
         if state_payload is None:
             state_payload = classify_store_state(store_id, year, month)
@@ -572,6 +578,215 @@ def _build_fallback_card(store_id: Optional[str]) -> Dict:
             "params": {}
         }
     }
+
+
+def _build_strategy_cards_v4(
+    store_id: str,
+    year: int,
+    month: int,
+    state_payload: Optional[Dict],
+    debug: Dict
+) -> Dict:
+    """
+    v4 전략 카드 생성 (건강검진 통합)
+    """
+    try:
+        from src.health_check.profile import load_latest_health_profile
+        from src.strategy.v4_strategy_engine import build_base_strategies
+        from src.strategy.health_weighting import apply_health_weighting
+        
+        # 1. 가게 상태 분류 (없으면 호출)
+        if state_payload is None:
+            state_payload = classify_store_state(store_id, year, month)
+        
+        store_state = state_payload.get("state", {})
+        scores = state_payload.get("scores", {})
+        state_code = store_state.get("code", "unknown")
+        
+        # 2. 건강검진 프로필 로드
+        health_profile = load_latest_health_profile(store_id, lookback_days=60)
+        if health_profile.get("exists"):
+            debug["rules_fired"].append("건강검진 프로필 로드됨")
+        
+        # 3. 컨텍스트 구성
+        from src.storage_supabase import calculate_break_even_sales, load_monthly_sales_total
+        from ui_pages.design_lab.design_insights import get_design_insights
+        
+        monthly_sales = load_monthly_sales_total(store_id, year, month) or 0
+        break_even = calculate_break_even_sales(store_id, year, month) or 1
+        break_even_gap_ratio = (monthly_sales / break_even) if break_even > 0 else 1.0
+        
+        design_insights = get_design_insights(store_id, year, month)
+        menu_portfolio = design_insights.get("menu_portfolio", {})
+        margin_menu_count = menu_portfolio.get("margin_menu_count", 0)
+        total_menu_count = menu_portfolio.get("total_menu_count", 1)
+        margin_menu_ratio = margin_menu_count / total_menu_count if total_menu_count > 0 else 0.0
+        
+        ingredient = design_insights.get("ingredient_structure", {})
+        ingredient_concentration = ingredient.get("top3_concentration", 0.0)
+        
+        # 방문자 추세 (간단히)
+        visitors_trend = "unknown"
+        try:
+            from src.storage_supabase import load_best_available_daily_sales
+            from datetime import date, timedelta
+            today = date.today()
+            week_ago = today - timedelta(days=7)
+            recent_sales = load_best_available_daily_sales(
+                store_id=store_id,
+                start_date=week_ago.isoformat(),
+                end_date=today.isoformat()
+            )
+            if not recent_sales.empty and len(recent_sales) >= 2:
+                recent_avg = recent_sales.tail(3)['total_sales'].mean() if 'total_sales' in recent_sales.columns else 0
+                older_avg = recent_sales.head(3)['total_sales'].mean() if len(recent_sales) >= 6 else recent_avg
+                if recent_avg > older_avg * 1.1:
+                    visitors_trend = "up"
+                elif recent_avg < older_avg * 0.9:
+                    visitors_trend = "down"
+                else:
+                    visitors_trend = "stable"
+        except Exception:
+            pass
+        
+        context = {
+            "store_state": store_state,
+            "overall_score": scores.get("overall", 50),
+            "break_even_gap_ratio": break_even_gap_ratio,
+            "margin_menu_ratio": margin_menu_ratio,
+            "ingredient_concentration": ingredient_concentration,
+            "visitors_trend": visitors_trend
+        }
+        
+        # 4. 기본 전략 생성
+        base_strategies = build_base_strategies(context)
+        debug["rules_fired"].append(f"기본 전략 {len(base_strategies)}개 생성")
+        
+        # 5. 건강검진 가중치 적용
+        final_strategies = apply_health_weighting(base_strategies, health_profile)
+        if health_profile.get("exists"):
+            debug["rules_fired"].append("건강검진 가중치 적용됨")
+        
+        # 6. v1 형식으로 변환
+        cards = []
+        for idx, strategy in enumerate(final_strategies[:3], 1):
+            card = {
+                "rank": idx,
+                "title": strategy.get("title", ""),
+                "goal": strategy.get("reasons", [""])[0] if strategy.get("reasons") else "",
+                "why": " | ".join(strategy.get("reasons", [])[:2]),
+                "evidence": strategy.get("reasons", [])[:3],
+                "cta": {
+                    "label": strategy.get("cta", {}).get("label", "실행하기"),
+                    "page": strategy.get("cta", {}).get("page_key", ""),
+                    "params": strategy.get("cta", {}).get("params", {})
+                }
+            }
+            cards.append(card)
+        
+        return {
+            "period": {"year": year, "month": month},
+            "store_state": {
+                "code": state_code,
+                "label": store_state.get("label", ""),
+                "scores": scores,
+            },
+            "cards": cards,
+            "debug": debug,
+        }
+    
+    except Exception as e:
+        debug["notes"].append(f"v4 카드 생성 오류: {str(e)}")
+        # Fallback: 기존 v1 엔진 사용
+        return _build_strategy_cards_v1_fallback(store_id, year, month, state_payload, debug)
+
+
+def _build_strategy_cards_v1_fallback(
+    store_id: str,
+    year: int,
+    month: int,
+    state_payload: Optional[Dict],
+    debug: Dict
+) -> Dict:
+    """v1 엔진 fallback (기존 로직 재사용)"""
+    # 기존 v1 로직 실행 (아래 코드 블록 재사용)
+    try:
+        # 1. 가게 상태 분류 (없으면 호출)
+        if state_payload is None:
+            state_payload = classify_store_state(store_id, year, month)
+        
+        store_state = state_payload.get("state", {})
+        scores = state_payload.get("scores", {})
+        state_code = store_state.get("code", "unknown")
+        
+        # 2. 설계 인사이트 로드
+        design_insights = get_design_insights(store_id, year, month)
+        design_state = get_design_state(store_id, year, month)
+        
+        # 3. 카드 후보 생성
+        candidate_cards = []
+        
+        # 카드 1: 생존선 복구 (Revenue)
+        if _should_show_survival_card(scores, state_payload, debug):
+            card = _build_survival_card(store_id, year, month, state_payload, design_insights)
+            if card:
+                candidate_cards.append(("survival", card))
+                debug["rules_fired"].append("생존선 복구 카드")
+        
+        # 카드 2: 마진 구조 복구 (Menu Profit)
+        if _should_show_menu_profit_card(design_insights, design_state, debug):
+            card = _build_menu_profit_card(store_id, design_insights, design_state)
+            if card:
+                candidate_cards.append(("menu_profit", card))
+                debug["rules_fired"].append("마진 구조 복구 카드")
+        
+        # 카드 3: 원가 집중 분산 (Ingredient)
+        if _should_show_ingredient_card(design_insights, design_state, debug):
+            card = _build_ingredient_card(store_id, design_insights, design_state)
+            if card:
+                candidate_cards.append(("ingredient", card))
+                debug["rules_fired"].append("원가 집중 분산 카드")
+        
+        # 카드 4: 포트폴리오 재배치 (Portfolio)
+        if _should_show_portfolio_card(design_insights, design_state, debug):
+            card = _build_portfolio_card(store_id, design_insights, design_state)
+            if card:
+                candidate_cards.append(("portfolio", card))
+                debug["rules_fired"].append("포트폴리오 재배치 카드")
+        
+        # 카드 5: 매출 하락 원인 찾기 (Sales Recovery)
+        if _should_show_sales_recovery_card(scores, state_payload, debug):
+            card = _build_sales_recovery_card(store_id, scores, state_payload)
+            if card:
+                candidate_cards.append(("sales_recovery", card))
+                debug["rules_fired"].append("매출 하락 원인 찾기 카드")
+        
+        # 4. 우선순위 정렬 및 중복 제거
+        selected_cards = _select_top3_cards(candidate_cards, debug)
+        
+        # 5. 3장 미만이면 Fallback으로 채움
+        while len(selected_cards) < 3:
+            fallback_card = _build_fallback_card(store_id)
+            selected_cards.append(fallback_card)
+            debug["rules_fired"].append("Fallback 카드")
+        
+        # 6. rank 부여
+        for idx, card in enumerate(selected_cards[:3], 1):
+            card["rank"] = idx
+        
+        return {
+            "period": {"year": year, "month": month},
+            "store_state": {
+                "code": state_code,
+                "label": store_state.get("label", ""),
+                "scores": scores,
+            },
+            "cards": selected_cards[:3],
+            "debug": debug,
+        }
+    except Exception as e:
+        debug["notes"].append(f"v1 fallback 오류: {str(e)}")
+        return _get_empty_cards(year, month, debug)
 
 
 def _select_top3_cards(candidate_cards: List[tuple], debug: Dict) -> List[Dict]:

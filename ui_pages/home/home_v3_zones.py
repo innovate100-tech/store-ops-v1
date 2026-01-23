@@ -39,9 +39,9 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     # 제목은 home_page.py에서 이미 표시되므로 여기서는 제목 표시 제거
     
     try:
-        # 전략 보드 데이터 로드
+        # 전략 보드 데이터 로드 (v4 엔진 사용: 건강검진 통합)
         state_result = classify_store_state(store_id, year, month)
-        cards_result = build_strategy_cards(store_id, year, month, state_payload=state_result)
+        cards_result = build_strategy_cards(store_id, year, month, state_payload=state_result, use_v4=True)
         roadmap = build_weekly_roadmap(cards_result)
         
         # 오늘의 1순위 행동 결정
