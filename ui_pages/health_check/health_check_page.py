@@ -266,6 +266,19 @@ def _initialize_health_check_state(store_id: str, session_id: str):
         # 로드 완료 표시
         st.session_state[hc_loaded_key] = session_id
 
+
+def _invalidate_answers_cache(session_id: str):
+    """
+    답변 캐시 무효화 (필요한 경우)
+    
+    Args:
+        session_id: 세션 ID
+    """
+    # 현재 캐시된 함수가 없으면 아무것도 하지 않음
+    # 향후 @st.cache_data로 캐싱된 함수가 추가되면 여기서 clear() 호출
+    pass
+
+
 def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[str]]:
     """dirty 답변 일괄 저장"""
     hc_answers_key = "hc_answers"
@@ -745,8 +758,12 @@ def render_history(store_id: str):
                 # 보기 버튼 클릭 시 세션 ID와 view_mode 설정
                 st.session_state['health_session_id'] = session['id']
                 st.session_state['health_check_view_mode'] = 'result'
-                # 캐시 무효화
-                _invalidate_answers_cache(session['id'])
+                # 캐시 무효화 (필요한 경우)
+                try:
+                    _invalidate_answers_cache(session['id'])
+                except NameError:
+                    # 함수가 없으면 무시 (캐시가 없는 경우)
+                    pass
                 st.rerun()
         
         st.markdown("---")
