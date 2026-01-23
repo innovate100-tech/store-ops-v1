@@ -412,56 +412,94 @@ def render_result_report(store_id: str, session_id: str):
     try:
         results = get_health_results(session_id)
     except Exception as e:
-        logger.error(f"Error loading results: {e}")
+        logger.error(f"Error loading results: {e}", exc_info=True)
         st.error(f"결과를 불러오는 중 오류가 발생했습니다: {e}")
         return
     
-    if results:
+    if not results:
+        st.warning("결과 데이터가 없습니다. 검진이 완료되었지만 결과가 저장되지 않았을 수 있습니다.")
+        return
+    
+    try:
         st.markdown("### 📋 영역별 결과")
         
-        # 결과를 카테고리별로 정리
-        results_dict = {r['category']: r for r in results}
+        # 결과를 카테고리별로 정리 (안전하게)
+        results_dict = {}
+        for r in results:
+            if r and isinstance(r, dict) and 'category' in r:
+                results_dict[r['category']] = r
         
         # 테이블 데이터 준비
         table_data = []
         for category in CATEGORIES_ORDER:
             if category in results_dict:
                 r = results_dict[category]
-                risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(r['risk_level'], '⚪')
-                table_data.append({
-                    '영역': f"{category} ({CATEGORY_LABELS.get(category, category)})",
-                    '점수': f"{r['score_avg']:.1f}점",
-                    '리스크': f"{risk_emoji} {r['risk_level']}"
-                })
+                # 안전하게 값 추출
+                score_avg = r.get('score_avg')
+                risk_level = r.get('risk_level', 'unknown')
+                
+                if score_avg is None:
+                    continue
+                
+                try:
+                    risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(risk_level, '⚪')
+                    table_data.append({
+                        '영역': f"{category} ({CATEGORY_LABELS.get(category, category)})",
+                        '점수': f"{float(score_avg):.1f}점",
+                        '리스크': f"{risk_emoji} {risk_level}"
+                    })
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error formatting result for category {category}: {e}")
+                    continue
         
         if table_data:
             import pandas as pd
             df = pd.DataFrame(table_data)
             st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("표시할 결과 데이터가 없습니다.")
         
         # 병목 TOP 2 요약
         st.markdown("---")
         st.markdown("### ⚠️ 주요 병목")
         
-        # 점수가 낮은 순으로 정렬
+        # 점수가 낮은 순으로 정렬 (안전하게)
+        sorted_results = []
+        for r in results:
+            if r and isinstance(r, dict):
+                score_avg = r.get('score_avg')
+                if score_avg is not None:
+                    try:
+                        score = float(score_avg)
+                        if score < 75:
+                            sorted_results.append(r)
+                    except (ValueError, TypeError):
+                        continue
+        
         sorted_results = sorted(
-            [r for r in results if r.get('score_avg', 100) < 75],
-            key=lambda x: x.get('score_avg', 100)
+            sorted_results,
+            key=lambda x: float(x.get('score_avg', 100))
         )[:2]
         
         if sorted_results:
             for i, r in enumerate(sorted_results, 1):
-                category = r['category']
-                score = r['score_avg']
-                risk = r['risk_level']
-                category_name = CATEGORY_LABELS.get(category, category)
-                risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(risk, '⚪')
-                
-                st.markdown(f"""
-                **{i}. {category_name} ({category})**
-                - 점수: {score:.1f}점
-                - 리스크: {risk_emoji} {risk}
-                """)
+                try:
+                    category = r.get('category', 'N/A')
+                    score_avg = r.get('score_avg', 0)
+                    risk_level = r.get('risk_level', 'unknown')
+                    
+                    score = float(score_avg) if score_avg is not None else 0
+                    category_name = CATEGORY_LABELS.get(category, category)
+                    risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(risk_level, '⚪')
+                    
+                    st.markdown(f"""
+                    **{i}. {category_name} ({category})**
+                    - 점수: {score:.1f}점
+                    - 리스크: {risk_emoji} {risk_level}
+                    """)
+                except Exception as e:
+                    logger.warning(f"Error displaying bottleneck {i}: {e}")
+                    continue
         else:
             st.success("✅ 모든 영역이 양호합니다!")
         
@@ -474,8 +512,12 @@ def render_result_report(store_id: str, session_id: str):
         
         (향후 HOME/전략엔진 연결 예정)
         """)
-    else:
-        st.warning("결과 데이터를 찾을 수 없습니다.")
+    except Exception as e:
+        logger.error(f"Error rendering results: {e}", exc_info=True)
+        st.error(f"결과를 표시하는 중 오류가 발생했습니다: {e}")
+        import traceback
+        with st.expander("🔧 에러 상세 정보"):
+            st.code(traceback.format_exc(), language="python")
 
 
 def render_history(store_id: str):
