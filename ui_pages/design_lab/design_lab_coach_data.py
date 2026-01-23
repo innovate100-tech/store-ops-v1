@@ -209,7 +209,12 @@ def get_menu_profit_design_coach_data(store_id: str) -> dict:
                     })
         
         # 판결문
-        high_cost_count = len(high_cost_rate_menus) if 'high_cost_rate_menus' in locals() else 0
+        high_cost_count = 0
+        if not menu_df.empty and not recipe_df.empty and not ingredient_df.empty:
+            if not cost_df.empty and '원가율' in cost_df.columns:
+                high_cost_menus = cost_df[cost_df['원가율'] > 35]
+                high_cost_count = len(high_cost_menus)
+        
         if menu_df.empty or recipe_df.empty or ingredient_df.empty:
             verdict_text = "메뉴, 레시피, 재료 데이터가 모두 필요합니다. 데이터를 채우면 메뉴별 원가 분석이 가능합니다."
             action_title = "데이터 입력하기"
@@ -217,9 +222,9 @@ def get_menu_profit_design_coach_data(store_id: str) -> dict:
             action_target_page = "메뉴 등록"
         elif high_cost_count > 0:
             verdict_text = f"원가율 35%를 초과하는 메뉴가 {high_cost_count}개 있습니다. 가격 조정 또는 메뉴 교체를 고려하세요."
-            action_title = "원가 분석 보기"
+            action_title = "가격 조정 후보 TOP3 확인"
             action_reason = "고원가율 메뉴는 수익 기여도가 낮을 수 있습니다."
-            action_target_page = "원가 파악"
+            action_target_page = "메뉴 수익 구조 설계실"
         else:
             verdict_text = "메뉴별 원가 구조가 안정적인 범위에 있습니다."
             action_title = None
@@ -232,7 +237,7 @@ def get_menu_profit_design_coach_data(store_id: str) -> dict:
             "action_title": action_title,
             "action_reason": action_reason,
             "action_target_page": action_target_page,
-            "action_button_label": "원가 파악 보러가기" if action_target_page else None
+            "action_button_label": "메뉴 수익 구조 설계실 보러가기" if action_target_page else None
         }
     except Exception:
         return {
