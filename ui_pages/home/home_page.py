@@ -33,8 +33,8 @@ from ui_pages.home.home_rules import (
 from ui_pages.home.home_alerts import get_anomaly_signals_light, get_anomaly_signals
 from ui_pages.home.home_lazy import get_monthly_memos, render_lazy_insights, get_store_financial_structure
 from ui_pages.home.home_verdict import get_coach_verdict
-from ui_pages.coach.coach_adapters import get_home_coach_verdict
 from ui_pages.coach.coach_renderer import render_verdict_card
+# get_home_coach_verdict는 순환 import 방지를 위해 함수 내부에서 import
 from ui_pages.routines.routine_state import get_routine_status
 from ui_pages.home.home_v3_zones import (
     _render_zone0_today_instruction,
@@ -1094,7 +1094,8 @@ def _render_zone2_coach_verdict(store_id: str, year: int, month: int, monthly_sa
     st.markdown("### 🟢 이번 달 코치 판결")
     
     try:
-        # CoachVerdict 표준 형식으로 변환
+        # CoachVerdict 표준 형식으로 변환 (순환 import 방지를 위해 함수 내부에서 import)
+        from ui_pages.coach.coach_adapters import get_home_coach_verdict
         verdict = get_home_coach_verdict(store_id, year, month)
         render_verdict_card(verdict, compact=False)
     except Exception as e:
