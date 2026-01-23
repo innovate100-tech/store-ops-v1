@@ -15,6 +15,9 @@ from ui_pages.design_lab.design_center_data import (
     get_design_center_summary,
     get_primary_concern,
 )
+from ui_pages.coach.coach_adapters import get_design_center_verdict
+from ui_pages.coach.coach_renderer import render_verdict_card
+from ui_pages.routines.routine_state import get_routine_status, mark_weekly_check_done
 from src.auth import get_current_store_id
 
 # 공통 설정 적용
@@ -29,6 +32,16 @@ def render_design_center():
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
+    
+    # 이번 주 점검 완료 버튼
+    routine_status = get_routine_status(store_id)
+    if not routine_status["weekly_design_check_done"]:
+        if st.button("✅ 이번 주 구조 점검 완료 처리", key="mark_weekly_check_done", use_container_width=True):
+            mark_weekly_check_done(store_id)
+            st.success("이번 주 구조 점검 완료 처리되었습니다!")
+            st.rerun()
+    else:
+        st.info("✅ 이번 주 점검 완료")
     
     # 통합 요약 데이터 로드
     summary = get_design_center_summary(store_id)
@@ -155,14 +168,9 @@ def render_design_center():
     st.markdown("---")
     st.markdown("### 🎯 코치 1차 판결")
     
-    st.info(f"**{concern_name}** 구조가 가장 의심됩니다.")
-    st.write(verdict_text)
-    
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button(f"🔍 {concern_name} 점검하기", key="primary_concern_action", type="primary", use_container_width=True):
-            st.session_state.current_page = target_page
-            st.rerun()
+    # CoachVerdict 표준 형식으로 변환
+    verdict = get_design_center_verdict(store_id)
+    render_verdict_card(verdict, compact=False)
     
     # 두 번째 후보 (옵션)
     with st.expander("📋 두 번째 후보 보기", expanded=False):

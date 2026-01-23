@@ -33,6 +33,9 @@ from ui_pages.home.home_rules import (
 from ui_pages.home.home_alerts import get_anomaly_signals_light, get_anomaly_signals
 from ui_pages.home.home_lazy import get_monthly_memos, render_lazy_insights, get_store_financial_structure
 from ui_pages.home.home_verdict import get_coach_verdict
+from ui_pages.coach.coach_adapters import get_home_coach_verdict
+from ui_pages.coach.coach_renderer import render_verdict_card
+from ui_pages.routines.routine_state import get_routine_status
 
 logger = logging.getLogger(__name__)
 
@@ -883,6 +886,10 @@ def _render_zone1_status_board(store_id: str, year: int, month: int, kpis: dict,
             st.session_state["current_page"] = "판매량 등록"
             st.rerun()
     
+    # 루틴 배지 추가 (ZONE 1 아래)
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+    _render_routine_badges(store_id)
+    
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
 
 
@@ -891,67 +898,9 @@ def _render_zone2_coach_verdict(store_id: str, year: int, month: int, monthly_sa
     st.markdown("### 🟢 이번 달 코치 판결")
     
     try:
-        verdict = get_coach_verdict(store_id, year, month, monthly_sales)
-        
-        if verdict.get("verdict_type"):
-            # 위험 판결
-            verdict_type = verdict["verdict_type"]
-            if verdict_type == "revenue_structure":
-                icon = "🔴"
-                bg_gradient = "linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%)"
-                border_color = "#dc3545"
-                text_color = "#721c24"
-            elif verdict_type == "menu_profit":
-                icon = "🟡"
-                bg_gradient = "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
-                border_color = "#ffc107"
-                text_color = "#92400e"
-            else:  # ingredient_structure
-                icon = "🟠"
-                bg_gradient = "linear-gradient(135deg, #fff4e6 0%, #ffe0b2 100%)"
-                border_color = "#ff9800"
-                text_color = "#e65100"
-            
-            st.markdown(f"""
-            <div style="padding: 1.5rem; background: {bg_gradient}; border: 1px solid {border_color}; border-left: 4px solid {border_color}; border-radius: 12px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
-                    <div style="font-size: 2rem; margin-right: 1rem;">{icon}</div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 700; color: {text_color}; font-size: 1.1rem; line-height: 1.4; margin-bottom: 0.5rem;">{verdict['verdict_text']}</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # 근거 2~3개 미니 카드
-            if verdict.get("reasons"):
-                reason_cols = st.columns(min(len(verdict["reasons"]), 3))
-                for idx, reason in enumerate(verdict["reasons"][:3]):
-                    with reason_cols[idx]:
-                        st.markdown(f"""
-                        <div style="padding: 1rem; background: white; border: 1px solid {border_color}; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem; font-weight: 600;">{reason['title']}</div>
-                            <div style="font-size: 1rem; color: {text_color}; font-weight: 700;">{reason['value']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-            
-            # CTA 버튼
-            if st.button(verdict["button_label"], type="primary", use_container_width=True, key="zone2_btn_verdict"):
-                st.session_state["current_page"] = verdict["target_page"]
-                st.rerun()
-        else:
-            # 안정 상태
-            st.info(f"✅ {verdict['verdict_text']}")
-            if verdict.get("reasons"):
-                reason_cols = st.columns(min(len(verdict["reasons"]), 3))
-                for idx, reason in enumerate(verdict["reasons"][:3]):
-                    with reason_cols[idx]:
-                        st.markdown(f"""
-                        <div style="padding: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
-                            <div style="font-size: 0.85rem; color: #166534; margin-bottom: 0.3rem; font-weight: 600;">{reason['title']}</div>
-                            <div style="font-size: 1rem; color: #166534; font-weight: 700;">{reason['value']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+        # CoachVerdict 표준 형식으로 변환
+        verdict = get_home_coach_verdict(store_id, year, month)
+        render_verdict_card(verdict, compact=False)
     except Exception as e:
         logger.error(f"코치 판결 렌더링 오류: {e}")
         st.info("코치 판결을 생성하는 중입니다. 데이터가 더 필요할 수 있습니다.")
@@ -1131,6 +1080,49 @@ def _render_zone4_design_snapshot(store_id: str, year: int, month: int) -> None:
             """, unsafe_allow_html=True)
     
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+
+
+def _render_routine_badges(store_id: str) -> None:
+    """루틴 배지 렌더링"""
+    try:
+        routine_status = get_routine_status(store_id)
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            status_emoji = "✅" if routine_status["daily_close_done"] else "⚠️"
+            if st.button(
+                f"{status_emoji} 오늘 마감",
+                key="routine_daily_close",
+                use_container_width=True,
+                disabled=routine_status["daily_close_done"]
+            ):
+                st.session_state.current_page = "점장 마감"
+                st.rerun()
+        
+        with col2:
+            status_emoji = "✅" if routine_status["weekly_design_check_done"] else "⚠️"
+            if st.button(
+                f"{status_emoji} 이번 주 구조 점검",
+                key="routine_weekly_design",
+                use_container_width=True,
+                disabled=routine_status["weekly_design_check_done"]
+            ):
+                st.session_state.current_page = "가게 설계 센터"
+                st.rerun()
+        
+        with col3:
+            status_emoji = "✅" if routine_status["monthly_structure_review_done"] else "⚠️"
+            if st.button(
+                f"{status_emoji} 이번 달 구조 판결",
+                key="routine_monthly_review",
+                use_container_width=True,
+                disabled=routine_status["monthly_structure_review_done"]
+            ):
+                st.session_state.current_page = "실제정산"
+                st.rerun()
+    except Exception:
+        pass
 
 
 def _render_zone5_school_strip() -> None:

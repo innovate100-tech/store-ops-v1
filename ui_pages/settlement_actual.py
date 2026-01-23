@@ -27,6 +27,9 @@ from src.storage_supabase import (
     load_available_settlement_months,
     load_monthly_settlement_snapshot
 )
+from ui_pages.reports.monthly_structure_report import build_monthly_structure_report
+from ui_pages.coach.coach_renderer import render_verdict_card
+from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
 
 # 공통 설정 적용
 bootstrap(page_title="Settlement Actual")
@@ -1553,6 +1556,11 @@ def render_settlement_actual():
         
         render_section_divider()
         
+        # 구조 리포트 섹션 (STEP 10-2) - 비용 입력 전에 배치
+        _render_structure_report_section(store_id, year, month)
+        
+        render_section_divider()
+        
         # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
         _render_expense_section(store_id, year, month, total_sales, readonly)
         
@@ -1580,3 +1588,80 @@ def render_settlement_actual():
         - 목표 대비 성적표
         - 확정(Final) + 잠금(읽기전용) + 확정 해제
         """)
+
+def _render_structure_report_section(store_id: str, year: int, month: int):
+    """구조 리포트 섹션 렌더링 (STEP 10-2)"""
+    try:
+        st.markdown("---")
+        st.markdown("### 📌 이번 달 구조 판결")
+        
+        # 월간 구조 리포트 생성
+        report = build_monthly_structure_report(store_id, year, month)
+        
+        # 4개 구조 요약 표
+        st.markdown("#### 📊 구조 상태 요약")
+        summary_data = []
+        for verdict in report["verdicts"]:
+            summary_data.append({
+                "구조": verdict.title,
+                "점수": f"{verdict.evidence[0].value}",
+                "상태": verdict.level,
+                "요약": verdict.summary[:50] + "..." if len(verdict.summary) > 50 else verdict.summary
+            })
+        
+        import pandas as pd
+        summary_df = pd.DataFrame(summary_data)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        
+        # 이번 달 최우선 과제
+        st.markdown("#### 🎯 이번 달 최우선 과제")
+        render_verdict_card(report["primary_concern"], compact=False)
+        
+        # 지난달 대비 변화
+        st.markdown("#### 📈 지난달 대비 변화")
+        delta = report["delta_vs_prev_month"]
+        if "message" in delta:
+            st.info(delta["message"])
+        else:
+            delta_data = []
+            for key, change in delta.items():
+                if isinstance(change, dict):
+                    score_change = change.get("score_change", 0)
+                    status_change = change.get("status_change", False)
+                    delta_data.append({
+                        "구조": key,
+                        "점수 변화": f"{score_change:+.0f}점",
+                        "상태 변화": "변경됨" if status_change else "유지"
+                    })
+            if delta_data:
+                delta_df = pd.DataFrame(delta_data)
+                st.dataframe(delta_df, use_container_width=True, hide_index=True)
+        
+        # 다음달 추천 과제
+        st.markdown("#### 🚀 다음달 추천 과제")
+        if report["next_month_actions"]:
+            for idx, action in enumerate(report["next_month_actions"]):
+                if st.button(
+                    action["label"],
+                    key=f"next_month_action_{idx}",
+                    use_container_width=True
+                ):
+                    st.session_state.current_page = action["page"]
+                    st.rerun()
+                st.caption(action["reason"])
+        else:
+            st.info("현재 모든 구조가 안정적입니다.")
+        
+        # 이번 달 판결 확인 완료 버튼
+        routine_status = get_routine_status(store_id)
+        if not routine_status["monthly_structure_review_done"]:
+            if st.button("✅ 이번 달 구조 판결 확인 완료 처리", key="mark_monthly_review_done", use_container_width=True):
+                mark_monthly_review_done(store_id)
+                st.success("이번 달 구조 판결 확인 완료 처리되었습니다!")
+                st.rerun()
+        else:
+            st.info("✅ 이번 달 판결 확인 완료")
+        
+    except Exception as e:
+        st.warning(f"구조 리포트 생성 중 오류: {e}")
+        logger.error(f"Structure report error: {e}", exc_info=True)
