@@ -74,6 +74,73 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> tuple[Op
             return None, f"세션 생성 중 오류가 발생했습니다: {error_msg}"
 
 
+def upsert_health_answers_batch(
+    store_id: str,
+    session_id: str,
+    answers: List[Dict[str, str]]
+) -> tuple[bool, Optional[str]]:
+    """
+    건강검진 답변 일괄 저장/업데이트
+    
+    Args:
+        store_id: 매장 ID
+        session_id: 세션 ID
+        answers: 답변 리스트, 각 항목은 {"category": str, "question_code": str, "raw_value": str, "memo": Optional[str]}
+    
+    Returns:
+        (성공 여부, 에러 메시지)
+    """
+    if not answers:
+        return True, None
+    
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return False, "Supabase client not available"
+        
+        # 답변 데이터 준비
+        rows = []
+        for ans in answers:
+            category = ans.get('category')
+            question_code = ans.get('question_code')
+            raw_value = ans.get('raw_value')
+            memo = ans.get('memo')
+            
+            if not category or not question_code or not raw_value:
+                continue
+            
+            score = score_from_raw(raw_value)
+            rows.append({
+                "store_id": store_id,
+                "session_id": session_id,
+                "category": category,
+                "question_code": question_code,
+                "raw_value": raw_value,
+                "score": score,
+                "memo": memo,
+                "updated_at": datetime.utcnow().isoformat() + "Z"
+            })
+        
+        if not rows:
+            return False, "No valid answers to save"
+        
+        # 일괄 upsert
+        result = supabase.table("health_check_answers").upsert(
+            rows,
+            on_conflict="store_id,session_id,category,question_code"
+        ).execute()
+        
+        if result.data:
+            logger.info(f"upsert_health_answers_batch: Saved {len(rows)} answers")
+            return True, None
+        else:
+            return False, "No data returned from upsert"
+    
+    except Exception as e:
+        logger.error(f"upsert_health_answers_batch: Error - {e}", exc_info=True)
+        return False, str(e)
+
+
 def upsert_health_answer(
     store_id: str,
     session_id: str,

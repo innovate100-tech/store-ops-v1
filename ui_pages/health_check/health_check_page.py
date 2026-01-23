@@ -12,6 +12,7 @@ from src.auth import get_current_store_id
 from src.health_check.storage import (
     create_health_session,
     upsert_health_answer,
+    upsert_health_answers_batch,
     finalize_health_session,
     get_health_session,
     get_health_answers,
@@ -192,70 +193,117 @@ def render_start_screen(store_id: str):
                             st.write(f"**Supabase 클라이언트 확인 오류**: {e}")
 
 
-@st.cache_data(ttl=10, show_spinner=False)  # 10초 캐시로 성능 개선, 스피너 숨김
-def _load_answers_cached(session_id: str):
-    """답변 로드 (캐싱)"""
-    return get_health_answers(session_id)
+def _initialize_health_check_state(store_id: str, session_id: str):
+    """건강검진 session_state 초기화 (초기 1회만 DB 로드)"""
+    hc_loaded_key = "hc_loaded_session_id"
+    hc_answers_key = "hc_answers"
+    hc_dirty_key = "hc_dirty"
+    
+    # 이미 로드된 세션이면 스킵
+    if st.session_state.get(hc_loaded_key) == session_id:
+        return
+    
+    # 답변 초기화
+    st.session_state[hc_answers_key] = {}
+    st.session_state[hc_dirty_key] = set()
+    
+    # DB에서 기존 답변 로드 (초기 1회만)
+    try:
+        existing_answers = get_health_answers(session_id)
+        for ans in existing_answers:
+            category = ans.get('category')
+            question_code = ans.get('question_code')
+            raw_value = ans.get('raw_value')
+            if category and question_code and raw_value:
+                key = (category, question_code)
+                st.session_state[hc_answers_key][key] = raw_value
+    except Exception as e:
+        logger.error(f"Error loading answers: {e}")
+    
+    # 로드 완료 표시
+    st.session_state[hc_loaded_key] = session_id
 
-def _invalidate_answers_cache(session_id: str):
-    """답변 캐시 무효화"""
-    _load_answers_cached.clear()
+def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[str]]:
+    """dirty 답변 일괄 저장"""
+    hc_answers_key = "hc_answers"
+    hc_dirty_key = "hc_dirty"
+    
+    dirty = st.session_state.get(hc_dirty_key, set())
+    if not dirty:
+        return True, None
+    
+    answers = st.session_state.get(hc_answers_key, {})
+    rows = []
+    for (category, question_code) in dirty:
+        raw_value = answers.get((category, question_code))
+        if raw_value:
+            rows.append({
+                "category": category,
+                "question_code": question_code,
+                "raw_value": raw_value
+            })
+    
+    if not rows:
+        return True, None
+    
+    success, error_msg = upsert_health_answers_batch(store_id, session_id, rows)
+    if success:
+        # 저장 성공 시 dirty 비우기
+        st.session_state[hc_dirty_key] = set()
+    return success, error_msg
 
 def render_input_form(store_id: str, session_id: str):
-    """입력 폼 렌더링 (9개 섹션)"""
-    # 기존 답변 로드 (캐싱 적용)
-    existing_answers = _load_answers_cached(session_id)
-    answers_dict = {}
-    for ans in existing_answers:
-        key = f"{ans['category']}_{ans['question_code']}"
-        answers_dict[key] = ans['raw_value']
+    """입력 폼 렌더링 (9개 섹션) - 임시 저장 방식"""
+    # session_state 초기화 (초기 1회만 DB 로드)
+    _initialize_health_check_state(store_id, session_id)
     
-    # 진행률 계산 (DB에서 실제 로드한 답변 개수 사용)
-    answered_count_db = len(answers_dict)
+    hc_answers_key = "hc_answers"
+    hc_dirty_key = "hc_dirty"
     
-    # session_state의 답변 개수도 확인 (실시간 업데이트 반영)
-    answer_count_key = f"health_check_answer_count_{session_id}"
-    answered_count_state = st.session_state.get(answer_count_key, answered_count_db)
-    
-    # 두 값 중 큰 값을 사용 (더 정확한 진행률 표시)
-    answered_count = max(answered_count_db, answered_count_state)
-    
-    # session_state 업데이트 (다음 렌더링을 위해)
-    st.session_state[answer_count_key] = answered_count
+    # 답변 개수 계산
+    answers = st.session_state.get(hc_answers_key, {})
+    answered_count = len([v for v in answers.values() if v])
+    dirty_count = len(st.session_state.get(hc_dirty_key, set()))
     
     progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0
-    can_complete = progress_ratio >= MIN_COMPLETION_RATIO
+    can_complete = answered_count >= 60  # 최소 60개 이상
     
     # 진행률 표시
     st.progress(progress_ratio)
     st.caption(f"진행률: {answered_count}/{TOTAL_QUESTIONS} 문항 완료 ({progress_ratio*100:.1f}%)")
     
+    # 저장 상태 표시
+    if dirty_count > 0:
+        st.warning(f"💾 저장되지 않은 변경: {dirty_count}개")
+    else:
+        st.success("✅ 모든 변경사항이 저장되었습니다.")
+    
     if can_complete:
         st.success(f"✅ 완료 가능합니다! ({answered_count}개 답변 완료)")
     else:
-        needed = int(TOTAL_QUESTIONS * MIN_COMPLETION_RATIO)
+        needed = 60
         remaining = needed - answered_count
         st.info(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개, 남은 문항: {remaining}개)")
     
     st.markdown("---")
     
-    # 저장 상태 추적 (rerun 폭발 방지)
-    if 'last_saved_key' not in st.session_state:
-        st.session_state['last_saved_key'] = None
-    if 'last_saved_time' not in st.session_state:
-        st.session_state['last_saved_time'] = None
+    # 저장 버튼
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+    with col2:
+        if st.button("💾 임시저장(서버에 반영)", use_container_width=True, disabled=dirty_count == 0):
+            success, error_msg = _save_answers_batch(store_id, session_id)
+            if success:
+                st.success("저장되었습니다!")
+                st.rerun()
+            else:
+                st.error(f"저장 실패: {error_msg}")
     
     # 9개 섹션 탭
     category_tabs = st.tabs([f"{cat} ({CATEGORY_LABELS.get(cat, cat)})" for cat in CATEGORIES_ORDER])
     
     for idx, category in enumerate(CATEGORIES_ORDER):
         with category_tabs[idx]:
-            render_category_questions(
-                store_id, session_id, category, 
-                answers_dict, 
-                st.session_state.get('last_saved_key'),
-                st.session_state.get('last_saved_time')
-            )
+            render_category_questions(store_id, session_id, category)
     
     # 완료 버튼
     st.markdown("---")
@@ -263,8 +311,14 @@ def render_input_form(store_id: str, session_id: str):
     with col2:
         if can_complete:
             if st.button("✅ 검진 완료", type="primary", use_container_width=True):
-                # 캐시 무효화
-                _invalidate_answers_cache(session_id)
+                # dirty가 있으면 먼저 저장
+                if dirty_count > 0:
+                    success, error_msg = _save_answers_batch(store_id, session_id)
+                    if not success:
+                        st.error(f"저장 실패: {error_msg}")
+                        return
+                
+                # finalize 실행
                 success = finalize_health_session(store_id, session_id)
                 if success:
                     # 세션 상태 초기화
@@ -272,33 +326,31 @@ def render_input_form(store_id: str, session_id: str):
                         del st.session_state['health_session_id']
                     if 'health_check_view_mode' in st.session_state:
                         del st.session_state['health_check_view_mode']
-                    # 답변 개수 캐시도 초기화
-                    answer_count_key = f"health_check_answer_count_{session_id}"
-                    if answer_count_key in st.session_state:
-                        del st.session_state[answer_count_key]
+                    # 답변 상태 초기화
+                    for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
                     st.success("검진이 완료되었습니다!")
                     st.rerun()
                 else:
                     st.error("검진 완료 처리에 실패했습니다.")
         else:
             st.button("⏳ 완료 불가", disabled=True, use_container_width=True)
-
-
-def render_category_questions(
-    store_id: str, 
-    session_id: str, 
-    category: str, 
-    answers_dict: Dict[str, str],
-    last_saved_key: Optional[str],
-    last_saved_time: Optional[datetime]
-):
-    """카테고리별 질문 렌더링"""
-    category_questions = QUESTIONS.get(category, [])
     
-    # 저장 상태 표시
-    if last_saved_key and last_saved_key.startswith(category) and last_saved_time:
-        time_str = last_saved_time.strftime("%H:%M:%S") if isinstance(last_saved_time, datetime) else str(last_saved_time)
-        st.caption(f"💾 마지막 저장: {time_str}")
+    # DEV 모드 디버그 정보
+    if st.session_state.get("dev_mode", False):
+        with st.expander("🔧 디버그 정보"):
+            st.write(f"**session_id**: {session_id}")
+            st.write(f"**답변 개수**: {answered_count}")
+            st.write(f"**dirty 개수**: {dirty_count}")
+            st.write(f"**hc_loaded_session_id**: {st.session_state.get('hc_loaded_session_id')}")
+
+
+def render_category_questions(store_id: str, session_id: str, category: str):
+    """카테고리별 질문 렌더링 (임시 저장 방식)"""
+    category_questions = QUESTIONS.get(category, [])
+    hc_answers_key = "hc_answers"
+    hc_dirty_key = "hc_dirty"
     
     # 각 질문 렌더링
     for question_item in category_questions:
@@ -307,8 +359,10 @@ def render_category_questions(
         if not question_code or not question_text:
             continue
         
-        key = f"{category}_{question_code}"
-        current_value = answers_dict.get(key, None)
+        # session_state에서 현재 값 가져오기
+        key = (category, question_code)
+        answers = st.session_state.get(hc_answers_key, {})
+        current_value = answers.get(key)
         
         # radio 옵션
         options = ["예", "애매함", "아니다"]
@@ -322,13 +376,7 @@ def render_category_questions(
                     index = i
                     break
         
-        # session_state에 변경사항 추적
-        answer_state_key = f"answer_{category}_{question_code}"
-        if answer_state_key not in st.session_state:
-            st.session_state[answer_state_key] = current_value
-        
         # index가 None이면 기본값 0 사용 (첫 번째 옵션)
-        # index가 범위를 벗어나지 않도록 체크
         radio_index = index if (index is not None and 0 <= index < len(options)) else 0
         
         try:
@@ -336,58 +384,31 @@ def render_category_questions(
                 question_text,
                 options=options,
                 index=radio_index,
-                key=f"q_{category}_{question_code}",
+                key=f"hc_{session_id}_{category}_{question_code}",
                 horizontal=True
             )
         except Exception as e:
             logger.error(f"Error rendering radio for {question_code}: {e}")
             continue
         
-        # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵 (안전장치)
+        # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵
         if selected is None or selected not in options or selected not in raw_value_map:
-            logger.warning(f"Invalid selected value for {question_code}: {selected}")
             continue
         
-        # 값이 변경되었고, 이전에 저장한 키와 다르면 저장 (rerun 폭발 방지)
-        try:
-            new_raw_value = raw_value_map[selected]
-        except KeyError as e:
-            logger.error(f"KeyError in raw_value_map for {question_code}: selected={selected}, error={e}")
-            continue
-        stored_value = st.session_state.get(answer_state_key)
+        # 값 변환
+        new_raw_value = raw_value_map[selected]
         
-        if new_raw_value != stored_value:
-            # debounce: 같은 키를 연속으로 저장하지 않음
-            if last_saved_key != key:
-                # session_state에 먼저 저장 (즉시 반영, rerun 최소화)
-                st.session_state[answer_state_key] = new_raw_value
-                st.session_state['last_saved_key'] = key
-                st.session_state['last_saved_time'] = datetime.now()
-                
-                # 답변 개수 업데이트 (새 답변이면 증가)
-                answer_count_key = f"health_check_answer_count_{session_id}"
-                if answer_count_key not in st.session_state:
-                    st.session_state[answer_count_key] = 0
-                
-                # stored_value가 None이면 새 답변
-                if stored_value is None:
-                    st.session_state[answer_count_key] = st.session_state.get(answer_count_key, 0) + 1
-                
-                # DB 저장은 백그라운드로 처리 (에러는 로그만)
-                try:
-                    success = upsert_health_answer(
-                        store_id=store_id,
-                        session_id=session_id,
-                        category=category,
-                        question_code=question_code,
-                        raw_value=new_raw_value,
-                        memo=None
-                    )
-                    if not success:
-                        logger.warning(f"Failed to save answer: {question_code}")
-                except Exception as e:
-                    logger.error(f"Error saving answer: {e}")
-                    # 에러 발생 시에도 UI는 유지 (사용자 경험 개선)
+        # 값이 변경되었으면 session_state에 저장 (DB 저장 안 함)
+        if new_raw_value != current_value:
+            # session_state 업데이트
+            if hc_answers_key not in st.session_state:
+                st.session_state[hc_answers_key] = {}
+            st.session_state[hc_answers_key][key] = new_raw_value
+            
+            # dirty에 추가
+            if hc_dirty_key not in st.session_state:
+                st.session_state[hc_dirty_key] = set()
+            st.session_state[hc_dirty_key].add(key)
 
 
 def render_result_report(store_id: str, session_id: str):
