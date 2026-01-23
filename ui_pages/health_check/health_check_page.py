@@ -74,7 +74,11 @@ def render_health_check_page():
                     del st.session_state['health_session_id']
                 if 'health_check_view_mode' in st.session_state:
                     del st.session_state['health_check_view_mode']
-                # 답변 개수 캐시도 초기화
+                # 답변 상태 완전 초기화
+                for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                # 기존 답변 개수 캐시도 초기화
                 answer_count_key = f"health_check_answer_count_{session_id}"
                 if answer_count_key in st.session_state:
                     del st.session_state[answer_count_key]
@@ -199,29 +203,36 @@ def _initialize_health_check_state(store_id: str, session_id: str):
     hc_answers_key = "hc_answers"
     hc_dirty_key = "hc_dirty"
     
-    # 이미 로드된 세션이면 스킵
-    if st.session_state.get(hc_loaded_key) == session_id:
-        return
-    
-    # 답변 초기화
-    st.session_state[hc_answers_key] = {}
-    st.session_state[hc_dirty_key] = set()
-    
-    # DB에서 기존 답변 로드 (초기 1회만)
-    try:
-        existing_answers = get_health_answers(session_id)
-        for ans in existing_answers:
-            category = ans.get('category')
-            question_code = ans.get('question_code')
-            raw_value = ans.get('raw_value')
-            if category and question_code and raw_value:
-                key = (category, question_code)
-                st.session_state[hc_answers_key][key] = raw_value
-    except Exception as e:
-        logger.error(f"Error loading answers: {e}")
-    
-    # 로드 완료 표시
-    st.session_state[hc_loaded_key] = session_id
+    # 세션이 변경되었거나 처음 로드하는 경우
+    current_loaded = st.session_state.get(hc_loaded_key)
+    if current_loaded != session_id:
+        # 기존 답변 상태 초기화
+        st.session_state[hc_answers_key] = {}
+        st.session_state[hc_dirty_key] = set()
+        
+        # 기존 session_state 키들 정리 (이전 방식과의 호환성)
+        keys_to_remove = []
+        for key in st.session_state.keys():
+            if key.startswith("answer_") or key.startswith("q_") or key.startswith("health_check_answer_count_"):
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del st.session_state[key]
+        
+        # DB에서 기존 답변 로드 (초기 1회만)
+        try:
+            existing_answers = get_health_answers(session_id)
+            for ans in existing_answers:
+                category = ans.get('category')
+                question_code = ans.get('question_code')
+                raw_value = ans.get('raw_value')
+                if category and question_code and raw_value:
+                    key = (category, question_code)
+                    st.session_state[hc_answers_key][key] = raw_value
+        except Exception as e:
+            logger.error(f"Error loading answers: {e}")
+        
+        # 로드 완료 표시
+        st.session_state[hc_loaded_key] = session_id
 
 def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[str]]:
     """dirty 답변 일괄 저장"""
@@ -254,6 +265,21 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
 
 def render_input_form(store_id: str, session_id: str):
     """입력 폼 렌더링 (9개 섹션) - 임시 저장 방식"""
+    # 강제 초기화 옵션 (DEV 모드 또는 버튼 클릭 시)
+    if st.session_state.get("dev_mode", False):
+        if st.button("🔄 답변 상태 초기화 (개발용)", type="secondary"):
+            for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            # 기존 키들도 정리
+            keys_to_remove = []
+            for key in st.session_state.keys():
+                if key.startswith("answer_") or key.startswith("q_") or key.startswith("health_check_answer_count_"):
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                del st.session_state[key]
+            st.rerun()
+    
     # session_state 초기화 (초기 1회만 DB 로드)
     _initialize_health_check_state(store_id, session_id)
     
