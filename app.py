@@ -1612,7 +1612,18 @@ with st.sidebar:
             quick_input_items = menu_categories.get("✍ 입력 (빠른 입력)", [])
             if quick_input_items:
                 with st.sidebar.expander("⚡ 빠른 입력", expanded=False):
-                    _render_menu_buttons(quick_input_items, st.sidebar)
+                    # expander 안에서는 st를 직접 사용해야 expander 내부에 렌더링됨
+                    for idx, (label, key) in enumerate(quick_input_items):
+                        is_selected = selected_page_key == key
+                        btn = st.button(
+                            label,
+                            key=f"quick_input_btn_{label}_{idx}",
+                            use_container_width=True,
+                            type="primary" if is_selected else "secondary",
+                        )
+                        if btn:
+                            st.session_state.current_page = key
+                            st.rerun()
         else:
             # 다른 카테고리는 일반 렌더링
             st.sidebar.markdown(f"""
