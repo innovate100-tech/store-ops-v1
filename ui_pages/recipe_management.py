@@ -586,6 +586,44 @@ def render_recipe_management():
             st.info("등록된 레시피가 없습니다.")
     else:
         st.info("등록된 레시피가 없습니다.")
+    
+    # 레시피 현황 표시
+    render_section_divider()
+    st.markdown("### 📋 레시피 현황")
+    
+    total_menus = len(menu_list)
+    
+    # 레시피가 있는 메뉴 개수 계산
+    if not recipe_df.empty:
+        menus_with_recipes_count = len(recipe_df['메뉴명'].unique())
+        menus_with_recipes_set = set(recipe_df['메뉴명'].unique())
+    else:
+        menus_with_recipes_count = 0
+        menus_with_recipes_set = set()
+    
+    menus_without_recipes_count = total_menus - menus_with_recipes_count
+    recipe_rate = (menus_with_recipes_count / total_menus * 100) if total_menus > 0 else 0
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("전체 메뉴", f"{total_menus}개")
+    with col2:
+        st.metric("레시피 등록", f"{menus_with_recipes_count}개", delta=f"{recipe_rate:.0f}%")
+    with col3:
+        st.metric("레시피 없음", f"{menus_without_recipes_count}개", delta=f"-{menus_without_recipes_count/total_menus*100:.0f}%" if total_menus > 0 else None)
+    
+    if menus_without_recipes_count > 0:
+        st.info(f"💡 레시피가 없는 메뉴가 {menus_without_recipes_count}개 있습니다. 레시피를 등록하면 원가 계산이 가능합니다.")
+        if st.button("📝 레시피 없는 메뉴 보기", key="show_menus_without_recipe"):
+            # 레시피가 없는 메뉴 목록 표시
+            menus_without_recipes_list = [m for m in menu_list if m not in menus_with_recipes_set]
+            
+            if menus_without_recipes_list:
+                st.markdown("**레시피가 없는 메뉴:**")
+                for menu_name in menus_without_recipes_list:
+                    st.write(f"- {menu_name}")
+            else:
+                st.success("모든 메뉴에 레시피가 등록되어 있습니다!")
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때

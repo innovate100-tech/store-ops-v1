@@ -260,7 +260,7 @@ from src.ui import (
     render_abc_analysis,
     render_manager_closing_input
 )
-from src.reporting import generate_weekly_report
+# 주간 리포트 제거됨 - generate_weekly_report import 제거
 from src.ui_helpers import (
     render_page_header, 
     render_section_header, 
@@ -1518,9 +1518,8 @@ with st.sidebar:
             # 나머지는 expander로 처리 (아래 _render_input_category_expander에서)
         ],
         "✍ 입력 (빠른 입력)": [  # expander 내부 항목들
-            ("오늘 입력(통합)", "일일 입력(통합)"),  # page key 유지
+            ("일일 마감", "일일 입력(통합)"),  # 라벨 변경: 오늘 입력(통합) → 일일 마감
             ("매장 체크리스트", "건강검진 실시"),  # page key 유지
-            ("주간 리포트", "주간 리포트"),  # page key 유지
             ("월간 정산", "실제정산"),  # page key 유지
             ("목표 매출 구조", "목표 매출구조"),  # page key 유지
             ("목표 비용 구조", "목표 비용구조"),  # page key 유지
@@ -2432,10 +2431,7 @@ elif page == "발주 관리":
     from ui_pages.order_management import render_order_management
     render_order_management()
 
-# 주간 리포트 페이지
-elif page == "주간 리포트":
-    from ui_pages.weekly_report import render_weekly_report
-    render_weekly_report()
+# 주간 리포트 페이지 - 제거됨 (앱에서 완전 제거)
 
 # 통합 대시보드 페이지 (퇴역 - fail-safe stub)
 elif page == "통합 대시보드":

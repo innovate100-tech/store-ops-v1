@@ -37,7 +37,7 @@ def render_manager_close():
     
     # Phase 1 STEP 2 최종: 저장/분석 정책 안내
     st.info("""
-    💡 **방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
+    💡 **네이버 방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
     하지만 분석과 코칭은 **'매출'**이 있어야 시작됩니다.
     """)
     
@@ -162,7 +162,7 @@ def render_manager_close():
                             if has_sales:
                                 saved_items.append("매출")
                             if visitors > 0:
-                                saved_items.append("방문자")
+                                saved_items.append("네이버 방문자")
                             if sales_items and any(qty > 0 for _, qty in sales_items):
                                 saved_items.append("판매량")
                             if memo and memo.strip():
@@ -184,7 +184,7 @@ def render_manager_close():
                             # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
                             saved_items = []
                             if visitors > 0:
-                                saved_items.append("방문자")
+                                saved_items.append("네이버 방문자")
                             if sales_items and any(qty > 0 for _, qty in sales_items):
                                 saved_items.append("판매량")
                             if memo and memo.strip():

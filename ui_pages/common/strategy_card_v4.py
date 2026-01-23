@@ -42,7 +42,7 @@ def _get_additional_ctas(card_type: str, card: Dict) -> List[Dict]:
     elif card_type == "ACQUISITION" or "매출 하락" in card.get("title", ""):
         additional_ctas.extend([
             {"label": "매출 분석", "page": "매출 관리", "params": {}, "is_primary": False},
-            {"label": "주간 리포트 생성", "page": "주간 리포트", "params": {}, "is_primary": False}
+            {"label": "매출 하락 원인 찾기", "page": "매출 하락 원인 찾기", "params": {}, "is_primary": False}
         ])
     elif card_type == "OPERATIONS" or "운영" in card.get("title", ""):
         additional_ctas.extend([

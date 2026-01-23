@@ -4,10 +4,14 @@
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import pandas as pd
+import logging
 from src.ui_helpers import render_page_header, ui_flash_success, ui_flash_error
 from src.ui import render_menu_input, render_menu_batch_input
 from src.storage_supabase import load_csv, save_menu
 from src.auth import get_current_store_id
+
+logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
 bootstrap(page_title="Menu Input")
@@ -66,15 +70,78 @@ def render_menu_input_page():
     
     st.markdown("---")
     
-    # 등록된 메뉴 목록
+    # 등록된 메뉴 목록 (상태 표시 포함)
     st.markdown("### 📋 등록된 메뉴 목록")
     menu_df = load_csv('menu_master.csv', store_id=store_id, default_columns=['메뉴명', '판매가'])
     
     if menu_df.empty:
         st.info("등록된 메뉴가 없습니다.")
     else:
-        display_df = menu_df[['메뉴명', '판매가']].copy()
-        display_df['판매가'] = display_df['판매가'].apply(lambda x: f"{int(x):,}원")
-        display_df.columns = ['메뉴명', '판매가']
+        # 레시피 상태 확인
+        from src.auth import get_supabase_client
+        supabase = get_supabase_client()
+        menu_has_recipe = {}
+        
+        if supabase:
+            try:
+                # 메뉴 ID 매핑
+                menu_result = supabase.table("menu_master")\
+                    .select("id,name")\
+                    .eq("store_id", store_id)\
+                    .execute()
+                menu_id_map = {m['name']: m['id'] for m in menu_result.data if menu_result.data}
+                
+                if menu_id_map:
+                    menu_ids = list(menu_id_map.values())
+                    recipe_result = supabase.table("recipes")\
+                        .select("menu_id")\
+                        .eq("store_id", store_id)\
+                        .in_("menu_id", menu_ids)\
+                        .execute()
+                    
+                    recipe_menu_ids = set()
+                    if recipe_result.data:
+                        recipe_menu_ids = {r['menu_id'] for r in recipe_result.data}
+                    
+                    id_to_name = {v: k for k, v in menu_id_map.items()}
+                    for menu_id in recipe_menu_ids:
+                        menu_name = id_to_name.get(menu_id)
+                        if menu_name:
+                            menu_has_recipe[menu_name] = True
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.warning(f"레시피 상태 확인 실패: {e}")
+        
+        # 상태 표시가 포함된 데이터프레임 생성
+        display_data = []
+        for _, row in menu_df.iterrows():
+            menu_name = row['메뉴명']
+            has_recipe = menu_has_recipe.get(menu_name, False)
+            status = "✓ 레시피" if has_recipe else "⚠ 레시피 없음"
+            display_data.append({
+                '메뉴명': menu_name,
+                '판매가': f"{int(row['판매가']):,}원",
+                '상태': status
+            })
+        
+        display_df = pd.DataFrame(display_data)
         st.dataframe(display_df, use_container_width=True, hide_index=True)
-        st.caption(f"총 {len(menu_df)}개 메뉴")
+        
+        # 통계 표시
+        total_menus = len(menu_df)
+        menus_with_recipe = sum(1 for name in menu_df['메뉴명'] if menu_has_recipe.get(name, False))
+        menus_without_recipe = total_menus - menus_with_recipe
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("전체 메뉴", f"{total_menus}개")
+        with col2:
+            st.metric("레시피 있음", f"{menus_with_recipe}개", delta=f"{menus_with_recipe/total_menus*100:.0f}%" if total_menus > 0 else None)
+        with col3:
+            st.metric("레시피 없음", f"{menus_without_recipe}개", delta=f"-{menus_without_recipe/total_menus*100:.0f}%" if total_menus > 0 else None)
+        
+        if menus_without_recipe > 0:
+            st.info(f"💡 레시피가 없는 메뉴가 {menus_without_recipe}개 있습니다. 레시피를 등록하면 원가 계산이 가능합니다.")
+            if st.button("🧑‍🍳 레시피 입력하러 가기", key="go_to_recipe_input_from_menu"):
+                st.session_state["current_page"] = "레시피 입력"
+                st.rerun()
