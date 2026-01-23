@@ -1410,10 +1410,7 @@ def render_coach_home():
     data_level = detect_data_level(store_id)
     st.session_state.home_data_level = data_level
     
-    # DAY 0 전용 홈 화면 표시
-    if data_level == 0:
-        render_day0_home()
-        return
+    # DAY 0일 때도 미션을 포함한 홈 화면 표시 (render_day0_home() 호출 제거)
     
     # 기존 홈 화면 렌더링
     render_page_header("사장 계기판", "🏠")
@@ -1452,14 +1449,7 @@ def render_coach_home():
             st.success("🎉 자동 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
             st.session_state.coach_mode_welcomed = True
     
-    # STEP 4-1: 코치 요약 문장 (자동 코치 모드일 때만)
-    if is_coach_mode:
-        try:
-            coach_summary = get_coach_summary(store_id, day_level)
-            st.markdown(f"**📋 이번 달 우리 가게 코치 요약**\n\n{coach_summary}")
-            st.markdown("<br>", unsafe_allow_html=True)
-        except Exception:
-            pass
+    # STEP 4-1: 코치 요약 문장 (자동 코치 모드일 때만) - Fast Mode에서는 제외
     
     render_section_divider()
     
@@ -2354,6 +2344,49 @@ def render_fast_home():
             st.session_state.current_page = "실제정산"
             st.rerun()
     
+    # ========== 섹션 1.5: 상태판 (코치 모드와 동일) ==========
+    with st.container():
+        st.markdown("### 📊 상태판")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # 이번 달 매출
+            if monthly_sales > 0:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; text-align: center;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">이번 달 매출</div>
+                    <div style="font-size: 2rem; font-weight: 700;">{monthly_sales:,}원</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">이번 달 매출 데이터가 없습니다</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">점장마감 또는 매출 입력을 시작하세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col2:
+            # 마감률/스트릭
+            if closed_days > 0:
+                close_rate_pct = int(close_rate * 100)
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; color: white; text-align: center;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">마감률</div>
+                    <div style="font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;">{close_rate_pct}%</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;">({closed_days}/{total_days}일)</div>
+                    {f'<div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.9;">🔥 연속 {streak_days}일</div>' if streak_days > 0 else ''}
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">마감 데이터가 없습니다</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">오늘부터 마감을 시작하세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+    
     render_section_divider()
     
     # ========== 섹션 2.5: 시작 미션 3개 (신규 회원용, data_level == 0일 때만) ==========
@@ -2411,7 +2444,7 @@ def render_fast_home():
         except Exception:
             pass
     
-    # ========== 섹션 3: 오늘 할 일 1줄 ==========
+    # ========== 섹션 6: 오늘 할 일 1줄 ==========
     st.markdown("### ✅ 오늘 할 일")
     
     # 오늘 할 일 체크
@@ -2465,7 +2498,7 @@ def render_fast_home():
     
     render_section_divider()
     
-    # ========== 섹션 4: 이번 달 이익 (가능하면) ==========
+    # ========== 섹션 7: 이번 달 이익 (가능하면) ==========
     if data_level >= 3:
         st.markdown("### 💵 이번 달 이익")
         
