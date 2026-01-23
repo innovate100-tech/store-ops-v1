@@ -118,61 +118,61 @@ def render_revenue_structure_design_lab():
         )
         
         def _render_revenue_structure_map():
-        if fixed_costs <= 0 or break_even <= 0:
-            st.info("고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.")
-            return
-        
-        # 1) 매출 구간별 예상 이익 테이블
-        st.markdown("#### 📊 매출 구간별 예상 이익")
-        
-        # 손익분기점 기준으로 ±500만 단위 구간 생성
-        base_sales = break_even
-        sales_ranges = []
-        
-        # -1000만, -500만, 손익분기점, +500만, +1000만, +1500만
-        for offset in [-10000000, -5000000, 0, 5000000, 10000000, 15000000]:
-            sales = base_sales + offset
-            if sales > 0:
-                variable_cost = sales * variable_ratio
-                total_cost = fixed_costs + variable_cost
-                profit = sales - total_cost
-                profit_rate = (profit / sales * 100) if sales > 0 else 0
-                
-                sales_ranges.append({
-                    '매출': f"{int(sales):,}원",
-                    '변동비': f"{int(variable_cost):,}원",
-                    '고정비': f"{int(fixed_costs):,}원",
-                    '총비용': f"{int(total_cost):,}원",
-                    '추정이익': f"{int(profit):,}원",
-                    '이익률': f"{profit_rate:.1f}%"
+            if fixed_costs <= 0 or break_even <= 0:
+                st.info("고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.")
+                return
+            
+            # 1) 매출 구간별 예상 이익 테이블
+            st.markdown("#### 📊 매출 구간별 예상 이익")
+            
+            # 손익분기점 기준으로 ±500만 단위 구간 생성
+            base_sales = break_even
+            sales_ranges = []
+            
+            # -1000만, -500만, 손익분기점, +500만, +1000만, +1500만
+            for offset in [-10000000, -5000000, 0, 5000000, 10000000, 15000000]:
+                sales = base_sales + offset
+                if sales > 0:
+                    variable_cost = sales * variable_ratio
+                    total_cost = fixed_costs + variable_cost
+                    profit = sales - total_cost
+                    profit_rate = (profit / sales * 100) if sales > 0 else 0
+                    
+                    sales_ranges.append({
+                        '매출': f"{int(sales):,}원",
+                        '변동비': f"{int(variable_cost):,}원",
+                        '고정비': f"{int(fixed_costs):,}원",
+                        '총비용': f"{int(total_cost):,}원",
+                        '추정이익': f"{int(profit):,}원",
+                        '이익률': f"{profit_rate:.1f}%"
+                    })
+            
+            if sales_ranges:
+                range_df = pd.DataFrame(sales_ranges)
+                st.dataframe(range_df, use_container_width=True, hide_index=True)
+            
+            # 2) 손익분기점 vs 예상매출 비교 시각화
+            st.markdown("#### 📈 손익분기점 vs 예상 매출")
+            
+            if forecast_sales > 0:
+                comparison_data = pd.DataFrame({
+                    '항목': ['손익분기점', '예상 매출'],
+                    '금액': [break_even, forecast_sales]
                 })
+                st.bar_chart(comparison_data.set_index('항목'))
+                
+                # 차이 표시
+                diff = forecast_sales - break_even
+                diff_pct = (diff / break_even * 100) if break_even > 0 else 0
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("손익분기점", f"{int(break_even):,}원")
+                with col2:
+                    st.metric("예상 매출", f"{int(forecast_sales):,}원", delta=f"{diff_pct:.1f}%")
+            else:
+                st.info("예상 매출을 계산할 수 없습니다.")
         
-        if sales_ranges:
-            range_df = pd.DataFrame(sales_ranges)
-            st.dataframe(range_df, use_container_width=True, hide_index=True)
-        
-        # 2) 손익분기점 vs 예상매출 비교 시각화
-        st.markdown("#### 📈 손익분기점 vs 예상 매출")
-        
-        if forecast_sales > 0:
-            comparison_data = pd.DataFrame({
-                '항목': ['손익분기점', '예상 매출'],
-                '금액': [break_even, forecast_sales]
-            })
-            st.bar_chart(comparison_data.set_index('항목'))
-            
-            # 차이 표시
-            diff = forecast_sales - break_even
-            diff_pct = (diff / break_even * 100) if break_even > 0 else 0
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("손익분기점", f"{int(break_even):,}원")
-            with col2:
-                st.metric("예상 매출", f"{int(forecast_sales):,}원", delta=f"{diff_pct:.1f}%")
-        else:
-            st.info("예상 매출을 계산할 수 없습니다.")
-    
         render_structure_map_container(
             content_func=_render_revenue_structure_map,
             empty_message="고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.",
