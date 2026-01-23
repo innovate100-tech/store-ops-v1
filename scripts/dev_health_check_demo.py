@@ -18,7 +18,7 @@ from src.health_check.storage import (
     get_health_session,
     get_health_results
 )
-from src.health_check.questions_bank import CATEGORIES, QUESTIONS_BANK, get_question_code
+from src.health_check.questions_bank import CATEGORIES_ORDER, QUESTIONS
 
 
 def generate_random_answers(store_id: str, session_id: str):
@@ -34,11 +34,15 @@ def generate_random_answers(store_id: str, session_id: str):
     
     total_answers = 0
     
-    for category in CATEGORIES:
-        questions = QUESTIONS_BANK.get(category, {})
+    for category in CATEGORIES_ORDER:
+        category_questions = QUESTIONS.get(category, [])
         
-        # QUESTIONS_BANK의 키를 직접 사용 (P1_1 형식 등 이미 올바른 형식)
-        for question_code, question_text in questions.items():
+        # QUESTIONS 리스트에서 질문 순회
+        for question_item in category_questions:
+            question_code = question_item.get("code", "")
+            question_text = question_item.get("text", "")
+            if not question_code:
+                continue
             # 랜덤 답변 선택
             raw_value = random.choices(raw_values, weights=weights)[0]
             
@@ -141,17 +145,7 @@ def main():
     print("-" * 60)
     
     # 카테고리별로 정렬하여 출력
-    category_names = {
-        'Q': '품질(Quality)',
-        'S': '서비스(Service)',
-        'C': '청결(Cleanliness)',
-        'P1': '가격1(Price1)',
-        'P2': '가격2(Price2)',
-        'P3': '가격3(Price3)',
-        'M': '마케팅(Marketing)',
-        'H': '인력(Human)',
-        'F': '재무(Finance)'
-    }
+    from src.health_check.questions_bank import CATEGORY_LABELS
     
     risk_level_emoji = {
         'green': '🟢',
@@ -162,16 +156,16 @@ def main():
     # results를 카테고리별로 딕셔너리로 변환
     results_dict = {r['category']: r for r in results}
     
-    for category in CATEGORIES:
+    for category in CATEGORIES_ORDER:
         if category in results_dict:
             result = results_dict[category]
             score = result.get('score_avg', 0)
             risk = result.get('risk_level', 'unknown')
             emoji = risk_level_emoji.get(risk, '⚪')
             
-            print(f"  {emoji} {category_names.get(category, category)}: {score:.1f}점 ({risk})")
+            print(f"  {emoji} {CATEGORY_LABELS.get(category, category)}: {score:.1f}점 ({risk})")
         else:
-            print(f"  ⚪ {category_names.get(category, category)}: 데이터 없음")
+            print(f"  ⚪ {CATEGORY_LABELS.get(category, category)}: 데이터 없음")
     
     print()
     print("=" * 60)

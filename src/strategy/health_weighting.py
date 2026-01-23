@@ -3,7 +3,7 @@
 건강검진 결과를 전략 우선순위에 반영
 """
 from typing import Dict, List
-from src.health_check.questions_bank import CATEGORY_NAMES
+from src.health_check.questions_bank import CATEGORY_LABELS
 
 # 가중치 규칙: {카테고리: {전략타입: 가중치}}
 WEIGHT_RULES = {
@@ -136,7 +136,7 @@ def _build_health_reason(category_scores: Dict, risk_levels: Dict, main_bottlene
     
     score = category_scores.get(main_bottleneck, 0)
     risk_level = risk_levels.get(main_bottleneck, "unknown")
-    category_name = CATEGORY_NAMES.get(main_bottleneck, main_bottleneck)
+    category_name = CATEGORY_LABELS.get(main_bottleneck, main_bottleneck)
     
     risk_emoji = {
         "red": "🔴",

@@ -20,9 +20,9 @@ from src.health_check.storage import (
     list_health_sessions
 )
 from src.health_check.questions_bank import (
-    CATEGORIES,
-    CATEGORY_NAMES,
-    QUESTIONS_BANK
+    CATEGORIES_ORDER,
+    CATEGORY_LABELS,
+    QUESTIONS
 )
 
 logger = logging.getLogger(__name__)
@@ -148,9 +148,9 @@ def render_input_form(store_id: str, session_id: str):
         st.session_state['last_saved_time'] = None
     
     # 9개 섹션 탭
-    category_tabs = st.tabs([f"{cat} ({CATEGORY_NAMES.get(cat, cat)})" for cat in CATEGORIES])
+    category_tabs = st.tabs([f"{cat} ({CATEGORY_LABELS.get(cat, cat)})" for cat in CATEGORIES_ORDER])
     
-    for idx, category in enumerate(CATEGORIES):
+    for idx, category in enumerate(CATEGORIES_ORDER):
         with category_tabs[idx]:
             render_category_questions(
                 store_id, session_id, category, 
@@ -185,7 +185,7 @@ def render_category_questions(
     last_saved_time: Optional[datetime]
 ):
     """카테고리별 질문 렌더링"""
-    questions = QUESTIONS_BANK.get(category, {})
+    category_questions = QUESTIONS.get(category, [])
     
     # 저장 상태 표시
     if last_saved_key and last_saved_key.startswith(category) and last_saved_time:
@@ -193,7 +193,12 @@ def render_category_questions(
         st.caption(f"💾 마지막 저장: {time_str}")
     
     # 각 질문 렌더링
-    for question_code, question_text in questions.items():
+    for question_item in category_questions:
+        question_code = question_item.get("code", "")
+        question_text = question_item.get("text", "")
+        if not question_code or not question_text:
+            continue
+        
         key = f"{category}_{question_code}"
         current_value = answers_dict.get(key, None)
         
@@ -278,7 +283,7 @@ def render_result_report(store_id: str, session_id: str):
     
     with col3:
         main_bottleneck = session.get('main_bottleneck', 'N/A')
-        bottleneck_name = CATEGORY_NAMES.get(main_bottleneck, main_bottleneck)
+        bottleneck_name = CATEGORY_LABELS.get(main_bottleneck, main_bottleneck)
         st.metric("주요 병목", bottleneck_name)
     
     st.markdown("---")
@@ -293,12 +298,12 @@ def render_result_report(store_id: str, session_id: str):
         
         # 테이블 데이터 준비
         table_data = []
-        for category in CATEGORIES:
+        for category in CATEGORIES_ORDER:
             if category in results_dict:
                 r = results_dict[category]
                 risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(r['risk_level'], '⚪')
                 table_data.append({
-                    '영역': f"{category} ({CATEGORY_NAMES.get(category, category)})",
+                    '영역': f"{category} ({CATEGORY_LABELS.get(category, category)})",
                     '점수': f"{r['score_avg']:.1f}점",
                     '리스크': f"{risk_emoji} {r['risk_level']}"
                 })

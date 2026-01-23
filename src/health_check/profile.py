@@ -71,19 +71,25 @@ def load_latest_health_profile(store_id: str, lookback_days: int = 60) -> Dict:
             risk_levels[category] = r.get('risk_level', 'unknown')
         
         # risk_top: 점수가 낮은 순 3개
-        risk_top = sorted(
-            category_scores.items(),
-            key=lambda x: x[1]
-        )[:3]
-        risk_top = [cat for cat, _ in risk_top]
+        if category_scores:
+            risk_top = sorted(
+                category_scores.items(),
+                key=lambda x: x[1]
+            )[:3]
+            risk_top = [cat for cat, _ in risk_top]
+        else:
+            risk_top = []
         
         # strength_top: 점수가 높은 순 2개
-        strength_top = sorted(
-            category_scores.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:2]
-        strength_top = [cat for cat, _ in strength_top]
+        if category_scores:
+            strength_top = sorted(
+                category_scores.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:2]
+            strength_top = [cat for cat, _ in strength_top]
+        else:
+            strength_top = []
         
         # age_days 계산
         age_days = 0

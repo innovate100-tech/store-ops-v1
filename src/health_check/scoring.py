@@ -3,7 +3,7 @@
 """
 
 from typing import Dict, List, Optional
-from src.health_check.questions_bank import CATEGORIES
+from src.health_check.questions_bank import CATEGORIES_ORDER
 
 
 def score_from_raw(raw_value: str) -> int:
@@ -133,7 +133,7 @@ def compute_session_results(answers_by_category: Dict[str, List[int]]) -> Dict:
     category_scores = []
     
     # 카테고리별 점수 계산
-    for category in CATEGORIES:
+    for category in CATEGORIES_ORDER:
         if category in answers_by_category and answers_by_category[category]:
             answers = answers_by_category[category]
             score_avg = calc_category_score(answers)
@@ -182,13 +182,15 @@ def compute_strength_flags(answers: List[int], category: str) -> List[str]:
     Note:
         - 점수가 3인 문항만 강점으로 표시
     """
-    from src.health_check.questions_bank import get_question_code
+    from src.health_check.questions_bank import QUESTIONS
     
     flags = []
-    for idx, score in enumerate(answers, start=1):
-        if score == 3:
-            question_code = get_question_code(category, idx)
-            flags.append(question_code)
+    category_questions = QUESTIONS.get(category, [])
+    for idx, score in enumerate(answers):
+        if score == 3 and idx < len(category_questions):
+            question_code = category_questions[idx].get("code", "")
+            if question_code:
+                flags.append(question_code)
     
     return flags
 
@@ -207,12 +209,14 @@ def compute_risk_flags(answers: List[int], category: str) -> List[str]:
     Note:
         - 점수가 0인 문항만 리스크로 표시
     """
-    from src.health_check.questions_bank import get_question_code
+    from src.health_check.questions_bank import QUESTIONS
     
     flags = []
-    for idx, score in enumerate(answers, start=1):
-        if score == 0:
-            question_code = get_question_code(category, idx)
-            flags.append(question_code)
+    category_questions = QUESTIONS.get(category, [])
+    for idx, score in enumerate(answers):
+        if score == 0 and idx < len(category_questions):
+            question_code = category_questions[idx].get("code", "")
+            if question_code:
+                flags.append(question_code)
     
     return flags

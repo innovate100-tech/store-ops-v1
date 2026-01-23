@@ -14,7 +14,7 @@ from src.health_check.scoring import (
     compute_strength_flags,
     compute_risk_flags
 )
-from src.health_check.questions_bank import CATEGORIES, get_question_code
+from src.health_check.questions_bank import CATEGORIES_ORDER, QUESTIONS
 
 logger = logging.getLogger(__name__)
 
