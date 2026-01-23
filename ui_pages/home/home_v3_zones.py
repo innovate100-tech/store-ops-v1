@@ -33,6 +33,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     evidence_line = "데이터 수집 중"
     today_action = None
     
+    # 제목 표시 (항상 먼저 표시)
     st.markdown("### 📌 오늘의 운영 지시")
     
     # 디버깅: 함수 호출 확인
@@ -93,6 +94,19 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
             st.error(f"ZONE 0 데이터 로드 오류: {str(e)}")
     
     # 메인 카드 표시 (항상 표시되도록 try 블록 밖으로 이동)
+    # action_title과 evidence_line이 확실히 설정되었는지 확인
+    if not action_title or action_title.strip() == "":
+        action_title = "가게 설계 센터부터 시작"
+    if not evidence_line or evidence_line.strip() == "":
+        evidence_line = "데이터 수집 중"
+    
+    # 메인 카드 표시 (더 확실하게 표시되도록)
+    # 먼저 간단한 텍스트로 표시 확인
+    st.markdown(f"**오늘은 '{action_title}'부터 하세요.**")
+    st.markdown(f"*{evidence_line}*")
+    st.markdown("---")
+    
+    # 그 다음 스타일 카드 표시
     st.markdown(f"""
     <div style="padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.4); margin-bottom: 1rem;">
         <h3 style="color: white; margin-bottom: 1rem; font-size: 1.3rem; font-weight: 700;">오늘은 '{action_title}'부터 하세요.</h3>
@@ -103,6 +117,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     # 메인 버튼 (항상 표시되도록)
     cta_label = action_cta.get("label", "지금 실행하기")
     cta_page = action_cta.get("page", "가게 설계 센터")
+    
     col_main, col_sub = st.columns([2, 1])
     with col_main:
         if st.button(cta_label, type="primary", use_container_width=True, key="zone0_main_action"):
