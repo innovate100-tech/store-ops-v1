@@ -777,10 +777,11 @@ def get_close_count(store_id: str) -> int:
 
 def is_auto_coach_mode(store_id: str) -> bool:
     """
-    자동 코치 모드 활성화 여부 확인 (온보딩 미션 100% 달성)
+    [DEPRECATED] 온보딩 미션 완료 여부 확인 (모드 구분 제거됨)
+    이 함수는 더 이상 사용되지 않으며, 코치 기능은 항상 활성화됨.
     
     Returns:
-        bool: 자동 코치 모드 활성화 여부
+        bool: 온보딩 미션 완료 여부 (참고용)
     """
     try:
         menu_count = get_menu_count(store_id)
@@ -834,7 +835,7 @@ def detect_owner_day_level(store_id: str) -> str:
 
 def get_coach_summary(store_id: str, day_level: str = None) -> str:
     """
-    코치 요약 문장 생성 (자동 코치 모드용)
+    코치 요약 문장 생성
     기존 데이터를 활용한 룰 기반 문장
     STEP 5-4: DAY 단계에 따라 톤 단계화
     
@@ -956,7 +957,7 @@ def get_month_status_summary(store_id: str, year: int, month: int, day_level: st
         return "이번 달 상태를 확인 중입니다."
 
 
-def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mode: bool = False, day_level: str = None) -> dict:
+def get_today_one_action_with_day_context(store_id: str, level: int, day_level: str = None) -> dict:
     """
     오늘 하나만 추천 액션 결정 (DAY 단계별 톤 튜닝)
     기존 get_today_one_action()을 래핑하여 DAY 단계에 따라 문구 톤 조정
@@ -969,8 +970,8 @@ def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mo
             "target_page": str
         }
     """
-    # 기존 함수 호출
-    action = get_today_one_action(store_id, level, is_coach_mode)
+    # 기존 함수 호출 (코치 모드는 항상 활성화)
+    action = get_today_one_action(store_id, level)
     
     # DAY 단계에 따라 문구 톤 튜닝
     if day_level == "DAY1":
@@ -1006,11 +1007,11 @@ def get_today_one_action_with_day_context(store_id: str, level: int, is_coach_mo
     return action
 
 
-def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False) -> dict:
+def get_today_one_action(store_id: str, level: int) -> dict:
     """
     오늘 하나만 추천 액션 결정 (룰 기반)
     미션 진행률을 고려하여 추천
-    자동 코치 모드일 때는 멘트 강화
+    코치 기능은 항상 활성화됨
     
     Returns:
         dict: {
@@ -1075,27 +1076,19 @@ def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False)
                 }
             else:
                 # B) 운영 메모가 있으면
-                if is_coach_mode:
-                    # 코치 모드: 멘트 강화
-                    problems = get_problems_top3(store_id)
-                    has_sales_issue = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
-                    if has_sales_issue:
-                        return {
-                            "title": "판매 흐름 점검",
-                            "reason": "최근 매출이 흔들리고 있어, 오늘은 판매 흐름을 3분만 점검해보세요.",
-                            "button_label": "📦 판매 관리 보러가기",
-                            "target_page": "판매 관리"
-                        }
-                    else:
-                        return {
-                            "title": "판매 흐름 점검",
-                            "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.",
-                            "button_label": "📦 판매 관리 보러가기",
-                            "target_page": "판매 관리"
-                        }
+                # 코치 기능 항상 활성화: 멘트 강화
+                problems = get_problems_top3(store_id)
+                has_sales_issue = any("매출" in p.get("text", "") and ("감소" in p.get("text", "") or "떨어" in p.get("text", "")) for p in problems)
+                if has_sales_issue:
+                    return {
+                        "title": "판매 흐름 점검",
+                        "reason": "최근 매출이 흔들리고 있어, 오늘은 판매 흐름을 3분만 점검해보세요.",
+                        "button_label": "📦 판매 관리 보러가기",
+                        "target_page": "판매 관리"
+                    }
                 else:
                     return {
-                        "title": "판매 흐름 3분 점검",
+                        "title": "판매 흐름 점검",
                         "reason": "판매 데이터가 쌓였습니다. 메뉴별 흐름을 보고 오늘 밀 메뉴를 정하세요.",
                         "button_label": "📦 판매 관리 보러가기",
                         "target_page": "판매 관리"
@@ -1115,13 +1108,13 @@ def get_today_one_action(store_id: str, level: int, is_coach_mode: bool = False)
                 }
             else:
                 # B) actual_settlement(이번 달) 데이터가 있으면
-                if is_coach_mode:
-                    return {
-                        "title": "숫자 구조 복습",
-                        "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다. 오늘은 10초만 복습해보세요.",
-                        "button_label": "💳 목표 비용구조 보기",
-                        "target_page": "목표 비용구조"
-                    }
+                # 코치 기능 항상 활성화
+                return {
+                    "title": "숫자 구조 복습",
+                    "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다. 오늘은 10초만 복습해보세요.",
+                    "button_label": "💳 목표 비용구조 보기",
+                    "target_page": "목표 비용구조"
+                }
                 else:
                     return {
                         "title": "숫자 구조 10초 복습",
@@ -1280,11 +1273,10 @@ def detect_data_level(store_id: str) -> int:
         return 0
 
 
-def _render_home_body(store_id: str, coaching_enabled: bool):
+def _render_home_body(store_id: str):
     """
     통합 홈 렌더링 (Phase 9).
-    - coaching_enabled True: 코치 모드 (성장 멘트, 미션, 오늘 하나만 등 표시)
-    - False: 빠른 모드 (정보 섹션 동일, coach_only 블록만 숨김)
+    코치 기능은 항상 활성화됨 (모드 구분 제거).
     LEVEL/DAY는 UI에 노출하지 않음. 내부 gating/연출용만 사용.
     """
     if not store_id:
@@ -1297,8 +1289,8 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
 
     render_page_header("사장 계기판", "🏠")
 
-    # ---------- coach_only: 성장 단계 메시지 (DAY 연출, 레이블 없음) ----------
-    if coaching_enabled and day_level:
+    # ---------- 성장 단계 메시지 (DAY 연출, 레이블 없음) ----------
+    if day_level:
         try:
             if day_level == "DAY1":
                 st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
@@ -1309,11 +1301,7 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
         except Exception:
             pass
 
-    # ---------- coach_only: 코치 모드 환영 (최초 1회) ----------
-    if coaching_enabled:
-        if 'coach_mode_welcomed' not in st.session_state:
-            st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
-            st.session_state.coach_mode_welcomed = True
+    # 코치 모드 환영 메시지 제거 (모드 구분 제거됨)
 
     render_section_divider()
 
@@ -1415,10 +1403,10 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
     render_section_divider()
 
     # ========== coach_only: 시작 미션 3개 ==========
-    if coaching_enabled:
-        try:
-            with st.container():
-                st.markdown("### 🚀 시작 미션 3개")
+    # 시작 미션 3개 (항상 표시)
+    try:
+        with st.container():
+            st.markdown("### 🚀 시작 미션 3개")
             
             # 미션 진행률 조회
             menu_count = get_menu_count(store_id)
@@ -1446,9 +1434,9 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
                 status_msg = "가게가 숫자로 보이기 시작하는 구간"
             elif progress_percentage < 100:
                 remaining = 3 - completed_count
-                status_msg = f"이제 거의 완성 단계 — {remaining}개만 더 하면 홈이 '자동 코치 모드'로 진화합니다."
+                status_msg = f"이제 거의 완성 단계 — {remaining}개만 더 하면 홈이 완전히 활성화됩니다."
             else:
-                status_msg = "✅ 자동 코치 모드 활성화"
+                status_msg = "✅ 기본 세팅 완료"
             
             # 진행률 상태 메시지 표시
             st.caption(f"온보딩 진행률 {int(progress_percentage)}% — {status_msg}")
@@ -1707,13 +1695,13 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
     render_section_divider()
     
     # ========== coach_only: 오늘 하나만 추천 ==========
-    if coaching_enabled:
-        try:
-            with st.container():
-                st.markdown("### 🎯 오늘 코치의 한 가지 제안")
+    # 오늘 코치의 한 가지 제안 (항상 표시)
+    try:
+        with st.container():
+            st.markdown("### 🎯 오늘 코치의 한 가지 제안")
                 
                 # 추천 액션 결정 (DAY 단계별 톤 튜닝)
-                action = get_today_one_action_with_day_context(store_id, data_level, True, day_level)
+                action = get_today_one_action_with_day_context(store_id, data_level, day_level)
             
             # 추천 카드 표시
             st.markdown(f"""
@@ -1770,13 +1758,13 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
                             problem_text = problem['text']
                             # coach_only: 행동 연결 문장 추가
                             guide_text = ""
-                            if coaching_enabled:
-                                if "매출" in problem_text and ("감소" in problem_text or "떨어" in problem_text):
-                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
-                                elif "마감" in problem_text and ("공백" in problem_text or "누락" in problem_text or "없는 날" in problem_text):
-                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
-                                elif "메뉴" in problem_text and "50%" in problem_text:
-                                    guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
+                            # 가이드 텍스트 (항상 표시)
+                            if "매출" in problem_text and ("감소" in problem_text or "떨어" in problem_text):
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                            elif "마감" in problem_text and ("공백" in problem_text or "누락" in problem_text or "없는 날" in problem_text):
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                            elif "메뉴" in problem_text and "50%" in problem_text:
+                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
                             
                             st.markdown(f"""
                             <div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;">
@@ -1849,13 +1837,13 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
                         signal_text = signal['text']
                         # coach_only: 행동 연결 문장 추가
                         guide_text = ""
-                        if coaching_enabled:
-                            if "매출" in signal_text and ("감소" in signal_text or "떨어" in signal_text):
-                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
-                            elif "마감" in signal_text and ("누락" in signal_text or "없습니다" in signal_text):
-                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
-                            elif "판매량" in signal_text or "판매" in signal_text:
-                                guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
+                        # 가이드 텍스트 (항상 표시)
+                        if "매출" in signal_text and ("감소" in signal_text or "떨어" in signal_text):
+                            guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
+                        elif "마감" in signal_text and ("누락" in signal_text or "없습니다" in signal_text):
+                            guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                        elif "판매량" in signal_text or "판매" in signal_text:
+                            guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>판매 흐름 변화는 판매 관리에서 메뉴별 데이터를 보면 확인됩니다.</div>"
                         
                         st.markdown(f"""
                         <div style="padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
@@ -1900,17 +1888,17 @@ def _render_home_body(store_id: str, coaching_enabled: bool):
     render_section_divider()
     
     # ========== coach_only: 이번 달 가게 상태 한 줄 요약 ==========
-    if coaching_enabled:
-        try:
-            KST = ZoneInfo("Asia/Seoul")
-            now_kst = datetime.now(KST)
-            current_year = now_kst.year
-            current_month = now_kst.month
-            status_summary = get_month_status_summary(store_id, current_year, current_month, day_level)
-            st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{status_summary}")
-            st.markdown("<br>", unsafe_allow_html=True)
-        except Exception:
-            pass
+    # 이번 달 가게 상태 한 줄 (항상 표시)
+    try:
+        KST = ZoneInfo("Asia/Seoul")
+        now_kst = datetime.now(KST)
+        current_year = now_kst.year
+        current_month = now_kst.month
+        status_summary = get_month_status_summary(store_id, current_year, current_month, day_level)
+        st.markdown(f"**📌 이번 달 가게 상태 한 줄**\n\n{status_summary}")
+        st.markdown("<br>", unsafe_allow_html=True)
+    except Exception:
+        pass
     
     render_section_divider()
     

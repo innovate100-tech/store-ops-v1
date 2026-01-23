@@ -1662,7 +1662,7 @@ page = st.session_state.current_page
 # 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
     from ui_pages.home import render_home
-    render_home()  # Phase 9: _render_home_body(store_id, coaching_enabled) 통합 구조
+    render_home()  # Phase 9: _render_home_body(store_id) 통합 구조 (모드 구분 제거됨)
 
 # 전략 보드 페이지
 elif page == "전략 보드":
