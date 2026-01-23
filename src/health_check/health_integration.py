@@ -53,7 +53,8 @@ def get_health_diag_for_home(store_id: str) -> Optional[Dict]:
             logger.debug("get_health_diag_for_home: No completed health check found")
             return None
         
-        session = result.data[0]
+        from src.ui_helpers import safe_resp_first_data
+        session = safe_resp_first_data(result)
         session_id = session["id"]
         
         # 이미 판독 결과가 있으면 반환

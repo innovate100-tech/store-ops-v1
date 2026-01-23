@@ -1038,7 +1038,8 @@ def render_manager_closing_input(menu_list, initial_date=None):
                         .execute()
                     
                     if daily_close_data.data and len(daily_close_data.data) > 0:
-                        data = daily_close_data.data[0]
+                        from src.ui_helpers import safe_resp_first_data
+                        data = safe_resp_first_data(daily_close_data)
                         # 프리필은 session_state에 저장하고, render에서 읽어서 사용
                         if "manager_prefill_card" not in st.session_state:
                             st.session_state["manager_prefill_card"] = float(data.get("card_sales", 0) or 0)
@@ -1062,8 +1063,9 @@ def render_manager_closing_input(menu_list, initial_date=None):
                             .limit(1)\
                             .execute()
                         
-                        if sales_data.data and len(sales_data.data) > 0:
-                            data = sales_data.data[0]
+                        from src.ui_helpers import safe_resp_first_data
+                        data = safe_resp_first_data(sales_data)
+                        if data:
                             if "manager_prefill_card" not in st.session_state:
                                 st.session_state["manager_prefill_card"] = float(data.get("card_sales", 0) or 0)
                                 st.session_state["manager_prefill_cash"] = float(data.get("cash_sales", 0) or 0)
@@ -1079,7 +1081,8 @@ def render_manager_closing_input(menu_list, initial_date=None):
                             .execute()
                         
                         if visitors_data.data and len(visitors_data.data) > 0:
-                            data = visitors_data.data[0]
+                            from src.ui_helpers import safe_resp_first_data
+                            data = safe_resp_first_data(visitors_data)
                             if "manager_prefill_visitors" not in st.session_state:
                                 st.session_state["manager_prefill_visitors"] = int(data.get("visitors", 0) or 0)
                                 prefilled_visitors = True

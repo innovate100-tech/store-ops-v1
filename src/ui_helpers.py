@@ -140,6 +140,73 @@ def safe_get_row_by_condition(df: pd.DataFrame, condition, default: Optional[Dic
 
 
 # ============================================
+# Phase 0 STEP 2: Supabase 응답 안전 접근 헬퍼
+# ============================================
+
+def safe_first(list_like: Optional[list], default: Any = None) -> Any:
+    """
+    리스트/배열에서 첫 번째 요소를 안전하게 가져옴
+    
+    Args:
+        list_like: 리스트 또는 배열 (None 가능)
+        default: 비어있을 때 반환할 기본값
+    
+    Returns:
+        첫 번째 요소 또는 기본값
+    """
+    if not list_like or len(list_like) == 0:
+        return default
+    try:
+        return list_like[0]
+    except (IndexError, TypeError) as e:
+        logger.warning(f"safe_first: 접근 실패 - {e}")
+        return default
+
+
+def safe_resp_first_data(resp, default: Any = None) -> Any:
+    """
+    Supabase 응답 객체에서 첫 번째 데이터를 안전하게 가져옴
+    
+    Args:
+        resp: Supabase 응답 객체 (result.data 속성 가짐)
+        default: 데이터가 없을 때 반환할 기본값
+    
+    Returns:
+        첫 번째 데이터 딕셔너리 또는 기본값
+    """
+    if resp is None:
+        return default
+    
+    try:
+        if not hasattr(resp, 'data'):
+            logger.warning("safe_resp_first_data: 응답 객체에 'data' 속성이 없음")
+            return default
+        
+        if not resp.data or len(resp.data) == 0:
+            return default
+        
+        return resp.data[0]
+    except (IndexError, AttributeError, TypeError) as e:
+        logger.warning(f"safe_resp_first_data: 접근 실패 - {e}")
+        return default
+
+
+def require(condition: bool, message: str):
+    """
+    조건이 불만족 시 ValueError를 발생시킴
+    
+    Args:
+        condition: 확인할 조건
+        message: 조건 불만족 시 에러 메시지
+    
+    Raises:
+        ValueError: 조건이 False일 때
+    """
+    if not condition:
+        raise ValueError(message)
+
+
+# ============================================
 # Phase 2: 리소스 관리 - 안전한 캐시 클리어
 # ============================================
 

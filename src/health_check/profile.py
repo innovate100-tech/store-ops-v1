@@ -52,7 +52,8 @@ def load_latest_health_profile(store_id: str, lookback_days: int = 60) -> Dict:
         if not result.data or len(result.data) == 0:
             return _get_empty_profile()
         
-        session = result.data[0]
+        from src.ui_helpers import safe_resp_first_data
+        session = safe_resp_first_data(result)
         session_id = session['id']
         completed_at = session.get('completed_at')
         

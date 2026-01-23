@@ -220,8 +220,11 @@ def _get_id_by_name(supabase, table_name: str, name_column: str, name_value: str
             f"_get_id_by_name({table_name}.{name_column}={name_value})",
             lambda: query.execute()
         )
-        if result.data:
-            return result.data[0]['id']
+        # Phase 0 STEP 2: 안전한 접근
+        from src.ui_helpers import safe_resp_first_data
+        first_data = safe_resp_first_data(result)
+        if first_data:
+            return first_data.get('id')
         return None
     except Exception as e:
         logger.error(f"Failed to get ID for {table_name}.{name_column}={name_value}: {e}")
@@ -407,23 +410,23 @@ def soft_invalidate(reason: str, targets: List[str], session_keys: List[str] = N
         if "load_monthly_sales_total" in loaders_to_clear:
             try:
                 load_monthly_sales_total.clear()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"캐시 클리어 실패 (load_monthly_sales_total): {e}")
         if "load_best_available_daily_sales" in loaders_to_clear:
             try:
                 load_best_available_daily_sales.clear()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"캐시 클리어 실패 (load_best_available_daily_sales): {e}")
         if "load_official_daily_sales" in loaders_to_clear:
             try:
                 load_official_daily_sales.clear()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"캐시 클리어 실패 (load_official_daily_sales): {e}")
         if "load_monthly_official_sales_total" in loaders_to_clear:
             try:
                 load_monthly_official_sales_total.clear()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"캐시 클리어 실패 (load_monthly_official_sales_total): {e}")
         
         # 3. 세션 캐시 부분 clear
         if session_keys is None:
@@ -737,8 +740,10 @@ def _load_csv_impl(filename: str, store_id: str, client_mode: str, default_colum
                                 st.info("3. RLS 정책 확인")
                             
                             st.write("**샘플 데이터 (필터 없이):**")
-                            if test_result.data and len(test_result.data) > 0:
-                                st.json(test_result.data[0])
+                            from src.ui_helpers import safe_resp_first_data
+                            test_data = safe_resp_first_data(test_result)
+                            if test_data:
+                                st.json(test_data)
                         else:
                             st.error("❌ 필터 없이 조회해도 데이터가 없습니다!")
                             st.warning("💡 이것은 RLS 정책이 모든 데이터 접근을 차단하고 있다는 의미입니다.")
@@ -797,8 +802,10 @@ USING (
                     df['총매출'] = df['total_sales']
                 # store_id로 매장명 조회
                 store_result = supabase.table("stores").select("name").eq("id", store_id).execute()
-                if store_result.data:
-                    df['매장'] = store_result.data[0]['name']
+                from src.ui_helpers import safe_resp_first_data
+                store_data = safe_resp_first_data(store_result)
+                if store_data:
+                    df['매장'] = store_data.get('name', '')
             
             elif actual_table == 'naver_visitors':
                 if 'date' in df.columns:
@@ -1168,8 +1175,10 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
                 .execute()
             
             existing_total = None
-            if existing_sales.data and len(existing_sales.data) > 0:
-                existing_total = float(existing_sales.data[0].get('total_sales', 0) or 0)
+            from src.ui_helpers import safe_resp_first_data
+            sales_data = safe_resp_first_data(existing_sales)
+            if sales_data:
+                existing_total = float(sales_data.get('total_sales', 0) or 0)
             
             # daily_close 값 확인 (마감보고가 있는지)
             existing_daily_close = supabase.table("daily_close")\
@@ -1178,10 +1187,11 @@ def save_sales(date, store_name, card_sales, cash_sales, total_sales=None, check
                 .eq("date", date_str)\
                 .execute()
             
-            has_daily_close = existing_daily_close.data and len(existing_daily_close.data) > 0
+            daily_close_data = safe_resp_first_data(existing_daily_close)
+            has_daily_close = daily_close_data is not None
             daily_close_total = None
             if has_daily_close:
-                daily_close_total = float(existing_daily_close.data[0].get('total_sales', 0) or 0)
+                daily_close_total = float(daily_close_data.get('total_sales', 0) or 0)
             
             # 충돌 감지: 기존 값이 있고 새 값과 다르면 충돌
             if existing_total is not None and existing_total > 0 and abs(existing_total - float(total_sales)) > 0.01:
@@ -1434,11 +1444,13 @@ def update_menu(old_menu_name, new_menu_name, new_price, category=None, expected
     try:
         # 기존 메뉴 찾기 (updated_at 포함)
         existing = supabase.table("menu_master").select("id,updated_at").eq("store_id", store_id).eq("name", old_menu_name).execute()
-        if not existing.data:
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if not existing_data:
             return False, f"'{old_menu_name}' 메뉴를 찾을 수 없습니다."
         
-        menu_id = existing.data[0]['id']
-        current_updated_at = existing.data[0].get('updated_at')
+        menu_id = existing_data.get('id')
+        current_updated_at = existing_data.get('updated_at')
         
         # Phase 2: 동시성 보호 - Optimistic Locking
         if expected_updated_at and current_updated_at != expected_updated_at:
@@ -1487,10 +1499,12 @@ def update_menu_category(menu_name, category):
     try:
         # 기존 메뉴 찾기
         existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not existing.data:
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if not existing_data:
             return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다."
         
-        menu_id = existing.data[0]['id']
+        menu_id = existing_data.get('id')
         
         # 카테고리 업데이트
         supabase.table("menu_master").update({
@@ -1525,10 +1539,12 @@ def update_menu_cooking_method(menu_name, cooking_method):
     try:
         # 기존 메뉴 찾기
         existing = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not existing.data:
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if not existing_data:
             return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다."
         
-        menu_id = existing.data[0]['id']
+        menu_id = existing_data.get('id')
         
         # 조리방법 업데이트 (cooking_method 컬럼이 있다면)
         try:
@@ -1559,10 +1575,12 @@ def delete_menu(menu_name, check_references=True):
     try:
         # 메뉴 찾기
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not menu_result.data:
+        from src.ui_helpers import safe_resp_first_data
+        menu_data = safe_resp_first_data(menu_result)
+        if not menu_data:
             return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다.", None
         
-        menu_id = menu_result.data[0]['id']
+        menu_id = menu_data.get('id')
         
         references = {}
         if check_references:
@@ -1655,10 +1673,12 @@ def update_ingredient(old_ingredient_name, new_ingredient_name, new_unit, new_un
     try:
         # 기존 재료 찾기
         existing = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", old_ingredient_name).execute()
-        if not existing.data:
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if not existing_data:
             return False, f"'{old_ingredient_name}' 재료를 찾을 수 없습니다."
         
-        ing_id = existing.data[0]['id']
+        ing_id = existing_data.get('id')
         
         # 새 재료명이 다른 경우 중복 체크 (헬퍼 함수 사용)
         if new_ingredient_name != old_ingredient_name:
@@ -1700,10 +1720,12 @@ def delete_ingredient(ingredient_name, check_references=True):
     try:
         # 재료 찾기
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        from src.ui_helpers import safe_resp_first_data
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             return False, f"'{ingredient_name}' 재료를 찾을 수 없습니다.", None
         
-        ing_id = ing_result.data[0]['id']
+        ing_id = ing_data.get('id')
         
         references = {}
         if check_references:
@@ -1750,16 +1772,19 @@ def save_recipe(menu_name, ingredient_name, quantity):
     
     try:
         # 메뉴 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not menu_result.data:
+        menu_data = safe_resp_first_data(menu_result)
+        if not menu_data:
             raise Exception(f"메뉴 '{menu_name}'를 찾을 수 없습니다.")
-        menu_id = menu_result.data[0]['id']
+        menu_id = menu_data.get('id')
         
         # 재료 ID 찾기
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_id = ing_data.get('id')
         
         # 레시피 저장
         result = supabase.table("recipes").upsert({
@@ -1796,16 +1821,19 @@ def delete_recipe(menu_name, ingredient_name):
     
     try:
         # 메뉴 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not menu_result.data:
+        menu_data = safe_resp_first_data(menu_result)
+        if not menu_data:
             return False, f"'{menu_name}' 메뉴를 찾을 수 없습니다."
-        menu_id = menu_result.data[0]['id']
+        menu_id = menu_data.get('id')
         
         # 재료 ID 찾기
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             return False, f"'{ingredient_name}' 재료를 찾을 수 없습니다."
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_id = ing_data.get('id')
         
         # 레시피 삭제
         supabase.table("recipes").delete().eq("store_id", store_id).eq("menu_id", menu_id).eq("ingredient_id", ingredient_id).execute()
@@ -1855,10 +1883,12 @@ def save_daily_sales_item(date, menu_name, quantity, reason=None):
         date_str = date.strftime('%Y-%m-%d') if hasattr(date, 'strftime') else str(date)
         
         # 메뉴 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         menu_result = supabase.table("menu_master").select("id").eq("store_id", store_id).eq("name", menu_name).execute()
-        if not menu_result.data:
+        menu_data = safe_resp_first_data(menu_result)
+        if not menu_data:
             raise Exception(f"메뉴 '{menu_name}'를 찾을 수 없습니다.")
-        menu_id = menu_result.data[0]['id']
+        menu_id = menu_data.get('id')
         
         # 현재 사용자 ID 가져오기 (audit용)
         changed_by = None
@@ -1875,8 +1905,10 @@ def save_daily_sales_item(date, menu_name, quantity, reason=None):
         old_qty = None
         try:
             existing = supabase.table("daily_sales_items").select("qty").eq("store_id", store_id).eq("date", date_str).eq("menu_id", menu_id).execute()
-            if existing.data:
-                old_qty = existing.data[0].get('qty', 0)
+            from src.ui_helpers import safe_resp_first_data
+            existing_data = safe_resp_first_data(existing)
+            if existing_data:
+                old_qty = existing_data.get('qty', 0)
         except Exception:
             old_qty = None
         
@@ -1985,10 +2017,12 @@ def save_inventory(ingredient_name, current_stock, safety_stock):
     
     try:
         # 재료 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_id = ing_data.get('id')
         
         # 재고 정보 저장/업데이트
         supabase.table("inventory").upsert({
@@ -2308,9 +2342,10 @@ def save_daily_close(date, store_name, card_sales, cash_sales, total_sales,
                                 for ingredient_id, usage_amount in ingredient_usage.items():
                                     # 현재 재고 조회
                                     inventory_result = supabase.table("inventory").select("on_hand").eq("store_id", store_id).eq("ingredient_id", ingredient_id).execute()
-                                    
-                                    if inventory_result.data:
-                                        current_stock = float(inventory_result.data[0]['on_hand'])
+                                    from src.ui_helpers import safe_resp_first_data
+                                    inv_data = safe_resp_first_data(inventory_result)
+                                    if inv_data:
+                                        current_stock = float(inv_data.get('on_hand', 0))
                                         new_stock = max(0, current_stock - usage_amount)  # 음수 방지
                                         
                                         # 재고 업데이트
@@ -2895,18 +2930,20 @@ def save_ingredient_supplier(ingredient_name, supplier_name, unit_price, is_defa
     
     try:
         # 재료 ID 및 변환 비율 찾기
+        from src.ui_helpers import safe_resp_first_data
         ing_result = supabase.table("ingredients").select("id,conversion_rate").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ingredient_row = safe_resp_first_data(ing_result)
+        if not ingredient_row:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_row = ing_result.data[0]
-        ingredient_id = ingredient_row['id']
+        ingredient_id = ingredient_row.get('id')
         conversion_rate = ingredient_row.get('conversion_rate', 1.0) or 1.0
         
         # 공급업체 ID 찾기
         sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
-        if not sup_result.data:
+        sup_data = safe_resp_first_data(sup_result)
+        if not sup_data:
             raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
-        supplier_id = sup_result.data[0]['id']
+        supplier_id = sup_data.get('id')
         
         # 기본 공급업체인 경우, 다른 기본 공급업체 해제
         if is_default:
@@ -2955,16 +2992,20 @@ def delete_ingredient_supplier(ingredient_name, supplier_name):
     
     try:
         # 재료 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_id = ing_data.get('id')
         
         # 공급업체 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
-        if not sup_result.data:
+        sup_data = safe_resp_first_data(sup_result)
+        if not sup_data:
             raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
-        supplier_id = sup_result.data[0]['id']
+        supplier_id = sup_data.get('id')
         
         supabase.table("ingredient_suppliers").delete().eq("store_id", store_id).eq("ingredient_id", ingredient_id).eq("supplier_id", supplier_id).execute()
         logger.info(f"Ingredient-supplier mapping deleted: {ingredient_name} -> {supplier_name}")
@@ -2996,16 +3037,20 @@ def save_order(order_date, ingredient_name, supplier_name, quantity, unit_price,
     
     try:
         # 재료 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         ing_result = supabase.table("ingredients").select("id").eq("store_id", store_id).eq("name", ingredient_name).execute()
-        if not ing_result.data:
+        ing_data = safe_resp_first_data(ing_result)
+        if not ing_data:
             raise Exception(f"재료 '{ingredient_name}'를 찾을 수 없습니다.")
-        ingredient_id = ing_result.data[0]['id']
+        ingredient_id = ing_data.get('id')
         
         # 공급업체 ID 찾기
+        from src.ui_helpers import safe_resp_first_data
         sup_result = supabase.table("suppliers").select("id").eq("store_id", store_id).eq("name", supplier_name).execute()
-        if not sup_result.data:
+        sup_data = safe_resp_first_data(sup_result)
+        if not sup_data:
             raise Exception(f"공급업체 '{supplier_name}'를 찾을 수 없습니다.")
-        supplier_id = sup_result.data[0]['id']
+        supplier_id = sup_data.get('id')
         
         # 발주 저장
         result = supabase.table("orders").insert({
@@ -3056,8 +3101,9 @@ def update_order_status(order_id, status, actual_delivery_date=None):
                 .eq("id", order_id)\
                 .eq("store_id", store_id)\
                 .execute()
-            if order_result.data:
-                row = order_result.data[0]
+            from src.ui_helpers import safe_resp_first_data
+            row = safe_resp_first_data(order_result)
+            if row:
                 ingredient_id = row.get("ingredient_id")
                 quantity = row.get("quantity", 0)
                 inventory_applied = bool(row.get("inventory_applied", False))
@@ -3069,8 +3115,10 @@ def update_order_status(order_id, status, actual_delivery_date=None):
                         .eq("store_id", store_id)\
                         .eq("ingredient_id", ingredient_id)\
                         .execute()
-                    if inv_result.data:
-                        current_stock = float(inv_result.data[0].get("on_hand", 0) or 0)
+                    from src.ui_helpers import safe_resp_first_data
+                    inv_data = safe_resp_first_data(inv_result)
+                    if inv_data:
+                        current_stock = float(inv_data.get("on_hand", 0) or 0)
                         new_stock = current_stock + float(quantity or 0)
                         supabase.table("inventory")\
                             .update({"on_hand": new_stock})\
@@ -3650,12 +3698,14 @@ def get_day_record_status(store_id: str, date) -> dict:
             .limit(1)\
             .execute()
         
-        has_close = daily_close_result.data and len(daily_close_result.data) > 0
+        from src.ui_helpers import safe_resp_first_data
+        daily_close_data = safe_resp_first_data(daily_close_result)
+        has_close = daily_close_data is not None
         official_total_sales = None
         visitors_official = None
         if has_close:
-            official_total_sales = float(daily_close_result.data[0].get('total_sales', 0) or 0)
-            visitors_official = int(daily_close_result.data[0].get('visitors', 0) or 0)
+            official_total_sales = float(daily_close_data.get('total_sales', 0) or 0)
+            visitors_official = int(daily_close_data.get('visitors', 0) or 0)
         
         # 2. sales 존재 여부
         sales_result = supabase.table("sales")\
@@ -3665,7 +3715,7 @@ def get_day_record_status(store_id: str, date) -> dict:
             .limit(1)\
             .execute()
         
-        has_sales = sales_result.data and len(sales_result.data) > 0
+        has_sales = safe_resp_first_data(sales_result) is not None
         
         # 3. naver_visitors 존재 여부
         visitors_result = supabase.table("naver_visitors")\
@@ -3675,10 +3725,11 @@ def get_day_record_status(store_id: str, date) -> dict:
             .limit(1)\
             .execute()
         
-        has_visitors = visitors_result.data and len(visitors_result.data) > 0
+        visitors_data = safe_resp_first_data(visitors_result)
+        has_visitors = visitors_data is not None
         visitors_best = None
         if has_visitors:
-            visitors_best = int(visitors_result.data[0].get('visitors', 0) or 0)
+            visitors_best = int(visitors_data.get('visitors', 0) or 0)
         
         # 4. best_available 뷰에서 매출 조회 (daily_close 우선, 없으면 sales)
         best_result = supabase.table("v_daily_sales_best_available")\
@@ -3688,12 +3739,13 @@ def get_day_record_status(store_id: str, date) -> dict:
             .limit(1)\
             .execute()
         
+        best_data = safe_resp_first_data(best_result)
         best_total_sales = None
-        if best_result.data and len(best_result.data) > 0:
-            best_total_sales = float(best_result.data[0].get('total_sales', 0) or 0)
+        if best_data:
+            best_total_sales = float(best_data.get('total_sales', 0) or 0)
             # best_available의 visitors는 daily_close 우선, 없으면 naver_visitors
-            if 'visitors' in best_result.data[0] and best_result.data[0]['visitors'] is not None:
-                visitors_best = int(best_result.data[0]['visitors'] or 0)
+            if 'visitors' in best_data and best_data.get('visitors') is not None:
+                visitors_best = int(best_data.get('visitors') or 0)
         
         return {
             "has_close": has_close,
@@ -4366,8 +4418,9 @@ def upsert_ingredient_structure_state(
         }
         
         # 기존 데이터가 있으면 기존 값 유지, 없으면 새 값 사용
-        if existing.data:
-            existing_data = existing.data[0]
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if existing_data:
             data['is_substitutable'] = is_substitutable if is_substitutable is not None else existing_data.get('is_substitutable')
             data['order_type'] = order_type if order_type is not None else existing_data.get('order_type')
             data['substitute_memo'] = substitute_memo if substitute_memo is not None else existing_data.get('substitute_memo')
@@ -4482,8 +4535,10 @@ def create_or_get_today_mission(
             .eq("mission_date", mission_date.isoformat())\
             .execute()
         
-        if existing.data:
-            return existing.data[0]["id"]
+        from src.ui_helpers import safe_resp_first_data
+        existing_data = safe_resp_first_data(existing)
+        if existing_data:
+            return existing_data.get("id")
         
         # 새 미션 생성
         result = supabase.table("strategy_missions").insert({
@@ -4496,8 +4551,9 @@ def create_or_get_today_mission(
             "status": "active"
         }).execute()
         
-        if result.data:
-            mission_id = result.data[0]["id"]
+        result_data = safe_resp_first_data(result)
+        if result_data:
+            mission_id = result_data.get("id")
             logger.info(f"Mission created: {mission_id}")
             return mission_id
         
@@ -4543,8 +4599,9 @@ def load_active_mission(store_id: str, mission_date: Optional[date] = None) -> O
             .eq("status", "active")\
             .execute()
         
-        if result.data:
-            mission = result.data[0]
+        from src.ui_helpers import safe_resp_first_data
+        mission = safe_resp_first_data(result)
+        if mission:
             # JSONB 파싱
             import json
             if isinstance(mission.get("reason_json"), str):
@@ -4801,8 +4858,9 @@ def load_mission_result(mission_id: str) -> Optional[dict]:
             .eq("mission_id", mission_id)\
             .execute()
         
-        if result.data:
-            mission_result = result.data[0]
+        from src.ui_helpers import safe_resp_first_data
+        mission_result = safe_resp_first_data(result)
+        if mission_result:
             import json
             if isinstance(mission_result.get("baseline_json"), str):
                 mission_result["baseline_json"] = json.loads(mission_result["baseline_json"])

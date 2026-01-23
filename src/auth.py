@@ -515,17 +515,21 @@ def login(email: str, password: str) -> tuple[bool, str]:
             store_id = None
             if profile_result.data:
                 # store_members에서 첫 번째 매장 확인
+                from src.ui_helpers import safe_resp_first_data
                 members_result = client.table("store_members").select("store_id, role").eq("user_id", response.user.id).order("created_at").limit(1).execute()
-                if members_result.data:
-                    store_id = members_result.data[0].get('store_id')
-                    st.session_state.user_role = members_result.data[0].get('role', 'manager')
+                members_data = safe_resp_first_data(members_result)
+                if members_data:
+                    store_id = members_data.get('store_id')
+                    st.session_state.user_role = members_data.get('role', 'manager')
                 else:
                     # default_store_id 확인
-                    store_id = profile_result.data[0].get('default_store_id')
-                    if not store_id:
-                        # 레거시 store_id 확인
-                        store_id = profile_result.data[0].get('store_id')
-                    st.session_state.user_role = profile_result.data[0].get('role', 'manager')
+                    profile_data = safe_resp_first_data(profile_result)
+                    if profile_data:
+                        store_id = profile_data.get('default_store_id')
+                        if not store_id:
+                            # 레거시 store_id 확인
+                            store_id = profile_data.get('store_id')
+                        st.session_state.user_role = profile_data.get('role', 'manager')
             
             # store_id가 없어도 로그인은 성공 (매장 생성 플로우로 연결)
             if store_id:
@@ -626,11 +630,13 @@ def get_onboarding_mode(user_id: str = None) -> str:
         # 캐시 무효화를 위해 매번 DB에서 직접 조회 (캐시 사용 안 함)
         profile_result = client.table("user_profiles").select("onboarding_mode").eq("id", user_id).execute()
         
-        if not profile_result.data:
+        from src.ui_helpers import safe_resp_first_data
+        profile_data = safe_resp_first_data(profile_result)
+        if not profile_data:
             logger.warning(f"get_onboarding_mode: user_profiles가 없음 (user_id={user_id})")
             return None
         
-        mode = profile_result.data[0].get('onboarding_mode')
+        mode = profile_data.get('onboarding_mode')
         logger.info(f"get_onboarding_mode: user_id={user_id}, mode={mode}, type={type(mode)}")
         
         # NULL이면 None 반환 (온보딩 필요)
@@ -1098,11 +1104,13 @@ def get_current_store_name() -> str:
         return store_name
     
     try:
+        from src.ui_helpers import safe_resp_first_data
         client = get_supabase_client()
         result = client.table("stores").select("name").eq("id", store_id).execute()
         
-        if result.data:
-            store_name = result.data[0]['name']
+        store_data = safe_resp_first_data(result)
+        if store_data:
+            store_name = store_data.get('name', '매장 정보 없음')
         else:
             store_name = "매장 정보 없음"
         

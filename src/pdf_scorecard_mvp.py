@@ -208,7 +208,10 @@ def gather_scorecard_mvp_data(store_id: str, year: int, month: int) -> Dict:
         try:
             store_result = supabase.table("stores").select("name").eq("id", store_id).limit(1).execute()
             if store_result.data:
-                data["store_name"] = store_result.data[0].get("name", "가게")
+                from src.ui_helpers import safe_resp_first_data
+                store_data = safe_resp_first_data(store_result)
+                if store_data:
+                    data["store_name"] = store_data.get("name", "가게")
         except:
             data["store_name"] = "가게"
         
@@ -224,8 +227,10 @@ def gather_scorecard_mvp_data(store_id: str, year: int, month: int) -> Dict:
                 .eq("month", month)\
                 .limit(1)\
                 .execute()
-            if settlement_result.data and settlement_result.data[0].get("operating_profit") is not None:
-                data["operating_profit"] = float(settlement_result.data[0].get("operating_profit", 0))
+            from src.ui_helpers import safe_resp_first_data
+            settlement_data = safe_resp_first_data(settlement_result)
+            if settlement_data and settlement_data.get("operating_profit") is not None:
+                data["operating_profit"] = float(settlement_data.get("operating_profit", 0))
         except:
             pass
         

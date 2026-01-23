@@ -49,8 +49,10 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> tuple[Op
             "started_at": datetime.utcnow().isoformat() + "Z"
         }).execute()
         
-        if result.data and len(result.data) > 0:
-            session_id = result.data[0]['id']
+        from src.ui_helpers import safe_resp_first_data
+        session_data = safe_resp_first_data(result)
+        if session_data:
+            session_id = session_data.get('id')
             logger.info(f"create_health_session: Session created - {session_id}")
             return session_id, None
         else:
@@ -346,7 +348,8 @@ def get_health_session(session_id: str) -> Optional[Dict]:
         result = supabase.table("health_check_sessions").select("*").eq("id", session_id).execute()
         
         if result.data and len(result.data) > 0:
-            return result.data[0]
+            from src.ui_helpers import safe_resp_first_data
+            return safe_resp_first_data(result)
         return None
     
     except Exception as e:
@@ -402,12 +405,14 @@ def get_health_diagnosis(session_id: str) -> Optional[Dict]:
         
         result = supabase.table("health_check_sessions").select("diagnosis_json").eq("id", session_id).execute()
         
-        if not result.data or not result.data[0].get("diagnosis_json"):
+        from src.ui_helpers import safe_resp_first_data
+        result_data = safe_resp_first_data(result)
+        if not result_data or not result_data.get("diagnosis_json"):
             logger.debug(f"get_health_diagnosis: No diagnosis found for session {session_id}")
             return None
         
         import json
-        diagnosis = result.data[0]["diagnosis_json"]
+        diagnosis = result_data.get("diagnosis_json")
         
         # JSONB가 dict로 반환되는 경우와 문자열인 경우 모두 처리
         if isinstance(diagnosis, str):
@@ -465,7 +470,8 @@ def load_latest_open_session(store_id: str) -> Optional[Dict]:
         ).is_("completed_at", "null").order("started_at", desc=True).limit(1).execute()
         
         if result.data and len(result.data) > 0:
-            return result.data[0]
+            from src.ui_helpers import safe_resp_first_data
+            return safe_resp_first_data(result)
         return None
     
     except Exception as e:
