@@ -86,16 +86,29 @@ def render_health_check_page():
     
     # 탭: 입력 / 결과 / 이력
     if session_id:
-        tab1, tab2, tab3 = st.tabs(["📝 검진 입력", "📊 결과 리포트", "📋 검진 이력"])
-        
-        with tab1:
-            render_input_form(store_id, session_id)
-        
-        with tab2:
+        # view_mode가 'result'이고 세션이 완료되었으면 결과 리포트를 먼저 표시
+        session = get_health_session(session_id)
+        if view_mode == 'result' and session and session.get('completed_at'):
+            # 결과 리포트를 먼저 표시
+            st.info("📊 검진 결과를 확인하세요.")
             render_result_report(store_id, session_id)
-        
-        with tab3:
-            render_history(store_id)
+            st.markdown("---")
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                if st.button("← 검진 입력으로 돌아가기", use_container_width=True):
+                    st.session_state['health_check_view_mode'] = 'input'
+                    st.rerun()
+        else:
+            tab1, tab2, tab3 = st.tabs(["📝 검진 입력", "📊 결과 리포트", "📋 검진 이력"])
+            
+            with tab1:
+                render_input_form(store_id, session_id)
+            
+            with tab2:
+                render_result_report(store_id, session_id)
+            
+            with tab3:
+                render_history(store_id)
     else:
         # 세션이 없으면 시작 화면
         render_start_screen(store_id)
@@ -360,14 +373,19 @@ def render_category_questions(
 
 def render_result_report(store_id: str, session_id: str):
     """결과 리포트 렌더링"""
-    session = get_health_session(session_id)
-    if not session:
-        st.warning("세션 정보를 찾을 수 없습니다.")
-        return
-    
-    # 완료되지 않은 세션
-    if not session.get('completed_at'):
-        st.info("검진을 완료하면 결과를 확인할 수 있습니다.")
+    try:
+        session = get_health_session(session_id)
+        if not session:
+            st.warning("세션 정보를 찾을 수 없습니다.")
+            return
+        
+        # 완료되지 않은 세션
+        if not session.get('completed_at'):
+            st.info("검진을 완료하면 결과를 확인할 수 있습니다.")
+            return
+    except Exception as e:
+        logger.error(f"Error loading session: {e}")
+        st.error(f"세션 정보를 불러오는 중 오류가 발생했습니다: {e}")
         return
     
     # 전체 점수/등급/병목
@@ -391,7 +409,13 @@ def render_result_report(store_id: str, session_id: str):
     st.markdown("---")
     
     # 카테고리별 결과
-    results = get_health_results(session_id)
+    try:
+        results = get_health_results(session_id)
+    except Exception as e:
+        logger.error(f"Error loading results: {e}")
+        st.error(f"결과를 불러오는 중 오류가 발생했습니다: {e}")
+        return
+    
     if results:
         st.markdown("### 📋 영역별 결과")
         
@@ -430,7 +454,7 @@ def render_result_report(store_id: str, session_id: str):
                 category = r['category']
                 score = r['score_avg']
                 risk = r['risk_level']
-                category_name = CATEGORY_NAMES.get(category, category)
+                category_name = CATEGORY_LABELS.get(category, category)
                 risk_emoji = {'green': '🟢', 'yellow': '🟡', 'red': '🔴'}.get(risk, '⚪')
                 
                 st.markdown(f"""
