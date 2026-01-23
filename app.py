@@ -1470,6 +1470,45 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
     
+    # 모드 전환 UI (Phase 8-B Step 3)
+    from src.auth import get_onboarding_mode, set_onboarding_mode
+    user_id = st.session_state.get('user_id')
+    if user_id:
+        current_mode = get_onboarding_mode(user_id)
+        if current_mode:
+            mode_label = "코치 모드" if current_mode == 'coach' else "빠른 모드"
+            mode_emoji = "🎓" if current_mode == 'coach' else "⚡"
+            st.markdown("---")
+            st.markdown(f"**{mode_emoji} 현재 모드: {mode_label}**")
+            
+            # 모드 변경 버튼
+            new_mode = 'fast' if current_mode == 'coach' else 'coach'
+            new_mode_label = "빠른 모드" if new_mode == 'fast' else "코치 모드"
+            new_mode_emoji = "⚡" if new_mode == 'fast' else "🎓"
+            
+            # 확인을 위한 세션 상태 확인
+            if st.session_state.get("_mode_switch_pending", False):
+                # 확인 대기 중
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✅ 확인", use_container_width=True, key="mode_switch_confirm"):
+                        if set_onboarding_mode(user_id, new_mode):
+                            st.session_state["_mode_switch_pending"] = False
+                            st.success(f"모드가 '{new_mode_label}'로 변경되었습니다.")
+                            st.rerun()
+                        else:
+                            st.session_state["_mode_switch_pending"] = False
+                            st.error("모드 변경에 실패했습니다.")
+                with col2:
+                    if st.button("❌ 취소", use_container_width=True, key="mode_switch_cancel"):
+                        st.session_state["_mode_switch_pending"] = False
+                        st.rerun()
+            else:
+                # 모드 변경 버튼
+                if st.button(f"🔄 {new_mode_emoji} {new_mode_label}로 변경", use_container_width=True, key="switch_mode_btn"):
+                    st.session_state["_mode_switch_pending"] = True
+                    st.rerun()
+    
     # 사이드바 네비게이션 - 카테고리별 구분 (Phase 2: 사장 중심 구조/용어 통일)
     # (표시 라벨, page key): 라우팅은 key 유지, 라벨만 변경
     menu_categories = {
