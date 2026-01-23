@@ -27,7 +27,7 @@ from src.storage_supabase import (
     load_available_settlement_months,
     load_monthly_settlement_snapshot
 )
-from ui_pages.reports.monthly_structure_report import build_monthly_structure_report
+from ui_pages.monthly_structure_report import build_monthly_structure_report
 from ui_pages.coach.coach_renderer import render_verdict_card
 from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
 
@@ -1662,6 +1662,10 @@ def _render_structure_report_section(store_id: str, year: int, month: int):
         else:
             st.info("✅ 이번 달 판결 확인 완료")
         
+    except ImportError as e:
+        st.warning(f"구조 리포트 모듈을 불러올 수 없습니다: {e}")
+        st.info("구조 리포트 기능은 현재 사용할 수 없습니다. 관리자에게 문의해주세요.")
+        logger.error(f"Structure report import error: {e}", exc_info=True)
     except Exception as e:
         st.warning(f"구조 리포트 생성 중 오류: {e}")
         logger.error(f"Structure report error: {e}", exc_info=True)
