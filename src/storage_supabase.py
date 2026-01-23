@@ -4,7 +4,7 @@ auth.uid() 기반 RLS로 보안 적용
 """
 import pandas as pd
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional, List, Tuple
 import json
 from zoneinfo import ZoneInfo
