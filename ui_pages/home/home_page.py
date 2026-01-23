@@ -36,6 +36,14 @@ from ui_pages.home.home_verdict import get_coach_verdict
 from ui_pages.coach.coach_adapters import get_home_coach_verdict
 from ui_pages.coach.coach_renderer import render_verdict_card
 from ui_pages.routines.routine_state import get_routine_status
+from ui_pages.home.home_v3_zones import (
+    _render_zone0_today_instruction,
+    _render_zone1_strategy_summary,
+    _render_zone2_quick_actions,
+    _render_zone3_status_board,
+    _render_zone4_weekly_priorities,
+    _render_zone5_design_snapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -225,40 +233,27 @@ def _render_home_body(store_id: str) -> None:
     load_time = time.time() - load_start
     logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id})")
 
-    # ===== HOME v2 구조 =====
+    # ===== HOME v3 구조 (운영 지시 홈) =====
     
-    # ZONE 1: 오늘 상태판 (10초 판단)
-    _render_zone1_status_board(store_id, year, month, kpis, unofficial_days)
+    # ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)
+    _render_zone0_today_instruction(store_id, year, month)
     
-    # ZONE 2: 이번 달 코치 판결 (Verdict)
-    _render_zone2_coach_verdict(store_id, year, month, monthly_sales)
+    # ZONE 1: 이번 달 가게 전략 요약
+    _render_zone1_strategy_summary(store_id, year, month)
     
-    # ZONE 3: 문제 TOP3 (Action Radar)
-    _render_zone3_action_radar(store_id)
+    # ZONE 2: 문제 인식 & 빠른 진입
+    _render_zone2_quick_actions(store_id)
     
-    # ZONE 4: 가게 구조 스냅샷 (Design Snapshot)
-    _render_zone4_design_snapshot(store_id, year, month)
+    # ZONE 3: 오늘 상태판 (숫자, 크기 축소)
+    _render_zone3_status_board(store_id, year, month, kpis, unofficial_days)
     
-    # ZONE 5: 사장 학교 1줄 (School Strip)
-    _render_zone5_school_strip()
+    # ZONE 4: 이번 주 우선순위 TOP3
+    _render_zone4_weekly_priorities(store_id, year, month)
+    
+    # ZONE 5: 가게 구조 스냅샷 (보조)
+    _render_zone5_design_snapshot(store_id, year, month)
 
-    # ===== 오늘 하나만 추천 =====
-    try:
-        action = get_today_one_action_with_day_context(store_id, data_level, day_level)
-        st.markdown("### 🎯 오늘 코치의 한 가지 제안")
-        st.markdown(f"""<div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; box-shadow: 0 4px 6px rgba(102,126,234,0.3);"><h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.1rem;">{action['title']}</h4><p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; line-height: 1.5;">{action['reason']}</p></div>""", unsafe_allow_html=True)
-        if st.button(action["button_label"], type="primary", use_container_width=True, key="home_btn_today_one"):
-            st.session_state["current_page"] = action["target_page"]
-            st.rerun()
-    except Exception:
-        try:
-            st.markdown("""<div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.2);"><h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4><p style="color: #856404; margin: 0;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p></div>""", unsafe_allow_html=True)
-            if st.button("📊 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
-                st.session_state["current_page"] = "점장 마감"
-                st.rerun()
-        except Exception:
-            pass
-    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    # ===== HOME v3: 오늘 하나만 추천은 ZONE 0에 통합됨 =====
 
     # ===== Lazy 영역 (expander, 모던 스타일) =====
     with st.expander("📈 미니 차트", expanded=False):
