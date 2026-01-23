@@ -106,18 +106,31 @@ def render_sales_management():
     else:
         month_data = pd.DataFrame()
     
-    # 월매출: SSOT 함수 사용 (dashboard와 동일, Supabase sales 테이블에서 직접 집계)
-    month_total_sales = load_monthly_sales_total(store_id, current_year, current_month)
+    # 월매출: month_data에 데이터가 있으면 우선 사용 (저장된 매출 표와 동일 SSOT)
+    # month_data가 비어있거나 총매출 컬럼이 없을 때만 DB 함수 사용
+    if not month_data.empty and '총매출' in month_data.columns:
+        # month_data에서 직접 계산 (저장된 매출 표와 동일한 방식)
+        month_total_sales = int(month_data['총매출'].fillna(0).sum())
+    else:
+        # month_data에 데이터가 없으면 DB 함수 사용
+        month_total_sales = load_monthly_sales_total(store_id, current_year, current_month)
+    
     _rows = len(month_data) if not month_data.empty else 0
     month_total_visitors = month_data['방문자수'].sum() if not month_data.empty and '방문자수' in month_data.columns else 0
     
     # DEV 전용: 월매출 계산 디버그 (store_id, year, month, 소스, row 수, 합계)
     if is_dev_mode():
         with st.expander("🔧 [DEV] 매출 페이지 월매출 디버그", expanded=False):
+            month_total_sales_db = load_monthly_sales_total(store_id, current_year, current_month)
+            month_total_sales_from_data = int(month_data['총매출'].fillna(0).sum()) if not month_data.empty and '총매출' in month_data.columns else 0
+            source_used = "month_data 직접 계산" if (not month_data.empty and '총매출' in month_data.columns) else "DB 함수 (load_monthly_sales_total)"
             st.code(
                 f"store_id={store_id}\nyear={current_year} month={current_month}\n"
-                f"소스=SSOT 함수 (load_monthly_sales_total)\n"
-                f"조회 테이블=Supabase sales 테이블\nrow 수={_rows}\n월매출 합계={month_total_sales:,}원"
+                f"소스: {source_used}\n"
+                f"DB 조회값 (load_monthly_sales_total): {month_total_sales_db:,}원\n"
+                f"month_data 직접 계산값: {month_total_sales_from_data:,}원\n"
+                f"최종 사용값: {month_total_sales:,}원\n"
+                f"month_data row 수: {_rows}"
             )
             if st.button("캐시 무효화 (매출)", key="sales_debug_clear"):
                 load_csv.clear()
