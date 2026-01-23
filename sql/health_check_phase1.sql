@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. health_check_sessions (건강검진 세션)
 -- ============================================
 CREATE TABLE IF NOT EXISTS health_check_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     check_type TEXT DEFAULT 'ad-hoc',
     started_at TIMESTAMPTZ DEFAULT NOW(),
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS health_check_sessions (
 -- 2. health_check_answers (건강검진 답변)
 -- ============================================
 CREATE TABLE IF NOT EXISTS health_check_answers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES health_check_sessions(id) ON DELETE CASCADE,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     category TEXT NOT NULL,  -- 'Q','S','C','P1','P2','P3','M','H','F'
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS health_check_answers (
 -- 3. health_check_results (건강검진 결과 집계)
 -- ============================================
 CREATE TABLE IF NOT EXISTS health_check_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id UUID NOT NULL REFERENCES health_check_sessions(id) ON DELETE CASCADE,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     category TEXT NOT NULL,  -- 'Q','S','C','P1','P2','P3','M','H','F'

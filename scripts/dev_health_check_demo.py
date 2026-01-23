@@ -87,10 +87,10 @@ def main():
     
     # 1. 세션 생성
     print("1️⃣  건강검진 세션 생성 중...")
-    session_id = create_health_session(store_id, check_type='ad-hoc')
+    session_id, error_msg = create_health_session(store_id, check_type='ad-hoc')
     
     if not session_id:
-        print("❌ 세션 생성 실패")
+        print(f"❌ 세션 생성 실패: {error_msg}")
         return
     
     print(f"✓ 세션 생성 완료: {session_id}")

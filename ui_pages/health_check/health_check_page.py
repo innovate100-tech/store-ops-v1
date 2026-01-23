@@ -105,14 +105,44 @@ def render_start_screen(store_id: str):
     
     with col2:
         if st.button("🩺 새 검진 시작", type="primary", use_container_width=True):
-            session_id = create_health_session(store_id, check_type='monthly')
+            session_id, error_msg = create_health_session(store_id, check_type='monthly')
             if session_id:
                 st.session_state['health_session_id'] = session_id
                 st.session_state['health_check_view_mode'] = 'input'
                 st.success("검진이 시작되었습니다!")
                 st.rerun()
             else:
-                st.error("검진 시작에 실패했습니다.")
+                st.error(f"검진 시작에 실패했습니다.\n\n{error_msg or '알 수 없는 오류가 발생했습니다.'}")
+                
+                # 테이블 미생성 안내
+                if error_msg and "테이블이 생성되지 않았습니다" in error_msg:
+                    st.info("""
+                    **해결 방법:**
+                    1. Supabase 대시보드 → SQL Editor로 이동
+                    2. `sql/health_check_phase1.sql` 파일 내용을 복사하여 실행
+                    3. 페이지를 새로고침하고 다시 시도
+                    """)
+                
+                # 디버그 정보 (DEV 모드에서만)
+                if st.session_state.get("dev_mode", False):
+                    with st.expander("🔧 디버그 정보"):
+                        st.write(f"**store_id**: {store_id}")
+                        st.write(f"**에러 메시지**: {error_msg}")
+                        try:
+                            from src.auth import get_supabase_client
+                            supabase = get_supabase_client()
+                            st.write(f"**Supabase 클라이언트**: {'있음' if supabase else '없음'}")
+                            
+                            # 테이블 존재 여부 확인
+                            if supabase:
+                                try:
+                                    test_result = supabase.table("health_check_sessions").select("id").limit(1).execute()
+                                    st.write(f"**health_check_sessions 테이블**: 존재함")
+                                except Exception as table_error:
+                                    st.write(f"**health_check_sessions 테이블**: 존재하지 않음 또는 접근 불가")
+                                    st.write(f"**테이블 확인 오류**: {table_error}")
+                        except Exception as e:
+                            st.write(f"**Supabase 클라이언트 확인 오류**: {e}")
 
 
 def render_input_form(store_id: str, session_id: str):

@@ -19,7 +19,7 @@ from src.health_check.questions_bank import CATEGORIES_ORDER, QUESTIONS
 logger = logging.getLogger(__name__)
 
 
-def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> Optional[str]:
+def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> tuple[Optional[str], Optional[str]]:
     """
     건강검진 세션 생성
     
@@ -28,13 +28,19 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> Optional
         check_type: 검진 유형 ('ad-hoc' | 'regular' | 'periodic')
     
     Returns:
-        session_id (UUID) 또는 None (실패 시)
+        (session_id, error_message) 튜플
+        - 성공: (session_id, None)
+        - 실패: (None, error_message)
     """
     try:
+        if not store_id:
+            return None, "매장 ID가 없습니다."
+        
         supabase = get_supabase_client()
         if not supabase:
+            error_msg = "Supabase 클라이언트를 생성할 수 없습니다. 로그인 상태를 확인해주세요."
             logger.error("create_health_session: Supabase client not available")
-            return None
+            return None, error_msg
         
         result = supabase.table("health_check_sessions").insert({
             "store_id": store_id,
@@ -45,14 +51,25 @@ def create_health_session(store_id: str, check_type: str = 'ad-hoc') -> Optional
         if result.data and len(result.data) > 0:
             session_id = result.data[0]['id']
             logger.info(f"create_health_session: Session created - {session_id}")
-            return session_id
+            return session_id, None
         else:
+            error_msg = "세션 생성 후 데이터를 받지 못했습니다. 데이터베이스 상태를 확인해주세요."
             logger.error("create_health_session: No data returned from insert")
-            return None
+            return None, error_msg
     
     except Exception as e:
-        logger.error(f"create_health_session: Error - {e}")
-        return None
+        error_msg = str(e)
+        logger.error(f"create_health_session: Error - {e}", exc_info=True)
+        
+        # 에러 타입별 메시지 개선
+        if "relation" in error_msg.lower() and "does not exist" in error_msg.lower():
+            return None, "건강검진 테이블이 생성되지 않았습니다. SQL 파일(health_check_phase1.sql)을 Supabase에서 실행해주세요."
+        elif "permission denied" in error_msg.lower() or "policy" in error_msg.lower():
+            return None, "데이터베이스 권한 문제가 있습니다. RLS 정책을 확인해주세요."
+        elif "foreign key" in error_msg.lower():
+            return None, f"매장 ID({store_id})가 유효하지 않습니다."
+        else:
+            return None, f"세션 생성 중 오류가 발생했습니다: {error_msg}"
 
 
 def upsert_health_answer(
