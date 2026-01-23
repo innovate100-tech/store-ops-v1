@@ -17,11 +17,18 @@ from src.bootstrap import bootstrap
 bootstrap(page_title="App")
 
 # 로그인 체크
-from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store
+from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 
 # 로그인이 안 되어 있으면 로그인 화면 표시
 if not check_login():
     show_login_page()
+    st.stop()
+
+# 온보딩 모드 선택이 필요하면 온보딩 화면으로 이동
+user_id = st.session_state.get('user_id')
+if user_id and needs_onboarding(user_id):
+    from ui_pages.onboarding_mode_select import render_onboarding_mode_select
+    render_onboarding_mode_select()
     st.stop()
 
 # 매장이 없으면 매장 생성 화면으로 이동

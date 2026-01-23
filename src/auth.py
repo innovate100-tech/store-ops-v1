@@ -510,6 +510,135 @@ def login(email: str, password: str) -> tuple[bool, str]:
             return False, f"로그인 오류: {error_msg}"
 
 
+def ensure_user_profile(user_id: str) -> bool:
+    """
+    user_profiles row를 자동 생성 (없으면 생성)
+    
+    Args:
+        user_id: 사용자 UUID
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 기존 프로필 확인
+        profile_result = client.table("user_profiles").select("id, onboarding_mode").eq("id", user_id).execute()
+        
+        if not profile_result.data:
+            # 프로필이 없으면 생성 (onboarding_mode는 NULL로 두어 온보딩 화면으로 유도)
+            client.table("user_profiles").insert({
+                "id": user_id
+                # onboarding_mode는 NULL로 두어 온보딩 선택 화면으로 유도
+            }).execute()
+            
+            logger.info(f"User profile created: {user_id}")
+            return True
+        else:
+            logger.info(f"User profile already exists: {user_id}")
+            return True
+    
+    except Exception as e:
+        logger.error(f"Failed to ensure user profile: {e}")
+        return False
+
+
+def get_onboarding_mode(user_id: str = None) -> str:
+    """
+    사용자의 온보딩 모드 조회
+    
+    Args:
+        user_id: 사용자 UUID (None이면 현재 로그인한 사용자)
+    
+    Returns:
+        str: 'coach' | 'fast' | None (온보딩 미완료)
+    """
+    try:
+        if not user_id:
+            user_id = st.session_state.get('user_id')
+        
+        if not user_id:
+            return None
+        
+        client = get_supabase_client()
+        profile_result = client.table("user_profiles").select("onboarding_mode").eq("id", user_id).execute()
+        
+        if not profile_result.data:
+            return None
+        
+        mode = profile_result.data[0].get('onboarding_mode')
+        
+        # 값 검증 (coach 또는 fast만 허용)
+        if mode in ['coach', 'fast']:
+            return mode
+        else:
+            # 잘못된 값이면 'coach'로 fallback
+            logger.warning(f"Invalid onboarding_mode '{mode}' for user {user_id}, falling back to 'coach'")
+            return 'coach'
+    
+    except Exception as e:
+        logger.error(f"Failed to get onboarding mode: {e}")
+        return None
+
+
+def set_onboarding_mode(user_id: str, mode: str) -> bool:
+    """
+    사용자의 온보딩 모드 설정
+    
+    Args:
+        user_id: 사용자 UUID
+        mode: 'coach' | 'fast'
+    
+    Returns:
+        bool: 성공 여부
+    """
+    try:
+        if mode not in ['coach', 'fast']:
+            logger.error(f"Invalid onboarding mode: {mode}")
+            return False
+        
+        client = get_supabase_client()
+        client.table("user_profiles").update({
+            "onboarding_mode": mode
+        }).eq("id", user_id).execute()
+        
+        logger.info(f"Onboarding mode set: {user_id} -> {mode}")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Failed to set onboarding mode: {e}")
+        return False
+
+
+def needs_onboarding(user_id: str = None) -> bool:
+    """
+    온보딩이 필요한지 확인
+    
+    조건:
+    - user_profiles.onboarding_mode가 NULL이면 온보딩 필요
+    
+    Args:
+        user_id: 사용자 UUID (None이면 현재 로그인한 사용자)
+    
+    Returns:
+        bool: 온보딩이 필요하면 True
+    """
+    try:
+        if not user_id:
+            user_id = st.session_state.get('user_id')
+        
+        if not user_id:
+            return False
+        
+        mode = get_onboarding_mode(user_id)
+        return mode is None
+    
+    except Exception as e:
+        logger.error(f"Failed to check onboarding status: {e}")
+        return False
+
+
 def logout():
     """로그아웃 실행"""
     try:
