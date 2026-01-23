@@ -276,8 +276,8 @@ def _render_home_body(store_id: str) -> None:
                 <div style="font-size: 0.95rem; color: #495057; line-height: 1.5;">{s}</div>
             </div>
             """, unsafe_allow_html=True)
-        except Exception:
-            pass
+    except Exception:
+        pass
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
     render_lazy_insights(store_id, year, month)
@@ -499,10 +499,10 @@ def _render_problems_good_points(store_id: str) -> None:
                 g = ""
                 if "매출" in t and ("감소" in t or "떨어" in t):
                     g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
-                    elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
-                    elif "메뉴" in t and "50%" in t:
-                        g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
+                elif "마감" in t and ("공백" in t or "누락" in t or "없는 날" in t):
+                    g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>데이터가 끊기면 가게 상태도 같이 안 보입니다.</div>"
+                elif "메뉴" in t and "50%" in t:
+                    g = "<div style='color:#856404;font-size:0.8rem; margin-top:0.4rem;'>메뉴 쏠림은 판매 관리에서 메뉴별 흐름을 확인하면 보입니다.</div>"
                 st.markdown(f"""<div style="padding: 1rem; background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 8px; margin-bottom: 0.5rem;"><div style="font-weight: 600; color: #721c24; font-size: 0.95rem;">{t}</div>{g}</div>""", unsafe_allow_html=True)
                 if st.button("보러가기", key="home_btn_p_1", use_container_width=True):
                     st.session_state["current_page"] = p.get("target_page", "점장 마감")
