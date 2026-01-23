@@ -3,7 +3,7 @@ UI 헬퍼 함수 모듈 (디자인 개선)
 """
 import streamlit as st
 import pandas as pd
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -384,7 +384,7 @@ def merge_ingredient_with_inventory(ingredient_df: pd.DataFrame, inventory_df: p
 # Phase 0 STEP 5: 저장/메시지/상태 갱신 표준화 헬퍼
 # ============================================
 
-def ui_flash_success(msg: str, show_toast: bool = True):
+def ui_flash_success(msg: str, show_toast: bool = True) -> None:
     """
     성공 메시지 표시 (표준화)
     
@@ -403,7 +403,7 @@ def ui_flash_success(msg: str, show_toast: bool = True):
             pass  # toast 실패해도 계속 진행
 
 
-def ui_flash_error(msg: str, show_toast: bool = True):
+def ui_flash_error(msg: str, show_toast: bool = True) -> None:
     """
     에러 메시지 표시 (표준화)
     
@@ -422,7 +422,7 @@ def ui_flash_error(msg: str, show_toast: bool = True):
             pass  # toast 실패해도 계속 진행
 
 
-def ui_flash_warning(msg: str, show_toast: bool = True):
+def ui_flash_warning(msg: str, show_toast: bool = True) -> None:
     """
     경고 메시지 표시 (표준화)
     
@@ -441,7 +441,7 @@ def ui_flash_warning(msg: str, show_toast: bool = True):
             pass  # toast 실패해도 계속 진행
 
 
-def apply_state_patch(patches: Dict[str, Any]):
+def apply_state_patch(patches: Dict[str, Any]) -> None:
     """
     session_state에 여러 값을 한 번에 업데이트 (표준화)
     
@@ -455,7 +455,7 @@ def apply_state_patch(patches: Dict[str, Any]):
         st.session_state[key] = value
 
 
-def invalidate_keys(targets: list, reason: str = "user_action"):
+def invalidate_keys(targets: List[str], reason: str = "user_action") -> None:
     """
     캐시 무효화 (soft_invalidate 래핑, 표준화)
     
