@@ -556,7 +556,11 @@ def get_onboarding_mode(user_id: str = None) -> str:
     """
     try:
         if not user_id:
-            user_id = st.session_state.get('user_id')
+            try:
+                user_id = st.session_state.get('user_id')
+            except (AttributeError, RuntimeError):
+                # Streamlit이 아직 초기화되지 않은 경우
+                return None
         
         if not user_id:
             return None
@@ -626,7 +630,11 @@ def needs_onboarding(user_id: str = None) -> bool:
     """
     try:
         if not user_id:
-            user_id = st.session_state.get('user_id')
+            try:
+                user_id = st.session_state.get('user_id')
+            except (AttributeError, RuntimeError):
+                # Streamlit이 아직 초기화되지 않은 경우
+                return False
         
         if not user_id:
             return False
@@ -866,7 +874,11 @@ def get_user_stores() -> list[dict]:
         list[dict]: 매장 정보 리스트 [{"id": store_id, "name": store_name, "role": role}, ...]
     """
     try:
-        user_id = st.session_state.get('user_id')
+        try:
+            user_id = st.session_state.get('user_id')
+        except (AttributeError, RuntimeError):
+            # Streamlit이 아직 초기화되지 않은 경우
+            return []
         if not user_id:
             return []
         
@@ -912,7 +924,11 @@ def switch_store(store_id: str) -> bool:
         bool: 성공 여부
     """
     try:
-        user_id = st.session_state.get('user_id')
+        try:
+            user_id = st.session_state.get('user_id')
+        except (AttributeError, RuntimeError):
+            # Streamlit이 아직 초기화되지 않은 경우
+            return False
         if not user_id:
             return False
         
