@@ -2444,6 +2444,153 @@ def render_fast_home():
         except Exception:
             pass
     
+    # ========== 섹션 3: 오늘 하나만 (코치 모드와 동일, 코치 멘트 제외) ==========
+    try:
+        with st.container():
+            st.markdown("### 🎯 오늘 하나만 (매일 1개 추천)")
+            
+            # 추천 액션 결정 (코치 모드와 동일 로직 사용)
+            is_coach_mode = is_auto_coach_mode(store_id)
+            day_level = detect_owner_day_level(store_id)
+            action = get_today_one_action_with_day_context(store_id, data_level, is_coach_mode, day_level)
+            
+            # 추천 카드 표시
+            st.markdown(f"""
+            <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; margin-bottom: 1rem;">
+                <h4 style="color: white; margin-bottom: 0.5rem; font-size: 1.2rem;">{action['title']}</h4>
+                <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem; line-height: 1.5;">{action['reason']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 버튼
+            if st.button(action['button_label'], type="primary", use_container_width=True, key="fast_home_btn_today_one"):
+                st.session_state.current_page = action['target_page']
+                st.rerun()
+    except Exception as e:
+        # Fallback: 예외 발생 시 기본 추천
+        try:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
+                <h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4>
+                <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="fast_home_btn_fallback"):
+                st.session_state.current_page = "점장 마감"
+                st.rerun()
+        except Exception:
+            pass
+    
+    render_section_divider()
+    
+    # ========== 섹션 4: 문제 / 잘한 점 (코치 모드와 동일) ==========
+    try:
+        with st.container():
+            st.markdown("### 🔴 문제 TOP3 / 🟢 잘한 점 TOP3")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🔴 문제 TOP3")
+                try:
+                    problems = get_problems_top3(store_id)
+                    
+                    if not problems:
+                        st.markdown("""
+                        <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; margin: 0; margin-bottom: 1rem;">아직 분석할 데이터가 충분하지 않습니다.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        for idx, problem in enumerate(problems, 1):
+                            problem_text = problem['text']
+                            st.markdown(f"""
+                            <div style="padding: 1rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545; margin-bottom: 0.5rem;">
+                                <div style="font-weight: 600; color: #721c24; margin-bottom: 0.3rem;">{idx}. {problem_text}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"보러가기", key=f"fast_home_btn_problem_{idx}", use_container_width=True):
+                                st.session_state.current_page = problem['target_page']
+                                st.rerun()
+                except Exception as e:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                        <p style="color: #721c24; margin: 0;">문제 분석 중 오류가 발생했습니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown("#### 🟢 잘한 점 TOP3")
+                try:
+                    good_points = get_good_points_top3(store_id)
+                    
+                    if not good_points:
+                        st.markdown("""
+                        <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; margin: 0; margin-bottom: 1rem;">데이터가 쌓이면 자동 분석됩니다.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        for idx, point in enumerate(good_points, 1):
+                            st.markdown(f"""
+                            <div style="padding: 1rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 0.5rem;">
+                                <div style="font-weight: 600; color: #155724; margin-bottom: 0.3rem;">{idx}. {point['text']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"보러가기", key=f"fast_home_btn_good_{idx}", use_container_width=True):
+                                st.session_state.current_page = point['target_page']
+                                st.rerun()
+                except Exception as e:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <p style="color: #155724; margin: 0;">잘한 점 분석 중 오류가 발생했습니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+    except Exception:
+        pass
+    
+    render_section_divider()
+    
+    # ========== 섹션 5: 이상 징후 (코치 모드와 동일) ==========
+    try:
+        with st.container():
+            st.markdown("### ⚠️ 이상 징후")
+            
+            try:
+                signals = get_anomaly_signals(store_id)
+                
+                if not signals:
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <p style="color: #155724; margin: 0; font-weight: 500;">현재 감지된 이상 징후가 없습니다.</p>
+                        <p style="color: #155724; margin: 0.5rem 0 0 0; font-size: 0.9rem;">정상 범위로 보입니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    for idx, signal in enumerate(signals, 1):
+                        signal_text = signal['text']
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 0.5rem;">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.3rem;">
+                                <span style="font-size: 1.2rem; margin-right: 0.5rem;">{signal['icon']}</span>
+                                <div style="font-weight: 600; color: #856404; flex: 1;">{signal_text}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button(f"보러가기", key=f"fast_home_btn_anomaly_{idx}", use_container_width=True):
+                            st.session_state.current_page = signal['target_page']
+                            st.rerun()
+            except Exception as e:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                    <p style="color: #721c24; margin: 0;">이상 징후 분석 중 오류가 발생했습니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
+    except Exception:
+        pass
+    
+    render_section_divider()
+    
     # ========== 섹션 6: 오늘 할 일 1줄 ==========
     st.markdown("### ✅ 오늘 할 일")
     
