@@ -2690,6 +2690,211 @@ def render_fast_home():
                 <div style="font-size: 1.3rem; font-weight: 700; color: #6c757d;">-</div>
             </div>
             """, unsafe_allow_html=True)
+    
+    render_section_divider()
+    
+    # ========== 섹션 8: 미니 차트 (코치 모드와 동일) ==========
+    try:
+        with st.container():
+            st.markdown("### 📈 미니 차트")
+            
+            if data_level == 0:
+                st.markdown("""
+                <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
+                    <p style="color: #6c757d; margin: 0;">차트를 표시하려면 데이터가 필요합니다. 마감을 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            elif data_level == 1:
+                st.markdown("""
+                <div style="padding: 2rem; background: #fff3cd; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
+                    <p style="color: #856404; margin: 0;">더 많은 차트를 보려면 마감을 꾸준히 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 2rem; background: #d1ecf1; border-radius: 8px; text-align: center; border: 2px solid #17a2b8;">
+                    <p style="color: #0c5460; margin: 0;">미니 차트는 다음 단계에서 추가됩니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
+    except Exception:
+        pass
+    
+    render_section_divider()
+    
+    # ========== 섹션 9: 우리 가게 숫자 구조 (코치 모드와 동일) ==========
+    try:
+        with st.container():
+            st.markdown("### 🏪 우리 가게 숫자 구조")
+            
+            # 이번 달 정보
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            current_year = now_kst.year
+            current_month = now_kst.month
+            
+            # 숫자 구조 데이터 조회
+            try:
+                structure = get_store_financial_structure(store_id, current_year, current_month)
+                
+                if structure["source"] == "none":
+                    # 데이터 없을 때
+                    st.markdown("""
+                    <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                        <h4 style="color: #856404; margin-bottom: 0.5rem;">아직 우리 가게의 숫자 구조가 만들어지지 않았습니다</h4>
+                        <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">목표 비용구조 또는 실제 정산을 먼저 입력하면 자동으로 생성됩니다.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("💳 목표 비용구조", use_container_width=True, key="fast_home_btn_cost"):
+                            st.session_state.current_page = "목표 비용구조"
+                            st.rerun()
+                    with col2:
+                        if st.button("🧾 실제정산", use_container_width=True, key="fast_home_btn_settlement"):
+                            st.session_state.current_page = "실제정산"
+                            st.rerun()
+                else:
+                    # 데이터 있을 때
+                    fixed_cost = structure["fixed_cost"]
+                    variable_ratio = structure["variable_ratio"]
+                    break_even = structure["break_even_sales"]
+                    example_table = structure["example_table"]
+                    source_label = "이번 달 실제 정산 기준" if structure["source"] == "actual" else "현재 목표 구조 기준"
+                    
+                    # 상단 요약 카드 3개
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">고정비</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{fixed_cost:,}원</div>
+                            <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.2rem;">/월</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col2:
+                        variable_pct = int(variable_ratio * 100)
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">변동비율</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{variable_pct}%</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with col3:
+                        st.markdown(f"""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
+                            <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.3rem;">손익분기점 매출</div>
+                            <div style="font-size: 1.3rem; font-weight: 700;">{break_even:,}원</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 한 줄 구조 문장
+                    if break_even > 0:
+                        margin_per_100k = int((100000 * (1 - variable_ratio)))
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: #d1ecf1; border-radius: 8px; border-left: 4px solid #17a2b8; margin-top: 1rem;">
+                            <p style="color: #0c5460; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                                이 가게는 매출 <strong>{break_even:,}원</strong>부터 흑자가 시작되고,<br>
+                                매출이 10만 원 늘면 약 <strong>{margin_per_100k:,}원</strong>이 남는 구조입니다.
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 미니 테이블
+                    if example_table and len(example_table) > 0:
+                        st.markdown("---")
+                        st.markdown("#### 📊 매출 구간별 예상 이익")
+                        
+                        # 최대 3행만 표시
+                        display_table = example_table[:3]
+                        
+                        for item in display_table:
+                            sales = item["sales"]
+                            profit = item["profit"]
+                            margin = item["margin"]
+                            profit_color = "#28a745" if profit >= 0 else "#dc3545"
+                            st.markdown(f"""
+                            <div style="padding: 0.8rem; background: #f8f9fa; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid {profit_color};">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="font-weight: 600; color: #495057;">매출 {sales:,}원</div>
+                                    <div style="text-align: right;">
+                                        <div style="font-weight: 600; color: {profit_color};">{profit:,}원</div>
+                                        <div style="font-size: 0.85rem; color: #6c757d;">이익률 {margin}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # 출처 배지
+                    st.caption(f"📌 {source_label}")
+                    
+            except Exception as e:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">숫자 구조를 불러오는 중 오류가 발생했습니다</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">목표 비용구조 또는 실제 정산을 먼저 입력해주세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("💳 목표 비용구조", use_container_width=True, key="fast_home_btn_cost_error"):
+                        st.session_state.current_page = "목표 비용구조"
+                        st.rerun()
+                with col2:
+                    if st.button("🧾 실제정산", use_container_width=True, key="fast_home_btn_settlement_error"):
+                        st.session_state.current_page = "실제정산"
+                        st.rerun()
+    except Exception:
+        pass
+    
+    render_section_divider()
+    
+    # ========== 섹션 10: 이번 달 운영 메모 (코치 모드와 동일) ==========
+    with st.container():
+        st.markdown("### 📝 이번 달 운영 메모")
+        
+        try:
+            # 이번 달 운영 메모 최신 5개
+            KST = ZoneInfo("Asia/Seoul")
+            now_kst = datetime.now(KST)
+            memos = get_monthly_memos(store_id, now_kst.year, now_kst.month, limit=5)
+            
+            if memos:
+                for memo_item in memos:
+                    memo_date = memo_item.get('date', '')
+                    memo_text = memo_item.get('memo', '')
+                    
+                    # 날짜 포맷: YYYY-MM-DD -> MM/DD
+                    try:
+                        if isinstance(memo_date, str):
+                            date_obj = datetime.strptime(memo_date, '%Y-%m-%d').date()
+                        else:
+                            date_obj = memo_date
+                        date_str = f"{date_obj.month:02d}/{date_obj.day:02d}"
+                    except:
+                        date_str = str(memo_date)[:10] if memo_date else ""
+                    
+                    st.markdown(f"""
+                    <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #17a2b8; margin-bottom: 0.5rem;">
+                        <div style="font-weight: 600; color: #0c5460; margin-bottom: 0.3rem;">{date_str}</div>
+                        <div style="color: #495057; font-size: 0.95rem;">{memo_text}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 0.5rem;">운영 메모가 아직 없습니다</h4>
+                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">마감 때 특이사항을 남기면 여기에 모입니다.</p>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("📋 점장 마감", type="primary", use_container_width=True, key="fast_home_btn_memo"):
+                    st.session_state.current_page = "점장 마감"
+                    st.rerun()
+        except Exception as e:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #6c757d;">
+                <p style="color: #495057; margin: 0;">운영 메모를 불러오는 중 오류가 발생했습니다.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def render_home():
