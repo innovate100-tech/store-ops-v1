@@ -100,7 +100,7 @@ def load_home_kpis(store_id: str, year: int, month: int) -> dict:
                     recent_best = recent_best.sort_values('date', ascending=False)
                     out["yesterday_sales"] = int(float(recent_best.iloc[0]['total_sales'] or 0))
 
-            # 유입당 매출 계산 (네이버 유입 기준)
+            # 유입당 매출 계산 (네이버방문자 기준)
             if monthly_sales and monthly_sales > 0:
                 naver_visits = supabase.table("naver_visitors").select("visitors").eq(
                     "store_id", store_id

@@ -32,6 +32,7 @@ from ui_pages.home.home_rules import (
 )
 from ui_pages.home.home_alerts import get_anomaly_signals_light, get_anomaly_signals
 from ui_pages.home.home_lazy import get_monthly_memos, render_lazy_insights, get_store_financial_structure
+from ui_pages.home.home_verdict import get_coach_verdict
 
 logger = logging.getLogger(__name__)
 
@@ -225,76 +226,22 @@ def _render_home_body(store_id: str, coaching_enabled: bool) -> None:
     load_time = time.time() - load_start
     logger.info(f"[홈 로드 시간] {load_time:.3f}초 (store_id={store_id}, coaching_enabled={coaching_enabled})")
 
-    # ===== 첫 화면 구성 (스크롤 최소화) =====
+    # ===== HOME v2 구조 =====
     
-    # 1. 빠른 이동 (모던 스타일, 간격 추가)
-    col1, col2, col3 = st.columns(3, gap="medium")
-    with col1:
-        if st.button("📋 점장마감", type="primary", use_container_width=True, key="home_btn_quick_close"):
-            st.session_state["current_page"] = "점장 마감"
-            st.rerun()
-    with col2:
-        if st.button("📊 매출관리", type="primary", use_container_width=True, key="home_btn_quick_sales"):
-            st.session_state["current_page"] = "매출 관리"
-            st.rerun()
-    with col3:
-        if st.button("🧾 실제정산", type="primary", use_container_width=True, key="home_btn_quick_settlement"):
-            st.session_state["current_page"] = "실제정산"
-            st.rerun()
-    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-
-    # 2. KPI 한눈 영역 (2줄 고정, 모던 스타일, 간격 추가)
-    st.markdown("### 📊 핵심 지표")
+    # ZONE 1: 오늘 상태판 (10초 판단)
+    _render_zone1_status_board(store_id, year, month, kpis, unofficial_days)
     
-    # 미마감 배지 표시
-    if unofficial_days > 0:
-        st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다. [점장 마감 하러가기](javascript:void(0))")
+    # ZONE 2: 이번 달 코치 판결 (Verdict)
+    _render_zone2_coach_verdict(store_id, year, month, monthly_sales)
     
-    # 첫 번째 줄: 이번달 누적 매출, 목표 대비 %, 마감률
-    k1, k2, k3 = st.columns(3, gap="medium")
-    with k1:
-        _kpi_card_modern("이번달 누적 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None, gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
-    with k2:
-        if target_ratio is not None:
-            target_text = f"{target_ratio}%"
-            if target_ratio >= 100:
-                gradient = "linear-gradient(135deg, #28a745 0%, #20c997 100%)"
-            elif target_ratio >= 80:
-                gradient = "linear-gradient(135deg, #ffc107 0%, #ff9800 100%)"
-            else:
-                gradient = "linear-gradient(135deg, #dc3545 0%, #c82333 100%)"
-        else:
-            target_text = "-"
-            gradient = "linear-gradient(135deg, #6c757d 0%, #5a6268 100%)"
-        _kpi_card_modern("목표 대비 %", target_text, None, gradient=gradient)
-    with k3:
-        pct = int(close_rate * 100) if closed_days > 0 else 0
-        close_text = f"{pct}%" if closed_days > 0 else "-"
-        if closed_days > 0:
-            close_sub = f"{closed_days}/{total_days}일"
-            if streak_days > 0:
-                close_sub = f"{close_sub} 🔥{streak_days}일"
-        else:
-            close_sub = None
-        _kpi_card_modern("마감률", close_text, close_sub, gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)")
-    # 두 번째 줄: 어제 매출, 유입당 매출(참고)
-    k4, k5 = st.columns(2, gap="medium")
-    with k4:
-        _kpi_card_modern("어제 매출", f"{yesterday_sales:,}원" if yesterday_sales > 0 else "-", None, gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)")
-    with k5:
-        v = f"{revenue_per_visit:,}원" if (revenue_per_visit or 0) > 0 else "-"
-        _kpi_card_modern("유입당 매출(참고)", v, "네이버 유입 기준", gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
+    # ZONE 3: 문제 TOP3 (Action Radar)
+    _render_zone3_action_radar(store_id)
     
-    # 상태 해석 스트립 (KPI 바로 아래, 1줄, 모던 스타일)
-    _render_status_strip(store_id, monthly_sales, target_sales, target_ratio, close_rate, closed_days, total_days)
-    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-
-    # 3. 이상 징후 / 문제 / 잘한 점 (압축, 기본 1개만, 모던 스타일)
-    try:
-        _render_compressed_alerts(store_id, coaching_enabled)
-    except Exception:
-        pass
-    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    # ZONE 4: 가게 구조 스냅샷 (Design Snapshot)
+    _render_zone4_design_snapshot(store_id, year, month)
+    
+    # ZONE 5: 사장 학교 1줄 (School Strip)
+    _render_zone5_school_strip()
 
     # ===== Coach Only 섹션 (코치멘트만 표시, 나머지는 동일) =====
     if coaching_enabled and day_level:
@@ -845,3 +792,370 @@ def render_home() -> None:
         return
     coaching_enabled = mode != "fast"
     _render_home_body(store_id, coaching_enabled)
+
+
+# ===== HOME v2 ZONE 렌더링 함수 =====
+
+def _render_zone1_status_board(store_id: str, year: int, month: int, kpis: dict, unofficial_days: int) -> None:
+    """ZONE 1: 오늘 상태판 (10초 판단)"""
+    monthly_sales = kpis["monthly_sales"]
+    yesterday_sales = kpis["yesterday_sales"]
+    close_stats = kpis["close_stats"]
+    revenue_per_visit = kpis["revenue_per_visit"]
+    target_sales = kpis["target_sales"]
+    target_ratio = kpis["target_ratio"]
+    closed_days, total_days, close_rate, streak_days = close_stats
+    
+    # A) KPI 4개 카드 (best_available 기준)
+    st.markdown("### 🟡 오늘 상태판")
+    
+    # 미마감 배지 표시
+    if unofficial_days > 0:
+        st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번달 누적 매출에 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
+    
+    # KPI 4개: 어제 매출, 이번 달 누적 매출, 이번 달 평균 일매출, 네이버방문자 또는 객단가
+    k1, k2, k3, k4 = st.columns(4, gap="medium")
+    with k1:
+        _kpi_card_modern("어제 매출", f"{yesterday_sales:,}원" if yesterday_sales > 0 else "-", None, gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)")
+    with k2:
+        _kpi_card_modern("이번 달 누적 매출", f"{monthly_sales:,}원" if monthly_sales > 0 else "-", None, gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
+    with k3:
+        avg_daily = (monthly_sales / total_days) if total_days > 0 else 0
+        avg_text = f"{int(avg_daily):,}원" if avg_daily > 0 else "-"
+        _kpi_card_modern("이번 달 평균 일매출", avg_text, None, gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)")
+    with k4:
+        # 네이버방문자 또는 객단가 중 택1 (객단가 우선)
+        if revenue_per_visit and revenue_per_visit > 0:
+            v = f"{revenue_per_visit:,}원"
+            _kpi_card_modern("객단가", v, "네이버방문자 기준", gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
+        else:
+            # 네이버방문자 누적 조회
+            try:
+                from src.auth import get_supabase_client
+                supabase = get_supabase_client()
+                if supabase:
+                    kst = ZoneInfo("Asia/Seoul")
+                    now = datetime.now(kst)
+                    start = f"{year}-{month:02d}-01"
+                    end = f"{year + 1}-01-01" if month == 12 else f"{year}-{month + 1:02d}-01"
+                    visitors_result = supabase.table("naver_visitors").select("visitors").eq("store_id", store_id).gte("date", start).lt("date", end).execute()
+                    total_visitors = sum(int(r.get("visitors", 0) or 0) for r in (visitors_result.data or []))
+                    v_text = f"{total_visitors:,}명" if total_visitors > 0 else "-"
+                    _kpi_card_modern("네이버방문자", v_text, "이번 달 누적", gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
+                else:
+                    _kpi_card_modern("네이버방문자", "-", None, gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
+            except Exception:
+                _kpi_card_modern("네이버방문자", "-", None, gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)")
+    
+    # B) 상태 스트립 1줄
+    missing_days = total_days - closed_days
+    status_parts = []
+    if closed_days > 0:
+        pct = int(close_rate * 100)
+        status_parts.append(f"마감률 {pct}%")
+    if streak_days > 0:
+        status_parts.append(f"연속 마감 {streak_days}일")
+    if missing_days > 0:
+        status_parts.append(f"미마감 {missing_days}일")
+    
+    if status_parts:
+        status_text = " • ".join(status_parts)
+        st.markdown(f"""
+        <div style="padding: 0.8rem 1.2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border-left: 4px solid #17a2b8; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="font-size: 0.9rem; color: #495057; line-height: 1.5; font-weight: 500;">{status_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # C) 오늘 입력 바로가기 버튼
+    st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+    st.markdown("#### 오늘 입력 바로가기")
+    col1, col2, col3 = st.columns(3, gap="medium")
+    with col1:
+        if st.button("📋 점장마감", type="primary", use_container_width=True, key="zone1_btn_close"):
+            st.session_state["current_page"] = "점장 마감"
+            st.rerun()
+    with col2:
+        if st.button("💰 매출·네이버방문자 보정", type="primary", use_container_width=True, key="zone1_btn_sales"):
+            st.session_state["current_page"] = "매출 등록"
+            st.rerun()
+    with col3:
+        if st.button("📦 판매량 보정", type="secondary", use_container_width=True, key="zone1_btn_volume"):
+            st.session_state["current_page"] = "판매량 등록"
+            st.rerun()
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+
+
+def _render_zone2_coach_verdict(store_id: str, year: int, month: int, monthly_sales: int) -> None:
+    """ZONE 2: 이번 달 코치 판결 (Verdict)"""
+    st.markdown("### 🟢 이번 달 코치 판결")
+    
+    try:
+        verdict = get_coach_verdict(store_id, year, month, monthly_sales)
+        
+        if verdict.get("verdict_type"):
+            # 위험 판결
+            verdict_type = verdict["verdict_type"]
+            if verdict_type == "revenue_structure":
+                icon = "🔴"
+                bg_gradient = "linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%)"
+                border_color = "#dc3545"
+                text_color = "#721c24"
+            elif verdict_type == "menu_profit":
+                icon = "🟡"
+                bg_gradient = "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+                border_color = "#ffc107"
+                text_color = "#92400e"
+            else:  # ingredient_structure
+                icon = "🟠"
+                bg_gradient = "linear-gradient(135deg, #fff4e6 0%, #ffe0b2 100%)"
+                border_color = "#ff9800"
+                text_color = "#e65100"
+            
+            st.markdown(f"""
+            <div style="padding: 1.5rem; background: {bg_gradient}; border: 1px solid {border_color}; border-left: 4px solid {border_color}; border-radius: 12px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
+                    <div style="font-size: 2rem; margin-right: 1rem;">{icon}</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; color: {text_color}; font-size: 1.1rem; line-height: 1.4; margin-bottom: 0.5rem;">{verdict['verdict_text']}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 근거 2~3개 미니 카드
+            if verdict.get("reasons"):
+                reason_cols = st.columns(min(len(verdict["reasons"]), 3))
+                for idx, reason in enumerate(verdict["reasons"][:3]):
+                    with reason_cols[idx]:
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: white; border: 1px solid {border_color}; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 0.3rem; font-weight: 600;">{reason['title']}</div>
+                            <div style="font-size: 1rem; color: {text_color}; font-weight: 700;">{reason['value']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            # CTA 버튼
+            if st.button(verdict["button_label"], type="primary", use_container_width=True, key="zone2_btn_verdict"):
+                st.session_state["current_page"] = verdict["target_page"]
+                st.rerun()
+        else:
+            # 안정 상태
+            st.info(f"✅ {verdict['verdict_text']}")
+            if verdict.get("reasons"):
+                reason_cols = st.columns(min(len(verdict["reasons"]), 3))
+                for idx, reason in enumerate(verdict["reasons"][:3]):
+                    with reason_cols[idx]:
+                        st.markdown(f"""
+                        <div style="padding: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                            <div style="font-size: 0.85rem; color: #166534; margin-bottom: 0.3rem; font-weight: 600;">{reason['title']}</div>
+                            <div style="font-size: 1rem; color: #166534; font-weight: 700;">{reason['value']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+    except Exception as e:
+        logger.error(f"코치 판결 렌더링 오류: {e}")
+        st.info("코치 판결을 생성하는 중입니다. 데이터가 더 필요할 수 있습니다.")
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+
+
+def _render_zone3_action_radar(store_id: str) -> None:
+    """ZONE 3: 문제 TOP3 (Action Radar)"""
+    st.markdown("### 🔵 문제 TOP3 (Action Radar)")
+    
+    try:
+        problems = get_problems_top3(store_id)
+        if not problems:
+            st.info("현재 특별한 문제가 없습니다. 정상 범위로 보입니다.")
+            return
+        
+        for idx, problem in enumerate(problems[:3], 1):
+            text = problem.get("text", "")
+            target_page = problem.get("target_page", "점장 마감")
+            
+            st.markdown(f"""
+            <div style="padding: 1rem 1.2rem; background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%); border: 1px solid #fecaca; border-left: 4px solid #dc3545; border-radius: 10px; margin-bottom: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-weight: 600; color: #721c24; font-size: 0.95rem; margin-bottom: 0.3rem;">{idx}. {text}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col_btn, _ = st.columns([2, 4])
+            with col_btn:
+                if st.button(f"보러가기", key=f"zone3_btn_{idx}", use_container_width=True):
+                    st.session_state["current_page"] = target_page
+                    st.rerun()
+    except Exception as e:
+        logger.error(f"문제 TOP3 렌더링 오류: {e}")
+        st.info("문제 분석 중입니다.")
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+
+
+def _render_zone4_design_snapshot(store_id: str, year: int, month: int) -> None:
+    """ZONE 4: 가게 구조 스냅샷 (Design Snapshot)"""
+    st.markdown("### 🟣 가게 구조 스냅샷")
+    
+    col1, col2, col3 = st.columns(3, gap="medium")
+    
+    with col1:
+        # 메뉴 구조 점수
+        try:
+            menu_count = get_menu_count(store_id)
+            if menu_count >= 10:
+                score = "A"
+            elif menu_count >= 5:
+                score = "B"
+            elif menu_count >= 3:
+                score = "C"
+            else:
+                score = "—"
+            
+            if score != "—":
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%); border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.9rem; color: #0c5460; margin-bottom: 0.5rem; font-weight: 600;">메뉴 구조</div>
+                    <div style="font-size: 2.5rem; font-weight: 700; color: #17a2b8;">{score}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("메뉴 설계실", key="zone4_btn_menu", use_container_width=True):
+                    st.session_state["current_page"] = "메뉴 등록"
+                    st.rerun()
+            else:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                    <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">메뉴 구조</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+                    <div style="font-size: 0.8rem; color: #6c757d; margin-top: 0.5rem;">진단 준비중</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("메뉴 설계실", key="zone4_btn_menu", use_container_width=True):
+                    st.session_state["current_page"] = "메뉴 등록"
+                    st.rerun()
+        except Exception:
+            st.markdown(f"""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">메뉴 구조</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col2:
+        # 수익 구조 점수
+        try:
+            from src.storage_supabase import get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales, load_monthly_sales_total
+            break_even = calculate_break_even_sales(store_id, year, month)
+            monthly_sales = load_monthly_sales_total(store_id, year, month) or 0
+            
+            if break_even > 0 and monthly_sales > 0:
+                if monthly_sales >= break_even * 1.2:
+                    score = "A"
+                elif monthly_sales >= break_even:
+                    score = "B"
+                else:
+                    score = "C"
+            else:
+                score = "—"
+            
+            if score != "—":
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%); border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.9rem; color: #0c5460; margin-bottom: 0.5rem; font-weight: 600;">수익 구조</div>
+                    <div style="font-size: 2.5rem; font-weight: 700; color: #17a2b8;">{score}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("수익 구조 설계실", key="zone4_btn_revenue", use_container_width=True):
+                    st.session_state["current_page"] = "목표 비용구조"
+                    st.rerun()
+            else:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                    <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">수익 구조</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+                    <div style="font-size: 0.8rem; color: #6c757d; margin-top: 0.5rem;">진단 준비중</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("수익 구조 설계실", key="zone4_btn_revenue", use_container_width=True):
+                    st.session_state["current_page"] = "목표 비용구조"
+                    st.rerun()
+        except Exception:
+            st.markdown(f"""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">수익 구조</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col3:
+        # 재료 구조 점수
+        try:
+            from src.storage_supabase import load_csv
+            ingredient_df = load_csv('ingredient_master.csv', store_id=store_id, default_columns=['재료명'])
+            ingredient_count = len(ingredient_df) if not ingredient_df.empty else 0
+            
+            if ingredient_count >= 20:
+                score = "A"
+            elif ingredient_count >= 10:
+                score = "B"
+            elif ingredient_count >= 5:
+                score = "C"
+            else:
+                score = "—"
+            
+            if score != "—":
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%); border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.9rem; color: #0c5460; margin-bottom: 0.5rem; font-weight: 600;">재료 구조</div>
+                    <div style="font-size: 2.5rem; font-weight: 700; color: #17a2b8;">{score}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("재료 구조 설계실", key="zone4_btn_ingredient", use_container_width=True):
+                    st.session_state["current_page"] = "재료 등록"
+                    st.rerun()
+            else:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                    <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">재료 구조</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+                    <div style="font-size: 0.8rem; color: #6c757d; margin-top: 0.5rem;">진단 준비중</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button("재료 구조 설계실", key="zone4_btn_ingredient", use_container_width=True):
+                    st.session_state["current_page"] = "재료 등록"
+                    st.rerun()
+        except Exception:
+            st.markdown(f"""
+            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; text-align: center; border: 2px dashed #dee2e6;">
+                <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem; font-weight: 600;">재료 구조</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">—</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+
+
+def _render_zone5_school_strip() -> None:
+    """ZONE 5: 사장 학교 1줄 (School Strip)"""
+    st.markdown("### 🔴 사장 학교")
+    
+    # 랜덤 또는 룰 기반 개념 카드
+    concepts = [
+        "손익분기점은 목표가 아니라 생존선입니다.",
+        "고정비는 매출이 없어도 나가는 돈입니다. 변동비는 매출에 비례합니다.",
+        "메뉴 원가율이 50%를 넘으면 그 메뉴는 수익에 거의 기여하지 않습니다.",
+        "재료 집중도가 높으면 가격 변동에 취약합니다.",
+        "마감 데이터가 쌓이면 가게 패턴이 보이기 시작합니다.",
+    ]
+    
+    import random
+    concept = random.choice(concepts)
+    
+    st.markdown(f"""
+    <div style="padding: 1.2rem 1.5rem; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; border-left: 4px solid #6c757d; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div style="font-size: 0.9rem; color: #495057; line-height: 1.6; font-weight: 500; font-style: italic;">💡 {concept}</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 더보기 버튼 (향후 확장 포인트)
+    # st.button("더보기", key="zone5_btn_more", use_container_width=True)
+    
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
