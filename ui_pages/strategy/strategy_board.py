@@ -298,7 +298,7 @@ def _render_strategy_cards_section(cards: list, store_id: str):
                 else:
                     if st.button("✅ 완료", key=f"complete_{card_code}", use_container_width=True):
                         _save_completed_action(store_id, card_code)
-                        st.rerun()
+                        # Phase 0 STEP 3: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
         
         st.divider()
 

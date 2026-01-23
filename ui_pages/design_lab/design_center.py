@@ -45,7 +45,7 @@ def render_design_center():
             if st.button("✅ 이번 주 구조 점검 완료 처리", key="mark_weekly_check_done", use_container_width=True):
                 mark_weekly_check_done(store_id)
                 st.success("이번 주 구조 점검 완료 처리되었습니다!")
-                st.rerun()
+                # Phase 0 STEP 3: DB 저장 후 상태가 자동으로 업데이트되므로 rerun 불필요 (다음 렌더에서 반영됨)
         else:
             st.info("✅ 이번 주 점검 완료")
     with col2:

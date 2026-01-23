@@ -1167,7 +1167,7 @@ def show_signup_page():
                     st.success(message)
                     st.info("로그인 페이지로 이동합니다...")
                     st.session_state["_show_signup"] = False
-                    st.rerun()
+                    # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
                 else:
                     st.error(message)
     
@@ -1176,7 +1176,7 @@ def show_signup_page():
     # 로그인으로 돌아가기
     if st.button("← 로그인으로 돌아가기", use_container_width=True):
         st.session_state["_show_signup"] = False
-        st.rerun()
+        # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
 
 
 def show_login_page():

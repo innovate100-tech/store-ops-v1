@@ -516,7 +516,7 @@ def _render_problems_good_points(store_id: str) -> None:
                     st.rerun()
                 if st.button("📋 자세히 보기 (TOP3)", key="home_btn_p_detail", use_container_width=True):
                     st.session_state["_home_problems_expanded"] = True
-                    st.rerun()
+                    # Phase 0 STEP 3: 플래그 변경만으로 expander가 자동 업데이트되므로 rerun 불필요
             if st.session_state.get("_home_problems_expanded", False):
                 with st.expander("🔴 문제 TOP3 전체", expanded=True):
                     if "_home_problems_top3" not in st.session_state:
@@ -547,7 +547,7 @@ def _render_problems_good_points(store_id: str) -> None:
                     st.rerun()
                 if st.button("📋 자세히 보기 (TOP3)", key="home_btn_g_detail", use_container_width=True):
                     st.session_state["_home_good_points_expanded"] = True
-                    st.rerun()
+                    # Phase 0 STEP 3: 플래그 변경만으로 expander가 자동 업데이트되므로 rerun 불필요
             if st.session_state.get("_home_good_points_expanded", False):
                 with st.expander("🟢 잘한 점 TOP3 전체", expanded=True):
                     if "_home_good_points_top3" not in st.session_state:
@@ -742,7 +742,7 @@ def _render_alert_card_3line(icon: str, conclusion: str, importance: str, button
     with col_btn2:
         if st.button("📋 전체", key=f"home_btn_alert_expand_{card_type}", use_container_width=True):
             st.session_state[f"_home_{card_type}_expanded"] = True
-            st.rerun()
+            # Phase 0 STEP 3: 플래그 변경만으로 expander가 자동 업데이트되므로 rerun 불필요
 
 
 def _render_anomaly_signals(store_id: str) -> None:

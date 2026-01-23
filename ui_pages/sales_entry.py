@@ -146,7 +146,7 @@ def render_sales_entry():
                 del st.session_state["sales_entry_success_message"]
                 if "sales_entry_message_type" in st.session_state:
                     del st.session_state["sales_entry_message_type"]
-                st.rerun()
+                # Phase 0 STEP 3: 플래그 삭제만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
         
         render_section_divider()
     

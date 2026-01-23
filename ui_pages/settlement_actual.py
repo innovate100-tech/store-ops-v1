@@ -1460,11 +1460,11 @@ def _render_settlement_history(store_id: str):
         if current_limit == 6 and len(history) >= 6:
             if st.button("📅 더 보기 (최근 24개월)", key="history_more"):
                 st.session_state['settlement_history_limit'] = 24
-                st.rerun()
+                # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
         elif current_limit == 24:
             if st.button("📅 줄이기 (최근 6개월)", key="history_less"):
                 st.session_state['settlement_history_limit'] = 6
-                st.rerun()
+                # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
         
         # Phase H.1: 목표 없는 달 안내
         has_no_target = any(row['grade'] is None for row in history)

@@ -287,20 +287,20 @@ def _render_menu_profit_design_tools(cost_df: pd.DataFrame, menu_df: pd.DataFram
             with col1:
                 if st.button("🎣 미끼", key=f"tag_bait_{selected_menu_for_tag}", use_container_width=True):
                     st.session_state[tag_key] = "미끼"
-                    st.rerun()
+                    # Phase 0 STEP 3: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             with col2:
                 if st.button("📦 볼륨", key=f"tag_volume_{selected_menu_for_tag}", use_container_width=True):
                     st.session_state[tag_key] = "볼륨"
-                    st.rerun()
+                    # Phase 0 STEP 3: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             with col3:
                 if st.button("💰 마진", key=f"tag_margin_{selected_menu_for_tag}", use_container_width=True):
                     st.session_state[tag_key] = "마진"
-                    st.rerun()
+                    # Phase 0 STEP 3: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
             
             if current_tag != "미설정":
                 if st.button("🗑️ 태그 제거", key=f"tag_remove_{selected_menu_for_tag}"):
                     st.session_state[tag_key] = "미설정"
-                    st.rerun()
+                    # Phase 0 STEP 3: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
 
 
 def _get_risk_reason(row: pd.Series) -> str:

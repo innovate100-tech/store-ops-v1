@@ -124,9 +124,9 @@ def _diagnose_supabase_connection():
     with col1:
         st.markdown("### 🔍 Supabase 연결 진단 (온라인 환경)")
     with col2:
-        if st.button("❌ 닫기", key="close_diagnosis_btn"):
+                                if st.button("❌ 닫기", key="close_diagnosis_btn"):
             st.session_state["_show_supabase_diagnosis"] = False
-            st.rerun()
+            # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
     
     try:
         from src.auth import get_supabase_client, get_current_store_id
@@ -1652,7 +1652,7 @@ with st.sidebar:
     
     if st.sidebar.button("🔍 Supabase 연결 진단", use_container_width=True, key="sidebar_supabase_diagnosis_btn"):
         st.session_state["_show_supabase_diagnosis"] = True
-        st.rerun()
+        # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
     
     if st.sidebar.button("🔍 데이터 연결 상태 확인", use_container_width=True, key="sidebar_data_check_btn"):
         try:
@@ -2924,7 +2924,7 @@ elif page == "목표 비용구조" or page == "비용구조":
                                 st.write("")
                                 if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
                                     st.session_state[edit_key] = False
-                                    st.rerun()
+                                    # Phase 0 STEP 3: 편집 모드 플래그 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
                     else:
                         # 일반 표시 모드
                         # 마지막 두 컬럼(✏️, 🗑️ 버튼) 간격이 화면이 넓어져도 너무 벌어지지 않도록
@@ -2943,7 +2943,7 @@ elif page == "목표 비용구조" or page == "비용구조":
                         with col4:
                             if st.button("✏️", key=f"edit_btn_{category}_{item['id']}", help="수정"):
                                 st.session_state[edit_key] = True
-                                st.rerun()
+                                # Phase 0 STEP 3: 편집 모드 플래그 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
                         with col5:
                             if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
                                 try:
