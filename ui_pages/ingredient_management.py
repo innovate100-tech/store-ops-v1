@@ -8,6 +8,13 @@ import logging
 from src.ui_helpers import render_page_header, render_section_divider, safe_get_row_by_condition, handle_data_error
 from src.ui import render_ingredient_input
 from src.storage_supabase import load_csv, save_ingredient, update_ingredient, delete_ingredient, get_supabase_client, get_current_store_id
+from ui_pages.design_lab.design_lab_frame import (
+    render_coach_board,
+    render_structure_map_container,
+    render_school_cards,
+    render_design_tools_container,
+)
+from ui_pages.design_lab.design_lab_coach_data import get_ingredient_design_coach_data
 
 # 공통 설정 적용
 bootstrap(page_title="Ingredient Management")
@@ -265,9 +272,70 @@ def _show_ingredient_query_diagnostics():
 
 
 def render_ingredient_management():
-    """재료 등록 페이지 렌더링"""
-    render_page_header("재료 등록", "🥬")
+    """재료 등록 페이지 렌더링 (HOME v2 공통 프레임 적용)"""
+    render_page_header("재료 구조 설계실", "🥬")
     
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다.")
+        return
+    
+    # ZONE A: Coach Board
+    coach_data = get_ingredient_design_coach_data(store_id)
+    render_coach_board(
+        cards=coach_data["cards"],
+        verdict_text=coach_data["verdict_text"],
+        action_title=coach_data.get("action_title"),
+        action_reason=coach_data.get("action_reason"),
+        action_target_page=coach_data.get("action_target_page"),
+        action_button_label=coach_data.get("action_button_label")
+    )
+    
+    # ZONE B: Structure Map
+    def _render_ingredient_structure_map():
+        ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
+        if ingredient_df.empty:
+            st.info("재료가 등록되지 않았습니다. 재료를 등록하면 구조 맵이 표시됩니다.")
+        else:
+            # 간단한 재료 단가 분포 차트
+            if '단가' in ingredient_df.columns:
+                st.bar_chart(ingredient_df['단가'].head(10))
+            else:
+                st.info("재료를 등록하면 구조 맵이 표시됩니다.")
+    
+    render_structure_map_container(
+        content_func=_render_ingredient_structure_map,
+        empty_message="재료가 등록되지 않았습니다.",
+        empty_action_label="재료 등록하기",
+        empty_action_page="재료 등록"
+    )
+    
+    # ZONE C: Owner School
+    school_cards = [
+        {
+            "title": "재료 구조 설계",
+            "point1": "재료 집중도가 높으면 가격 변동에 취약합니다",
+            "point2": "안전재고를 설정하면 발주 관리가 쉬워집니다"
+        },
+        {
+            "title": "원가 관리",
+            "point1": "TOP 3 재료가 전체 사용량의 70% 이상이면 위험합니다",
+            "point2": "재료 단가 변동을 주기적으로 확인하세요"
+        },
+        {
+            "title": "발주 단위",
+            "point1": "발주 단위와 사용 단위가 다르면 변환 비율을 정확히 설정하세요",
+            "point2": "단위 통일이 원가 계산 정확도를 높입니다"
+        },
+    ]
+    render_school_cards(school_cards)
+    
+    # ZONE D: Design Tools (기존 기능)
+    render_design_tools_container(_render_ingredient_design_tools)
+
+
+def _render_ingredient_design_tools():
+    """ZONE D: 재료 설계 도구 (기존 기능)"""
     # 쿼리 진단 기능 추가
     with st.expander("🔍 쿼리 진단 정보 (DEV)", expanded=False):
         _show_ingredient_query_diagnostics()

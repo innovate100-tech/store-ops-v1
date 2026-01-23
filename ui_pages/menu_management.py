@@ -8,15 +8,21 @@ import logging
 from src.ui_helpers import render_page_header, render_section_divider, safe_get_row_by_condition, handle_data_error
 from src.ui import render_menu_input, render_menu_batch_input
 from src.storage_supabase import load_csv, save_menu, update_menu, update_menu_category, delete_menu
+from ui_pages.design_lab.design_lab_frame import (
+    render_coach_board,
+    render_structure_map_container,
+    render_school_cards,
+    render_design_tools_container,
+)
+from ui_pages.design_lab.design_lab_coach_data import get_menu_design_coach_data
+from src.auth import get_current_store_id
 
 # 공통 설정 적용
 bootstrap(page_title="Menu Management")
 
 
-def render_menu_management():
-    """메뉴 등록 페이지 렌더링"""
-    render_page_header("메뉴 등록", "🍽️")
-    
+def _render_menu_design_tools():
+    """ZONE D: 메뉴 설계 도구 (기존 기능)"""
     # 입력 모드 선택 (단일 / 일괄)
     input_mode = st.radio(
         "입력 모드",
@@ -135,6 +141,7 @@ def render_menu_management():
                             if f"menu_management_batch_menu_price_{i}" in st.session_state:
                                 st.session_state[f"menu_management_batch_menu_price_{i}"] = 0
     
+    # 저장된 메뉴 표시 및 수정/삭제 (ZONE D 내부)
     render_section_divider()
     
     # 저장된 메뉴 표시 및 수정/삭제
