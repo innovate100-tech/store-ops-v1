@@ -124,7 +124,7 @@ def _diagnose_supabase_connection():
     with col1:
         st.markdown("### 🔍 Supabase 연결 진단 (온라인 환경)")
     with col2:
-                                if st.button("❌ 닫기", key="close_diagnosis_btn"):
+        if st.button("❌ 닫기", key="close_diagnosis_btn"):
             st.session_state["_show_supabase_diagnosis"] = False
             # Phase 0 STEP 3: 플래그 변경만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
     
