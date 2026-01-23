@@ -303,12 +303,12 @@ def get_revenue_structure_design_coach_data(store_id: str, year: int, month: int
             verdict_text = f"현재 매출이 손익분기점보다 약 {gap:,.0f}원 부족합니다. 매출 증대 또는 비용 절감이 필요합니다."
             action_title = "수익 구조 분석하기"
             action_reason = "손익분기점 미달 시 구조 조정이 필요합니다."
-            action_target_page = "목표 비용구조"
+            action_target_page = "수익 구조 설계실"
         elif variable_pct >= 50:
             verdict_text = f"변동비율이 {variable_pct:.1f}%로 높습니다. 원가 관리가 시급합니다."
             action_title = "원가 관리하기"
             action_reason = "변동비율이 50% 이상이면 수익성이 낮을 수 있습니다."
-            action_target_page = "원가 파악"
+            action_target_page = "메뉴 수익 구조 설계실"
         else:
             verdict_text = "수익 구조가 안정적인 범위에 있습니다."
             action_title = None
@@ -321,7 +321,7 @@ def get_revenue_structure_design_coach_data(store_id: str, year: int, month: int
             "action_title": action_title,
             "action_reason": action_reason,
             "action_target_page": action_target_page,
-            "action_button_label": "수익 구조 설계실" if action_target_page else None
+            "action_button_label": "수익 구조 설계실 보러가기" if action_target_page else None
         }
     except Exception:
         return {

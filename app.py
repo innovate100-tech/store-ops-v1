@@ -1541,7 +1541,7 @@ with st.sidebar:
             ("메뉴 설계실", "메뉴 등록"),
             ("재료 구조 설계실", "재료 등록"),
             ("메뉴 수익 구조 설계실", "메뉴 수익 구조 설계실"),  # 가격·마진 분석
-            ("수익 구조 설계실 (임시)", "목표 비용구조"),  # 임시 연결: 가게 전체 돈 구조
+            ("수익 구조 설계실", "수익 구조 설계실"),  # 가게 전체 돈 구조
             ("목표 비용 구조 (입력)", "목표 비용구조"),
             ("목표 매출 구조", "목표 매출구조"),
             ("직원 연락망", "직원 연락망"),
@@ -2317,6 +2317,11 @@ elif page == "원가 파악":
 elif page == "메뉴 수익 구조 설계실":
     from ui_pages.menu_profit_design_lab import render_menu_profit_design_lab
     render_menu_profit_design_lab()
+
+# 수익 구조 설계실 페이지
+elif page == "수익 구조 설계실":
+    from ui_pages.revenue_structure_design_lab import render_revenue_structure_design_lab
+    render_revenue_structure_design_lab()
 
 # 실제 정산 페이지
 elif page == "실제정산":

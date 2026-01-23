@@ -24,13 +24,13 @@ bootstrap(page_title="Target Cost Structure")
 
 
 def render_target_cost_structure():
-    """목표 비용구조 페이지 렌더링 (HOME v2 공통 프레임 적용)"""
+    """목표 비용구조 페이지 렌더링 (목표 비용 구조 입력)"""
     # 성능 측정 시작
     t0 = time.perf_counter()
     
     # 비용구조 페이지 전용 헤더 (화이트 모드에서도 항상 흰색 텍스트로 표시)
     header_color = "#ffffff"
-    page_title = "수익 구조 설계실"
+    page_title = "목표 비용 구조(입력)"
     st.markdown(f"""
     <div style="margin: 0 0 1.0rem 0;">
         <h2 style="color: {header_color}; font-weight: 700; margin: 0;">
@@ -39,9 +39,7 @@ def render_target_cost_structure():
     </div>
     """, unsafe_allow_html=True)
     
-    # 임시 연결 안내 (수익 구조 설계실과 목표 비용 구조가 동일 페이지로 연결됨)
-    st.info("💡 현재 '수익 구조 설계실'은 목표 비용 구조 페이지로 임시 연결되어 있습니다. 수익 구조 설계실 전용 페이지는 준비 중입니다.")
-    
+    # 기존 기능만 유지 (공통 프레임 제거)
     store_id = get_current_store_id()
     current_year = current_year_kst()
     current_month = current_month_kst()
@@ -50,63 +48,8 @@ def render_target_cost_structure():
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # ZONE A: Coach Board
-    monthly_sales = load_monthly_sales_total(store_id, current_year, current_month) or 0
-    coach_data = get_revenue_structure_design_coach_data(store_id, current_year, current_month)
-    render_coach_board(
-        cards=coach_data["cards"],
-        verdict_text=coach_data["verdict_text"],
-        action_title=coach_data.get("action_title"),
-        action_reason=coach_data.get("action_reason"),
-        action_target_page=coach_data.get("action_target_page"),
-        action_button_label=coach_data.get("action_button_label")
-    )
-    
-    # ZONE B: Structure Map
-    def _render_revenue_structure_map():
-        fixed_costs = get_fixed_costs(store_id, current_year, current_month)
-        variable_ratio = get_variable_cost_ratio(store_id, current_year, current_month)
-        break_even = calculate_break_even_sales(store_id, current_year, current_month)
-        
-        if fixed_costs > 0 and break_even > 0:
-            # 간단한 수익 구조 차트 (고정비/변동비/손익분기점)
-            structure_data = pd.DataFrame({
-                '항목': ['고정비', '손익분기점', '이번 달 매출'],
-                '금액': [fixed_costs, break_even, monthly_sales]
-            })
-            st.bar_chart(structure_data.set_index('항목'))
-        else:
-            st.info("고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.")
-    
-    render_structure_map_container(
-        content_func=_render_revenue_structure_map,
-        empty_message="고정비와 변동비율을 입력하면 구조 맵이 표시됩니다.",
-        empty_action_label="비용 구조 입력하기",
-        empty_action_page="목표 비용구조"
-    )
-    
-    # ZONE C: Owner School
-    school_cards = [
-        {
-            "title": "수익 구조 이해",
-            "point1": "손익분기점은 목표가 아니라 생존선입니다",
-            "point2": "고정비는 매출이 없어도 나가는 돈입니다"
-        },
-        {
-            "title": "비용 구조 관리",
-            "point1": "변동비율이 50% 이상이면 원가 관리가 시급합니다",
-            "point2": "고정비가 월매출의 30% 이상이면 위험합니다"
-        },
-        {
-            "title": "수익성 개선",
-            "point1": "매출이 손익분기점보다 낮으면 구조 조정이 필요합니다",
-            "point2": "변동비율을 낮추면 수익성이 향상됩니다"
-        },
-    ]
-    render_school_cards(school_cards)
-    
-    # ZONE D: Design Tools (기존 기능)
-    render_design_tools_container(lambda: _render_revenue_design_tools(current_year, current_month, store_id))
+    # 기존 입력 기능만 렌더링
+    _render_revenue_design_tools(current_year, current_month, store_id)
 
 
 def _render_revenue_design_tools(year: int, month: int, store_id: str):
