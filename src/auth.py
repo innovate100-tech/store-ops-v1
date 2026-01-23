@@ -434,6 +434,48 @@ def check_login() -> bool:
     return False
 
 
+def signup(email: str, password: str) -> tuple[bool, str]:
+    """
+    회원가입 실행
+    
+    Args:
+        email: 사용자 이메일
+        password: 비밀번호
+    
+    Returns:
+        tuple: (성공 여부, 메시지)
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 회원가입 시도
+        response = client.auth.sign_up({
+            "email": email,
+            "password": password
+        })
+        
+        if response.user:
+            # user_profiles 자동 생성 (onboarding_mode는 NULL로 두어 온보딩 화면으로 유도)
+            ensure_user_profile(response.user.id)
+            
+            logger.info(f"User signed up: {email} (user_id: {response.user.id})")
+            return True, "회원가입이 완료되었습니다."
+        else:
+            return False, "회원가입에 실패했습니다."
+    
+    except Exception as e:
+        logger.error(f"Signup error: {e}")
+        error_msg = str(e)
+        if "User already registered" in error_msg or "already exists" in error_msg.lower():
+            return False, "이미 등록된 이메일입니다."
+        elif "Password should be at least" in error_msg:
+            return False, "비밀번호는 최소 6자 이상이어야 합니다."
+        elif "Invalid email" in error_msg:
+            return False, "올바른 이메일 형식이 아닙니다."
+        else:
+            return False, f"회원가입 오류: {error_msg}"
+
+
 def login(email: str, password: str) -> tuple[bool, str]:
     """
     로그인 실행
