@@ -1280,156 +1280,25 @@ def detect_data_level(store_id: str) -> int:
         return 0
 
 
-def render_day0_home():
-    """DAY 0 전용 홈 화면 (데이터 0단계용)"""
-    try:
-        store_id = get_current_store_id()
-        if not store_id:
-            st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
-            return
-        
-        # ========== [A] HERO 영역 ==========
-        st.markdown("""
-        <div style="padding: 3rem 2rem; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white; margin-bottom: 2rem;">
-            <div style="font-size: 1.2rem; margin-bottom: 1rem; opacity: 0.95;">👋 사장님, 환영합니다.</div>
-            <div style="font-size: 2.5rem; font-weight: 700; margin-bottom: 1rem; line-height: 1.2;">
-                ⭐ 선택받는 가게는, 숫자가 다릅니다.
-            </div>
-            <div style="font-size: 1.5rem; font-weight: 500; margin-bottom: 1.5rem; opacity: 0.95;">
-                이제 장사는, 숫자가 알려줍니다.
-            </div>
-            <div style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1rem; opacity: 0.9;">
-                이 앱은 매출을 올리는 방법을<br>
-                감이 아니라 숫자로 알려주는 사장 전용 화면입니다.
-            </div>
-            <div style="font-size: 1.1rem; font-weight: 600; opacity: 0.95;">
-                오늘부터, 장사는 느낌이 아니라 판단으로 합니다.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # ========== [B] 첫 행동 카드 ==========
-        st.markdown("""
-        <div style="padding: 2.5rem; background: #ffffff; border-radius: 16px; border: 3px solid #667eea; margin-bottom: 2rem; text-align: center;">
-            <h2 style="color: #333; margin-bottom: 1rem; font-size: 1.8rem;">오늘 장사를 마감해보세요</h2>
-            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
-                하루를 정리해야, 이 화면이 사장님 가게 계기판으로 바뀝니다.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 점장마감 버튼
-        if st.button("👉 점장마감 하러 가기", type="primary", use_container_width=True, key="day0_btn_close"):
-            st.session_state.current_page = "점장 마감"
-            st.rerun()
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ========== [C] 처음 오신 사장님을 위한 3단계 ==========
-        st.markdown("### 처음 오신 사장님을 위한 3단계")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #667eea; height: 100%;">
-                <div style="font-size: 1.1rem; font-weight: 700; color: #667eea; margin-bottom: 0.5rem;">STEP 1</div>
-                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
-                    메뉴·재료 3개만 등록하기<br>
-                    <span style="font-size: 0.9rem; color: #666;">(가게 구조 만들기)</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            col1_btn1, col1_btn2 = st.columns(2)
-            with col1_btn1:
-                if st.button("메뉴 등록", use_container_width=True, key="day0_btn_menu"):
-                    st.session_state.current_page = "메뉴 관리"
-                    st.rerun()
-            with col1_btn2:
-                if st.button("재료 등록", use_container_width=True, key="day0_btn_ingredient"):
-                    st.session_state.current_page = "재료 관리"
-                    st.rerun()
-        
-        with col2:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #4facfe; height: 100%;">
-                <div style="font-size: 1.1rem; font-weight: 700; color: #4facfe; margin-bottom: 0.5rem;">STEP 2</div>
-                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
-                    오늘 장사 마감 한 번<br>
-                    <span style="font-size: 0.9rem; color: #666;">(홈 화면이 바뀌기 시작)</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("점장 마감", use_container_width=True, key="day0_btn_close_step2"):
-                st.session_state.current_page = "점장 마감"
-                st.rerun()
-        
-        with col3:
-            st.markdown("""
-            <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 12px; border-left: 4px solid #43e97b; height: 100%;">
-                <div style="font-size: 1.1rem; font-weight: 700; color: #43e97b; margin-bottom: 0.5rem;">STEP 3</div>
-                <div style="font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 1rem;">
-                    이번 달 성적표 만들기<br>
-                    <span style="font-size: 0.9rem; color: #666;">(사장님 가게 돈 구조 완성)</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("실제정산", use_container_width=True, key="day0_btn_settlement"):
-                st.session_state.current_page = "실제정산"
-                st.rerun()
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ========== [D] 불안 제거 블록 ==========
-        st.markdown("""
-        <div style="padding: 2rem; background: #e7f3ff; border-radius: 12px; border-left: 4px solid #4facfe; text-align: center; margin-top: 2rem;">
-            <p style="color: #0c5460; font-size: 1.1rem; line-height: 1.8; margin: 0;">
-                지금은 아무 숫자도 없어도 괜찮습니다.<br>
-                사장님 가게는 오늘부터 만들어집니다.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    except Exception as e:
-        st.error(f"DAY 0 홈 화면을 표시하는 중 오류가 발생했습니다: {str(e)}")
-        # 오류 발생 시 기본 안내 표시
-        st.info("오늘부터 마감을 시작하세요. 점장 마감 페이지로 이동해주세요.")
-        if st.button("점장 마감 하러 가기", type="primary"):
-            st.session_state.current_page = "점장 마감"
-            st.rerun()
-
-
-def render_coach_home():
-    """Coach Mode 홈 (사장 계기판) 페이지 렌더링 - 기존 홈 화면"""
-    store_id = get_current_store_id()
+def _render_home_body(store_id: str, coaching_enabled: bool):
+    """
+    통합 홈 렌더링 (Phase 9).
+    - coaching_enabled True: 코치 모드 (성장 멘트, 미션, 오늘 하나만 등 표시)
+    - False: 빠른 모드 (정보 섹션 동일, coach_only 블록만 숨김)
+    LEVEL/DAY는 UI에 노출하지 않음. 내부 gating/연출용만 사용.
+    """
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
         return
-    
-    # 데이터 단계 판별 (매번 체크하여 최신 상태 유지)
+
     data_level = detect_data_level(store_id)
     st.session_state.home_data_level = data_level
-    
-    # DAY 0일 때도 미션을 포함한 홈 화면 표시 (render_day0_home() 호출 제거)
-    
-    # 기존 홈 화면 렌더링
+    day_level = detect_owner_day_level(store_id)  # 연출용만, UI 노출 금지
+
     render_page_header("사장 계기판", "🏠")
-    
-    # 단계별 안내
-    level_labels = {
-        0: "LEVEL 0: 데이터 거의 없음",
-        1: "LEVEL 1: 매출만 있음",
-        2: "LEVEL 2: 운영 데이터 있음",
-        3: "LEVEL 3: 재무 구조 있음",
-    }
-    
-    st.info(f"📊 현재 데이터 단계: **{level_labels.get(data_level, '알 수 없음')}**")
-    
-    # STEP 5-1: 사장 단계 판별
-    day_level = detect_owner_day_level(store_id)
-    
-    # STEP 5-2: 홈 상단 성장 단계 메시지 (DAY0 아닌 홈 최상단)
-    if day_level:
+
+    # ---------- coach_only: 성장 단계 메시지 (DAY 연출, 레이블 없음) ----------
+    if coaching_enabled and day_level:
         try:
             if day_level == "DAY1":
                 st.info("**지금은 '기록 습관'을 만드는 단계입니다.**\n\n이 앱은 아직 분석보다 '쌓는 중'입니다. 3일만 지나면 가게 흐름이 보이기 시작합니다.")
@@ -1439,21 +1308,33 @@ def render_coach_home():
                 st.success("**이제 이 앱은 사장님의 '매장 코치' 모드입니다.**\n\n오늘부터는 기록보다, '무엇을 고칠지'가 먼저 보입니다.")
         except Exception:
             pass
-    
-    # 자동 코치 모드 확인
-    is_coach_mode = is_auto_coach_mode(store_id)
-    
-    # STEP 4-5: 자동 코치 모드 최초 진입 시 환영 메시지
-    if is_coach_mode:
+
+    # ---------- coach_only: 코치 모드 환영 (최초 1회) ----------
+    if coaching_enabled:
         if 'coach_mode_welcomed' not in st.session_state:
-            st.success("🎉 자동 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
+            st.success("🎉 코치 모드가 활성화되었습니다.\n이제 홈이 매일 가게 상태를 읽고, 중요한 것부터 알려드립니다.")
             st.session_state.coach_mode_welcomed = True
-    
-    # STEP 4-1: 코치 요약 문장 (자동 코치 모드일 때만) - Fast Mode에서는 제외
-    
+
     render_section_divider()
-    
-    # ========== 섹션 1: 상태판 ==========
+
+    # ---------- 공통: 빠른 이동 ----------
+    col_q1, col_q2, col_q3 = st.columns(3)
+    with col_q1:
+        if st.button("📋 점장마감", type="primary", use_container_width=True, key="home_btn_quick_close"):
+            st.session_state.current_page = "점장 마감"
+            st.rerun()
+    with col_q2:
+        if st.button("📊 매출관리", type="primary", use_container_width=True, key="home_btn_quick_sales"):
+            st.session_state.current_page = "매출 관리"
+            st.rerun()
+    with col_q3:
+        if st.button("🧾 실제정산", type="primary", use_container_width=True, key="home_btn_quick_settlement"):
+            st.session_state.current_page = "실제정산"
+            st.rerun()
+
+    render_section_divider()
+
+    # ========== 공통: 상태판 ==========
     with st.container():
         st.markdown("### 📊 상태판")
         
@@ -1532,11 +1413,12 @@ def render_coach_home():
                     st.rerun()
     
     render_section_divider()
-    
-    # ========== 섹션 1.5: 시작 미션 3개 ==========
-    try:
-        with st.container():
-            st.markdown("### 🚀 시작 미션 3개")
+
+    # ========== coach_only: 시작 미션 3개 ==========
+    if coaching_enabled:
+        try:
+            with st.container():
+                st.markdown("### 🚀 시작 미션 3개")
             
             # 미션 진행률 조회
             menu_count = get_menu_count(store_id)
@@ -1701,23 +1583,39 @@ def render_coach_home():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
+            # 오늘 매출 (실제 데이터 조회)
+            today_sales = 0
             try:
-                if data_level == 0:
-                    st.markdown("""
-                    <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem;">오늘 매출</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">-</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown("""
-                    <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">오늘 매출</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;">계산 예정</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                today = now_kst.date()
+                supabase = get_supabase_client()
+                if supabase:
+                    today_close = supabase.table("daily_close")\
+                        .select("total_sales")\
+                        .eq("store_id", store_id)\
+                        .eq("date", today.isoformat())\
+                        .limit(1)\
+                        .execute()
+                    if today_close.data and len(today_close.data) > 0:
+                        total_sales_val = today_close.data[0].get('total_sales')
+                        if total_sales_val is not None:
+                            today_sales = int(float(total_sales_val or 0))
             except Exception:
                 pass
+            
+            if today_sales > 0:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; text-align: center; color: white;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">오늘 매출</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">{today_sales:,}원</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem;">오늘 매출</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">-</div>
+                </div>
+                """, unsafe_allow_html=True)
         
         with col2:
             try:
@@ -1739,50 +1637,83 @@ def render_coach_home():
                 pass
         
         with col3:
-            if data_level < 2:
+            # 객단가 (실제 데이터 계산)
+            avg_customer_spend = None
+            try:
+                supabase = get_supabase_client()
+                if supabase and monthly_sales_card > 0:
+                    start_date = f"{now_kst.year}-{now_kst.month:02d}-01"
+                    if now_kst.month == 12:
+                        end_date = f"{now_kst.year+1}-01-01"
+                    else:
+                        end_date = f"{now_kst.year}-{now_kst.month+1:02d}-01"
+                    
+                    monthly_visitors = supabase.table("daily_close")\
+                        .select("visitors")\
+                        .eq("store_id", store_id)\
+                        .gte("date", start_date)\
+                        .lt("date", end_date)\
+                        .execute()
+                    
+                    if monthly_visitors.data and len(monthly_visitors.data) > 0:
+                        total_visitors = sum(int(row.get('visitors', 0) or 0) for row in monthly_visitors.data)
+                        if total_visitors > 0:
+                            avg_customer_spend = int(monthly_sales_card / total_visitors)
+            except Exception:
+                pass
+            
+            if avg_customer_spend and avg_customer_spend > 0:
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">객단가</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">{avg_customer_spend:,}원</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
                 st.markdown("""
                 <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
                     <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem;">객단가</div>
                     <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">-</div>
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; text-align: center; color: white;">
-                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">객단가</div>
-                    <div style="font-size: 1.5rem; font-weight: 700;">계산 예정</div>
-                </div>
-                """, unsafe_allow_html=True)
         
         with col4:
-            if data_level < 3:
+            # 이번 달 이익 (실제 데이터 조회)
+            monthly_profit = None
+            try:
+                from src.storage_supabase import load_monthly_settlement_snapshot
+                snapshot = load_monthly_settlement_snapshot(store_id, now_kst.year, now_kst.month)
+                if snapshot and snapshot.get('operating_profit') is not None:
+                    monthly_profit = int(snapshot.get('operating_profit', 0))
+            except Exception:
+                pass
+            
+            if monthly_profit is not None:
+                profit_color = "#43e97b" if monthly_profit >= 0 else "#f5576c"
+                st.markdown(f"""
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, {profit_color} 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">이번 달 이익</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">{monthly_profit:,}원</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
                 st.markdown("""
                 <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; text-align: center;">
                     <div style="font-size: 0.9rem; color: #6c757d; margin-bottom: 0.5rem;">이번 달 이익</div>
                     <div style="font-size: 1.5rem; font-weight: 700; color: #6c757d;">-</div>
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 8px; text-align: center; color: white;">
-                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">이번 달 이익</div>
-                    <div style="font-size: 1.5rem; font-weight: 700;">계산 예정</div>
-                </div>
-                """, unsafe_allow_html=True)
     
     render_section_divider()
     
-    # ========== 섹션 3: 오늘 하나만 ==========
-    try:
-        with st.container():
-            # STEP 4-2: 자동 코치 모드일 때 제목 변경
-            if is_coach_mode:
+    # ========== coach_only: 오늘 하나만 추천 ==========
+    if coaching_enabled:
+        try:
+            with st.container():
                 st.markdown("### 🎯 오늘 코치의 한 가지 제안")
-            else:
-                st.markdown("### 🎯 오늘 하나만 (매일 1개 추천)")
-            
-            # STEP 5-3: 추천 액션 결정 (DAY 단계별 톤 튜닝)
-            action = get_today_one_action_with_day_context(store_id, data_level, is_coach_mode, day_level)
+                
+                # 추천 액션 결정 (DAY 단계별 톤 튜닝)
+                action = get_today_one_action_with_day_context(store_id, data_level, True, day_level)
             
             # 추천 카드 표시
             st.markdown(f"""
@@ -1837,9 +1768,9 @@ def render_coach_home():
                     else:
                         for idx, problem in enumerate(problems, 1):
                             problem_text = problem['text']
-                            # STEP 4-3: 행동 연결 문장 추가 (자동 코치 모드일 때만)
+                            # coach_only: 행동 연결 문장 추가
                             guide_text = ""
-                            if is_coach_mode:
+                            if coaching_enabled:
                                 if "매출" in problem_text and ("감소" in problem_text or "떨어" in problem_text):
                                     guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
                                 elif "마감" in problem_text and ("공백" in problem_text or "누락" in problem_text or "없는 날" in problem_text):
@@ -1916,9 +1847,9 @@ def render_coach_home():
                 else:
                     for idx, signal in enumerate(signals, 1):
                         signal_text = signal['text']
-                        # STEP 4-3: 행동 연결 문장 추가 (자동 코치 모드일 때만)
+                        # coach_only: 행동 연결 문장 추가
                         guide_text = ""
-                        if is_coach_mode:
+                        if coaching_enabled:
                             if "매출" in signal_text and ("감소" in signal_text or "떨어" in signal_text):
                                 guide_text = "<div style='color: #856404; font-size: 0.85rem; margin-top: 0.3rem;'>이 문제는 보통 요일/메뉴/객단가 흐름에서 원인이 보입니다.</div>"
                             elif "마감" in signal_text and ("누락" in signal_text or "없습니다" in signal_text):
@@ -1949,36 +1880,27 @@ def render_coach_home():
     
     render_section_divider()
     
-    # ========== 섹션 6: 미니 차트 ==========
+    # ========== 공통: 미니 차트 ==========
     try:
         with st.container():
             st.markdown("### 📈 미니 차트")
             
-            if data_level == 0:
-                st.markdown("""
-                <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
-                    <p style="color: #6c757d; margin: 0;">차트를 표시하려면 데이터가 필요합니다. 마감을 입력해주세요.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            elif data_level == 1:
-                st.markdown("""
-                <div style="padding: 2rem; background: #fff3cd; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
-                    <p style="color: #856404; margin: 0;">더 많은 차트를 보려면 마감을 꾸준히 입력해주세요.</p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div style="padding: 2rem; background: #d1ecf1; border-radius: 8px; text-align: center; border: 2px solid #17a2b8;">
-                    <p style="color: #0c5460; margin: 0;">미니 차트는 다음 단계에서 추가됩니다.</p>
-                </div>
-                """, unsafe_allow_html=True)
+            # 데이터 부족 시: 열리는 조건 안내 + 바로가기
+            st.markdown("""
+            <div style="padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; border: 2px dashed #dee2e6;">
+                <p style="color: #6c757d; margin: 0 0 1rem 0;">차트를 표시하려면 마감 데이터가 필요합니다.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("📋 점장 마감으로 이동", use_container_width=True, key="home_btn_chart_close"):
+                st.session_state.current_page = "점장 마감"
+                st.rerun()
     except Exception:
         pass
     
     render_section_divider()
     
-    # ========== STEP 4-4: 이번 달 가게 상태 한 줄 요약 (자동 코치 모드일 때만) ==========
-    if is_coach_mode:
+    # ========== coach_only: 이번 달 가게 상태 한 줄 요약 ==========
+    if coaching_enabled:
         try:
             KST = ZoneInfo("Asia/Seoul")
             now_kst = datetime.now(KST)
@@ -2168,15 +2090,7 @@ def render_coach_home():
             """, unsafe_allow_html=True)
 
 
-def render_fast_home():
-    """Fast Mode 홈 (30초 요약 화면) - 간소화된 홈 화면"""
-    store_id = get_current_store_id()
-    if not store_id:
-        st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
-        return
-    
-    # 데이터 단계 판별
-    data_level = detect_data_level(store_id)
+def render_home():
     
     # DAY 0일 때도 Fast Mode 홈 화면 표시 (미션 포함)
     # render_day0_home() 대신 간소화된 Fast Home 표시
@@ -2898,7 +2812,7 @@ def render_fast_home():
 
 
 def render_home():
-    """홈 페이지 렌더링 - 모드에 따라 분기"""
+    """홈 페이지 렌더링 - Phase 9 통합 구조"""
     from src.auth import get_onboarding_mode
     import logging
     logger = logging.getLogger(__name__)
@@ -2921,11 +2835,14 @@ def render_home():
     mode = get_onboarding_mode(user_id)
     logger.info(f"render_home: user_id={user_id}, mode={mode}")
     
-    # 모드에 따라 분기
-    if mode == 'fast':
-        logger.info("render_home: Fast Mode - render_fast_home() 호출")
-        render_fast_home()
-    else:
-        # 기본값은 coach 모드
-        logger.info("render_home: Coach Mode (기본값) - render_coach_home() 호출")
-        render_coach_home()
+    # store_id 조회
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다. 로그인 상태를 확인해주세요.")
+        return
+    
+    # coaching_enabled = (mode == 'coach')
+    coaching_enabled = (mode != 'fast')
+    
+    # 통합 홈 렌더링
+    _render_home_body(store_id, coaching_enabled)
