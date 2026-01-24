@@ -129,7 +129,6 @@ with st.sidebar:
             "main": [("입력 허브", "입력 허브")],
             "sub": [
                 ("오늘 입력", "일일 입력(통합)"),
-                ("점장 마감", "점장 마감"),
                 ("매출 보정 입력", "매출 등록"),
                 ("판매량 보정 입력", "판매량 등록"),
                 ("월간 정산 입력", "실제정산"),
@@ -191,9 +190,6 @@ elif page == "분석 허브":
 elif page == "일일 입력(통합)":
     from ui_pages.daily_input_hub import render_daily_input_hub
     render_daily_input_hub()
-elif page == "점장 마감":
-    from ui_pages.manager_close import render_manager_close
-    render_manager_close()
 elif page == "매출 등록":
     from ui_pages.sales_entry import render_sales_entry
     render_sales_entry()
