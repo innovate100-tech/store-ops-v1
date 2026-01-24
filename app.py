@@ -8,6 +8,20 @@ import numpy as np
 import sys
 import os
 
+# 라우팅용 임포트 (파일 최상단 이동)
+from ui_pages.home import render_home
+from ui_pages.strategy.mission_detail import render_mission_detail
+from ui_pages.input.input_hub import render_input_hub
+from ui_pages.analysis.analysis_hub import render_analysis_hub
+from ui_pages.daily_input_hub import render_daily_input_hub
+from ui_pages.manager_close import render_manager_close
+from ui_pages.sales_entry import render_sales_entry
+from ui_pages.analysis.analysis_summary import render_analysis_summary
+from ui_pages.analysis.sales_analysis import render_sales_analysis
+from ui_pages.input.menu_input import render_menu_input_page
+from ui_pages.input.ingredient_input import render_ingredient_input_page
+from ui_pages.input.inventory_input import render_inventory_input_page
+
 # 전역 UI 베이스 주입 (최상단, 모든 렌더링 전에 실행)
 from src.ui.theme_manager import inject_global_ui
 inject_global_ui()
@@ -28,20 +42,6 @@ if not check_login():
 user_id = st.session_state.get('user_id')
 import logging
 logger = logging.getLogger(__name__)
-
-# 라우팅용 임포트 (파일 상단 이동)
-from ui_pages.home import render_home
-from ui_pages.strategy.mission_detail import render_mission_detail
-from ui_pages.input.input_hub import render_input_hub
-from ui_pages.analysis.analysis_hub import render_analysis_hub
-from ui_pages.daily_input_hub import render_daily_input_hub
-from ui_pages.manager_close import render_manager_close
-from ui_pages.sales_entry import render_sales_entry
-from ui_pages.analysis.analysis_summary import render_analysis_summary
-from ui_pages.analysis.sales_analysis import render_sales_analysis
-from ui_pages.input.menu_input import render_menu_input_page
-from ui_pages.input.ingredient_input import render_ingredient_input_page
-from ui_pages.input.inventory_input import render_inventory_input_page
 
 # 온보딩 상태 캐싱 (세션당 1회만 체크)
 _onboarding_check_key = "_onboarding_checked"
