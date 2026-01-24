@@ -10,8 +10,10 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 
 # Phase G: 로깅 설정
 logger = logging.getLogger(__name__)
-from src.ui_helpers import render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
+from src.ui_helpers import safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
+# render_section_divider는 ps_section으로 대체됨
 from src.ui.layouts.input_layouts import render_form_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_money_input
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -244,8 +246,9 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         if "settlement_navigate_to_month" in st.session_state:
             del st.session_state["settlement_navigate_to_month"]
     
-    # 연/월 선택
-    col1, col2, col3 = st.columns([2, 2, 2])
+    # 상단 블록: 연/월/템플릿 선택
+    ps_section("정산 기간 선택", icon="📅")
+    col1, col2 = st.columns([1, 1])
     with col1:
         selected_year = st.number_input(
             "연도",
@@ -262,16 +265,6 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             value=month,
             key=f"settlement_month{widget_key_suffix}"
         )
-    with col3:
-        # 템플릿 리셋 버튼 (Phase B)
-        # readonly는 아래에서 확인하므로, 여기서는 일단 활성화 (rerun 후 적용됨)
-        if st.button("🔄 템플릿 다시 불러오기", key="settlement_reset_templates", 
-                     use_container_width=True):
-            # 강제로 템플릿에서 다시 로드 (값 복원 포함)
-            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
-            # Phase 0 STEP 5: 표준화된 성공 메시지 표시
-            ui_flash_success("템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
-            # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
     
     # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
     if selected_year != year or selected_month != month:
@@ -284,14 +277,12 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         st.session_state["settlement_year"] = selected_year
         st.session_state["settlement_month"] = selected_month
     
-    render_section_divider()
-    
     # Phase F: 월별 정산 상태 확인 (selected_year/month 기준, 여기서 확인)
     month_status = get_month_settlement_status(store_id, selected_year, selected_month)
     readonly = readonly or (month_status == 'final')
     
-    # 총매출 입력 (Phase D: sales 자동 불러오기, Phase F: readonly 지원)
-    st.markdown("### 📊 이번 달 성적표")
+    # 이번달 성적표 블록: KPI 요약
+    ps_section("이번 달 성적표", icon="📊")
     
     # Phase D: sales에서 월매출 자동 계산
     auto_sales_key = f"settlement_auto_sales_{selected_year}_{selected_month}"
@@ -308,57 +299,42 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         # 자동값으로 초기화
         st.session_state[total_sales_key] = auto_sales
     
-    # Phase D: 매출 불러오기 버튼 (Phase F: readonly 지원)
-    sales_col1, sales_col2, sales_col3 = st.columns([3, 1, 1])
-    with sales_col1:
-        total_sales_input = st.number_input(
-            "총매출 (원)",
-            min_value=0,
-            value=_get_total_sales(selected_year, selected_month),
-            step=100000,
-            format="%d",
-            disabled=readonly,  # Phase F: readonly일 때 비활성화
-            key=f"settlement_total_sales_input_{selected_year}_{selected_month}"
-        )
-        if not readonly:
-            _set_total_sales(selected_year, selected_month, total_sales_input)
-        
-        # Phase D: 자동값 표시
-        if auto_sales > 0:
-            st.caption(f"💡 sales 월합계(자동): {auto_sales:,.0f}원")
-    with sales_col2:
-        # Phase D: 매출 불러오기 버튼 (Phase F: readonly일 때 비활성화)
-        # Phase G: 캐시 무효화 후 즉시 재조회
-        if st.button("🔄 매출 불러오기", key=f"settlement_load_sales_{selected_year}_{selected_month}", 
-                     disabled=readonly, use_container_width=True):
-            try:
-                # Phase G: 캐시 무효화
-                load_monthly_sales_total.clear()
-                # Phase G: 최신값 재조회 (캐시 우회)
-                auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
-                # Phase G: session_state 갱신
-                st.session_state[auto_sales_key] = auto_sales
-                st.session_state[total_sales_key] = auto_sales
-                # Phase 0 STEP 5: 표준화된 성공 메시지 표시
-                ui_flash_success(f"sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
-                # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-            except Exception as e:
-                # Phase G: 예외 발생 시 기존 값 유지, 에러 메시지 표시
-                # Phase 0 STEP 5: 표준화된 에러 메시지 표시
-                ui_flash_error(f"매출 불러오기 실패: {str(e)}")
-                logger.error(f"Failed to reload monthly sales: {e}", exc_info=True)
-    with sales_col3:
-        # Phase D: 자동값으로 되돌리기 버튼 (Phase F: readonly일 때 비활성화)
-        if st.button("↩️ 자동값으로", key=f"settlement_reset_sales_{selected_year}_{selected_month}", 
-                     disabled=readonly, use_container_width=True):
-            if auto_sales_key in st.session_state:
-                st.session_state[total_sales_key] = st.session_state[auto_sales_key]
-                # Phase 0 STEP 5: 표준화된 성공 메시지 표시
-                ui_flash_success(f"자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
-                # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-            else:
-                # Phase 0 STEP 5: 표준화된 경고 메시지 표시
-                ui_flash_warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
+    # 총매출 입력 (FormKit 사용)
+    total_sales_input = ps_money_input(
+        label="총매출 (원)",
+        key=f"settlement_total_sales_input_{selected_year}_{selected_month}",
+        value=_get_total_sales(selected_year, selected_month),
+        min_value=0,
+        step=100000,
+        disabled=readonly,
+        help_text=f"💡 sales 월합계(자동): {auto_sales:,.0f}원" if auto_sales > 0 else None
+    )
+    if not readonly:
+        _set_total_sales(selected_year, selected_month, total_sales_input)
+    
+    # 매출 불러오기/자동값으로 버튼은 Action Bar로 이동 (Secondary)
+    # session_state에 액션 함수 저장
+    def handle_load_sales():
+        try:
+            load_monthly_sales_total.clear()
+            auto_sales = load_monthly_sales_total(store_id, selected_year, selected_month)
+            st.session_state[auto_sales_key] = auto_sales
+            st.session_state[total_sales_key] = auto_sales
+            ui_flash_success(f"sales 월합계로 총매출을 업데이트했습니다: {auto_sales:,.0f}원")
+        except Exception as e:
+            ui_flash_error(f"매출 불러오기 실패: {str(e)}")
+            logger.error(f"Failed to reload monthly sales: {e}", exc_info=True)
+    
+    def handle_reset_sales():
+        if auto_sales_key in st.session_state:
+            st.session_state[total_sales_key] = st.session_state[auto_sales_key]
+            ui_flash_success(f"자동값으로 되돌렸습니다: {st.session_state[auto_sales_key]:,.0f}원")
+        else:
+            ui_flash_warning("자동값이 없습니다. '매출 불러오기'를 먼저 클릭하세요.")
+    
+    if not readonly:
+        st.session_state["_settlement_load_sales"] = handle_load_sales
+        st.session_state["_settlement_reset_sales"] = handle_reset_sales
     
     # 미마감 날짜 개수 확인
     unofficial_days = count_unofficial_days_in_month(store_id, selected_year, selected_month)
@@ -440,127 +416,146 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             </div>
             """, unsafe_allow_html=True)
     with col3:
-        # Phase F: 확정/해제 버튼
-        if month_status == 'draft':
-            if st.button("✅ 이번달 확정", key="settlement_finalize", type="primary", use_container_width=True):
-                try:
-                    # Phase F: 확정 전에 현재 입력값을 먼저 저장
-                    expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
-                    saved_count = 0
+        # 상태 표시만 (버튼은 Action Bar로 이동)
+        pass
+    
+    # 저장/확정 버튼은 Action Bar로 이동 (session_state에 액션 함수 저장)
+    def handle_load_saved_values():
+        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+        ui_flash_success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
+    
+    def handle_save_month():
+        try:
+            expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
+            saved_count = 0
+            
+            for category, items in expense_items.items():
+                for item in items:
+                    template_id = item.get('template_id')
+                    if not template_id:
+                        continue
                     
-                    # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
-                    for category, items in expense_items.items():
-                        for item in items:
-                            template_id = item.get('template_id')
-                            if not template_id:
-                                continue
-                            
-                            input_type = item.get('input_type', 'amount')  # 기본값: amount
-                            
-                            if input_type == 'amount':
-                                # 금액 입력: amount 저장, percent는 None
-                                amount = item.get('amount', 0)
-                                upsert_actual_settlement_item(
-                                    store_id, selected_year, selected_month,
-                                    template_id, amount=float(int(amount)), percent=None
-                                )
-                                saved_count += 1
-                            elif input_type == 'rate':
-                                # 비율 입력: percent 저장, amount는 None
-                                rate = item.get('rate', 0)
-                                upsert_actual_settlement_item(
-                                    store_id, selected_year, selected_month,
-                                    template_id, amount=None, percent=float(rate)
-                                )
-                                saved_count += 1
+                    input_type = item.get('input_type', 'amount')
                     
-                    # 저장 완료 후 확정 처리
-                    if saved_count > 0:
-                        affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
-                        if affected >= 0:
-                            # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
-                            get_month_settlement_status.clear()
-                            # 확정 후 DB 값 복원 (force_restore)
-                            _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
-                            st.success(f"✅ 이번달 정산이 확정되었습니다. ({saved_count}개 항목 저장됨, 읽기 전용)")
-                            # Phase 0 STEP 4: 확정 후 상태 변경은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (readonly 상태 변경)
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ 확정 처리 중 오류가 발생했습니다.")
+                    if input_type == 'amount':
+                        amount = item.get('amount', 0)
+                        upsert_actual_settlement_item(
+                            store_id, selected_year, selected_month,
+                            template_id, amount=float(int(amount)), percent=None, status='draft'
+                        )
+                        saved_count += 1
                     else:
-                        st.warning("⚠️ 저장할 항목이 없습니다. 먼저 항목을 입력하세요.")
-                except Exception as e:
-                    st.error(f"❌ 확정 실패: {str(e)}")
-                    st.exception(e)
+                        percent = item.get('rate', 0.0)
+                        upsert_actual_settlement_item(
+                            store_id, selected_year, selected_month,
+                            template_id, amount=None, percent=percent, status='draft'
+                        )
+                        saved_count += 1
+            
+            if saved_count > 0:
+                ui_flash_success(f"{saved_count}개 항목이 저장되었습니다.")
+            else:
+                ui_flash_warning("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
+        except Exception as e:
+            ui_flash_error(f"❌ 저장 실패: {str(e)}")
+    
+    def handle_finalize():
+        try:
+            expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
+            saved_count = 0
+            
+            for category, items in expense_items.items():
+                for item in items:
+                    template_id = item.get('template_id')
+                    if not template_id:
+                        continue
+                    
+                    input_type = item.get('input_type', 'amount')
+                    
+                    if input_type == 'amount':
+                        amount = item.get('amount', 0)
+                        upsert_actual_settlement_item(
+                            store_id, selected_year, selected_month,
+                            template_id, amount=float(int(amount)), percent=None
+                        )
+                        saved_count += 1
+                    elif input_type == 'rate':
+                        rate = item.get('rate', 0)
+                        upsert_actual_settlement_item(
+                            store_id, selected_year, selected_month,
+                            template_id, amount=None, percent=float(rate)
+                        )
+                        saved_count += 1
+            
+            if saved_count > 0:
+                affected = set_month_settlement_status(store_id, selected_year, selected_month, 'final')
+                if affected >= 0:
+                    get_month_settlement_status.clear()
+                    _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
+                    ui_flash_success(f"✅ 이번달 정산이 확정되었습니다. ({saved_count}개 항목 저장됨, 읽기 전용)")
+                    st.rerun()
+                else:
+                    ui_flash_warning("⚠️ 확정 처리 중 오류가 발생했습니다.")
+            else:
+                ui_flash_warning("⚠️ 저장할 항목이 없습니다. 먼저 항목을 입력하세요.")
+        except Exception as e:
+            ui_flash_error(f"❌ 확정 실패: {str(e)}")
+    
+    def handle_unfinalize():
+        try:
+            affected = set_month_settlement_status(store_id, selected_year, selected_month, 'draft')
+            get_month_settlement_status.clear()
+            ui_flash_warning("⚠️ 확정이 해제되었습니다. 다시 수정할 수 있습니다.")
+            st.rerun()
+        except Exception as e:
+            ui_flash_error(f"❌ 확정 해제 실패: {str(e)}")
+    
+    def handle_reset_templates():
+        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True)
+        ui_flash_success("템플릿을 다시 불러왔습니다. (저장된 값도 복원됩니다)")
+    
+    # Action Bar용 액션 저장
+    if not readonly:
+        if month_status == 'draft':
+            st.session_state["_settlement_primary_action"] = handle_save_month
+            st.session_state["_settlement_primary_label"] = "💾 이번달 저장(draft)"
         else:
-            # Phase F: 확정 해제 버튼 (manager 이상만)
             user_role = st.session_state.get('user_role', 'manager')
             if user_role in ['manager', 'admin']:
-                if st.button("🔓 확정 해제", key="settlement_unfinalize", use_container_width=True):
-                    try:
-                        affected = set_month_settlement_status(store_id, selected_year, selected_month, 'draft')
-                        # Phase F: 캐시 강제 클리어 후 즉시 상태 재확인
-                        get_month_settlement_status.clear()
-                        st.warning("⚠️ 확정이 해제되었습니다. 다시 수정할 수 있습니다.")
-                        # Phase 0 STEP 4: 확정 해제 후 상태 변경은 페이지 전체 재렌더링이 필요하므로 rerun 유지 (readonly 상태 변경)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ 확정 해제 실패: {str(e)}")
+                st.session_state["_settlement_primary_action"] = handle_unfinalize
+                st.session_state["_settlement_primary_label"] = "🔓 확정 해제"
     
-    # Phase C: 저장값 불러오기 버튼 (Phase F: readonly일 때 비활성화)
-    st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
-    if st.button("📥 저장값 불러오기", key="settlement_load_saved_values", disabled=readonly, use_container_width=True):
-        # 강제로 저장된 값 복원 (덮어쓰기)
-        _initialize_expense_items(store_id, selected_year, selected_month, force=True, restore_values=True, force_restore=True)
-        st.success("✅ 저장된 값을 불러왔습니다. (현재 입력값이 덮어쓰기됩니다)")
-        # Phase 0 STEP 4: session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-    
-    # Phase C: 이번달 저장 버튼 (Phase F: readonly일 때 숨김)
+    # Secondary 액션들
+    secondary_actions = []
     if not readonly:
-        st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
-        save_col1, save_col2 = st.columns([1, 4])
-        with save_col1:
-            if st.button("💾 이번달 저장(draft)", key="settlement_save_month", type="primary", use_container_width=True):
-                try:
-                    expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
-                    saved_count = 0
-                    
-                    # 모든 항목 순회하며 저장 (Phase C.5: input_type 기준)
-                    for category, items in expense_items.items():
-                        for item in items:
-                            template_id = item.get('template_id')
-                            if not template_id:
-                                continue
-                            
-                            input_type = item.get('input_type', 'amount')  # 기본값: amount
-                            
-                            if input_type == 'amount':
-                                # 금액 입력: amount 저장, percent는 None (또는 0)
-                                amount = item.get('amount', 0)
-                                upsert_actual_settlement_item(
-                                    store_id, selected_year, selected_month,
-                                    template_id, amount=float(int(amount)), percent=None, status='draft'
-                                )
-                                saved_count += 1
-                            else:
-                                # 비율 입력: percent 저장, amount는 None (또는 0)
-                                percent = item.get('rate', 0.0)
-                                upsert_actual_settlement_item(
-                                    store_id, selected_year, selected_month,
-                                    template_id, amount=None, percent=percent, status='draft'
-                                )
-                                saved_count += 1
-                    
-                    if saved_count > 0:
-                        # Phase 0 STEP 5: 표준화된 성공 메시지 표시
-                        ui_flash_success(f"{saved_count}개 항목이 저장되었습니다.")
-                    else:
-                        st.info("💡 저장할 항목이 없습니다. (템플릿 항목이 없습니다)")
-                    # Phase 0 STEP 4: 저장 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-                except Exception as e:
-                    st.error(f"❌ 저장 실패: {str(e)}")
+        secondary_actions.append({
+            "label": "🔄 템플릿 다시 불러오기",
+            "key": "settlement_reset_templates",
+            "action": handle_reset_templates
+        })
+        secondary_actions.append({
+            "label": "🔄 매출 불러오기",
+            "key": "settlement_load_sales",
+            "action": handle_load_sales
+        })
+        secondary_actions.append({
+            "label": "↩️ 자동값으로",
+            "key": "settlement_reset_sales",
+            "action": handle_reset_sales
+        })
+        secondary_actions.append({
+            "label": "📥 저장값 불러오기",
+            "key": "settlement_load_saved_values",
+            "action": handle_load_saved_values
+        })
+        if month_status == 'draft':
+            secondary_actions.append({
+                "label": "✅ 이번달 확정",
+                "key": "settlement_finalize",
+                "action": handle_finalize
+            })
     
-    render_section_divider()
+    st.session_state["_settlement_secondary_actions"] = secondary_actions
     
     # Phase D: sales 월합계 진단 (DEV 모드에서만)
     try:
@@ -701,16 +696,15 @@ def _render_expense_category(
             with col3:
                 # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (Phase F: readonly일 때 비활성화)
                 if selected_input_type == 'amount':
-                    # 금액 입력
+                    # 금액 입력 (FormKit 사용)
                     amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
-                    amount = st.number_input(
-                        "금액 (원)",
-                        min_value=0,
+                    amount = ps_money_input(
+                        label="금액 (원)",
+                        key=amount_key,
                         value=int(item.get('amount', 0)),
+                        min_value=0,
                         step=1000,
-                        format="%d",
-                        disabled=readonly,  # Phase F: readonly일 때 비활성화
-                        key=amount_key
+                        disabled=readonly
                     )
                     # 금액 업데이트 (readonly일 때는 업데이트 안 함)
                     if not readonly and amount != item.get('amount', 0):
@@ -718,7 +712,7 @@ def _render_expense_category(
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['amount'] = int(amount)
                 else:
-                    # 비율 입력
+                    # 비율 입력 (FormKit 사용)
                     rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
                     rate = st.number_input(
                         "비율 (%)",
@@ -727,8 +721,9 @@ def _render_expense_category(
                         value=float(item.get('rate', 0.0)),
                         step=0.1,
                         format="%.2f",
-                        disabled=readonly,  # Phase F: readonly일 때 비활성화
-                        key=rate_key
+                        disabled=readonly,
+                        key=rate_key,
+                        label_visibility="visible"
                     )
                     calculated = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
                     st.caption(f"→ {calculated:,.0f}원")
@@ -813,15 +808,14 @@ def _render_expense_category(
             )
             new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
         with add_col3:
-            # Phase C.5: 선택된 input_type에 따라 입력칸 표시
+            # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (FormKit 사용)
             if new_input_type == 'amount':
-                new_value = st.number_input(
-                    "금액 (원)",
-                    min_value=0,
+                new_value = ps_money_input(
+                    label="금액 (원)",
+                    key=f"settlement_new_amount_{category}_{year}_{month}",
                     value=0,
-                    step=1000,
-                    format="%d",
-                    key=f"settlement_new_amount_{category}_{year}_{month}"
+                    min_value=0,
+                    step=1000
                 )
             else:
                 new_value = st.number_input(
@@ -831,7 +825,8 @@ def _render_expense_category(
                     value=0.0,
                     step=0.1,
                     format="%.2f",
-                    key=f"settlement_new_rate_{category}_{year}_{month}"
+                    key=f"settlement_new_rate_{category}_{year}_{month}",
+                    label_visibility="visible"
                 )
         with add_col4:
             if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
@@ -865,7 +860,7 @@ def _render_expense_category(
 
 def _render_expense_section(store_id: str, year: int, month: int, total_sales: int, readonly: bool = False):
     """비용 입력 영역 (Phase F: readonly 지원)"""
-    st.markdown("### 💸 비용 입력")
+    ps_section("비용 입력", icon="💸")
     
     expense_items = _initialize_expense_items(store_id, year, month)
     
@@ -1101,8 +1096,7 @@ def _render_scorecard(scorecard: dict, has_targets: bool):
     """
     Phase E: 성적표 UI 렌더링
     """
-    render_section_divider()
-    st.markdown("### 📊 이번 달 성적표 (목표 대비)")
+    ps_section("이번 달 성적표 (목표 대비)", icon="📊")
     
     if not has_targets:
         st.info("💡 이번 달 목표가 설정되지 않았습니다. **목표비용구조** 및 **목표매출구조** 페이지에서 먼저 설정하세요.")
@@ -1349,8 +1343,7 @@ def _load_settlement_history(store_id: str, limit: int = 6) -> list:
 
 def _render_settlement_history(store_id: str):
     """Phase H.1: 월별 히스토리 섹션 렌더링 (UX 개선)"""
-    render_section_divider()
-    st.markdown("### 📊 월별 성적 히스토리")
+    ps_section("월별 성적 히스토리", icon="📊")
     
     # Phase H.1: 히스토리 limit 상태 유지
     if 'settlement_history_limit' not in st.session_state:
@@ -1486,6 +1479,9 @@ def _render_settlement_history(store_id: str):
 
 def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드, FORM형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
         st.caption("✅ Settlement Phase H ACTIVE")
@@ -1521,47 +1517,8 @@ def render_settlement_actual():
                 store_id, initial_year, initial_month, readonly=False
             )
         
-            # PHASE 7-4: PDF 성적표 다운로드 버튼
-            try:
-                from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
-                
-                col1, col2 = st.columns([3, 1])
-                with col2:
-                    if st.button("📄 이번 달 성적표 PDF 받기", key="pdf_scorecard_download", use_container_width=True, type="primary"):
-                        # 생성 가능 여부 확인
-                        can_generate, reason = can_generate_scorecard(store_id, year, month)
-                        if not can_generate:
-                            st.warning(reason)
-                        else:
-                            # PDF 생성
-                            with st.spinner("PDF 생성 중..."):
-                                try:
-                                    pdf_bytes = build_scorecard_pdf_bytes(store_id, year, month)
-                                    filename = f"성적표_{year}년{month:02d}월.pdf"
-                                    st.download_button(
-                                        label="📥 PDF 다운로드",
-                                        data=pdf_bytes,
-                                        file_name=filename,
-                                        mime="application/pdf",
-                                        key="pdf_download_button",
-                                        use_container_width=True
-                                    )
-                                except Exception as e:
-                                    logger.error(f"PDF generation error: {e}")
-                                    st.error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
-            except ImportError as e:
-                # PDF 모듈이 없으면 버튼 숨김
-                pass
-            except Exception as e:
-                logger.error(f"PDF button error: {e}")
-                # 에러가 나도 페이지는 계속 렌더링
-            
-            render_section_divider()
-            
             # 구조 리포트 섹션 (STEP 10-2) - 비용 입력 전에 배치
             _render_structure_report_section(store_id, year, month)
-            
-            render_section_divider()
             
             # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
             _render_expense_section(store_id, year, month, total_sales, readonly)
@@ -1618,6 +1575,63 @@ def render_settlement_actual():
             }
         ]
         
+        # Action Bar 설정
+        action_primary = None
+        action_secondary = None
+        
+        # Primary 액션 설정
+        if "_settlement_primary_action" in st.session_state:
+            action_primary = {
+                "label": st.session_state.get("_settlement_primary_label", "💾 저장"),
+                "key": "settlement_primary_action",
+                "action": st.session_state["_settlement_primary_action"]
+            }
+            del st.session_state["_settlement_primary_action"]
+            if "_settlement_primary_label" in st.session_state:
+                del st.session_state["_settlement_primary_label"]
+        
+        # Secondary 액션 설정
+        if "_settlement_secondary_actions" in st.session_state:
+            action_secondary = st.session_state["_settlement_secondary_actions"]
+            del st.session_state["_settlement_secondary_actions"]
+        
+        # PDF 다운로드 버튼 추가 (Secondary에 추가)
+        try:
+            from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
+            
+            def handle_pdf_download():
+                can_generate, reason = can_generate_scorecard(store_id, temp_year, temp_month)
+                if not can_generate:
+                    ui_flash_warning(reason)
+                else:
+                    with st.spinner("PDF 생성 중..."):
+                        try:
+                            pdf_bytes = build_scorecard_pdf_bytes(store_id, temp_year, temp_month)
+                            filename = f"성적표_{temp_year}년{temp_month:02d}월.pdf"
+                            st.download_button(
+                                label="📥 PDF 다운로드",
+                                data=pdf_bytes,
+                                file_name=filename,
+                                mime="application/pdf",
+                                key="pdf_download_button",
+                                use_container_width=True
+                            )
+                        except Exception as e:
+                            logger.error(f"PDF generation error: {e}")
+                            ui_flash_error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
+            
+            if action_secondary is None:
+                action_secondary = []
+            action_secondary.append({
+                "label": "📄 PDF 받기",
+                "key": "pdf_scorecard_download",
+                "action": handle_pdf_download
+            })
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.error(f"PDF button error: {e}")
+        
         # FORM형 레이아웃 적용
         render_form_layout(
             title="월간 정산 입력",
@@ -1629,8 +1643,8 @@ def render_settlement_actual():
             guide_next_action=None,  # 기본값 사용
             summary_items=summary_items,
             mini_progress_items=None,  # Mini Progress Panel 사용 안 함
-            action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
-            action_secondary=None,
+            action_primary=action_primary,
+            action_secondary=action_secondary,
             main_content=render_main_content
         )
         
