@@ -122,10 +122,9 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
     
-    /* 기본 텍스트에 Noto Sans KR 적용 */
-    * { font-family: 'Noto Sans KR', sans-serif !important; }
+    /* 본질적 해결: Material Icons를 최우선으로, 텍스트 요소에만 Noto Sans KR 적용 */
     
-    /* Material Icons 강제 적용 - 모든 가능한 선택자 */
+    /* 1단계: Material Icons 폰트 강제 적용 (최우선, !important 사용) */
     [class*="material-icons"],
     [class*="MaterialIcons"],
     [class*="material"],
@@ -134,27 +133,12 @@ st.markdown("""
     [data-testid*="icon"],
     .material-icons,
     .MaterialIcons,
-    /* Streamlit expander 화살표 */
-    [data-testid="stExpander"] > div > div,
     [data-testid="stExpander"] button,
-    [data-testid="stExpander"] [class*="icon"],
-    [data-testid="stExpander"] [data-testid*="Icon"],
-    [data-testid="stExpander"] [data-testid*="icon"],
-    /* Streamlit 헤더 버튼 */
+    [data-testid="stExpander"] > div > div > button,
     [data-testid="stHeader"] button,
-    [data-testid="stHeader"] [class*="icon"],
-    [data-testid="stHeader"] [data-testid*="Icon"],
-    /* 모든 버튼 내 아이콘 */
     button [class*="material"],
-    button [data-testid*="Icon"],
-    button [data-testid*="icon"],
-    /* span, i 태그 아이콘 */
     span[class*="material"],
-    span[class*="Material"],
-    i[class*="material"],
-    i[class*="Material"],
-    span[class*="material-icons"],
-    span[class*="MaterialIcons"] {
+    i[class*="material"] {
         font-family: 'Material Icons' !important;
         font-weight: normal !important;
         font-style: normal !important;
@@ -168,6 +152,24 @@ st.markdown("""
         direction: ltr !important;
         -webkit-font-feature-settings: 'liga' !important;
         -webkit-font-smoothing: antialiased !important;
+    }
+    
+    /* 2단계: 텍스트 요소에만 Noto Sans KR 적용 (Material Icons보다 낮은 우선순위) */
+    body { font-family: 'Noto Sans KR', sans-serif !important; }
+    p, h1, h2, h3, h4, h5, h6, label, input, textarea, select, a, li, td, th,
+    .stMarkdown, .stText, .stCaption {
+        font-family: 'Noto Sans KR', sans-serif !important;
+    }
+    
+    /* div와 span은 조건부 적용 (아이콘이 아닌 경우만) */
+    div:not([class*="material"]):not([class*="Material"]):not([data-testid*="Icon"]):not([data-testid*="icon"]),
+    span:not([class*="material"]):not([class*="Material"]):not([data-testid*="Icon"]):not([data-testid*="icon"]) {
+        font-family: 'Noto Sans KR', sans-serif !important;
+    }
+    
+    /* button도 조건부 적용 */
+    button:not([class*="material"]):not([data-testid*="Icon"]):not([data-testid*="icon"]) {
+        font-family: 'Noto Sans KR', sans-serif !important;
     }
     
     /* 상단 여백 강제 축소 */
@@ -285,11 +287,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Material Icons 폰트 강제 적용 JavaScript - 더 강력한 버전
+# Material Icons 폰트 강제 적용 JavaScript - 본질적 해결책
 st.markdown("""
 <script>
 (function() {
-    // Material Icons 폰트 로드 확인 및 강제 로드
+    // Material Icons 폰트 강제 로드
     function ensureMaterialIconsLoaded() {
         const linkId = 'material-icons-font-link';
         if (!document.getElementById(linkId)) {
@@ -297,101 +299,102 @@ st.markdown("""
             link.id = linkId;
             link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
             link.rel = 'stylesheet';
-            document.head.appendChild(link);
+            document.head.insertBefore(link, document.head.firstChild);
         }
     }
     
-    function applyMaterialIcons() {
+    // 본질적 해결: 모든 텍스트 노드를 확인하고 아이콘 텍스트를 찾아서 변환
+    function fixMaterialIcons() {
         ensureMaterialIconsLoaded();
         
-        // 아이콘 텍스트 매핑
-        const iconMap = {
-            'keyboard arrow right': 'keyboard_arrow_right',
-            'keyboard_arrow_right': 'keyboard_arrow_right',
-            'key': 'menu',
-            'menu': 'menu',
-            'arrow': 'keyboard_arrow_right'
-        };
+        // 아이콘 텍스트를 Material Icons 코드로 변환하는 함수
+        function convertIconText(element) {
+            const text = element.textContent.trim();
+            let iconCode = null;
+            
+            if (text === 'keyboard arrow right' || text === 'keyboard_arrow_right') {
+                iconCode = 'keyboard_arrow_right';
+            } else if (text === 'key') {
+                iconCode = 'menu';
+            } else if (text.includes('arrow') && text.length < 30) {
+                iconCode = 'keyboard_arrow_right';
+            }
+            
+            if (iconCode) {
+                // Material Icons 폰트 강제 적용
+                element.style.cssText = `
+                    font-family: 'Material Icons' !important;
+                    font-weight: normal !important;
+                    font-style: normal !important;
+                    font-size: 24px !important;
+                    line-height: 1 !important;
+                    letter-spacing: normal !important;
+                    text-transform: none !important;
+                    display: inline-block !important;
+                    white-space: nowrap !important;
+                    word-wrap: normal !important;
+                    direction: ltr !important;
+                    -webkit-font-feature-settings: 'liga' !important;
+                    -webkit-font-smoothing: antialiased !important;
+                `;
+                element.textContent = iconCode;
+                return true;
+            }
+            return false;
+        }
         
-        // 모든 요소를 순회하면서 아이콘 텍스트 찾기
-        function walkNodes(node) {
+        // 모든 텍스트 노드를 찾아서 변환
+        function walkTree(node) {
+            if (!node) return;
+            
+            // 텍스트 노드인 경우
             if (node.nodeType === Node.TEXT_NODE) {
                 const text = node.textContent.trim();
                 const parent = node.parentElement;
                 
-                if (parent && (text === 'key' || text === 'keyboard arrow right' || text.includes('arrow'))) {
-                    // Material Icons 폰트 적용
-                    parent.style.fontFamily = "'Material Icons' !important";
-                    parent.style.fontWeight = 'normal';
-                    parent.style.fontStyle = 'normal';
-                    parent.style.fontSize = '24px';
-                    parent.style.lineHeight = '1';
-                    parent.style.letterSpacing = 'normal';
-                    parent.style.textTransform = 'none';
-                    parent.style.display = 'inline-block';
-                    parent.style.whiteSpace = 'nowrap';
-                    parent.style.webkitFontFeatureSettings = "'liga'";
-                    parent.style.webkitFontSmoothing = 'antialiased';
-                    
-                    // 텍스트를 아이콘 코드로 변환
-                    if (iconMap[text.toLowerCase()]) {
-                        parent.textContent = iconMap[text.toLowerCase()];
-                    } else if (text === 'keyboard arrow right') {
-                        parent.textContent = 'keyboard_arrow_right';
-                    } else if (text === 'key') {
-                        parent.textContent = 'menu';
+                if (parent && (text === 'key' || text === 'keyboard arrow right' || 
+                    (text.includes('arrow') && text.length < 30))) {
+                    convertIconText(parent);
+                }
+            }
+            // 요소 노드인 경우
+            else if (node.nodeType === Node.ELEMENT_NODE) {
+                // 직접 텍스트가 있는 경우
+                const directText = node.textContent.trim();
+                if (directText && (directText === 'key' || directText === 'keyboard arrow right' || 
+                    (directText.includes('arrow') && directText.length < 30))) {
+                    // 자식이 텍스트 노드만 있는 경우
+                    if (node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE) {
+                        convertIconText(node);
                     }
                 }
-            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                // 클래스나 data-testid에 icon 관련이 있으면 폰트 적용
-                const classList = node.className || '';
-                const testId = node.getAttribute('data-testid') || '';
                 
-                if (classList.includes('material') || classList.includes('Material') || 
-                    classList.includes('icon') || testId.includes('Icon') || testId.includes('icon')) {
-                    node.style.fontFamily = "'Material Icons' !important";
-                    node.style.fontWeight = 'normal';
-                    node.style.fontStyle = 'normal';
-                    node.style.fontSize = '24px';
-                    node.style.lineHeight = '1';
-                }
-                
-                // 자식 노드도 확인
-                for (let child of node.childNodes) {
-                    walkNodes(child);
+                // 모든 자식 노드 순회
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    walkTree(node.childNodes[i]);
                 }
             }
         }
         
         // 전체 문서 순회
-        walkNodes(document.body);
+        walkTree(document.body);
         
-        // 특정 선택자로도 찾기
-        const selectors = [
+        // Streamlit 특정 요소들도 직접 확인
+        const streamlitSelectors = [
             '[data-testid="stExpander"] button',
-            '[data-testid="stExpander"] > div',
+            '[data-testid="stExpander"] > div > div',
             '[data-testid="stHeader"] button',
-            'button[aria-label*="menu"]',
-            'button[aria-label*="Menu"]',
-            'button[aria-label*="sidebar"]'
+            'header button',
+            'button[kind="header"]'
         ];
         
-        selectors.forEach(selector => {
+        streamlitSelectors.forEach(selector => {
             try {
                 document.querySelectorAll(selector).forEach(el => {
                     const text = el.textContent.trim();
-                    if (text === 'key' || text === 'keyboard arrow right' || text.includes('arrow')) {
-                        el.style.fontFamily = "'Material Icons' !important";
-                        el.style.fontWeight = 'normal';
-                        el.style.fontStyle = 'normal';
-                        el.style.fontSize = '24px';
-                        el.style.lineHeight = '1';
-                        
-                        if (text === 'keyboard arrow right') {
-                            el.textContent = 'keyboard_arrow_right';
-                        } else if (text === 'key') {
-                            el.textContent = 'menu';
-                        }
+                    if (text === 'key' || text === 'keyboard arrow right' || 
+                        (text.includes('arrow') && text.length < 30)) {
+                        convertIconText(el);
                     }
                 });
             } catch(e) {}
@@ -400,35 +403,43 @@ st.markdown("""
     
     // 즉시 실행
     ensureMaterialIconsLoaded();
-    applyMaterialIcons();
+    fixMaterialIcons();
     
-    // 페이지 로드 시 실행
+    // 여러 시점에서 실행
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyMaterialIcons);
+        document.addEventListener('DOMContentLoaded', fixMaterialIcons);
     } else {
-        applyMaterialIcons();
+        fixMaterialIcons();
     }
     
-    // window.load 이벤트
     window.addEventListener('load', function() {
-        setTimeout(applyMaterialIcons, 500);
+        setTimeout(fixMaterialIcons, 100);
+        setTimeout(fixMaterialIcons, 500);
+        setTimeout(fixMaterialIcons, 1000);
     });
     
-    // DOM 변경 감지 - 더 자주 체크
-    const observer = new MutationObserver(function() {
-        setTimeout(applyMaterialIcons, 50);
+    // DOM 변경 감지 - 매우 빠르게 반응
+    const observer = new MutationObserver(function(mutations) {
+        let shouldFix = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                shouldFix = true;
+            }
+        });
+        if (shouldFix) {
+            setTimeout(fixMaterialIcons, 10);
+        }
     });
     
     observer.observe(document.body, {
         childList: true,
         subtree: true,
         characterData: true,
-        attributes: true,
-        attributeFilter: ['class', 'data-testid', 'style']
+        attributes: false
     });
     
-    // 주기적으로도 확인
-    setInterval(applyMaterialIcons, 1000);
+    // 주기적으로도 확인 (더 자주)
+    setInterval(fixMaterialIcons, 500);
 })();
 </script>
 """, unsafe_allow_html=True)
