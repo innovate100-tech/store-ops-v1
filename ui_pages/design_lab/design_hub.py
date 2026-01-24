@@ -87,10 +87,15 @@ def _check_profit_structure_completion(store_id: str, year: int, month: int) -> 
     var_ratio = get_variable_cost_ratio(store_id, year, month) or 0.0
     has_structure = (fixed is not None and fixed > 0) or (var_ratio is not None and var_ratio > 0)
     completion = 100.0 if has_structure else 0.0
+    if has_structure:
+        var_pct = (var_ratio * 100) if var_ratio is not None else 0.0
+        indicator = f"고정비 {int(fixed):,}원, 변동비율 {var_pct:.1f}%"
+    else:
+        indicator = "수익 구조 미설정"
     return {
         "completion": completion,
         "status": "완료" if completion == 100 else "미시작",
-        "indicator": f"고정비 {int(fixed):,}원, 변동비율 {var_ratio*100:.1f}%" if has_structure else "수익 구조 미설정",
+        "indicator": indicator,
         "page_key": "수익 구조 설계실",
     }
 
@@ -268,15 +273,15 @@ def render_design_hub():
 
     # 각 영역 완성도 계산
     completions = [
-        {"name": "가게 설계 센터", "icon": "🏗️", **(_check_design_center_completion(store_id)))},
-        {"name": "전략 보드", "icon": "📋", **(_check_strategy_board_completion(store_id, year, month))},
-        {"name": "메뉴 포트폴리오 설계", "icon": "🍽️", **(_check_menu_completion(store_id))},
-        {"name": "메뉴 수익 설계", "icon": "💰", **(_check_menu_profit_completion(store_id))},
-        {"name": "재료 구조 설계", "icon": "🧺", **(_check_ingredient_completion(store_id))},
-        {"name": "수익 구조 설계", "icon": "📊", **(_check_profit_structure_completion(store_id, year, month))},
-        {"name": "레시피 설계", "icon": "📝", **(_check_recipe_completion(store_id))},
-        {"name": "목표 비용 구조 입력", "icon": "💳", **(_check_target_cost_completion(store_id, year, month))},
-        {"name": "목표 매출 구조 입력", "icon": "🎯", **(_check_target_sales_completion(store_id, year, month))},
+        {"name": "가게 설계 센터", "icon": "🏗️", **_check_design_center_completion(store_id)},
+        {"name": "전략 보드", "icon": "📋", **_check_strategy_board_completion(store_id, year, month)},
+        {"name": "메뉴 포트폴리오 설계", "icon": "🍽️", **_check_menu_completion(store_id)},
+        {"name": "메뉴 수익 설계", "icon": "💰", **_check_menu_profit_completion(store_id)},
+        {"name": "재료 구조 설계", "icon": "🧺", **_check_ingredient_completion(store_id)},
+        {"name": "수익 구조 설계", "icon": "📊", **_check_profit_structure_completion(store_id, year, month)},
+        {"name": "레시피 설계", "icon": "📝", **_check_recipe_completion(store_id)},
+        {"name": "목표 비용 구조 입력", "icon": "💳", **_check_target_cost_completion(store_id, year, month)},
+        {"name": "목표 매출 구조 입력", "icon": "🎯", **_check_target_sales_completion(store_id, year, month)},
     ]
 
     # 전체 완성도 계산
