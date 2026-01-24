@@ -13,10 +13,10 @@ def render_page_header(title, icon="📋"):
     """페이지 헤더 렌더링 (개선된 디자인)
     테마에 따라 텍스트 색상이 자동 조절되도록 수정.
     """
-    # 전역 UI 토큰(--ps-text) 사용 시도, 실패 시 기본값 적용
+    # 여백 최적화: margin-bottom을 2rem에서 0.5rem으로 줄임
     st.markdown(f"""
-    <div style="margin-bottom: 2rem;">
-        <h2 style="color: var(--ps-text, #101417); border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+    <div style="margin-bottom: 0.5rem;">
+        <h2 style="color: var(--ps-text, #101417); border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
             {icon} {title}
         </h2>
     </div>
