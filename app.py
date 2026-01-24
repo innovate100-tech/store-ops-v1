@@ -18,6 +18,8 @@ inject_global_ui()
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 
+st.sidebar.warning("DEBUG: APP RELOADED")
+
 if not check_login():
     show_login_page()
     st.stop()
@@ -125,7 +127,7 @@ with st.sidebar:
                 ("매출 하락 원인 찾기", "매출 하락 원인 찾기")
             ]
         },
-        "✍ 입력": {
+        "✍ 입력(New)": {
             "main": [("입력 허브", "입력 허브")],
             "sub": [
                 ("오늘 입력", "일일 입력(통합)"),
@@ -182,8 +184,8 @@ elif page == "오늘의 전략 실행":
     from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()
 elif page == "입력 허브":
-    from ui_pages.input.input_hub import render_input_hub
-    render_input_hub()
+    from ui_pages.input.input_hub import render_input_hub_v2
+    render_input_hub_v2()
 elif page == "분석 허브":
     from ui_pages.analysis.analysis_hub import render_analysis_hub
     render_analysis_hub()

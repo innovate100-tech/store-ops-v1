@@ -140,8 +140,9 @@ def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
     </div>
     """, unsafe_allow_html=True)
 
-def render_input_hub():
+def render_input_hub_v2():
     """입력 허브 페이지 렌더링"""
+    st.info("🔄 V2.2 고도화 버전이 적용되었습니다. (목표 설정 버튼 전진 배치)")
     render_page_header("✍ 입력 허브", "✍")
     store_id = get_current_store_id()
     if not store_id:
