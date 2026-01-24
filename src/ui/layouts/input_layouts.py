@@ -155,21 +155,25 @@ INPUT_LAYOUT_CSS = """
 
 /* Summary Strip 스타일 */
 .ps-summary-strip {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%);
-    border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
+    display: flex !important;
+    align-items: center !important;
+    gap: 1.5rem !important;
+    padding: 1rem 1.5rem !important;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    margin-bottom: 1.5rem !important;
+    flex-wrap: wrap !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    position: relative !important;
 }
 
 .ps-summary-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    box-sizing: border-box !important;
 }
 
 .ps-summary-label {
@@ -220,22 +224,27 @@ INPUT_LAYOUT_CSS = """
 
 /* Mini Progress Panel 스타일 */
 .ps-mini-progress-panel {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
-    border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
+    display: flex !important;
+    gap: 1rem !important;
+    padding: 1rem 1.25rem !important;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    margin-bottom: 1.5rem !important;
+    flex-wrap: wrap !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    position: relative !important;
+    min-height: 80px !important;
 }
 
 .ps-mini-progress-item {
-    flex: 1;
-    min-width: 120px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
+    flex: 1 !important;
+    min-width: 120px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.4rem !important;
+    box-sizing: border-box !important;
 }
 
 .ps-mini-progress-label {
@@ -455,19 +464,17 @@ def render_summary_strip(
             badge_class = f"ps-summary-badge ps-summary-badge-{badge}"
             badge_html = f'<span class="{badge_class}">{badge}</span>'
         
-        items_html += f"""
-        <div class="ps-summary-item">
-            <span class="ps-summary-label">{label}</span>
-            <span class="ps-summary-value">{value}</span>
-            {badge_html}
-        </div>
-        """
+        # HTML 이스케이프 처리
+        label_escaped = label.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        value_escaped = value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        items_html += f'<div class="ps-summary-item"><span class="ps-summary-label">{label_escaped}</span><span class="ps-summary-value">{value_escaped}</span>{badge_html}</div>'
     
-    html = f"""
-    <div class="ps-summary-strip">
-        {items_html}
-    </div>
-    """
+    # HTML 생성 (명확한 구조, 한 줄로 통합)
+    if not items_html:
+        return
+    
+    html = f'<div class="ps-summary-strip">{items_html}</div>'
     
     st.markdown(html, unsafe_allow_html=True)
 
@@ -502,21 +509,17 @@ def render_mini_progress_panel(
             icon = "—"
             icon_class = "ps-mini-progress-icon-none"
         
-        items_html += f"""
-        <div class="ps-mini-progress-item">
-            <div class="ps-mini-progress-label">{label}</div>
-            <div class="ps-mini-progress-status">
-                <span class="ps-mini-progress-icon {icon_class}">{icon}</span>
-                <span class="ps-mini-progress-value">{value}</span>
-            </div>
-        </div>
-        """
+        # HTML 이스케이프 처리
+        label_escaped = label.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        value_escaped = value.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        items_html += f'<div class="ps-mini-progress-item"><div class="ps-mini-progress-label">{label_escaped}</div><div class="ps-mini-progress-status"><span class="ps-mini-progress-icon {icon_class}">{icon}</span><span class="ps-mini-progress-value">{value_escaped}</span></div></div>'
     
-    html = f"""
-    <div class="ps-mini-progress-panel">
-        {items_html}
-    </div>
-    """
+    # HTML 생성 (명확한 구조, 한 줄로 통합)
+    if not items_html:
+        return
+    
+    html = f'<div class="ps-mini-progress-panel">{items_html}</div>'
     
     st.markdown(html, unsafe_allow_html=True)
 
