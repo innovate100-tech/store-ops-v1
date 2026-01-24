@@ -340,13 +340,14 @@ st.markdown("""
     [class*="stSidebar"] {
         display: block !important;
         visibility: visible !important;
-        width: 21rem !important;
-        min-width: 21rem !important;
-        max-width: 21rem !important;
+        width: 15rem !important;  /* 기존 21rem → 15rem으로 축소 */
+        min-width: 15rem !important;
+        max-width: 15rem !important;
         transform: translateX(0) !important;
         position: relative !important;
         opacity: 1 !important;
         z-index: 999 !important;
+        transition: width 0.3s ease !important;
     }
     
     /* 사이드바가 접힌 상태로 보이지 않도록 - 모든 상태에서 강제 표시 */
@@ -357,8 +358,38 @@ st.markdown("""
         display: block !important;
         visibility: visible !important;
         transform: translateX(0) !important;
-        width: 21rem !important;
-        min-width: 21rem !important;
+        width: 15rem !important;  /* 기존 21rem → 15rem으로 축소 */
+        min-width: 15rem !important;
+    }
+    
+    /* 접힌 상태 사이드바 스타일 */
+    [data-testid="stSidebar"].sidebar-collapsed,
+    [data-testid="stSidebar"][data-collapsed="true"] {
+        width: 4rem !important;
+        min-width: 4rem !important;
+        max-width: 4rem !important;
+    }
+    
+    /* 접힌 상태에서 텍스트 숨김 */
+    [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
+    [data-testid="stSidebar"][data-collapsed="true"] .stMarkdown:not(.keep-visible),
+    [data-testid="stSidebar"].sidebar-collapsed .stSelectbox,
+    [data-testid="stSidebar"][data-collapsed="true"] .stSelectbox {
+        display: none !important;
+    }
+    
+    /* 접힌 상태에서 버튼 중앙 정렬 및 아이콘만 표시 */
+    [data-testid="stSidebar"].sidebar-collapsed .stButton > button,
+    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button {
+        justify-content: center !important;
+        padding: 0.5rem !important;
+        min-width: auto !important;
+    }
+    
+    /* 접힌 상태에서 expander 숨김 */
+    [data-testid="stSidebar"].sidebar-collapsed [data-testid="stExpander"],
+    [data-testid="stSidebar"][data-collapsed="true"] [data-testid="stExpander"] {
+        display: none !important;
     }
     
     /* Streamlit이 자동으로 메인 콘텐츠를 조정하도록 함 - 추가 margin 제거 */
@@ -612,16 +643,21 @@ st.markdown("""
                 if (sidebar) {
                     // 사이드바를 항상 열린 상태로 강제 설정
                     sidebar.setAttribute('aria-expanded', 'true');
+                    // 접힌 상태 확인 (data attribute 또는 클래스로)
+                    const isCollapsed = sidebar.classList.contains('sidebar-collapsed') || 
+                                       sidebar.getAttribute('data-collapsed') === 'true';
+                    const sidebarWidth = isCollapsed ? '4rem' : '15rem';
                     sidebar.style.cssText = `
                         display: block !important;
                         visibility: visible !important;
                         transform: translateX(0) !important;
-                        width: 21rem !important;
-                        min-width: 21rem !important;
-                        max-width: 21rem !important;
+                        width: ${sidebarWidth} !important;
+                        min-width: ${sidebarWidth} !important;
+                        max-width: ${sidebarWidth} !important;
                         position: relative !important;
                         opacity: 1 !important;
                         z-index: 999 !important;
+                        transition: width 0.3s ease !important;
                     `;
                     
                     // 부모 요소도 확인
@@ -763,7 +799,82 @@ st.markdown("""
     } catch(e) {
         console.warn('사이드바 스크립트 초기화 실패:', e);
     }
-})();
+    })();
+</script>
+""", unsafe_allow_html=True)
+
+# 사이드바 접기/펼치기 상태 관리 JavaScript
+sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
+st.markdown(f"""
+<script>
+(function() {{
+    'use strict';
+    
+    function updateSidebarState() {{
+        try {{
+            const sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (!sidebar) return;
+            
+            // session_state 값 확인 (data attribute로 전달)
+            const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
+            const isCollapsed = collapsedAttr === 'true' || {sidebar_collapsed_js};
+            
+            if (isCollapsed) {{
+                sidebar.classList.add('sidebar-collapsed');
+                sidebar.setAttribute('data-collapsed', 'true');
+                sidebar.setAttribute('data-sidebar-collapsed', 'true');
+                sidebar.style.setProperty('width', '4rem', 'important');
+                sidebar.style.setProperty('min-width', '4rem', 'important');
+                sidebar.style.setProperty('max-width', '4rem', 'important');
+            }} else {{
+                sidebar.classList.remove('sidebar-collapsed');
+                sidebar.setAttribute('data-collapsed', 'false');
+                sidebar.setAttribute('data-sidebar-collapsed', 'false');
+                sidebar.style.setProperty('width', '15rem', 'important');
+                sidebar.style.setProperty('min-width', '15rem', 'important');
+                sidebar.style.setProperty('max-width', '15rem', 'important');
+            }}
+        }} catch(e) {{
+            console.warn('사이드바 상태 업데이트 실패:', e);
+        }}
+    }}
+    
+    // 즉시 실행
+    updateSidebarState();
+    
+    // DOM 로드 후 실행
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', updateSidebarState);
+    }} else {{
+        setTimeout(updateSidebarState, 100);
+    }}
+    
+    // 주기적으로 확인 (상태 변경 감지)
+    setInterval(updateSidebarState, 300);
+    
+    // MutationObserver로 사이드바 변경 감지
+    const observer = new MutationObserver(function(mutations) {{
+        let shouldUpdate = false;
+        mutations.forEach(function(mutation) {{
+            if (mutation.type === 'attributes' && 
+                (mutation.attributeName === 'data-sidebar-collapsed' || 
+                 mutation.attributeName === 'class')) {{
+                shouldUpdate = true;
+            }}
+        }});
+        if (shouldUpdate) {{
+            setTimeout(updateSidebarState, 50);
+        }}
+    }});
+    
+    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+    if (sidebar) {{
+        observer.observe(sidebar, {{
+            attributes: true,
+            attributeFilter: ['data-sidebar-collapsed', 'class', 'data-collapsed']
+        }});
+    }}
+}})();
 </script>
 """, unsafe_allow_html=True)
 
@@ -771,16 +882,56 @@ if st.session_state.get("theme", "light") == "dark":
     st.markdown("<style>.main { background-color: #020617 !important; color: #e5e7eb !important; }</style>", unsafe_allow_html=True)
 
 # Sidebar Navigation
+# 사이드바 상태 관리
+if "sidebar_collapsed" not in st.session_state:
+    st.session_state.sidebar_collapsed = False
+
+def _render_collapsed_sidebar(menu):
+    """접힌 사이드바 렌더링 (아이콘만 표시)"""
+    # 카테고리별 아이콘 매핑
+    category_icons = {
+        "🏠 홈": "🏠",
+        "🧠 설계": "🧠",
+        "📊 분석": "📊",
+        "✍ 입력": "✍",
+        "🛠 운영": "🛠"
+    }
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 카테고리별 아이콘 버튼
+    for cat, data in menu.items():
+        icon = category_icons.get(cat, "📋")
+        if st.button(icon, key=f"collapsed_{cat}", use_container_width=True, help=cat):
+            # 펼치고 해당 카테고리의 첫 번째 메뉴 항목으로 이동
+            st.session_state.sidebar_collapsed = False
+            if isinstance(data, list):
+                st.session_state.current_page = data[0][1]
+            else:
+                st.session_state.current_page = data["main"][0][1]
+            st.rerun()
+    
+    # 로그아웃, 캐시 클리어 버튼
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚪", key="collapsed_logout", use_container_width=True, help="로그아웃"):
+        logout()
+        st.rerun()
+    if st.button("🔄", key="collapsed_clear", use_container_width=True, help="캐시 클리어"):
+        load_csv.clear()
+        st.rerun()
+
 with st.sidebar:
-    user_stores = get_user_stores()
-    curr_name = get_current_store_name()
-    if len(user_stores) > 1:
-        store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
-        selected = st.selectbox("🏪 매장 선택", options=list(store_options.keys()))
-        if store_options[selected] != get_current_store_id():
-            if switch_store(store_options[selected]): st.rerun()
-    else:
-        st.markdown(f"🏪 **{curr_name}**")
+    # 사이드바 상태를 data attribute로 설정 (JavaScript에서 읽기 위해)
+    st.markdown(f"""
+    <script>
+    (function() {{
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {{
+            sidebar.setAttribute('data-sidebar-collapsed', '{str(st.session_state.sidebar_collapsed).lower()}');
+        }}
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
     
     menu = {
         "🏠 홈": [("홈", "홈")],
@@ -826,7 +977,28 @@ with st.sidebar:
     
     if "current_page" not in st.session_state: st.session_state.current_page = "홈"
     
-    for cat, data in menu.items():
+    # 토글 버튼 (최상단)
+    toggle_icon = "◀ 접기" if not st.session_state.sidebar_collapsed else "▶ 펼치기"
+    if st.button(toggle_icon, key="sidebar_toggle", use_container_width=True):
+        st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+        st.rerun()
+    
+    # 접힌 상태면 아이콘만 표시
+    if st.session_state.sidebar_collapsed:
+        _render_collapsed_sidebar(menu)
+    else:
+        # 펼친 상태: 기존 메뉴 표시
+        user_stores = get_user_stores()
+        curr_name = get_current_store_name()
+        if len(user_stores) > 1:
+            store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
+            selected = st.selectbox("🏪 매장 선택", options=list(store_options.keys()))
+            if store_options[selected] != get_current_store_id():
+                if switch_store(store_options[selected]): st.rerun()
+        else:
+            st.markdown(f"🏪 **{curr_name}**")
+        
+        for cat, data in menu.items():
         st.markdown(f"**{cat}**")
         if isinstance(data, list):
             for label, key in data:
