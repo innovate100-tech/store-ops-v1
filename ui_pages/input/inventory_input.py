@@ -328,66 +328,139 @@ def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingre
     
     input_df = pd.DataFrame(input_data_list)
     
-    # 편집 가능한 컬럼만 선택
-    editable_columns = ['재료명', '재료분류', '단위', '현재고', '안전재고', '상태', '기존_현재고', '기존_안전재고']
-    display_df = input_df[editable_columns].copy()
+    # 커스텀 테이블로 렌더링 (더블클릭 없이 바로 입력 가능)
+    # 테이블 헤더
+    header_cols = st.columns([3, 1.5, 2, 2, 2, 1.5, 2, 2])
+    with header_cols[0]:
+        st.markdown("**재료명**")
+    with header_cols[1]:
+        st.markdown("**재료분류**")
+    with header_cols[2]:
+        st.markdown("**단위**")
+    with header_cols[3]:
+        st.markdown("**현재고**")
+    with header_cols[4]:
+        st.markdown("**안전재고**")
+    with header_cols[5]:
+        st.markdown("**상태**")
+    with header_cols[6]:
+        st.markdown("**기존 현재고**")
+    with header_cols[7]:
+        st.markdown("**기존 안전재고**")
     
-    # st.data_editor로 테이블 렌더링
-    edited_df = st.data_editor(
-        display_df,
-        column_config={
-            '재료명': st.column_config.TextColumn('재료명', disabled=True, width="medium"),
-            '재료분류': st.column_config.TextColumn('재료분류', disabled=True, width="small"),
-            '단위': st.column_config.TextColumn('단위', disabled=True, width="medium"),
-            '현재고': st.column_config.NumberColumn('현재고', min_value=0.0, format="%.2f", width="small"),
-            '안전재고': st.column_config.NumberColumn('안전재고', min_value=0.0, format="%.2f", width="small"),
-            '상태': st.column_config.TextColumn('상태', disabled=True, width="small"),
-            '기존_현재고': st.column_config.NumberColumn('기존 현재고', disabled=True, format="%.2f", width="small"),
-            '기존_안전재고': st.column_config.NumberColumn('기존 안전재고', disabled=True, format="%.2f", width="small"),
-        },
-        hide_index=True,
-        num_rows="fixed",
-        use_container_width=True,
-        key=f"inventory_input_table_{current_page}"
-    )
+    st.markdown("---")
     
-    # 변경 감지 및 세션 상태 저장
-    if edited_df is not None:
-        for idx, (_, edited_row) in enumerate(edited_df.iterrows()):
-            original_row = input_df.iloc[idx]
-            ingredient_name = original_row['재료명']
+    # 각 행 렌더링
+    for idx, (_, row) in enumerate(page_df.iterrows()):
+        ingredient_name = row['재료명']
+        unit = row.get('단위', '')
+        order_unit = row.get('발주단위', unit)
+        conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
+        category = categories.get(ingredient_name, "미지정")
+        
+        # 기존 재고 정보
+        existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
+        existing_current_base = existing_inv['current']
+        existing_safety_base = existing_inv['safety']
+        
+        # 발주 단위로 변환
+        existing_current_order = existing_current_base / conversion_rate if conversion_rate > 0 else existing_current_base
+        existing_safety_order = existing_safety_base / conversion_rate if conversion_rate > 0 else existing_safety_base
+        
+        # 세션 상태에서 입력 데이터 가져오기
+        session_key = f"inventory_input_{ingredient_name}"
+        if session_key in st.session_state:
+            input_data = st.session_state[session_key]
+            current_input = input_data.get('current', existing_current_order)
+            safety_input = input_data.get('safety', existing_safety_order)
+        else:
+            current_input = existing_current_order
+            safety_input = existing_safety_order
+        
+        # 상태 계산
+        status_key = f"inventory_status_{ingredient_name}"
+        current_base = current_input * conversion_rate
+        safety_base = safety_input * conversion_rate
+        status_text, status_color = _calculate_status(current_base, safety_base)
+        
+        # 단위 표시
+        if order_unit != unit:
+            unit_display = f"{unit}<br><small>(발주: {order_unit})</small>"
+        else:
+            unit_display = unit
+        
+        # 재료 분류 뱃지 색상
+        category_colors = {
+            "채소": "#22C55E",
+            "육류": "#EF4444",
+            "해산물": "#3B82F6",
+            "조미료": "#EAB308",
+            "기타": "#9CA3AF",
+            "미지정": "#6B7280"
+        }
+        category_color = category_colors.get(category, "#6B7280")
+        display_category = category if category in INGREDIENT_CATEGORIES else "미지정"
+        
+        # 행 렌더링
+        row_cols = st.columns([3, 1.5, 2, 2, 2, 1.5, 2, 2])
+        
+        with row_cols[0]:
+            st.markdown(f"**{ingredient_name}**")
+        with row_cols[1]:
+            st.markdown(f'<span style="background: {category_color}; padding: 0.2rem 0.5rem; border-radius: 4px; color: white; font-size: 0.8rem;">{display_category}</span>', 
+                       unsafe_allow_html=True)
+        with row_cols[2]:
+            st.markdown(unit_display, unsafe_allow_html=True)
+        with row_cols[3]:
+            # 현재고 입력 (클릭 한 번으로 바로 입력 가능)
+            new_current = st.number_input(
+                "",
+                min_value=0.0,
+                value=float(current_input),
+                step=0.1,
+                format="%.2f",
+                key=f"inventory_current_{ingredient_name}_{current_page}",
+                label_visibility="collapsed"
+            )
+        with row_cols[4]:
+            # 안전재고 입력 (클릭 한 번으로 바로 입력 가능)
+            new_safety = st.number_input(
+                "",
+                min_value=0.0,
+                value=float(safety_input),
+                step=0.1,
+                format="%.2f",
+                key=f"inventory_safety_{ingredient_name}_{current_page}",
+                label_visibility="collapsed"
+            )
+        with row_cols[5]:
+            st.markdown(f'<span style="color: {status_color}; font-weight: 600;">{status_text}</span>', 
+                       unsafe_allow_html=True)
+        with row_cols[6]:
+            st.markdown(f"{existing_current_order:.2f}")
+        with row_cols[7]:
+            st.markdown(f"{existing_safety_order:.2f}")
+        
+        # 변경 감지 및 세션 상태 저장
+        if abs(new_current - current_input) > 0.01 or abs(new_safety - safety_input) > 0.01:
+            # 세션 상태에 저장
+            st.session_state[session_key] = {
+                'current': float(new_current),
+                'safety': float(new_safety)
+            }
             
-            # 숫자 비교 (부동소수점 오차 고려)
-            new_current = float(edited_row.get('현재고', original_row['현재고']))
-            new_safety = float(edited_row.get('안전재고', original_row['안전재고']))
-            orig_current = float(original_row['현재고'])
-            orig_safety = float(original_row['안전재고'])
+            # 상태 재계산
+            new_current_base = new_current * conversion_rate
+            new_safety_base = new_safety * conversion_rate
+            new_status_text, _ = _calculate_status(new_current_base, new_safety_base)
+            st.session_state[status_key] = new_status_text
             
-            # 변경 감지 (0.01 이상 차이)
-            if abs(new_current - orig_current) > 0.01 or abs(new_safety - orig_safety) > 0.01:
-                # 세션 상태에 저장
-                session_key = f"inventory_input_{ingredient_name}"
-                st.session_state[session_key] = {
-                    'current': new_current,
-                    'safety': new_safety
-                }
-                
-                # 변경 표시를 위해 세션 상태 업데이트
-                if 'inventory_changed_items' not in st.session_state:
-                    st.session_state['inventory_changed_items'] = set()
-                st.session_state['inventory_changed_items'].add(ingredient_name)
-                
-                # 상태 재계산 및 업데이트 (다음 렌더링 시 반영)
-                conversion_rate = original_row['_conversion_rate']
-                current_base = new_current * conversion_rate
-                safety_base = new_safety * conversion_rate
-                status_text, _ = _calculate_status(current_base, safety_base)
-                
-                # 상태를 세션 상태에 저장 (다음 렌더링 시 사용)
-                if f"inventory_status_{ingredient_name}" not in st.session_state:
-                    st.session_state[f"inventory_status_{ingredient_name}"] = status_text
-                else:
-                    st.session_state[f"inventory_status_{ingredient_name}"] = status_text
+            # 변경 표시를 위해 세션 상태 업데이트
+            if 'inventory_changed_items' not in st.session_state:
+                st.session_state['inventory_changed_items'] = set()
+            st.session_state['inventory_changed_items'].add(ingredient_name)
+        
+        st.markdown("---")
 
 
 
