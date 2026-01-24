@@ -985,6 +985,7 @@ elif page == "실제정산":
     from ui_pages.settlement_actual import render_settlement_actual
     render_settlement_actual()
 elif page == "판매 관리":
+    from ui_pages.analysis.sales_analysis import render_sales_analysis
     render_sales_analysis()
 elif page == "판매량 등록":
     from ui_pages.sales_volume_entry import render_sales_volume_entry
