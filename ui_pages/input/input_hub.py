@@ -125,8 +125,16 @@ def render_input_hub_v2():
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
 
-    # [1] 철학적 가이드 - 입력의 가치 전달
-    st.markdown(f'<div style="padding: 1.5rem; background-color: #f1f5f9; border-radius: 12px; border-left: 5px solid #64748b; margin-bottom: 2rem;"><h4 style="margin-top: 0; color: #1e293b; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4><p style="margin-bottom: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">입력은 단순한 기록이 아니라, 사장님의 매장을 숫자로 바꾸는 <b>\'설계도\'</b>를 그리는 과정입니다.<br>정밀하게 입력된 기초 데이터는 <b>수익 분석, 원가 진단, 오늘의 전략</b>을 만드는 유일한 기반이 됩니다.</p></div>', unsafe_allow_html=True)
+    # [1] 철학적 가이드 - 입력의 가치 전달 (사용자 요청: 블랙 테마 적용)
+    st.markdown(f"""
+    <div style="padding: 1.5rem; background-color: #111827; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <h4 style="margin-top: 0; color: #ffffff; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4>
+        <p style="margin-bottom: 0; color: #9ca3af; font-size: 0.95rem; line-height: 1.6;">
+            입력은 단순한 기록이 아니라, 사장님의 매장을 숫자로 바꾸는 <b style="color: #ffffff;">'설계도'</b>를 그리는 과정입니다.<br>
+            정밀하게 입력된 기초 데이터는 <b style="color: #ffffff;">수익 분석, 원가 진단, 오늘의 전략</b>을 만드는 유일한 기반이 됩니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
     recs = _get_today_recommendations(store_id)
     assets = _get_asset_readiness(store_id)
