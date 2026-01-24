@@ -275,16 +275,7 @@ st.markdown("""
         border-bottom: none !important;
     }
     
-    /* 헤더의 모든 버튼 표시 */
-    header[data-testid="stHeader"] button,
-    [data-testid="stHeader"] button,
-    button[kind="header"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    /* Streamlit 네이티브 사이드바 토글 버튼 숨김 */
+    /* Streamlit 네이티브 사이드바 토글 버튼 완전히 숨김 및 비활성화 (최우선) */
     button[aria-label*="sidebar"],
     button[aria-label*="메뉴"],
     button[aria-label*="Menu"],
@@ -293,11 +284,16 @@ st.markdown("""
     button[aria-label*="Open"],
     [data-testid="stHeader"] button:first-child,
     header button:first-child,
-    button[kind="header"]:first-child {
+    button[kind="header"]:first-child,
+    header[data-testid="stHeader"] button:first-child {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
     /* 제목 위 불필요한 간격 제거 */
@@ -331,17 +327,24 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
+    /* CSS 변수 정의 */
+    :root {
+        --sidebar-width: 15rem;
+        --sidebar-width-px: 240px;
+    }
+    
     /* 사이드바 기본 폭 - 모든 가능한 선택자 */
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"],
     div[data-testid="stSidebar"],
     .css-1d391kg,
     .css-1lcbmhc {
-        width: 15rem !important;
-        min-width: 15rem !important;
-        max-width: 15rem !important;
-        flex-basis: 15rem !important;
-        transition: width 0.3s ease !important;
+        width: var(--sidebar-width, 15rem) !important;
+        min-width: var(--sidebar-width, 15rem) !important;
+        max-width: var(--sidebar-width, 15rem) !important;
+        flex-basis: var(--sidebar-width, 15rem) !important;
+        flex: 0 0 var(--sidebar-width, 15rem) !important;
+        transition: width 0.3s ease, flex-basis 0.3s ease !important;
     }
     
     /* 접힌 상태 - 모든 가능한 선택자 */
@@ -354,6 +357,17 @@ st.markdown("""
         min-width: 4rem !important;
         max-width: 4rem !important;
         flex-basis: 4rem !important;
+        flex: 0 0 4rem !important;
+    }
+    
+    /* flexbox 레이아웃 조정 */
+    [data-testid="stAppViewContainer"][style*="display: flex"],
+    [data-testid="stAppViewContainer"][style*="display:flex"] {
+        --sidebar-width: 15rem;
+    }
+    
+    [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"].sidebar-collapsed) {
+        --sidebar-width: 4rem;
     }
     
     /* 메인 콘텐츠 영역 조정 - JavaScript에서 동적으로 처리 */
@@ -371,10 +385,44 @@ st.markdown("""
         padding: 0.5rem !important;
     }
     
-    /* Streamlit 네이티브 토글 버튼 숨김 */
+    /* Streamlit 네이티브 토글 버튼 완전히 숨김 및 비활성화 */
     button[aria-label*="sidebar"],
-    [data-testid="stHeader"] button:first-child {
+    button[aria-label*="메뉴"],
+    button[aria-label*="Menu"],
+    button[aria-label*="Close"],
+    button[aria-label*="열기"],
+    button[aria-label*="Open"],
+    [data-testid="stHeader"] button:first-child,
+    [data-testid="stHeader"] button,
+    header button:first-child,
+    header[data-testid="stHeader"] button {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* 사이드바가 항상 표시되도록 강제 */
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translateX(0) !important;
+        position: relative !important;
+    }
+    
+    /* 사이드바가 완전히 사라지지 않도록 보장 */
+    [data-testid="stSidebar"][aria-expanded="false"],
+    [data-testid="stSidebar"][aria-expanded="true"] {
+        display: block !important;
+        visibility: visible !important;
+        transform: translateX(0) !important;
     }
     
     /* Streamlit이 자동으로 메인 콘텐츠를 조정하도록 함 - 추가 margin 제거 */
@@ -602,8 +650,17 @@ st.markdown(f"""
     'use strict';
     
     function syncSidebarState() {{
+        // 사이드바가 항상 표시되도록 강제
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
         if (!sidebar) return;
+        
+        // 사이드바가 사라지지 않도록 강제
+        sidebar.setAttribute('aria-expanded', 'true');
+        sidebar.style.setProperty('display', 'block', 'important');
+        sidebar.style.setProperty('visibility', 'visible', 'important');
+        sidebar.style.setProperty('opacity', '1', 'important');
+        sidebar.style.setProperty('transform', 'translateX(0)', 'important');
+        sidebar.style.setProperty('position', 'relative', 'important');
         
         const isCollapsed = sidebar.getAttribute('data-sidebar-collapsed') === 'true' || {sidebar_collapsed_js};
         const targetWidth = isCollapsed ? '4rem' : '15rem';
@@ -619,13 +676,12 @@ st.markdown(f"""
         }}
         
         // 사이드바 자체에 인라인 스타일로 강제 적용
-        sidebar.style.cssText = `
-            width: ${{targetWidth}} !important;
-            min-width: ${{targetWidth}} !important;
-            max-width: ${{targetWidth}} !important;
-            flex-basis: ${{targetWidth}} !important;
-            transition: width 0.3s ease !important;
-        `;
+        sidebar.style.setProperty('width', targetWidth, 'important');
+        sidebar.style.setProperty('min-width', targetWidth, 'important');
+        sidebar.style.setProperty('max-width', targetWidth, 'important');
+        sidebar.style.setProperty('flex-basis', targetWidth, 'important');
+        sidebar.style.setProperty('flex-shrink', '0', 'important');
+        sidebar.style.setProperty('flex-grow', '0', 'important');
         
         // 모든 가능한 사이드바 관련 요소에도 적용
         const sidebarSelectors = [
@@ -645,31 +701,64 @@ st.markdown(f"""
                     el.style.setProperty('min-width', targetWidth, 'important');
                     el.style.setProperty('max-width', targetWidth, 'important');
                     el.style.setProperty('flex-basis', targetWidth, 'important');
+                    el.style.setProperty('flex-shrink', '0', 'important');
+                    el.style.setProperty('flex-grow', '0', 'important');
+                    el.style.setProperty('display', 'block', 'important');
+                    el.style.setProperty('visibility', 'visible', 'important');
                 }});
             }} catch(e) {{
                 // 선택자 실패 무시
             }}
         }});
         
-        // 부모 요소들도 조정
-        let parent = sidebar.parentElement;
-        let depth = 0;
-        while (parent && parent !== document.body && depth < 5) {{
-            if (parent.style) {{
-                parent.style.setProperty('width', 'auto', 'important');
-                parent.style.setProperty('min-width', 'auto', 'important');
+        // Streamlit의 레이아웃 컨테이너 찾아서 조정
+        const appContainer = document.querySelector('[data-testid="stAppViewContainer"]');
+        if (appContainer) {{
+            const computed = window.getComputedStyle(appContainer);
+            
+            // flexbox 레이아웃인 경우
+            if (computed.display === 'flex') {{
+                // 사이드바의 flex 속성 강제 설정
+                sidebar.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
+                sidebar.style.setProperty('flex-basis', targetWidth, 'important');
+                sidebar.style.setProperty('flex-shrink', '0', 'important');
+                sidebar.style.setProperty('flex-grow', '0', 'important');
+                
+                // 부모 컨테이너의 자식 요소들도 조정
+                const children = Array.from(appContainer.children);
+                children.forEach(function(child) {{
+                    if (child === sidebar || child.querySelector('[data-testid="stSidebar"]')) {{
+                        child.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
+                        child.style.setProperty('flex-basis', targetWidth, 'important');
+                    }} else {{
+                        // 메인 콘텐츠 영역
+                        child.style.setProperty('flex', '1 1 auto', 'important');
+                        child.style.setProperty('margin-left', '0', 'important');
+                    }}
+                }});
             }}
-            parent = parent.parentElement;
-            depth++;
+            
+            // grid 레이아웃인 경우
+            if (computed.display === 'grid') {{
+                // grid-template-columns 조정
+                const currentColumns = computed.gridTemplateColumns;
+                if (currentColumns && !currentColumns.includes('var(--sidebar-width)')) {{
+                    appContainer.style.setProperty('--sidebar-width', targetWidth, 'important');
+                    appContainer.style.setProperty('grid-template-columns', 
+                        targetWidth + ' 1fr', 'important');
+                }}
+            }}
         }}
         
-        // 메인 콘텐츠 영역도 조정 (모든 가능한 선택자)
+        // CSS 변수로도 설정 (더 강력한 방법)
+        document.documentElement.style.setProperty('--sidebar-width', targetWidth, 'important');
+        document.documentElement.style.setProperty('--sidebar-width-px', targetWidthPx, 'important');
+        
+        // 메인 콘텐츠 영역도 조정
         const mainSelectors = [
-            '[data-testid="stAppViewContainer"] > div',
-            '[data-testid="stAppViewContainer"] > div > div',
-            '.main .block-container',
-            '[data-testid="stAppViewContainer"]',
+            '[data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"])',
             '.main',
+            '.block-container',
             '[class*="block-container"]'
         ];
         
@@ -677,12 +766,8 @@ st.markdown(f"""
             try {{
                 const elements = document.querySelectorAll(selector);
                 elements.forEach(function(el) {{
-                    // 현재 computed style 확인
-                    const computed = window.getComputedStyle(el);
-                    const currentMargin = computed.marginLeft;
-                    
-                    // margin-left가 sidebar width와 다르면 조정
-                    if (currentMargin !== targetWidthPx && currentMargin !== targetWidth) {{
+                    // 사이드바가 아닌 경우만 조정
+                    if (!el.closest('[data-testid="stSidebar"]')) {{
                         el.style.setProperty('margin-left', targetWidthPx, 'important');
                     }}
                 }});
@@ -690,6 +775,49 @@ st.markdown(f"""
                 // 선택자 실패 무시
             }}
         }});
+        
+        // 햄버거 버튼 완전히 비활성화 및 제거
+        const headerButtons = document.querySelectorAll(
+            '[data-testid="stHeader"] button, ' +
+            'header button, ' +
+            'button[aria-label*="sidebar"], ' +
+            'button[aria-label*="메뉴"], ' +
+            'button[aria-label*="Menu"]'
+        );
+        
+        headerButtons.forEach(function(btn) {{
+            const label = btn.getAttribute('aria-label') || '';
+            if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu') || 
+                label.includes('Close') || label.includes('열기') || label.includes('Open')) {{
+                btn.style.setProperty('display', 'none', 'important');
+                btn.style.setProperty('visibility', 'hidden', 'important');
+                btn.style.setProperty('pointer-events', 'none', 'important');
+                btn.style.setProperty('width', '0', 'important');
+                btn.style.setProperty('height', '0', 'important');
+                btn.setAttribute('disabled', 'true');
+                btn.setAttribute('aria-hidden', 'true');
+                
+                // 클릭 이벤트 완전 차단
+                const blockClick = function(e) {{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    return false;
+                }};
+                btn.removeEventListener('click', blockClick, true);
+                btn.addEventListener('click', blockClick, true);
+            }}
+        }});
+        
+        // 사이드바가 사라지지 않도록 최종 보장
+        if (sidebar) {{
+            const computed = window.getComputedStyle(sidebar);
+            if (computed.display === 'none' || computed.visibility === 'hidden') {{
+                sidebar.style.setProperty('display', 'block', 'important');
+                sidebar.style.setProperty('visibility', 'visible', 'important');
+                sidebar.style.setProperty('opacity', '1', 'important');
+            }}
+        }}
     }}
     
     // 즉시 실행
@@ -707,8 +835,70 @@ st.markdown(f"""
         setTimeout(syncSidebarState, 300);
     }}
     
-    // 주기적 확인 (더 자주 체크 - 100ms마다)
-    setInterval(syncSidebarState, 100);
+    // 주기적 확인 (더 자주 체크 - 50ms마다)
+    setInterval(syncSidebarState, 50);
+    
+    // 사이드바가 사라지는 것을 방지하는 감시자 (강화 버전)
+    const sidebarWatcher = new MutationObserver(function(mutations) {{
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {{
+            const computed = window.getComputedStyle(sidebar);
+            const display = computed.display;
+            const visibility = computed.visibility;
+            const opacity = computed.opacity;
+            
+            // 사이드바가 사라지려고 하면 즉시 복구
+            if (display === 'none' || visibility === 'hidden' || opacity === '0') {{
+                sidebar.style.setProperty('display', 'block', 'important');
+                sidebar.style.setProperty('visibility', 'visible', 'important');
+                sidebar.style.setProperty('opacity', '1', 'important');
+                sidebar.setAttribute('aria-expanded', 'true');
+            }}
+            
+            // 햄버거 버튼이 다시 나타나면 즉시 숨김
+            const headerButtons = document.querySelectorAll(
+                '[data-testid="stHeader"] button, header button'
+            );
+            headerButtons.forEach(function(btn) {{
+                const label = btn.getAttribute('aria-label') || '';
+                if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu')) {{
+                    btn.style.setProperty('display', 'none', 'important');
+                    btn.style.setProperty('visibility', 'hidden', 'important');
+                    btn.style.setProperty('pointer-events', 'none', 'important');
+                }}
+            }});
+        }}
+        syncSidebarState();
+    }});
+    
+    if (document.body) {{
+        sidebarWatcher.observe(document.body, {{
+            attributes: true,
+            childList: true,
+            subtree: true,
+            attributeFilter: ['style', 'aria-expanded', 'class', 'aria-hidden']
+        }});
+    }}
+    
+    // 사이드바가 사라지는 것을 방지하는 추가 보호
+    document.addEventListener('click', function(e) {{
+        const target = e.target;
+        if (target && (target.closest('[data-testid="stHeader"]') || 
+                       target.getAttribute('aria-label')?.includes('sidebar'))) {{
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            // 사이드바 복구
+            const sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (sidebar) {{
+                sidebar.style.setProperty('display', 'block', 'important');
+                sidebar.style.setProperty('visibility', 'visible', 'important');
+                sidebar.setAttribute('aria-expanded', 'true');
+            }}
+            return false;
+        }}
+    }}, true);
     
     // DOM 변경 감지
     const observer = new MutationObserver(function() {{
