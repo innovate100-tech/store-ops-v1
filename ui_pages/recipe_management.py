@@ -354,242 +354,242 @@ def render_recipe_management():
         recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
         
         if not recipe_df.empty:
-        # 레시피가 있는 메뉴 목록 추출
-        menus_with_recipes = recipe_df['메뉴명'].unique().tolist()
-        
-        if menus_with_recipes:
-            # 메뉴 필터 (레시피가 있는 메뉴만 표시)
-            render_section_header("레시피 검색 및 수정", "🔍")
-            filter_menu = st.selectbox(
-                "메뉴 선택",
-                options=menus_with_recipes,
-                key="recipe_management_recipe_filter_menu",
-                index=0 if menus_with_recipes else None
-            )
+            # 레시피가 있는 메뉴 목록 추출
+            menus_with_recipes = recipe_df['메뉴명'].unique().tolist()
             
-            # 선택한 메뉴의 레시피만 필터링
-            display_recipe_df = recipe_df[recipe_df['메뉴명'] == filter_menu].copy()
-            
-            if not display_recipe_df.empty:
-                # 재료 정보와 조인하여 단위 및 단가 표시
-                display_recipe_df = pd.merge(
-                    display_recipe_df,
-                    ingredient_df[['재료명', '단위', '단가']],
-                    on='재료명',
-                    how='left'
+            if menus_with_recipes:
+                # 메뉴 필터 (레시피가 있는 메뉴만 표시)
+                render_section_header("레시피 검색 및 수정", "🔍")
+                filter_menu = st.selectbox(
+                    "메뉴 선택",
+                    options=menus_with_recipes,
+                    key="recipe_management_recipe_filter_menu",
+                    index=0 if menus_with_recipes else None
                 )
                 
-                # 원가 계산 (이 메뉴의 원가)
-                menu_cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
-                menu_cost_info = menu_cost_df[menu_cost_df['메뉴명'] == filter_menu]
+                # 선택한 메뉴의 레시피만 필터링
+                display_recipe_df = recipe_df[recipe_df['메뉴명'] == filter_menu].copy()
                 
-                # 메뉴 정보 가져오기 (판매가, 조리방법)
-                menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
-                # Phase 1: 안전한 DataFrame 접근
-                menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
-                
-                # 조리방법 가져오기 (menu_master에서)
-                cooking_method_text = ""
-                try:
-                    from src.auth import get_supabase_client, get_current_store_id
-                    supabase = get_supabase_client()
-                    store_id = get_current_store_id()
-                    if supabase and store_id:
-                        menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
-                        if menu_result.data and menu_result.data[0].get('cooking_method'):
-                            cooking_method_text = menu_result.data[0]['cooking_method']
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"조리방법 조회 실패: {e}")
-                
-                # 원가 정보
-                # Phase 1: 안전한 DataFrame 접근
-                cost = int(safe_get_value(menu_cost_info, '원가', 0)) if not menu_cost_info.empty else 0
-                cost_rate = float(safe_get_value(menu_cost_info, '원가율', 0)) if not menu_cost_info.empty else 0
-                
-                # 요리책 스타일 카드 레이아웃
-                st.markdown(f"""
-                <div style="border-radius: 16px; padding: 2rem; margin: 1rem 0 2rem 0;
-                            background: linear-gradient(135deg, #1f2937 0%, #111827 60%, #020617 100%);
-                            box-shadow: 0 12px 30px rgba(0,0,0,0.4); border: 2px solid rgba(148,163,184,0.3);">
-                    <div style="text-align: center; margin-bottom: 2rem;">
-                        <h2 style="margin: 0 0 0.5rem 0; color: #ffffff; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
-                            🍽️ {filter_menu}
-                        </h2>
-                        <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; flex-wrap: wrap;">
-                            <div style="background: rgba(59, 130, 246, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.5);">
-                                <div style="color: #93c5fd; font-size: 0.85rem; margin-bottom: 0.3rem;">판매가</div>
-                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
-                            </div>
-                            <div style="background: rgba(239, 68, 68, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.5);">
-                                <div style="color: #fca5a5; font-size: 0.85rem; margin-bottom: 0.3rem;">원가</div>
-                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
-                            </div>
-                            <div style="background: rgba(234, 179, 8, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(234, 179, 8, 0.5);">
-                                <div style="color: #fde047; font-size: 0.85rem; margin-bottom: 0.3rem;">원가율</div>
-                                <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # 구성 재료 및 사용량 (엑셀처럼 깔끔하게)
-                st.markdown("**📋 구성 재료 및 사용량**")
-                
-                # 엑셀 스타일 테이블 데이터 준비
-                table_data = []
-                for idx, row in display_recipe_df.iterrows():
-                    ing_name = row['재료명']
-                    unit = row['단위'] if pd.notna(row['단위']) else ""
-                    current_qty = float(row['사용량'])
-                    unit_price = float(row['단가']) if pd.notna(row['단가']) else 0
-                    ingredient_cost = current_qty * unit_price
+                if not display_recipe_df.empty:
+                    # 재료 정보와 조인하여 단위 및 단가 표시
+                    display_recipe_df = pd.merge(
+                        display_recipe_df,
+                        ingredient_df[['재료명', '단위', '단가']],
+                        on='재료명',
+                        how='left'
+                    )
                     
-                    table_data.append({
-                        '재료명': ing_name,
-                        '기준단위': unit,
-                        '사용량': f"{current_qty:.2f}",
-                        '1단위 단가': f"{unit_price:,.1f}원",
-                        '재료비': f"{ingredient_cost:,.1f}원"
-                    })
-                
-                # 엑셀 스타일 테이블 표시
-                ingredients_table_df = pd.DataFrame(table_data)
-                st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
-                
-                # 조리방법 표시 (구성 재료 다음에 배치)
-                render_section_divider()
-                st.markdown("**👨‍🍳 조리방법**")
-                if cooking_method_text:
+                    # 원가 계산 (이 메뉴의 원가)
+                    menu_cost_df = calculate_menu_cost(menu_df, recipe_df, ingredient_df)
+                    menu_cost_info = menu_cost_df[menu_cost_df['메뉴명'] == filter_menu]
+                    
+                    # 메뉴 정보 가져오기 (판매가, 조리방법)
+                    menu_info = menu_df[menu_df['메뉴명'] == filter_menu]
+                    # Phase 1: 안전한 DataFrame 접근
+                    menu_price = int(safe_get_value(menu_info, '판매가', 0)) if not menu_info.empty else 0
+                    
+                    # 조리방법 가져오기 (menu_master에서)
+                    cooking_method_text = ""
+                    try:
+                        from src.auth import get_supabase_client, get_current_store_id
+                        supabase = get_supabase_client()
+                        store_id = get_current_store_id()
+                        if supabase and store_id:
+                            menu_result = supabase.table("menu_master").select("cooking_method").eq("store_id", store_id).eq("name", filter_menu).execute()
+                            if menu_result.data and menu_result.data[0].get('cooking_method'):
+                                cooking_method_text = menu_result.data[0]['cooking_method']
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).warning(f"조리방법 조회 실패: {e}")
+                    
+                    # 원가 정보
+                    # Phase 1: 안전한 DataFrame 접근
+                    cost = int(safe_get_value(menu_cost_info, '원가', 0)) if not menu_cost_info.empty else 0
+                    cost_rate = float(safe_get_value(menu_cost_info, '원가율', 0)) if not menu_cost_info.empty else 0
+                    
+                    # 요리책 스타일 카드 레이아웃
                     st.markdown(f"""
-                    <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
-                                border-left: 4px solid #667eea; margin: 1rem 0;">
-                        <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
-                            {cooking_method_text.replace(chr(10), '<br>')}
+                    <div style="border-radius: 16px; padding: 2rem; margin: 1rem 0 2rem 0;
+                                background: linear-gradient(135deg, #1f2937 0%, #111827 60%, #020617 100%);
+                                box-shadow: 0 12px 30px rgba(0,0,0,0.4); border: 2px solid rgba(148,163,184,0.3);">
+                        <div style="text-align: center; margin-bottom: 2rem;">
+                            <h2 style="margin: 0 0 0.5rem 0; color: #ffffff; font-weight: 800; font-size: 2rem; letter-spacing: 1px;">
+                                🍽️ {filter_menu}
+                            </h2>
+                            <div style="display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; flex-wrap: wrap;">
+                                <div style="background: rgba(59, 130, 246, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.5);">
+                                    <div style="color: #93c5fd; font-size: 0.85rem; margin-bottom: 0.3rem;">판매가</div>
+                                    <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{menu_price:,}원</div>
+                                </div>
+                                <div style="background: rgba(239, 68, 68, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.5);">
+                                    <div style="color: #fca5a5; font-size: 0.85rem; margin-bottom: 0.3rem;">원가</div>
+                                    <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost:,}원</div>
+                                </div>
+                                <div style="background: rgba(234, 179, 8, 0.2); padding: 0.8rem 1.5rem; border-radius: 8px; border: 1px solid rgba(234, 179, 8, 0.5);">
+                                    <div style="color: #fde047; font-size: 0.85rem; margin-bottom: 0.3rem;">원가율</div>
+                                    <div style="color: #ffffff; font-size: 1.3rem; font-weight: 700;">{cost_rate:.1f}%</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                else:
-                    st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
-                
-                render_section_divider()
-                
-                # 각 재료별 사용량 수정/삭제 UI
-                st.markdown("**✏️ 재료 사용량 수정 및 삭제**")
-                
-                # 컴팩트 스타일 CSS 추가 (세로 구분선 포함)
-                st.markdown("""
-                <style>
-                .compact-edit-row {
-                    margin: 0.2rem 0 !important;
-                    padding: 0.3rem 0 !important;
-                }
-                .compact-edit-row [data-testid="stNumberInput"] > div > div {
-                    padding-top: 0.3rem !important;
-                    padding-bottom: 0.3rem !important;
-                }
-                .compact-edit-row [data-testid="stButton"] {
-                    margin-top: 0.2rem !important;
-                }
-                .compact-edit-row [data-testid="stButton"] > button {
-                    padding: 0.3rem 0.5rem !important;
-                    font-size: 0.85rem !important;
-                    height: auto !important;
-                }
-                /* 세로 구분선: 컬럼 사이에 얇은 선 표시 */
-                .compact-edit-row > div[data-testid="column"] {
-                    border-right: 1px solid rgba(148, 163, 184, 0.35);
-                    padding-right: 0.4rem;
-                }
-                .compact-edit-row > div[data-testid="column"]:last-child {
-                    border-right: none;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
-                # 테이블 헤더
-                header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
-                with header_col1:
-                    st.markdown("**재료명**")
-                with header_col2:
-                    st.markdown("**단위**")
-                with header_col3:
-                    st.markdown("**사용량**")
-                with header_col4:
-                    st.markdown("**수정**")
-                with header_col5:
-                    st.markdown("**삭제**")
-                
-                st.markdown("<hr style='margin: 0.3rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-                
-                # 각 재료별 사용량 수정/삭제 UI (표 형태)
-                for idx, row in display_recipe_df.iterrows():
-                    ing_name = row['재료명']
-                    unit = row['단위'] if pd.notna(row['단위']) else ""
-                    current_qty = float(row['사용량'])
+
+                    # 구성 재료 및 사용량 (엑셀처럼 깔끔하게)
+                    st.markdown("**📋 구성 재료 및 사용량**")
                     
-                    # 컴팩트 행 컨테이너
-                    with st.container():
-                        st.markdown('<div class="compact-edit-row">', unsafe_allow_html=True)
-                        col1, col2, col3, col4, col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
+                    # 엑셀 스타일 테이블 데이터 준비
+                    table_data = []
+                    for idx, row in display_recipe_df.iterrows():
+                        ing_name = row['재료명']
+                        unit = row['단위'] if pd.notna(row['단위']) else ""
+                        current_qty = float(row['사용량'])
+                        unit_price = float(row['단가']) if pd.notna(row['단가']) else 0
+                        ingredient_cost = current_qty * unit_price
                         
-                        with col1:
-                            st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{ing_name}</strong></div>", unsafe_allow_html=True)
-                        with col2:
-                            st.markdown(f"<div style='margin-top: 0.5rem;'>{unit}</div>", unsafe_allow_html=True)
-                        with col3:
-                            new_qty = st.number_input(
-                                "",
-                                min_value=0.0,
-                                value=current_qty,
-                                step=0.1,
-                                format="%.2f",
-                                key=f"edit_recipe_qty_{filter_menu}_{ing_name}",
-                                label_visibility="collapsed"
-                            )
-                        with col4:
-                            if st.button("💾 수정", key=f"save_recipe_{filter_menu}_{ing_name}", use_container_width=True):
-                                if new_qty <= 0:
-                                    st.error("사용량은 0보다 큰 값이어야 합니다.")
-                                else:
-                                    try:
-                                        save_recipe(filter_menu, ing_name, new_qty)
-                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
-                                        try:
-                                            st.cache_data.clear()
-                                        except Exception as e:
-                                            import logging
-                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 수정): {e}")
-                                        st.success(
-                                            f"✅ '{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
-                                        )
-                                    except Exception as e:
-                                        st.error(f"사용량 수정 중 오류: {e}")
-                        with col5:
-                            if st.button("🗑️ 삭제", key=f"delete_recipe_{filter_menu}_{ing_name}", use_container_width=True):
-                                try:
-                                    success, msg = delete_recipe(filter_menu, ing_name)
-                                    if success:
-                                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
-                                        try:
-                                            st.cache_data.clear()
-                                        except Exception as e:
-                                            import logging
-                                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 삭제): {e}")
-                                        st.success(f"✅ '{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
+                        table_data.append({
+                            '재료명': ing_name,
+                            '기준단위': unit,
+                            '사용량': f"{current_qty:.2f}",
+                            '1단위 단가': f"{unit_price:,.1f}원",
+                            '재료비': f"{ingredient_cost:,.1f}원"
+                        })
+                    
+                    # 엑셀 스타일 테이블 표시
+                    ingredients_table_df = pd.DataFrame(table_data)
+                    st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
+                    
+                    # 조리방법 표시 (구성 재료 다음에 배치)
+                    render_section_divider()
+                    st.markdown("**👨‍🍳 조리방법**")
+                    if cooking_method_text:
+                        st.markdown(f"""
+                        <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 12px; 
+                                    border-left: 4px solid #667eea; margin: 1rem 0;">
+                            <div style="color: #e5e7eb; font-size: 1rem; line-height: 1.8; white-space: pre-wrap;">
+                                {cooking_method_text.replace(chr(10), '<br>')}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
+                    
+                    render_section_divider()
+                    
+                    # 각 재료별 사용량 수정/삭제 UI
+                    st.markdown("**✏️ 재료 사용량 수정 및 삭제**")
+                    
+                    # 컴팩트 스타일 CSS 추가 (세로 구분선 포함)
+                    st.markdown("""
+                    <style>
+                    .compact-edit-row {
+                        margin: 0.2rem 0 !important;
+                        padding: 0.3rem 0 !important;
+                    }
+                    .compact-edit-row [data-testid="stNumberInput"] > div > div {
+                        padding-top: 0.3rem !important;
+                        padding-bottom: 0.3rem !important;
+                    }
+                    .compact-edit-row [data-testid="stButton"] {
+                        margin-top: 0.2rem !important;
+                    }
+                    .compact-edit-row [data-testid="stButton"] > button {
+                        padding: 0.3rem 0.5rem !important;
+                        font-size: 0.85rem !important;
+                        height: auto !important;
+                    }
+                    /* 세로 구분선: 컬럼 사이에 얇은 선 표시 */
+                    .compact-edit-row > div[data-testid="column"] {
+                        border-right: 1px solid rgba(148, 163, 184, 0.35);
+                        padding-right: 0.4rem;
+                    }
+                    .compact-edit-row > div[data-testid="column"]:last-child {
+                        border-right: none;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    # 테이블 헤더
+                    header_col1, header_col2, header_col3, header_col4, header_col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
+                    with header_col1:
+                        st.markdown("**재료명**")
+                    with header_col2:
+                        st.markdown("**단위**")
+                    with header_col3:
+                        st.markdown("**사용량**")
+                    with header_col4:
+                        st.markdown("**수정**")
+                    with header_col5:
+                        st.markdown("**삭제**")
+                    
+                    st.markdown("<hr style='margin: 0.3rem 0; border-color: rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+                    
+                    # 각 재료별 사용량 수정/삭제 UI (표 형태)
+                    for idx, row in display_recipe_df.iterrows():
+                        ing_name = row['재료명']
+                        unit = row['단위'] if pd.notna(row['단위']) else ""
+                        current_qty = float(row['사용량'])
+                        
+                        # 컴팩트 행 컨테이너
+                        with st.container():
+                            st.markdown('<div class="compact-edit-row">', unsafe_allow_html=True)
+                            col1, col2, col3, col4, col5 = st.columns([2.5, 1, 2, 1.2, 1.2])
+                            
+                            with col1:
+                                st.markdown(f"<div style='margin-top: 0.5rem;'><strong>{ing_name}</strong></div>", unsafe_allow_html=True)
+                            with col2:
+                                st.markdown(f"<div style='margin-top: 0.5rem;'>{unit}</div>", unsafe_allow_html=True)
+                            with col3:
+                                new_qty = st.number_input(
+                                    "",
+                                    min_value=0.0,
+                                    value=current_qty,
+                                    step=0.1,
+                                    format="%.2f",
+                                    key=f"edit_recipe_qty_{filter_menu}_{ing_name}",
+                                    label_visibility="collapsed"
+                                )
+                            with col4:
+                                if st.button("💾 수정", key=f"save_recipe_{filter_menu}_{ing_name}", use_container_width=True):
+                                    if new_qty <= 0:
+                                        st.error("사용량은 0보다 큰 값이어야 합니다.")
                                     else:
-                                        st.error(msg)
-                                except Exception as e:
-                                    st.error(f"레시피 삭제 중 오류: {e}")
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        
-                        # 마지막 행이 아니면 얇은 구분선
-                        if idx < len(display_recipe_df) - 1:
-                            st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
-        else:
-            st.info("등록된 레시피가 없습니다.")
+                                        try:
+                                            save_recipe(filter_menu, ing_name, new_qty)
+                                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                            try:
+                                                st.cache_data.clear()
+                                            except Exception as e:
+                                                import logging
+                                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 수정): {e}")
+                                            st.success(
+                                                f"✅ '{filter_menu}' - '{ing_name}' 사용량이 {new_qty:.2f}{unit} 으로 수정되었습니다."
+                                            )
+                                        except Exception as e:
+                                            st.error(f"사용량 수정 중 오류: {e}")
+                            with col5:
+                                if st.button("🗑️ 삭제", key=f"delete_recipe_{filter_menu}_{ing_name}", use_container_width=True):
+                                    try:
+                                        success, msg = delete_recipe(filter_menu, ing_name)
+                                        if success:
+                                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                                            try:
+                                                st.cache_data.clear()
+                                            except Exception as e:
+                                                import logging
+                                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 삭제): {e}")
+                                            st.success(f"✅ '{filter_menu}' - '{ing_name}' 레시피가 삭제되었습니다.")
+                                        else:
+                                            st.error(msg)
+                                    except Exception as e:
+                                        st.error(f"레시피 삭제 중 오류: {e}")
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            # 마지막 행이 아니면 얇은 구분선
+                            if idx < len(display_recipe_df) - 1:
+                                st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
+            else:
+                st.info("등록된 레시피가 없습니다.")
         else:
             st.info("등록된 레시피가 없습니다.")
         
