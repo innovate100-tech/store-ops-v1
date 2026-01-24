@@ -331,125 +331,38 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
-    /* 사이드바 항상 표시 보장 및 접기 방지 - 모든 가능한 선택자 사용 */
-    section[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    [data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    div[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    .css-1d391kg:not(.sidebar-collapsed),
-    .css-1lcbmhc:not(.sidebar-collapsed),
-    [class*="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]) {
-        display: block !important;
-        visibility: visible !important;
-        width: 15rem !important;  /* 기존 21rem → 15rem으로 축소 */
+    /* 사이드바 기본 폭 */
+    [data-testid="stSidebar"] {
+        width: 15rem !important;
         min-width: 15rem !important;
         max-width: 15rem !important;
-        transform: translateX(0) !important;
-        position: relative !important;
-        opacity: 1 !important;
-        z-index: 999 !important;
         transition: width 0.3s ease !important;
     }
     
-    /* 사이드바가 접힌 상태로 보이지 않도록 - 모든 상태에서 강제 표시 (펼친 상태) */
-    [data-testid="stSidebar"][aria-expanded="false"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    [data-testid="stSidebar"][aria-expanded="true"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    section[data-testid="stSidebar"][aria-expanded="false"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
-    section[data-testid="stSidebar"][aria-expanded="true"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]) {
-        display: block !important;
-        visibility: visible !important;
-        transform: translateX(0) !important;
-        width: 15rem !important;  /* 기존 21rem → 15rem으로 축소 */
-        min-width: 15rem !important;
-    }
-    
-    /* 접힌 상태 사이드바 스타일 - 최고 우선순위 */
-    [data-testid="stSidebar"].sidebar-collapsed,
-    [data-testid="stSidebar"][data-collapsed="true"],
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"],
-    section[data-testid="stSidebar"].sidebar-collapsed,
-    section[data-testid="stSidebar"][data-collapsed="true"],
-    section[data-testid="stSidebar"][data-sidebar-collapsed="true"],
-    div[data-testid="stSidebar"].sidebar-collapsed,
-    div[data-testid="stSidebar"][data-collapsed="true"],
-    div[data-testid="stSidebar"][data-sidebar-collapsed="true"] {
-        display: block !important;
-        visibility: visible !important;
+    /* 접힌 상태 */
+    [data-testid="stSidebar"].sidebar-collapsed {
         width: 4rem !important;
         min-width: 4rem !important;
         max-width: 4rem !important;
-        transform: translateX(0) !important;
-        position: relative !important;
-        opacity: 1 !important;
-        z-index: 999 !important;
-        transition: width 0.3s ease !important;
     }
     
-    /* 접힌 상태에서 텍스트 숨김 - 강화 버전 (모든 텍스트 요소) */
+    /* 접힌 상태에서 텍스트 숨김 */
     [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
-    [data-testid="stSidebar"][data-collapsed="true"] .stMarkdown:not(.keep-visible),
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stMarkdown:not(.keep-visible),
     [data-testid="stSidebar"].sidebar-collapsed .stSelectbox,
-    [data-testid="stSidebar"][data-collapsed="true"] .stSelectbox,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stSelectbox,
-    [data-testid="stSidebar"].sidebar-collapsed .stExpander,
-    [data-testid="stSidebar"][data-collapsed="true"] .stExpander,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stExpander,
-    [data-testid="stSidebar"].sidebar-collapsed p,
-    [data-testid="stSidebar"][data-collapsed="true"] p,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] p,
-    [data-testid="stSidebar"].sidebar-collapsed span:not([data-testid="stIconMaterial"]):not(.material-icons),
-    [data-testid="stSidebar"][data-collapsed="true"] span:not([data-testid="stIconMaterial"]):not(.material-icons),
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] span:not([data-testid="stIconMaterial"]):not(.material-icons),
-    [data-testid="stSidebar"].sidebar-collapsed label,
-    [data-testid="stSidebar"][data-collapsed="true"] label,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] label {
+    [data-testid="stSidebar"].sidebar-collapsed .stExpander {
         display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        font-size: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
     }
     
-    /* 접힌 상태에서 버튼 중앙 정렬 및 텍스트 숨김 */
-    [data-testid="stSidebar"].sidebar-collapsed .stButton > button,
-    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button {
+    /* 접힌 상태에서 버튼 중앙 정렬 */
+    [data-testid="stSidebar"].sidebar-collapsed .stButton > button {
         justify-content: center !important;
         padding: 0.5rem !important;
-        min-width: auto !important;
-        width: 100% !important;
     }
     
-    /* 접힌 상태에서 버튼 내부 텍스트 숨김 (아이콘만 표시) */
-    [data-testid="stSidebar"].sidebar-collapsed .stButton > button > span:not([data-testid="stIconMaterial"]),
-    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button > span:not([data-testid="stIconMaterial"]),
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button > span:not([data-testid="stIconMaterial"]) {
-        font-size: 0 !important;
-        width: 0 !important;
-        overflow: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    /* 접힌 상태에서 토글 버튼은 텍스트 유지 (◀ 접기, ▶ 펼치기) */
-    [data-testid="stSidebar"].sidebar-collapsed button[key="sidebar_toggle"] > span,
-    [data-testid="stSidebar"][data-collapsed="true"] button[key="sidebar_toggle"] > span,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] button[key="sidebar_toggle"] > span {
-        font-size: inherit !important;
-        width: auto !important;
-        overflow: visible !important;
-        opacity: 1 !important;
-    }
-    
-    /* 접힌 상태에서 expander 완전히 숨김 */
-    [data-testid="stSidebar"].sidebar-collapsed [data-testid="stExpander"],
-    [data-testid="stSidebar"][data-collapsed="true"] [data-testid="stExpander"],
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] [data-testid="stExpander"] {
+    /* Streamlit 네이티브 토글 버튼 숨김 */
+    button[aria-label*="sidebar"],
+    [data-testid="stHeader"] button:first-child {
         display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        overflow: hidden !important;
     }
     
     /* Streamlit이 자동으로 메인 콘텐츠를 조정하도록 함 - 추가 margin 제거 */
@@ -669,380 +582,52 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 상태 유지 JavaScript - 접기/펼치기 기능과 호환
-st.markdown("""
-<script>
-(function() {
-    'use strict';
-    
-    try {
-        let observer = null;
-        let intervalId = null;
-        
-        function maintainSidebarState() {
-            try {
-                // 모든 가능한 사이드바 선택자로 찾기
-                const selectors = [
-                    '[data-testid="stSidebar"]',
-                    'section[data-testid="stSidebar"]',
-                    'div[data-testid="stSidebar"]',
-                    '.css-1d391kg',
-                    '.css-1lcbmhc'
-                ];
-                
-                let sidebar = null;
-                for (const selector of selectors) {
-                    try {
-                        sidebar = document.querySelector(selector);
-                        if (sidebar) break;
-                    } catch(e) {
-                        // 선택자 실패는 무시
-                    }
-                }
-                
-                if (sidebar) {
-                    // 사이드바를 항상 표시 상태로 유지 (완전히 사라지지 않도록)
-                    sidebar.setAttribute('aria-expanded', 'true');
-                    
-                    // 접힌 상태 확인 (여러 소스에서 확인)
-                    const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
-                    const collapsedClass = sidebar.classList.contains('sidebar-collapsed');
-                    const collapsedData = sidebar.getAttribute('data-collapsed');
-                    const isCollapsed = collapsedAttr === 'true' || collapsedClass || collapsedData === 'true';
-                    
-                    // 상태에 따른 폭 설정
-                    const sidebarWidth = isCollapsed ? '4rem' : '15rem';
-                    
-                    // 접힌 상태면 클래스 추가, 아니면 제거
-                    if (isCollapsed) {
-                        sidebar.classList.add('sidebar-collapsed');
-                        sidebar.setAttribute('data-collapsed', 'true');
-                        sidebar.setAttribute('data-sidebar-collapsed', 'true');
-                    } else {
-                        sidebar.classList.remove('sidebar-collapsed');
-                        sidebar.setAttribute('data-collapsed', 'false');
-                        sidebar.setAttribute('data-sidebar-collapsed', 'false');
-                    }
-                    
-                    // 사이드바가 완전히 사라지지 않도록 보장하되, 접힌 상태는 존중
-                    sidebar.style.cssText = `
-                        display: block !important;
-                        visibility: visible !important;
-                        transform: translateX(0) !important;
-                        width: ${sidebarWidth} !important;
-                        min-width: ${sidebarWidth} !important;
-                        max-width: ${sidebarWidth} !important;
-                        position: relative !important;
-                        opacity: 1 !important;
-                        z-index: 999 !important;
-                        transition: width 0.3s ease !important;
-                    `;
-                    
-                    // 부모 요소도 확인
-                    try {
-                        let parent = sidebar.parentElement;
-                        while (parent && parent !== document.body) {
-                            if (parent.style) {
-                                parent.style.overflow = 'visible';
-                            }
-                            parent = parent.parentElement;
-                        }
-                    } catch(e) {
-                        // 부모 요소 처리 실패 무시
-                    }
-                }
-                
-                // 햄버거 메뉴 버튼 찾기 및 표시 - 모든 가능한 방법
-                try {
-                    const headerButtons = document.querySelectorAll('button[kind="header"], [data-testid="stHeader"] button, header button');
-                    headerButtons.forEach(btn => {
-                        try {
-                            const label = btn.getAttribute('aria-label') || '';
-                            if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu') || 
-                                label.includes('Close') || label.includes('열기') || label.includes('Open')) {
-                                btn.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
-                            }
-                        } catch(e) {
-                            // 개별 버튼 처리 실패 무시
-                        }
-                    });
-                } catch(e) {
-                    // 버튼 찾기 실패 무시
-                }
-                
-                // Streamlit의 사이드바 토글 버튼 클릭 이벤트 오버라이드 (한 번만)
-                try {
-                    const toggleButtons = document.querySelectorAll('[data-testid="stHeader"] button, button[kind="header"]');
-                    toggleButtons.forEach(btn => {
-                        // 이미 리스너가 추가되었는지 확인
-                        if (!btn.hasAttribute('data-sidebar-listener')) {
-                            btn.setAttribute('data-sidebar-listener', 'true');
-                            btn.addEventListener('click', function(e) {
-                                try {
-                                    // Streamlit 네이티브 토글 버튼 클릭 차단
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    e.stopImmediatePropagation();
-                                    setTimeout(function() {
-                                        try { maintainSidebarState(); } catch(e) {}
-                                    }, 100);
-                                } catch(e) {
-                                    // 클릭 핸들러 에러 무시
-                                }
-                            }, { passive: false });
-                        }
-                    });
-                } catch(e) {
-                    // 토글 버튼 처리 실패 무시
-                }
-            } catch(e) {
-                console.warn('사이드바 강제 열기 실패:', e);
-            }
-        }
-        
-        // 즉시 실행 (상태 관리 스크립트 이후 실행)
-        setTimeout(function() {
-            try { maintainSidebarState(); } catch(e) {}
-        }, 100);
-        
-        // 페이지 로드 시 실행 (상태 관리 스크립트 이후)
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    try { maintainSidebarState(); } catch(e) {}
-                }, 200);
-            }, { once: true });
-        } else {
-            setTimeout(function() {
-                try { maintainSidebarState(); } catch(e) {}
-            }, 200);
-        }
-        
-        // window.load 이벤트
-        window.addEventListener('load', function() {
-            setTimeout(function() {
-                try { maintainSidebarState(); } catch(e) {}
-            }, 300);
-        }, { passive: true, once: true });
-        
-        // 주기적으로 확인하여 사이드바 상태 유지 (접힌 상태는 존중)
-        // 상태 관리 스크립트보다 낮은 우선순위로 실행
-        try {
-            intervalId = setInterval(function() {
-                try { maintainSidebarState(); } catch(e) {}
-            }, 600);  // 500ms → 600ms로 조정 (상태 관리 스크립트보다 낮은 빈도)
-        } catch(e) {
-            console.warn('setInterval 설정 실패:', e);
-        }
-        
-        // DOM 변경 감지하여 사이드바 상태 유지
-        try {
-            observer = new MutationObserver(function(mutations) {
-                try {
-                    let shouldForce = false;
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'attributes' && 
-                            (mutation.attributeName === 'aria-expanded' || 
-                             mutation.attributeName === 'style' || 
-                             mutation.attributeName === 'class')) {
-                            shouldForce = true;
-                        }
-                        if (mutation.type === 'childList') {
-                            shouldForce = true;
-                        }
-                    });
-                    if (shouldForce) {
-                        setTimeout(function() {
-                            try { maintainSidebarState(); } catch(e) {}
-                        }, 50);
-                    }
-                } catch(e) {
-                    // MutationObserver 콜백 에러 무시
-                }
-            });
-            
-            if (document.body) {
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true,
-                    attributes: true,
-                    attributeFilter: ['style', 'aria-expanded', 'class', 'data-testid']
-                });
-            }
-        } catch(e) {
-            console.warn('MutationObserver 설정 실패:', e);
-        }
-        
-        // 페이지 언로드 시 정리
-        window.addEventListener('beforeunload', function() {
-            try {
-                if (observer) {
-                    observer.disconnect();
-                }
-                if (intervalId) {
-                    clearInterval(intervalId);
-                }
-            } catch(e) {
-                // 정리 실패 무시
-            }
-        }, { passive: true });
-        
-    } catch(e) {
-        console.warn('사이드바 스크립트 초기화 실패:', e);
-    }
-    })();
-</script>
-""", unsafe_allow_html=True)
-
-# 사이드바 접기/펼치기 상태 관리 JavaScript - 강화 버전
+# 사이드바 상태 동기화 JavaScript (간소화)
 sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
 st.markdown(f"""
 <script>
 (function() {{
     'use strict';
     
-    let lastState = {sidebar_collapsed_js};
-    let updateInterval = null;
-    
-    function updateSidebarState() {{
-        try {{
-            const sidebar = document.querySelector('[data-testid="stSidebar"]');
-            if (!sidebar) return;
-            
-            // session_state 값 확인 (data attribute 우선)
-            const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
-            const isCollapsed = collapsedAttr === 'true' || {sidebar_collapsed_js};
-            
-            // 상태가 변경되었는지 확인
-            if (lastState !== isCollapsed) {{
-                lastState = isCollapsed;
-            }}
-            
-            if (isCollapsed) {{
-                sidebar.classList.add('sidebar-collapsed');
-                sidebar.setAttribute('data-collapsed', 'true');
-                sidebar.setAttribute('data-sidebar-collapsed', 'true');
-                // 인라인 스타일로 강제 적용 (최고 우선순위)
-                sidebar.style.cssText = `
-                    display: block !important;
-                    visibility: visible !important;
-                    transform: translateX(0) !important;
-                    width: 4rem !important;
-                    min-width: 4rem !important;
-                    max-width: 4rem !important;
-                    position: relative !important;
-                    opacity: 1 !important;
-                    z-index: 999 !important;
-                    transition: width 0.3s ease !important;
-                `;
-                
-                // 접힌 상태에서 텍스트 동적으로 숨김
-                setTimeout(function() {{
-                    const textElements = sidebar.querySelectorAll('p, span:not([data-testid="stIconMaterial"]):not(.material-icons), label, .stMarkdown:not(.keep-visible)');
-                    textElements.forEach(function(el) {{
-                        // 토글 버튼은 제외
-                        if (el.closest('button[key="sidebar_toggle"]')) return;
-                        el.style.setProperty('display', 'none', 'important');
-                        el.style.setProperty('visibility', 'hidden', 'important');
-                        el.style.setProperty('opacity', '0', 'important');
-                        el.style.setProperty('font-size', '0', 'important');
-                    }});
-                }}, 10);
-            }} else {{
-                sidebar.classList.remove('sidebar-collapsed');
-                sidebar.setAttribute('data-collapsed', 'false');
-                sidebar.setAttribute('data-sidebar-collapsed', 'false');
-                // 인라인 스타일로 강제 적용 (최고 우선순위)
-                sidebar.style.cssText = `
-                    display: block !important;
-                    visibility: visible !important;
-                    transform: translateX(0) !important;
-                    width: 15rem !important;
-                    min-width: 15rem !important;
-                    max-width: 15rem !important;
-                    position: relative !important;
-                    opacity: 1 !important;
-                    z-index: 999 !important;
-                    transition: width 0.3s ease !important;
-                `;
-                
-                // 펼친 상태에서 텍스트 다시 표시
-                setTimeout(function() {{
-                    const textElements = sidebar.querySelectorAll('p, span, label, .stMarkdown');
-                    textElements.forEach(function(el) {{
-                        el.style.removeProperty('display');
-                        el.style.removeProperty('visibility');
-                        el.style.removeProperty('opacity');
-                        el.style.removeProperty('font-size');
-                    }});
-                }}, 10);
-            }}
-        }} catch(e) {{
-            console.warn('사이드바 상태 업데이트 실패:', e);
+    function syncSidebarState() {{
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (!sidebar) return;
+        
+        const isCollapsed = sidebar.getAttribute('data-sidebar-collapsed') === 'true' || {sidebar_collapsed_js};
+        
+        if (isCollapsed) {{
+            sidebar.classList.add('sidebar-collapsed');
+            sidebar.setAttribute('data-sidebar-collapsed', 'true');
+            sidebar.style.width = '4rem';
+            sidebar.style.minWidth = '4rem';
+            sidebar.style.maxWidth = '4rem';
+        }} else {{
+            sidebar.classList.remove('sidebar-collapsed');
+            sidebar.setAttribute('data-sidebar-collapsed', 'false');
+            sidebar.style.width = '15rem';
+            sidebar.style.minWidth = '15rem';
+            sidebar.style.maxWidth = '15rem';
         }}
     }}
     
-    // 즉시 실행 (최우선 실행)
-    updateSidebarState();
+    // 초기 실행
+    syncSidebarState();
     
-    // DOM 로드 후 실행 (다른 스크립트보다 먼저)
-    if (document.readyState === 'loading') {{
-        document.addEventListener('DOMContentLoaded', function() {{
-            updateSidebarState();
-            setTimeout(updateSidebarState, 50);
-            setTimeout(updateSidebarState, 150);
-        }}, {{ once: true }});
-    }} else {{
-        setTimeout(updateSidebarState, 50);
-        setTimeout(updateSidebarState, 150);
-    }}
+    // 주기적 확인 (1초마다)
+    setInterval(syncSidebarState, 1000);
     
-    // 주기적으로 확인 (상태 변경 감지) - 우선순위 높음
-    if (updateInterval) clearInterval(updateInterval);
-    updateInterval = setInterval(updateSidebarState, 300);  // 200ms → 300ms로 조정
-    
-    // MutationObserver로 사이드바 변경 감지 (우선순위 높음)
-    const observer = new MutationObserver(function(mutations) {{
-        let shouldUpdate = false;
-        mutations.forEach(function(mutation) {{
-            if (mutation.type === 'attributes' && 
-                (mutation.attributeName === 'data-sidebar-collapsed' || 
-                 mutation.attributeName === 'data-collapsed' ||
-                 mutation.attributeName === 'class' ||
-                 mutation.attributeName === 'style')) {{
-                shouldUpdate = true;
-            }}
-            if (mutation.type === 'childList') {{
-                shouldUpdate = true;
-            }}
-        }});
-        if (shouldUpdate) {{
-            // 즉시 실행 (우선순위 높음)
-            updateSidebarState();
-        }}
+    // DOM 변경 감지
+    const observer = new MutationObserver(function() {{
+        syncSidebarState();
     }});
     
     const sidebar = document.querySelector('[data-testid="stSidebar"]');
     if (sidebar) {{
         observer.observe(sidebar, {{
             attributes: true,
-            childList: true,
-            subtree: false,
-            attributeFilter: ['data-sidebar-collapsed', 'data-collapsed', 'class', 'style']
+            attributeFilter: ['data-sidebar-collapsed', 'class']
         }});
     }}
-    
-    // window load 이벤트
-    window.addEventListener('load', function() {{
-        setTimeout(updateSidebarState, 100);
-        setTimeout(updateSidebarState, 500);
-    }}, {{ passive: true }});
-    
-    // 페이지 언로드 시 정리
-    window.addEventListener('beforeunload', function() {{
-        if (updateInterval) clearInterval(updateInterval);
-        observer.disconnect();
-    }}, {{ passive: true }});
 }})();
 </script>
 """, unsafe_allow_html=True)
@@ -1055,9 +640,100 @@ if st.session_state.get("theme", "light") == "dark":
 if "sidebar_collapsed" not in st.session_state:
     st.session_state.sidebar_collapsed = False
 
-def _render_collapsed_sidebar(menu):
-    """접힌 사이드바 렌더링 (아이콘만 표시)"""
-    # 카테고리별 아이콘 매핑
+# 메뉴 구조 정의
+menu = {
+    "🏠 홈": [("홈", "홈")],
+    "🧠 설계": {
+        "main": [("가게 전략 센터", "가게 전략 센터")],
+        "sub": [
+            ("메뉴 포트폴리오 설계", "메뉴 등록"),
+            ("메뉴 수익 설계", "메뉴 수익 구조 설계실"),
+            ("재료 구조 설계", "재료 등록"),
+            ("수익 구조 설계", "수익 구조 설계실"),
+            ("레시피 설계", "레시피 등록")
+        ]
+    },
+    "📊 분석": {
+        "main": [("분석 허브", "분석 허브")],
+        "sub": [
+            ("매출 분석", "매출 관리"),
+            ("판매·메뉴 분석", "판매 관리"),
+            ("원가 분석", "비용 분석"),
+            ("체크 결과 요약", "검진 결과 요약"),
+            ("체크 히스토리", "검진 히스토리"),
+            ("매출 하락 원인 찾기", "매출 하락 원인 찾기")
+        ]
+    },
+    "✍ 입력": {
+        "main": [("데이터 입력 센터", "입력 허브")],
+        "sub": [
+            ("오늘 마감 입력", "일일 입력(통합)"),
+            ("매출/방문자 입력", "매출 등록"),
+            ("판매량 입력", "판매량 등록"),
+            ("월간 정산 입력", "실제정산"),
+            ("비용 목표 입력", "목표 비용구조"),
+            ("매출 목표 입력", "목표 매출구조"),
+            ("QSC 입력", "건강검진 실시")
+        ]
+    },
+    "🛠 운영": [
+        ("직원 연락망", "직원 연락망"),
+        ("협력사 연락망", "협력사 연락망"),
+        ("게시판", "게시판")
+    ]
+}
+
+def render_expanded_sidebar(menu):
+    """펼친 상태 사이드바 렌더링"""
+    # 매장 선택
+    user_stores = get_user_stores()
+    curr_name = get_current_store_name()
+    if len(user_stores) > 1:
+        store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
+        selected = st.selectbox("🏪 매장 선택", options=list(store_options.keys()))
+        if store_options[selected] != get_current_store_id():
+            if switch_store(store_options[selected]): st.rerun()
+    else:
+        st.markdown(f"🏪 **{curr_name}**")
+    
+    # 메뉴 렌더링
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "홈"
+    
+    for cat, data in menu.items():
+        st.markdown(f"**{cat}**")
+        if isinstance(data, list):
+            for label, key in data:
+                if st.button(label, key=f"btn_{key}", use_container_width=True, 
+                           type="primary" if st.session_state.current_page == key else "secondary"):
+                    st.session_state.current_page = key
+                    st.rerun()
+        else:
+            # Main items
+            for label, key in data["main"]:
+                if st.button(label, key=f"btn_{key}", use_container_width=True,
+                           type="primary" if st.session_state.current_page == key else "secondary"):
+                    st.session_state.current_page = key
+                    st.rerun()
+            # Sub items in expander
+            with st.expander("상세 선택", expanded=False):
+                for label, key in data["sub"]:
+                    if st.button(label, key=f"btn_sub_{key}", use_container_width=True,
+                               type="primary" if st.session_state.current_page == key else "secondary"):
+                        st.session_state.current_page = key
+                        st.rerun()
+    
+    # 로그아웃, 캐시 클리어
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🚪 로그아웃"): 
+        logout()
+        st.rerun()
+    if st.button("🔄 캐시 클리어"): 
+        load_csv.clear()
+        st.rerun()
+
+def render_collapsed_sidebar(menu):
+    """접힌 상태 사이드바 렌더링 (아이콘만 표시)"""
     category_icons = {
         "🏠 홈": "🏠",
         "🧠 설계": "🧠",
@@ -1066,14 +742,9 @@ def _render_collapsed_sidebar(menu):
         "🛠 운영": "🛠"
     }
     
-    # 접힌 상태에서 텍스트 숨김을 위한 마커 추가
-    st.markdown('<div class="sidebar-collapsed-marker"></div>', unsafe_allow_html=True)
-    
-    # 카테고리별 아이콘 버튼
     for cat, data in menu.items():
         icon = category_icons.get(cat, "📋")
         if st.button(icon, key=f"collapsed_{cat}", use_container_width=True, help=cat):
-            # 펼치고 해당 카테고리의 첫 번째 메뉴 항목으로 이동
             st.session_state.sidebar_collapsed = False
             if isinstance(data, list):
                 st.session_state.current_page = data[0][1]
@@ -1081,7 +752,6 @@ def _render_collapsed_sidebar(menu):
                 st.session_state.current_page = data["main"][0][1]
             st.rerun()
     
-    # 로그아웃, 캐시 클리어 버튼
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚪", key="collapsed_logout", use_container_width=True, help="로그아웃"):
         logout()
@@ -1090,116 +760,39 @@ def _render_collapsed_sidebar(menu):
         load_csv.clear()
         st.rerun()
 
-with st.sidebar:
-    # 사이드바 상태를 data attribute로 설정 (JavaScript에서 읽기 위해) - 즉시 실행
-    collapsed_state = "true" if st.session_state.sidebar_collapsed else "false"
-    st.markdown(f"""
-    <div data-sidebar-state="{collapsed_state}" style="display:none;"></div>
-    <script>
-    (function() {{
-        const stateDiv = document.querySelector('[data-sidebar-state]');
-        const collapsed = stateDiv ? stateDiv.getAttribute('data-sidebar-state') === 'true' : false;
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) {{
-            sidebar.setAttribute('data-sidebar-collapsed', collapsed ? 'true' : 'false');
-            sidebar.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
-            if (collapsed) {{
-                sidebar.classList.add('sidebar-collapsed');
-            }} else {{
-                sidebar.classList.remove('sidebar-collapsed');
+def render_sidebar():
+    """사이드바 메인 렌더링 함수"""
+    with st.sidebar:
+        # 사이드바 상태를 data attribute로 설정
+        collapsed_state = "true" if st.session_state.sidebar_collapsed else "false"
+        st.markdown(f"""
+        <div data-sidebar-state="{collapsed_state}" style="display:none;"></div>
+        <script>
+        (function() {{
+            const stateDiv = document.querySelector('[data-sidebar-state]');
+            const collapsed = stateDiv ? stateDiv.getAttribute('data-sidebar-state') === 'true' : false;
+            const sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (sidebar) {{
+                sidebar.setAttribute('data-sidebar-collapsed', collapsed ? 'true' : 'false');
             }}
-        }}
-    }})();
-    </script>
-    """, unsafe_allow_html=True)
-    
-    menu = {
-        "🏠 홈": [("홈", "홈")],
-        "🧠 설계": {
-            "main": [("가게 전략 센터", "가게 전략 센터")],
-            "sub": [
-                ("메뉴 포트폴리오 설계", "메뉴 등록"),
-                ("메뉴 수익 설계", "메뉴 수익 구조 설계실"),
-                ("재료 구조 설계", "재료 등록"),
-                ("수익 구조 설계", "수익 구조 설계실"),
-                ("레시피 설계", "레시피 등록")
-            ]
-        },
-        "📊 분석": {
-            "main": [("분석 허브", "분석 허브")],
-            "sub": [
-                ("매출 분석", "매출 관리"),
-                ("판매·메뉴 분석", "판매 관리"),
-                ("원가 분석", "비용 분석"),
-                ("체크 결과 요약", "검진 결과 요약"),
-                ("체크 히스토리", "검진 히스토리"),
-                ("매출 하락 원인 찾기", "매출 하락 원인 찾기")
-            ]
-        },
-        "✍ 입력": {
-            "main": [("데이터 입력 센터", "입력 허브")],
-            "sub": [
-                ("오늘 마감 입력", "일일 입력(통합)"),
-                ("매출/방문자 입력", "매출 등록"),
-                ("판매량 입력", "판매량 등록"),
-                ("월간 정산 입력", "실제정산"),
-                ("비용 목표 입력", "목표 비용구조"),
-                ("매출 목표 입력", "목표 매출구조"),
-                ("QSC 입력", "건강검진 실시")
-            ]
-        },
-        "🛠 운영": [
-            ("직원 연락망", "직원 연락망"),
-            ("협력사 연락망", "협력사 연락망"),
-            ("게시판", "게시판")
-        ]
-    }
-    
-    if "current_page" not in st.session_state: st.session_state.current_page = "홈"
-    
-    # 토글 버튼 (최상단)
-    toggle_icon = "◀ 접기" if not st.session_state.sidebar_collapsed else "▶ 펼치기"
-    if st.button(toggle_icon, key="sidebar_toggle", use_container_width=True):
-        st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
-        st.rerun()
-    
-    # 접힌 상태면 아이콘만 표시
-    if st.session_state.sidebar_collapsed:
-        _render_collapsed_sidebar(menu)
-    else:
-        # 펼친 상태: 기존 메뉴 표시
-        user_stores = get_user_stores()
-        curr_name = get_current_store_name()
-        if len(user_stores) > 1:
-            store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
-            selected = st.selectbox("🏪 매장 선택", options=list(store_options.keys()))
-            if store_options[selected] != get_current_store_id():
-                if switch_store(store_options[selected]): st.rerun()
-        else:
-            st.markdown(f"🏪 **{curr_name}**")
+        }})();
+        </script>
+        """, unsafe_allow_html=True)
         
-        for cat, data in menu.items():
-            st.markdown(f"**{cat}**")
-            if isinstance(data, list):
-                for label, key in data:
-                    if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                        st.session_state.current_page = key
-                        st.rerun()
-            else:
-                # Main items
-                for label, key in data["main"]:
-                    if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                        st.session_state.current_page = key
-                        st.rerun()
-                # Sub items in expander
-                with st.expander("상세 선택", expanded=False):
-                    for label, key in data["sub"]:
-                        if st.button(label, key=f"btn_sub_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                            st.session_state.current_page = key
-                            st.rerun()
+        # 토글 버튼
+        toggle_icon = "◀ 접기" if not st.session_state.sidebar_collapsed else "▶ 펼치기"
+        if st.button(toggle_icon, key="sidebar_toggle", use_container_width=True):
+            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+            st.rerun()
+        
+        # 접힌 상태 처리
+        if st.session_state.sidebar_collapsed:
+            render_collapsed_sidebar(menu)
+        else:
+            render_expanded_sidebar(menu)
 
-    if st.button("🚪 로그아웃"): logout(); st.rerun()
-    if st.button("🔄 캐시 클리어"): load_csv.clear(); st.rerun()
+# 사이드바 렌더링
+render_sidebar()
 
 # Page Routing
 page = st.session_state.current_page
