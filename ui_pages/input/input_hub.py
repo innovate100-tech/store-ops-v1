@@ -5,7 +5,7 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 from src.ui_helpers import render_page_header
-from src.auth import get_current_store_id, get_supabase_client
+from src.auth import get_current_store_id, get_supabase_client, get_read_client
 from src.storage_supabase import get_day_record_status, load_actual_settlement_items, load_csv
 from src.utils.time_utils import today_kst, current_year_kst, current_month_kst
 from datetime import timedelta
@@ -14,7 +14,7 @@ import pandas as pd
 def _count_completed_checklists_last_7_days(store_id: str) -> int:
     if not store_id: return 0
     try:
-        supabase = get_supabase_client()
+        supabase = get_read_client()
         if not supabase: return 0
         today = today_kst()
         cutoff_date = (today - timedelta(days=6)).isoformat()
@@ -71,7 +71,7 @@ def _get_today_recommendations(store_id: str) -> list:
         checklist_count = _count_completed_checklists_last_7_days(store_id)
         last_date_str = "기록 없음"
         try:
-            supabase = get_supabase_client()
+            supabase = get_read_client()
             res = supabase.table("health_check_sessions").select("completed_at").eq("store_id", store_id).not_.is_("completed_at", "null").order("completed_at", desc=True).limit(1).execute()
             if res.data:
                 last_date_str = res.data[0]["completed_at"][:10]

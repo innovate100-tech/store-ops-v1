@@ -65,8 +65,8 @@ def render_health_check_history():
 def _load_completed_sessions(store_id: str, limit: int = 10) -> List[Dict]:
     """완료 체크 세션 리스트 로드"""
     try:
-        from src.auth import get_supabase_client
-        supabase = get_supabase_client()
+        from src.auth import get_read_client
+        supabase = get_read_client()
         if not supabase:
             return []
         

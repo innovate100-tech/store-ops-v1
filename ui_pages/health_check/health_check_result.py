@@ -94,8 +94,8 @@ def render_health_check_result():
 def _load_latest_completed_session(store_id: str) -> Optional[Dict]:
     """최신 완료 체크 세션 로드"""
     try:
-        from src.auth import get_supabase_client
-        supabase = get_supabase_client()
+        from src.auth import get_read_client
+        supabase = get_read_client()
         if not supabase:
             return None
         
@@ -118,8 +118,8 @@ def _load_latest_completed_session(store_id: str) -> Optional[Dict]:
 def _load_completed_sessions(store_id: str, limit: int = 10) -> List[Dict]:
     """완료 체크 세션 리스트 로드"""
     try:
-        from src.auth import get_supabase_client
-        supabase = get_supabase_client()
+        from src.auth import get_read_client
+        supabase = get_read_client()
         if not supabase:
             return []
         
@@ -563,8 +563,8 @@ def _render_zone_e_previous_comparison(store_id: str, current_session_id: str):
     st.markdown("### 📈 이전 체크 대비")
     
     try:
-        from src.auth import get_supabase_client
-        supabase = get_supabase_client()
+        from src.auth import get_read_client
+        supabase = get_read_client()
         if not supabase:
             st.info("이전 체크 데이터를 불러올 수 없습니다.")
             return
