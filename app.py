@@ -284,20 +284,20 @@ st.markdown("""
         opacity: 1 !important;
     }
     
-    /* 사이드바 토글 버튼 강제 표시 - 모든 가능한 선택자 */
-    [data-testid="stHeader"] button,
-    header button,
-    button[kind="header"],
+    /* Streamlit 네이티브 사이드바 토글 버튼 숨김 */
     button[aria-label*="sidebar"],
     button[aria-label*="메뉴"],
     button[aria-label*="Menu"],
     button[aria-label*="Close"],
     button[aria-label*="열기"],
-    button[aria-label*="Open"] {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 1000 !important;
+    button[aria-label*="Open"],
+    [data-testid="stHeader"] button:first-child,
+    header button:first-child,
+    button[kind="header"]:first-child {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
     
     /* 제목 위 불필요한 간격 제거 */
@@ -384,7 +384,7 @@ st.markdown("""
         transition: width 0.3s ease !important;
     }
     
-    /* 접힌 상태에서 텍스트 숨김 - 강화 버전 */
+    /* 접힌 상태에서 텍스트 숨김 - 강화 버전 (모든 텍스트 요소) */
     [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
     [data-testid="stSidebar"][data-collapsed="true"] .stMarkdown:not(.keep-visible),
     [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stMarkdown:not(.keep-visible),
@@ -393,9 +393,23 @@ st.markdown("""
     [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stSelectbox,
     [data-testid="stSidebar"].sidebar-collapsed .stExpander,
     [data-testid="stSidebar"][data-collapsed="true"] .stExpander,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stExpander {
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stExpander,
+    [data-testid="stSidebar"].sidebar-collapsed p,
+    [data-testid="stSidebar"][data-collapsed="true"] p,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] p,
+    [data-testid="stSidebar"].sidebar-collapsed span:not([data-testid="stIconMaterial"]):not(.material-icons),
+    [data-testid="stSidebar"][data-collapsed="true"] span:not([data-testid="stIconMaterial"]):not(.material-icons),
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] span:not([data-testid="stIconMaterial"]):not(.material-icons),
+    [data-testid="stSidebar"].sidebar-collapsed label,
+    [data-testid="stSidebar"][data-collapsed="true"] label,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] label {
         display: none !important;
         visibility: hidden !important;
+        opacity: 0 !important;
+        font-size: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
     }
     
     /* 접힌 상태에서 버튼 중앙 정렬 및 텍스트 숨김 */
@@ -408,11 +422,24 @@ st.markdown("""
         width: 100% !important;
     }
     
-    /* 접힌 상태에서 버튼 내부 텍스트 숨김 (아이콘만 표시) - 단, 토글 버튼은 제외 */
-    [data-testid="stSidebar"].sidebar-collapsed .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span,
-    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span {
-        font-size: 1.5rem !important;  /* 아이콘 크기 유지 */
+    /* 접힌 상태에서 버튼 내부 텍스트 숨김 (아이콘만 표시) */
+    [data-testid="stSidebar"].sidebar-collapsed .stButton > button > span:not([data-testid="stIconMaterial"]),
+    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button > span:not([data-testid="stIconMaterial"]),
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button > span:not([data-testid="stIconMaterial"]) {
+        font-size: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+    }
+    
+    /* 접힌 상태에서 토글 버튼은 텍스트 유지 (◀ 접기, ▶ 펼치기) */
+    [data-testid="stSidebar"].sidebar-collapsed button[key="sidebar_toggle"] > span,
+    [data-testid="stSidebar"][data-collapsed="true"] button[key="sidebar_toggle"] > span,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] button[key="sidebar_toggle"] > span {
+        font-size: inherit !important;
+        width: auto !important;
+        overflow: visible !important;
+        opacity: 1 !important;
     }
     
     /* 접힌 상태에서 expander 완전히 숨김 */
@@ -642,7 +669,7 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 강제 열기 JavaScript - 더 강력한 버전 (에러 핸들링 강화)
+# 사이드바 상태 유지 JavaScript - 접기/펼치기 기능과 호환
 st.markdown("""
 <script>
 (function() {
@@ -652,7 +679,7 @@ st.markdown("""
         let observer = null;
         let intervalId = null;
         
-        function forceSidebarOpen() {
+        function maintainSidebarState() {
             try {
                 // 모든 가능한 사이드바 선택자로 찾기
                 const selectors = [
@@ -674,24 +701,30 @@ st.markdown("""
                 }
                 
                 if (sidebar) {
-                    // 사이드바를 항상 열린 상태로 강제 설정
+                    // 사이드바를 항상 표시 상태로 유지 (완전히 사라지지 않도록)
                     sidebar.setAttribute('aria-expanded', 'true');
-                    // 접힌 상태 확인 (data attribute 우선, 그 다음 클래스)
+                    
+                    // 접힌 상태 확인 (여러 소스에서 확인)
                     const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
-                    const isCollapsed = collapsedAttr === 'true' || 
-                                       sidebar.classList.contains('sidebar-collapsed') || 
-                                       sidebar.getAttribute('data-collapsed') === 'true';
+                    const collapsedClass = sidebar.classList.contains('sidebar-collapsed');
+                    const collapsedData = sidebar.getAttribute('data-collapsed');
+                    const isCollapsed = collapsedAttr === 'true' || collapsedClass || collapsedData === 'true';
+                    
+                    // 상태에 따른 폭 설정
                     const sidebarWidth = isCollapsed ? '4rem' : '15rem';
                     
                     // 접힌 상태면 클래스 추가, 아니면 제거
                     if (isCollapsed) {
                         sidebar.classList.add('sidebar-collapsed');
                         sidebar.setAttribute('data-collapsed', 'true');
+                        sidebar.setAttribute('data-sidebar-collapsed', 'true');
                     } else {
                         sidebar.classList.remove('sidebar-collapsed');
                         sidebar.setAttribute('data-collapsed', 'false');
+                        sidebar.setAttribute('data-sidebar-collapsed', 'false');
                     }
                     
+                    // 사이드바가 완전히 사라지지 않도록 보장하되, 접힌 상태는 존중
                     sidebar.style.cssText = `
                         display: block !important;
                         visibility: visible !important;
@@ -746,13 +779,17 @@ st.markdown("""
                             btn.setAttribute('data-sidebar-listener', 'true');
                             btn.addEventListener('click', function(e) {
                                 try {
+                                    // Streamlit 네이티브 토글 버튼 클릭 차단
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.stopImmediatePropagation();
                                     setTimeout(function() {
-                                        try { forceSidebarOpen(); } catch(e) {}
+                                        try { maintainSidebarState(); } catch(e) {}
                                     }, 100);
                                 } catch(e) {
                                     // 클릭 핸들러 에러 무시
                                 }
-                            }, { passive: true });
+                            }, { passive: false });
                         }
                     });
                 } catch(e) {
@@ -763,28 +800,37 @@ st.markdown("""
             }
         }
         
-        // 즉시 실행
-        forceSidebarOpen();
+        // 즉시 실행 (상태 관리 스크립트 이후 실행)
+        setTimeout(function() {
+            try { maintainSidebarState(); } catch(e) {}
+        }, 100);
         
-        // 페이지 로드 시 실행
+        // 페이지 로드 시 실행 (상태 관리 스크립트 이후)
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
-                try { forceSidebarOpen(); } catch(e) {}
-            });
+                setTimeout(function() {
+                    try { maintainSidebarState(); } catch(e) {}
+                }, 200);
+            }, { once: true });
         } else {
-            forceSidebarOpen();
+            setTimeout(function() {
+                try { maintainSidebarState(); } catch(e) {}
+            }, 200);
         }
         
         // window.load 이벤트
         window.addEventListener('load', function() {
-            try { forceSidebarOpen(); } catch(e) {}
-        }, { passive: true });
+            setTimeout(function() {
+                try { maintainSidebarState(); } catch(e) {}
+            }, 300);
+        }, { passive: true, once: true });
         
-        // 주기적으로 확인하여 사이드바가 접히면 다시 열기
+        // 주기적으로 확인하여 사이드바 상태 유지 (접힌 상태는 존중)
+        // 상태 관리 스크립트보다 낮은 우선순위로 실행
         try {
             intervalId = setInterval(function() {
-                try { forceSidebarOpen(); } catch(e) {}
-            }, 200);
+                try { maintainSidebarState(); } catch(e) {}
+            }, 600);  // 500ms → 600ms로 조정 (상태 관리 스크립트보다 낮은 빈도)
         } catch(e) {
             console.warn('setInterval 설정 실패:', e);
         }
@@ -807,7 +853,7 @@ st.markdown("""
                     });
                     if (shouldForce) {
                         setTimeout(function() {
-                            try { forceSidebarOpen(); } catch(e) {}
+                            try { maintainSidebarState(); } catch(e) {}
                         }, 50);
                     }
                 } catch(e) {
@@ -889,6 +935,19 @@ st.markdown(f"""
                     z-index: 999 !important;
                     transition: width 0.3s ease !important;
                 `;
+                
+                // 접힌 상태에서 텍스트 동적으로 숨김
+                setTimeout(function() {{
+                    const textElements = sidebar.querySelectorAll('p, span:not([data-testid="stIconMaterial"]):not(.material-icons), label, .stMarkdown:not(.keep-visible)');
+                    textElements.forEach(function(el) {{
+                        // 토글 버튼은 제외
+                        if (el.closest('button[key="sidebar_toggle"]')) return;
+                        el.style.setProperty('display', 'none', 'important');
+                        el.style.setProperty('visibility', 'hidden', 'important');
+                        el.style.setProperty('opacity', '0', 'important');
+                        el.style.setProperty('font-size', '0', 'important');
+                    }});
+                }}, 10);
             }} else {{
                 sidebar.classList.remove('sidebar-collapsed');
                 sidebar.setAttribute('data-collapsed', 'false');
@@ -906,32 +965,43 @@ st.markdown(f"""
                     z-index: 999 !important;
                     transition: width 0.3s ease !important;
                 `;
+                
+                // 펼친 상태에서 텍스트 다시 표시
+                setTimeout(function() {{
+                    const textElements = sidebar.querySelectorAll('p, span, label, .stMarkdown');
+                    textElements.forEach(function(el) {{
+                        el.style.removeProperty('display');
+                        el.style.removeProperty('visibility');
+                        el.style.removeProperty('opacity');
+                        el.style.removeProperty('font-size');
+                    }});
+                }}, 10);
             }}
         }} catch(e) {{
             console.warn('사이드바 상태 업데이트 실패:', e);
         }}
     }}
     
-    // 즉시 실행
+    // 즉시 실행 (최우선 실행)
     updateSidebarState();
     
-    // DOM 로드 후 실행
+    // DOM 로드 후 실행 (다른 스크립트보다 먼저)
     if (document.readyState === 'loading') {{
         document.addEventListener('DOMContentLoaded', function() {{
             updateSidebarState();
-            setTimeout(updateSidebarState, 100);
-            setTimeout(updateSidebarState, 300);
-        }});
+            setTimeout(updateSidebarState, 50);
+            setTimeout(updateSidebarState, 150);
+        }}, {{ once: true }});
     }} else {{
-        setTimeout(updateSidebarState, 100);
-        setTimeout(updateSidebarState, 300);
+        setTimeout(updateSidebarState, 50);
+        setTimeout(updateSidebarState, 150);
     }}
     
-    // 주기적으로 확인 (상태 변경 감지) - 더 자주 체크
+    // 주기적으로 확인 (상태 변경 감지) - 우선순위 높음
     if (updateInterval) clearInterval(updateInterval);
-    updateInterval = setInterval(updateSidebarState, 200);
+    updateInterval = setInterval(updateSidebarState, 300);  // 200ms → 300ms로 조정
     
-    // MutationObserver로 사이드바 변경 감지
+    // MutationObserver로 사이드바 변경 감지 (우선순위 높음)
     const observer = new MutationObserver(function(mutations) {{
         let shouldUpdate = false;
         mutations.forEach(function(mutation) {{
@@ -947,7 +1017,8 @@ st.markdown(f"""
             }}
         }});
         if (shouldUpdate) {{
-            setTimeout(updateSidebarState, 50);
+            // 즉시 실행 (우선순위 높음)
+            updateSidebarState();
         }}
     }});
     
