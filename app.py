@@ -1611,7 +1611,16 @@ with st.sidebar:
             # 빠른 입력은 expander로
             quick_input_items = menu_categories.get("✍ 입력 (빠른 입력)", [])
             if quick_input_items:
-                with st.sidebar.expander("📋 세부입력선택", expanded=False):
+                # Expander 가운데 정렬을 위한 CSS 추가
+                st.sidebar.markdown("""
+                <style>
+                    div[data-testid="stSidebar"] details summary {
+                        text-align: center !important;
+                        font-weight: 600 !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+                with st.sidebar.expander("세부입력선택", expanded=False):
                     # expander 안에서는 st를 직접 사용해야 expander 내부에 렌더링됨
                     for idx, (label, key) in enumerate(quick_input_items):
                         is_selected = selected_page_key == key
