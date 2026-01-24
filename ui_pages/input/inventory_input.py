@@ -1,6 +1,6 @@
 """
-재고 입력 페이지 (입력 전용)
-재기획안에 따른 5-Zone 구조
+재고 입력 페이지 (대량 입력 중심)
+전체 재료를 한 번에 빠르게 등록할 수 있는 UI
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -17,111 +17,9 @@ logger = logging.getLogger(__name__)
 # 공통 설정 적용
 bootstrap(page_title="재고 입력")
 
-# 재료 분류 옵션 (재료 입력 페이지와 동일)
+# 재료 분류 옵션
 INGREDIENT_CATEGORIES = ["채소", "육류", "해산물", "조미료", "기타"]
-
-
-def _update_inventory(store_id, ingredient_name, current_stock, safety_stock):
-    """재고 정보 수정 (DB 직접 업데이트)"""
-    supabase = get_supabase_client()
-    if not supabase:
-        return False
-    
-    try:
-        # 재료 ID 찾기
-        ing_result = supabase.table("ingredients")\
-            .select("id")\
-            .eq("store_id", store_id)\
-            .eq("name", ingredient_name)\
-            .execute()
-        
-        if not ing_result.data:
-            logger.error(f"재료를 찾을 수 없습니다: {ingredient_name}")
-            return False
-        
-        ingredient_id = ing_result.data[0]['id']
-        
-        # 재고 정보 업데이트
-        supabase.table("inventory")\
-            .update({
-                "on_hand": float(current_stock),
-                "safety_stock": float(safety_stock)
-            })\
-            .eq("store_id", store_id)\
-            .eq("ingredient_id", ingredient_id)\
-            .execute()
-        
-        # 캐시 무효화
-        try:
-            soft_invalidate(
-                reason=f"재고 수정: {ingredient_name}",
-                targets=["inventory"],
-                session_keys=['ss_inventory_df']
-            )
-            clear_session_cache('ss_inventory_df')
-            load_csv.clear()
-        except Exception as e:
-            logger.warning(f"캐시 무효화 실패: {e}")
-        
-        return True
-    except Exception as e:
-        logger.error(f"재고 수정 실패: {e}")
-        return False
-
-
-def _delete_inventory(store_id, ingredient_name):
-    """재고 정보 삭제 (DB 직접 삭제)"""
-    supabase = get_supabase_client()
-    if not supabase:
-        return False
-    
-    try:
-        # 재료 ID 찾기
-        ing_result = supabase.table("ingredients")\
-            .select("id")\
-            .eq("store_id", store_id)\
-            .eq("name", ingredient_name)\
-            .execute()
-        
-        if not ing_result.data:
-            logger.error(f"재료를 찾을 수 없습니다: {ingredient_name}")
-            return False
-        
-        ingredient_id = ing_result.data[0]['id']
-        
-        # 발주 이력 확인
-        order_check = supabase.table("orders")\
-            .select("id")\
-            .eq("store_id", store_id)\
-            .eq("ingredient_id", ingredient_id)\
-            .execute()
-        
-        if order_check.data:
-            return False, f"발주 이력이 있어 삭제할 수 없습니다. (발주 이력: {len(order_check.data)}건)"
-        
-        # 재고 정보 삭제
-        supabase.table("inventory")\
-            .delete()\
-            .eq("store_id", store_id)\
-            .eq("ingredient_id", ingredient_id)\
-            .execute()
-        
-        # 캐시 무효화
-        try:
-            soft_invalidate(
-                reason=f"재고 삭제: {ingredient_name}",
-                targets=["inventory"],
-                session_keys=['ss_inventory_df']
-            )
-            clear_session_cache('ss_inventory_df')
-            load_csv.clear()
-        except Exception as e:
-            logger.warning(f"캐시 무효화 실패: {e}")
-        
-        return True, "삭제 성공"
-    except Exception as e:
-        logger.error(f"재고 삭제 실패: {e}")
-        return False, f"삭제 실패: {str(e)}"
+ITEMS_PER_PAGE = 50  # 페이지네이션: 한 페이지에 50개씩
 
 
 def _get_ingredient_categories(store_id, ingredient_df):
@@ -150,8 +48,20 @@ def _get_ingredient_categories(store_id, ingredient_df):
     return categories
 
 
+def _calculate_status(current, safety):
+    """재고 상태 계산"""
+    if current is None or safety is None:
+        return "미등록", "#9CA3AF"
+    if current < safety:
+        return "부족", "#EF4444"
+    elif current <= safety * 1.2:
+        return "주의", "#F59E0B"
+    else:
+        return "정상", "#22C55E"
+
+
 def render_inventory_input_page():
-    """재고 입력 페이지 렌더링 (5-Zone 구조)"""
+    """재고 입력 페이지 렌더링 (대량 입력 중심)"""
     render_page_header("📦 재고 입력", "📦")
     
     store_id = get_current_store_id()
@@ -164,9 +74,6 @@ def render_inventory_input_page():
                             default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     inventory_df = load_csv('inventory.csv', store_id=store_id, 
                            default_columns=['재료명', '현재고', '안전재고'])
-    recipe_df = load_csv('recipes.csv', store_id=store_id, default_columns=['메뉴명', '재료명', '사용량'])
-    daily_sales_df = load_csv('daily_sales_items.csv', store_id=store_id, 
-                              default_columns=['날짜', '메뉴명', '판매수량'])
     
     if ingredient_df.empty:
         st.warning("먼저 재료를 등록해주세요.")
@@ -191,33 +98,17 @@ def render_inventory_input_page():
                     'safety': safety_stock
                 }
     
-    # 레시피 사용 여부 확인
-    ingredient_in_recipe = {}
-    if not recipe_df.empty:
-        ingredient_in_recipe = {ing: True for ing in recipe_df['재료명'].unique()}
-    
-    # 사용량 계산 (최근 7일)
-    usage_df = pd.DataFrame()
-    recent_usage = {}
-    if not daily_sales_df.empty and not recipe_df.empty:
-        try:
-            usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
-            if not usage_df.empty:
-                usage_df['날짜'] = pd.to_datetime(usage_df['날짜'])
-                max_date = usage_df['날짜'].max()
-                recent_cutoff = max_date - timedelta(days=7)
-                recent_usage_df = usage_df[usage_df['날짜'] >= recent_cutoff]
-                
-                if not recent_usage_df.empty:
-                    daily_avg = recent_usage_df.groupby('재료명')['총사용량'].sum() / 7
-                    recent_usage = daily_avg.to_dict()
-        except Exception as e:
-            logger.warning(f"사용량 계산 실패: {e}")
-    
-    # 발주 필요 여부 확인
+    # 발주 필요 여부 확인 (간단 버전)
     needs_order = {}
     if not ingredient_df.empty and not inventory_df.empty:
         try:
+            recipe_df = load_csv('recipes.csv', store_id=store_id, default_columns=['메뉴명', '재료명', '사용량'])
+            daily_sales_df = load_csv('daily_sales_items.csv', store_id=store_id, 
+                                      default_columns=['날짜', '메뉴명', '판매수량'])
+            usage_df = pd.DataFrame()
+            if not daily_sales_df.empty and not recipe_df.empty:
+                usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
+            
             order_recommendation = calculate_order_recommendation(
                 ingredient_df, inventory_df, usage_df, days_for_avg=7, forecast_days=3
             )
@@ -227,413 +118,93 @@ def render_inventory_input_page():
             logger.warning(f"발주 추천 계산 실패: {e}")
     
     # ============================================
-    # ZONE A: 대시보드 & 현황 요약
+    # ZONE A: 대시보드 & 빠른 액션
     # ============================================
     _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order)
     
     st.markdown("---")
     
     # ============================================
-    # ZONE B: 재고 입력 (단일/일괄)
+    # 필터 & 검색
     # ============================================
-    _render_zone_b_input(store_id, ingredient_df, inventory_map)
+    filtered_ingredient_df = _render_filters(ingredient_df, inventory_map, categories)
     
     st.markdown("---")
     
     # ============================================
-    # ZONE C: 필터 & 검색
+    # ZONE B: 대량 입력 테이블
     # ============================================
-    filtered_inventory_df = _render_zone_c_filters(ingredient_df, inventory_map, categories, ingredient_in_recipe, needs_order)
+    _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, ingredient_df, inventory_map, categories)
     
     st.markdown("---")
     
     # ============================================
-    # ZONE D: 재고 목록 & 관리
+    # ZONE C: 저장 & 검증
     # ============================================
-    _render_zone_d_inventory_list(filtered_inventory_df, ingredient_df, inventory_map, categories, 
-                                   ingredient_in_recipe, recent_usage, needs_order, store_id)
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE E: 통계 & 연계 관리
-    # ============================================
-    _render_zone_e_management(ingredient_df, inventory_map, recent_usage, needs_order, store_id)
+    _render_zone_c_save_validation(store_id, filtered_ingredient_df, ingredient_df, inventory_map)
 
 
 def _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order):
-    """ZONE A: 대시보드 & 현황 요약"""
+    """ZONE A: 대시보드 & 빠른 액션"""
     render_section_header("📊 재고 현황 대시보드", "📊")
     
     total_ingredients = len(ingredient_df)
     registered_inventory = len(inventory_map)
-    
-    if total_ingredients == 0:
-        st.info("등록된 재료가 없습니다. 먼저 재료를 등록해주세요.")
-        return
-    
-    # 재고 상태 계산
-    normal_count = 0
-    warning_count = 0
-    shortage_count = 0
-    
-    for ing_name, inv_data in inventory_map.items():
-        current = inv_data['current']
-        safety = inv_data['safety']
-        
-        if current < safety:
-            shortage_count += 1
-        elif current <= safety * 1.2:
-            warning_count += 1
-        else:
-            normal_count += 1
+    shortage_count = sum(1 for inv_data in inventory_map.values() 
+                         if inv_data['current'] < inv_data['safety'])
+    unregistered_count = total_ingredients - registered_inventory
     
     # 핵심 지표 카드
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("전체 재고 등록", f"{registered_inventory}개", delta=f"{total_ingredients}개 재료 중")
+        st.metric("전체 재료 수", f"{total_ingredients}개")
     with col2:
-        st.metric("정상 재고", f"{normal_count}개")
+        st.metric("재고 등록 수", f"{registered_inventory}개", 
+                 delta=f"{unregistered_count}개 미등록" if unregistered_count > 0 else None)
     with col3:
-        st.metric("발주 필요", f"{shortage_count}개", delta=f"-{shortage_count}" if shortage_count > 0 else None)
+        st.metric("발주 필요", f"{shortage_count}개", 
+                 delta=f"-{shortage_count}" if shortage_count > 0 else None)
     with col4:
-        st.metric("주의 재고", f"{warning_count}개")
+        normal_count = sum(1 for inv_data in inventory_map.values() 
+                          if inv_data['current'] > inv_data['safety'] * 1.2)
+        st.metric("정상 재고", f"{normal_count}개")
     
-    # 진행률 바
-    st.markdown("### 진행률")
+    # 진행률 표시
     registration_rate = (registered_inventory / total_ingredients * 100) if total_ingredients > 0 else 0
-    normal_rate = (normal_count / registered_inventory * 100) if registered_inventory > 0 else 0
-    
     st.progress(registration_rate / 100, text=f"재고 등록률: {registration_rate:.0f}%")
-    st.progress(normal_rate / 100, text=f"재고 정상률: {normal_rate:.0f}%")
     
-    # 스마트 알림
-    alerts = []
-    if registered_inventory < total_ingredients:
-        alerts.append(f"ℹ️ 재고 정보가 없는 재료가 {total_ingredients - registered_inventory}개 있습니다.")
-    if shortage_count > 0:
-        alerts.append(f"⚠️ 발주 필요 재고가 {shortage_count}개 있습니다.")
-    if warning_count > 0:
-        alerts.append(f"ℹ️ 주의 재고가 {warning_count}개 있습니다.")
-    
-    if alerts:
-        for alert in alerts:
-            st.info(alert)
-
-
-def _render_zone_b_input(store_id, ingredient_df, inventory_map):
-    """ZONE B: 재고 입력 (단일/일괄)"""
-    render_section_header("📝 재고 입력", "📝")
-    
-    tab1, tab2 = st.tabs(["📝 단일 입력", "📋 일괄 입력"])
-    
-    with tab1:
-        _render_single_input(store_id, ingredient_df, inventory_map)
-    
-    with tab2:
-        _render_batch_input(store_id, ingredient_df, inventory_map)
-
-
-def _render_single_input(store_id, ingredient_df, inventory_map):
-    """단일 재고 입력"""
-    st.markdown("### 📝 재고 단일 등록")
-    
-    # 재료명과 단위 매핑 생성
-    ingredient_unit_map = {}
-    ingredient_order_unit_map = {}
-    ingredient_conversion_rate_map = {}
-    
-    for _, row in ingredient_df.iterrows():
-        ingredient_name = row.get('재료명', '')
-        unit = row.get('단위', '')
-        order_unit = row.get('발주단위', unit)
-        conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
-        
-        if ingredient_name:
-            ingredient_unit_map[ingredient_name] = unit
-            ingredient_order_unit_map[ingredient_name] = order_unit
-            ingredient_conversion_rate_map[ingredient_name] = conversion_rate
-    
-    # 재료 선택 옵션
-    ingredient_list = ingredient_df['재료명'].tolist()
-    ingredient_options = []
-    for ing in ingredient_list:
-        unit = ingredient_unit_map.get(ing, '')
-        order_unit = ingredient_order_unit_map.get(ing, unit)
-        if unit:
-            if order_unit != unit:
-                ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
-            else:
-                ingredient_options.append(f"{ing} ({unit})")
-        else:
-            ingredient_options.append(ing)
-    
-    selected_option = st.selectbox(
-        "재료 선택 *",
-        options=ingredient_options,
-        key="inventory_input_single_ingredient"
-    )
-    
-    # 선택된 옵션에서 재료명 추출
-    ingredient_name = selected_option.split(" (")[0] if " (" in selected_option else selected_option
-    selected_unit = ingredient_unit_map.get(ingredient_name, '')
-    selected_order_unit = ingredient_order_unit_map.get(ingredient_name, selected_unit)
-    selected_conversion_rate = ingredient_conversion_rate_map.get(ingredient_name, 1.0)
-    
-    # 기존 재고 정보 가져오기
-    existing_inventory = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
-    existing_current = existing_inventory['current']
-    existing_safety = existing_inventory['safety']
-    
-    # 단위 정보 표시
-    st.info(f"**단위 정보**: 기본 단위: {selected_unit}, 발주 단위: {selected_order_unit}, 변환비율: 1 {selected_order_unit} = {selected_conversion_rate} {selected_unit}")
-    
-    # 현재고/안전재고 입력
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        current_stock_label = f"현재고 ({selected_order_unit}) *"
-        if existing_current > 0:
-            current_in_order_unit = existing_current / selected_conversion_rate if selected_conversion_rate > 0 else existing_current
-            current_stock_input = st.number_input(
-                current_stock_label,
-                min_value=0.0,
-                value=float(current_in_order_unit),
-                step=1.0,
-                format="%.2f",
-                key="inventory_input_single_current",
-                help=f"기본 단위({selected_unit})로 저장됩니다"
-            )
-        else:
-            current_stock_input = st.number_input(
-                current_stock_label,
-                min_value=0.0,
-                value=0.0,
-                step=1.0,
-                format="%.2f",
-                key="inventory_input_single_current",
-                help=f"기본 단위({selected_unit})로 저장됩니다"
-            )
-        current_stock = current_stock_input * selected_conversion_rate
-    
-    with col2:
-        safety_stock_label = f"안전재고 ({selected_order_unit}) *"
-        if existing_safety > 0:
-            safety_in_order_unit = existing_safety / selected_conversion_rate if selected_conversion_rate > 0 else existing_safety
-            safety_stock_input = st.number_input(
-                safety_stock_label,
-                min_value=0.0,
-                value=float(safety_in_order_unit),
-                step=1.0,
-                format="%.2f",
-                key="inventory_input_single_safety",
-                help=f"기본 단위({selected_unit})로 저장됩니다"
-            )
-        else:
-            safety_stock_input = st.number_input(
-                safety_stock_label,
-                min_value=0.0,
-                value=0.0,
-                step=1.0,
-                format="%.2f",
-                key="inventory_input_single_safety",
-                help=f"기본 단위({selected_unit})로 저장됩니다"
-            )
-        safety_stock = safety_stock_input * selected_conversion_rate
-    
-    # 저장 버튼
-    col_save, col_reset = st.columns([1, 1])
-    with col_save:
-        if st.button("💾 저장", type="primary", key="inventory_input_single_save", use_container_width=True):
-            if current_stock_input < 0 or safety_stock_input < 0:
-                ui_flash_error("현재고와 안전재고는 0 이상이어야 합니다.")
-            else:
-                try:
-                    success = save_inventory(ingredient_name, current_stock, safety_stock)
-                    if success:
-                        ui_flash_success(f"재고 정보가 저장되었습니다: {ingredient_name}")
-                        st.rerun()
-                    else:
-                        ui_flash_error("재고 정보 저장에 실패했습니다.")
-                except Exception as e:
-                    logger.error(f"재고 저장 중 예외 발생: {e}")
-                    ui_flash_error(f"저장 실패: {str(e)}")
-    
-    with col_reset:
-        if st.button("🔄 초기화", key="inventory_input_single_reset", use_container_width=True):
+    # 빠른 액션 버튼
+    col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
+    with col_btn1:
+        if st.button("📋 기존 재고 불러오기", key="inventory_load_existing", use_container_width=True):
+            st.session_state['inventory_load_existing'] = True
+            st.rerun()
+    with col_btn2:
+        if st.button("🔄 초기화", key="inventory_reset", use_container_width=True):
+            if 'inventory_input_data' in st.session_state:
+                del st.session_state['inventory_input_data']
+            st.rerun()
+    with col_btn3:
+        if st.button("💾 전체 저장", type="primary", key="inventory_save_all", use_container_width=True):
+            st.session_state['inventory_save_trigger'] = True
             st.rerun()
 
 
-def _render_batch_input(store_id, ingredient_df, inventory_map):
-    """일괄 재고 입력"""
-    st.markdown("### 📋 재고 일괄 등록")
-    
-    ingredient_count = st.number_input("등록할 재고 개수", min_value=1, max_value=20, value=5, step=1, 
-                                      key="inventory_input_batch_count")
-    
-    # 재료명과 단위 매핑 생성
-    ingredient_unit_map = {}
-    ingredient_order_unit_map = {}
-    ingredient_conversion_rate_map = {}
-    
-    for _, row in ingredient_df.iterrows():
-        ingredient_name = row.get('재료명', '')
-        unit = row.get('단위', '')
-        order_unit = row.get('발주단위', unit)
-        conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
-        
-        if ingredient_name:
-            ingredient_unit_map[ingredient_name] = unit
-            ingredient_order_unit_map[ingredient_name] = order_unit
-            ingredient_conversion_rate_map[ingredient_name] = conversion_rate
-    
-    # 재료 선택 옵션
-    ingredient_list = ingredient_df['재료명'].tolist()
-    ingredient_options = []
-    for ing in ingredient_list:
-        unit = ingredient_unit_map.get(ing, '')
-        order_unit = ingredient_order_unit_map.get(ing, unit)
-        if unit:
-            if order_unit != unit:
-                ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
-            else:
-                ingredient_options.append(f"{ing} ({unit})")
-        else:
-            ingredient_options.append(ing)
-    
-    st.markdown("---")
-    st.write(f"**📋 총 {ingredient_count}개 재고 입력**")
-    
-    inventory_data = []
-    for i in range(ingredient_count):
-        with st.expander(f"재고 {i+1}", expanded=(i < 3)):
-            selected_option = st.selectbox(
-                f"재료 선택 {i+1}",
-                options=ingredient_options,
-                key=f"inventory_input_batch_ingredient_{i}"
-            )
-            
-            ingredient_name = selected_option.split(" (")[0] if " (" in selected_option else selected_option
-            selected_order_unit = ingredient_order_unit_map.get(ingredient_name, ingredient_unit_map.get(ingredient_name, ''))
-            selected_conversion_rate = ingredient_conversion_rate_map.get(ingredient_name, 1.0)
-            
-            # 기존 재고 정보
-            existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
-            existing_current = existing_inv['current']
-            existing_safety = existing_inv['safety']
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if existing_current > 0:
-                    current_in_order_unit = existing_current / selected_conversion_rate if selected_conversion_rate > 0 else existing_current
-                    current_stock_input = st.number_input(
-                        f"현재고 ({selected_order_unit}) {i+1}",
-                        min_value=0.0,
-                        value=float(current_in_order_unit),
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_batch_current_{i}"
-                    )
-                else:
-                    current_stock_input = st.number_input(
-                        f"현재고 ({selected_order_unit}) {i+1}",
-                        min_value=0.0,
-                        value=0.0,
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_batch_current_{i}"
-                    )
-                current_stock = current_stock_input * selected_conversion_rate
-            
-            with col2:
-                if existing_safety > 0:
-                    safety_in_order_unit = existing_safety / selected_conversion_rate if selected_conversion_rate > 0 else existing_safety
-                    safety_stock_input = st.number_input(
-                        f"안전재고 ({selected_order_unit}) {i+1}",
-                        min_value=0.0,
-                        value=float(safety_in_order_unit),
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_batch_safety_{i}"
-                    )
-                else:
-                    safety_stock_input = st.number_input(
-                        f"안전재고 ({selected_order_unit}) {i+1}",
-                        min_value=0.0,
-                        value=0.0,
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_batch_safety_{i}"
-                    )
-                safety_stock = safety_stock_input * selected_conversion_rate
-            
-            if ingredient_name and current_stock_input >= 0 and safety_stock_input >= 0:
-                inventory_data.append({
-                    'name': ingredient_name,
-                    'current': current_stock,
-                    'safety': safety_stock
-                })
-    
-    if st.button("💾 일괄 저장", type="primary", key="inventory_input_batch_save", use_container_width=True):
-        if not inventory_data:
-            ui_flash_error("저장할 재고 정보가 없습니다.")
-        else:
-            try:
-                saved_count = 0
-                failed_items = []
-                
-                for inv in inventory_data:
-                    try:
-                        success = save_inventory(inv['name'], inv['current'], inv['safety'])
-                        if success:
-                            saved_count += 1
-                        else:
-                            failed_items.append(f"{inv['name']}: 저장 실패")
-                    except Exception as e:
-                        logger.error(f"재고 저장 중 예외 발생 ({inv['name']}): {e}")
-                        failed_items.append(f"{inv['name']}: {str(e)}")
-                
-                if saved_count > 0:
-                    if failed_items:
-                        ui_flash_success(f"{saved_count}개 재고가 저장되었습니다. ({len(failed_items)}개 실패)")
-                        for failed in failed_items:
-                            st.warning(failed)
-                    else:
-                        ui_flash_success(f"{saved_count}개 재고가 모두 저장되었습니다.")
-                    st.rerun()
-                else:
-                    ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재고 모두 저장 실패.")
-                    for failed in failed_items:
-                        st.error(failed)
-            except Exception as e:
-                logger.error(f"일괄 저장 중 예외 발생: {e}")
-                ui_flash_error(f"저장 실패: {str(e)}")
-
-
-def _render_zone_c_filters(ingredient_df, inventory_map, categories, ingredient_in_recipe, needs_order):
-    """ZONE C: 필터 & 검색"""
-    render_section_header("🔍 필터 & 검색", "🔍")
-    
+def _render_filters(ingredient_df, inventory_map, categories):
+    """필터 & 검색"""
     if ingredient_df.empty:
         return pd.DataFrame()
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns([2, 2, 4])
     
     with col1:
         category_filter = st.multiselect("재료 분류", options=["전체"] + INGREDIENT_CATEGORIES + ["미지정"], 
-                                         default=["전체"], key="inventory_input_filter_category")
+                                         default=["전체"], key="inventory_filter_category")
     with col2:
-        status_filter = st.selectbox("재고 상태", options=["전체", "정상", "주의", "부족"], 
-                                     key="inventory_input_filter_status")
-    with col3:
         registration_filter = st.selectbox("재고 등록 상태", options=["전체", "등록됨", "미등록"], 
-                                          key="inventory_input_filter_registration")
-    with col4:
-        recipe_filter = st.selectbox("레시피 사용 상태", options=["전체", "레시피에서 사용", "레시피에서 미사용"], 
-                                     key="inventory_input_filter_recipe")
-    
-    # 검색
-    search_term = st.text_input("🔍 재료명 검색", key="inventory_input_search", placeholder="재료명으로 검색...")
+                                          key="inventory_filter_registration")
+    with col3:
+        search_term = st.text_input("🔍 재료명 검색", key="inventory_search", placeholder="재료명으로 검색...")
     
     # 필터링 적용
     filtered_df = ingredient_df.copy()
@@ -647,34 +218,11 @@ def _render_zone_c_filters(ingredient_df, inventory_map, categories, ingredient_
             return cat in category_filter
         filtered_df = filtered_df[filtered_df['재료명'].apply(category_match)]
     
-    # 재고 상태 필터
-    if status_filter != "전체":
-        def status_match(name):
-            if name not in inventory_map:
-                return False
-            current = inventory_map[name]['current']
-            safety = inventory_map[name]['safety']
-            
-            if status_filter == "부족":
-                return current < safety
-            elif status_filter == "주의":
-                return safety <= current <= safety * 1.2
-            elif status_filter == "정상":
-                return current > safety * 1.2
-            return True
-        filtered_df = filtered_df[filtered_df['재료명'].apply(status_match)]
-    
     # 재고 등록 상태 필터
     if registration_filter == "등록됨":
         filtered_df = filtered_df[filtered_df['재료명'].isin(inventory_map.keys())]
     elif registration_filter == "미등록":
         filtered_df = filtered_df[~filtered_df['재료명'].isin(inventory_map.keys())]
-    
-    # 레시피 사용 상태 필터
-    if recipe_filter == "레시피에서 사용":
-        filtered_df = filtered_df[filtered_df['재료명'].isin(ingredient_in_recipe.keys())]
-    elif recipe_filter == "레시피에서 미사용":
-        filtered_df = filtered_df[~filtered_df['재료명'].isin(ingredient_in_recipe.keys())]
     
     # 검색 필터
     if search_term and search_term.strip():
@@ -683,304 +231,393 @@ def _render_zone_c_filters(ingredient_df, inventory_map, categories, ingredient_
     return filtered_df
 
 
-def _render_zone_d_inventory_list(ingredient_df, full_ingredient_df, inventory_map, categories, 
-                                  ingredient_in_recipe, recent_usage, needs_order, store_id):
-    """ZONE D: 재고 목록 & 관리"""
-    render_section_header("📋 재고 목록 & 관리", "📋")
+def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map, categories):
+    """ZONE B: 대량 입력 테이블"""
+    render_section_header("📝 재고 대량 입력", "📝")
     
-    if ingredient_df.empty:
-        st.info("등록된 재료가 없습니다.")
+    if filtered_ingredient_df.empty:
+        st.info("필터 조건에 맞는 재료가 없습니다.")
         return
     
-    # 재고 정보가 있는 재료만 표시 (또는 모든 재료 표시)
-    st.markdown("### 재고 목록")
+    # 페이지네이션
+    total_items = len(filtered_ingredient_df)
+    total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE
+    current_page = st.session_state.get('inventory_page', 1)
     
-    # 컬럼 헤더 표시
-    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7, header_col8 = st.columns([3, 2, 2, 2, 2, 2, 2, 3])
-    with header_col1:
-        st.markdown("**재료명**")
-    with header_col2:
-        st.markdown("**재료 분류**")
-    with header_col3:
-        st.markdown("**단위**")
-    with header_col4:
-        st.markdown("**현재고**")
-    with header_col5:
-        st.markdown("**안전재고**")
-    with header_col6:
-        st.markdown("**상태**")
-    with header_col7:
-        st.markdown("**발주 필요**")
-    with header_col8:
-        st.markdown("**관리**")
+    if current_page > total_pages:
+        current_page = 1
+        st.session_state['inventory_page'] = 1
     
-    st.markdown("---")
+    # 페이지네이션 컨트롤
+    if total_pages > 1:
+        col_prev, col_page, col_next = st.columns([1, 10, 1])
+        with col_prev:
+            if st.button("◀ 이전", key="inventory_page_prev", disabled=(current_page == 1)):
+                st.session_state['inventory_page'] = current_page - 1
+                st.rerun()
+        with col_page:
+            st.write(f"**페이지 {current_page} / {total_pages}** (총 {total_items}개 재료)")
+        with col_next:
+            if st.button("다음 ▶", key="inventory_page_next", disabled=(current_page == total_pages)):
+                st.session_state['inventory_page'] = current_page + 1
+                st.rerun()
     
-    # 재료명과 단위 매핑 생성
-    ingredient_unit_map = {}
-    ingredient_order_unit_map = {}
-    ingredient_conversion_rate_map = {}
+    # 현재 페이지 데이터
+    start_idx = (current_page - 1) * ITEMS_PER_PAGE
+    end_idx = start_idx + ITEMS_PER_PAGE
+    page_df = filtered_ingredient_df.iloc[start_idx:end_idx].copy()
     
-    for _, row in full_ingredient_df.iterrows():
-        ingredient_name = row.get('재료명', '')
+    # 입력 데이터프레임 준비
+    input_data_list = []
+    
+    for _, row in page_df.iterrows():
+        ingredient_name = row['재료명']
         unit = row.get('단위', '')
         order_unit = row.get('발주단위', unit)
         conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
-        
-        if ingredient_name:
-            ingredient_unit_map[ingredient_name] = unit
-            ingredient_order_unit_map[ingredient_name] = order_unit
-            ingredient_conversion_rate_map[ingredient_name] = conversion_rate
-    
-    for idx, row in ingredient_df.iterrows():
-        ingredient_name = row['재료명']
-        unit = ingredient_unit_map.get(ingredient_name, '—')
-        order_unit = ingredient_order_unit_map.get(ingredient_name, unit)
-        conversion_rate = ingredient_conversion_rate_map.get(ingredient_name, 1.0)
         category = categories.get(ingredient_name, "미지정")
         
-        # 재고 정보
-        inv_data = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
-        current = inv_data['current']
-        safety = inv_data['safety']
+        # 기존 재고 정보
+        existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
+        existing_current_base = existing_inv['current']
+        existing_safety_base = existing_inv['safety']
         
-        # 발주 단위로 변환하여 표시
-        current_display = current / conversion_rate if conversion_rate > 0 else current
-        safety_display = safety / conversion_rate if conversion_rate > 0 else safety
+        # 발주 단위로 변환
+        existing_current_order = existing_current_base / conversion_rate if conversion_rate > 0 else existing_current_base
+        existing_safety_order = existing_safety_base / conversion_rate if conversion_rate > 0 else existing_safety_base
         
-        # 상태 판단
-        if ingredient_name not in inventory_map:
-            status = "미등록"
-            status_color = "#9CA3AF"
-        elif current < safety:
-            status = "⚠️ 부족"
-            status_color = "#EF4444"
-        elif current <= safety * 1.2:
-            status = "⚠️ 주의"
-            status_color = "#F59E0B"
+        # 세션 상태에서 입력 데이터 가져오기
+        session_key = f"inventory_input_{ingredient_name}"
+        if session_key in st.session_state:
+            input_data = st.session_state[session_key]
+            current_input = input_data.get('current', existing_current_order)
+            safety_input = input_data.get('safety', existing_safety_order)
         else:
-            status = "✓ 정상"
-            status_color = "#22C55E"
+            current_input = existing_current_order
+            safety_input = existing_safety_order
         
-        # 발주 필요 여부
-        needs_order_flag = needs_order.get(ingredient_name, False)
+        # 상태 계산 (세션 상태에서 가져오거나 새로 계산)
+        status_key = f"inventory_status_{ingredient_name}"
+        if status_key in st.session_state:
+            status_text = st.session_state[status_key]
+            _, status_color = _calculate_status(current_input * conversion_rate, safety_input * conversion_rate)
+        else:
+            current_base = current_input * conversion_rate
+            safety_base = safety_input * conversion_rate
+            status_text, status_color = _calculate_status(current_base, safety_base)
         
-        # 카드 형태로 표시
-        with st.container():
-            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([3, 2, 2, 2, 2, 2, 2, 3])
-            
-            with col1:
-                st.markdown(f"**{ingredient_name}**")
-            with col2:
-                # 재료 분류 뱃지
-                category_colors = {
-                    "채소": "#22C55E",
-                    "육류": "#EF4444",
-                    "해산물": "#3B82F6",
-                    "조미료": "#EAB308",
-                    "기타": "#9CA3AF",
-                    "미지정": "#6B7280"
-                }
-                color = category_colors.get(category, "#6B7280")
-                display_category = category if category in INGREDIENT_CATEGORIES else "미지정"
-                st.markdown(f'<span style="background: {color}; padding: 0.2rem 0.5rem; border-radius: 4px; color: white; font-size: 0.8rem;">{display_category}</span>', 
-                           unsafe_allow_html=True)
-            with col3:
-                if order_unit != unit:
-                    st.markdown(f"{unit}<br><small>(발주: {order_unit})</small>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"{unit}")
-            with col4:
-                if ingredient_name in inventory_map:
-                    st.markdown(f"{current_display:.1f} {order_unit}")
-                else:
-                    st.markdown("—")
-            with col5:
-                if ingredient_name in inventory_map:
-                    st.markdown(f"{safety_display:.1f} {order_unit}")
-                else:
-                    st.markdown("—")
-            with col6:
-                st.markdown(f'<span style="color: {status_color}; font-weight: 600;">{status}</span>', 
-                           unsafe_allow_html=True)
-            with col7:
-                if needs_order_flag:
-                    st.markdown("⚠️", help="발주 필요")
-                else:
-                    st.markdown("✓", help="발주 불필요")
-            with col8:
-                # 액션 버튼
-                action_col1, action_col2, action_col3 = st.columns(3)
-                with action_col1:
-                    edit_key = f"inventory_input_btn_edit_{ingredient_name}"
-                    if st.button("✏️", key=edit_key, help="수정"):
-                        st.session_state[f"inventory_input_edit_{ingredient_name}"] = True
-                        st.rerun()
-                with action_col2:
-                    delete_key = f"inventory_input_btn_delete_{ingredient_name}"
-                    if st.button("🗑️", key=delete_key, help="삭제"):
-                        st.session_state[f"inventory_input_delete_{ingredient_name}"] = True
-                        st.rerun()
-                with action_col3:
-                    if needs_order_flag:
-                        order_key = f"inventory_input_btn_order_{ingredient_name}"
-                        if st.button("🛒", key=order_key, help="발주 관리", type="primary"):
-                            st.session_state["current_page"] = "발주 관리"
-                            st.session_state["selected_ingredient"] = ingredient_name
-                            st.rerun()
-                    else:
-                        st.markdown("—")
-            
-            # 수정 모달
-            if st.session_state.get(f"inventory_input_edit_{ingredient_name}", False):
-                with st.expander(f"✏️ {ingredient_name} 재고 수정", expanded=True):
-                    existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
-                    existing_current = existing_inv['current']
-                    existing_safety = existing_inv['safety']
-                    
-                    # 발주 단위로 변환하여 표시
-                    current_in_order_unit = existing_current / conversion_rate if conversion_rate > 0 else existing_current
-                    safety_in_order_unit = existing_safety / conversion_rate if conversion_rate > 0 else existing_safety
-                    
-                    new_current_input = st.number_input(
-                        f"현재고 ({order_unit})",
-                        min_value=0.0,
-                        value=float(current_in_order_unit),
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_edit_current_{ingredient_name}"
-                    )
-                    new_safety_input = st.number_input(
-                        f"안전재고 ({order_unit})",
-                        min_value=0.0,
-                        value=float(safety_in_order_unit),
-                        step=1.0,
-                        format="%.2f",
-                        key=f"inventory_input_edit_safety_{ingredient_name}"
-                    )
-                    
-                    # 발주 단위를 기본 단위로 변환
-                    new_current = new_current_input * conversion_rate
-                    new_safety = new_safety_input * conversion_rate
-                    
-                    col_save, col_cancel = st.columns(2)
-                    with col_save:
-                        if st.button("💾 저장", key=f"inventory_input_save_edit_{ingredient_name}"):
-                            try:
-                                success = _update_inventory(store_id, ingredient_name, new_current, new_safety)
-                                if success:
-                                    ui_flash_success(f"재고 정보가 수정되었습니다: {ingredient_name}")
-                                    st.session_state[f"inventory_input_edit_{ingredient_name}"] = False
-                                    st.rerun()
-                                else:
-                                    ui_flash_error("재고 정보 수정에 실패했습니다.")
-                            except Exception as e:
-                                logger.error(f"재고 수정 중 예외 발생: {e}")
-                                ui_flash_error(f"수정 실패: {str(e)}")
-                    with col_cancel:
-                        if st.button("취소", key=f"inventory_input_cancel_edit_{ingredient_name}"):
-                            st.session_state[f"inventory_input_edit_{ingredient_name}"] = False
-                            st.rerun()
-            
-            # 삭제 확인
-            if st.session_state.get(f"inventory_input_delete_{ingredient_name}", False):
-                st.warning(f"'{ingredient_name}' 재고 정보를 삭제하시겠습니까?")
-                
-                # 발주 이력 확인
-                try:
-                    supabase = get_supabase_client()
-                    if supabase:
-                        ing_result = supabase.table("ingredients")\
-                            .select("id")\
-                            .eq("store_id", store_id)\
-                            .eq("name", ingredient_name)\
-                            .execute()
-                        
-                        if ing_result.data:
-                            ingredient_id = ing_result.data[0]['id']
-                            order_check = supabase.table("orders")\
-                                .select("id")\
-                                .eq("store_id", store_id)\
-                                .eq("ingredient_id", ingredient_id)\
-                                .execute()
-                            
-                            if order_check.data:
-                                st.error(f"⚠️ 이 재고는 발주 이력이 있어 삭제할 수 없습니다. (발주 이력: {len(order_check.data)}건)")
-                except Exception as e:
-                    logger.warning(f"발주 이력 확인 실패: {e}")
-                
-                col_del, col_cancel = st.columns(2)
-                with col_del:
-                    if st.button("🗑️ 삭제", key=f"inventory_input_confirm_delete_{ingredient_name}", type="primary"):
-                        try:
-                            success, msg = _delete_inventory(store_id, ingredient_name)
-                            if success:
-                                ui_flash_success(f"재고 정보가 삭제되었습니다: {ingredient_name}")
-                                st.session_state[f"inventory_input_delete_{ingredient_name}"] = False
-                                st.rerun()
-                            else:
-                                ui_flash_error(msg)
-                        except Exception as e:
-                            logger.error(f"재고 삭제 중 예외 발생: {e}")
-                            ui_flash_error(f"삭제 실패: {str(e)}")
-                with col_cancel:
-                    if st.button("취소", key=f"inventory_input_cancel_delete_{ingredient_name}"):
-                        st.session_state[f"inventory_input_delete_{ingredient_name}"] = False
-                        st.rerun()
-            
-            st.markdown("---")
-
-
-def _render_zone_e_management(ingredient_df, inventory_map, recent_usage, needs_order, store_id):
-    """ZONE E: 통계 & 연계 관리"""
-    render_section_header("📊 재고 통계 & 연계 관리", "📊")
+        # 단위 표시
+        if order_unit != unit:
+            unit_display = f"{unit} / 발주: {order_unit}"
+        else:
+            unit_display = unit
+        
+        input_data_list.append({
+            '재료명': ingredient_name,
+            '재료분류': category if category in INGREDIENT_CATEGORIES else "미지정",
+            '단위': unit_display,
+            '현재고': current_input,
+            '안전재고': safety_input,
+            '상태': status_text,
+            '기존_현재고': existing_current_order,
+            '기존_안전재고': existing_safety_order,
+            '_conversion_rate': conversion_rate,
+            '_unit': unit,
+            '_order_unit': order_unit
+        })
     
-    if ingredient_df.empty:
-        st.info("등록된 재료가 없습니다.")
+    input_df = pd.DataFrame(input_data_list)
+    
+    # 편집 가능한 컬럼만 선택
+    editable_columns = ['재료명', '재료분류', '단위', '현재고', '안전재고', '상태', '기존_현재고', '기존_안전재고']
+    display_df = input_df[editable_columns].copy()
+    
+    # st.data_editor로 테이블 렌더링
+    edited_df = st.data_editor(
+        display_df,
+        column_config={
+            '재료명': st.column_config.TextColumn('재료명', disabled=True, width="medium"),
+            '재료분류': st.column_config.TextColumn('재료분류', disabled=True, width="small"),
+            '단위': st.column_config.TextColumn('단위', disabled=True, width="medium"),
+            '현재고': st.column_config.NumberColumn('현재고', min_value=0.0, format="%.2f", width="small"),
+            '안전재고': st.column_config.NumberColumn('안전재고', min_value=0.0, format="%.2f", width="small"),
+            '상태': st.column_config.TextColumn('상태', disabled=True, width="small"),
+            '기존_현재고': st.column_config.NumberColumn('기존 현재고', disabled=True, format="%.2f", width="small"),
+            '기존_안전재고': st.column_config.NumberColumn('기존 안전재고', disabled=True, format="%.2f", width="small"),
+        },
+        hide_index=True,
+        num_rows="fixed",
+        use_container_width=True,
+        key=f"inventory_input_table_{current_page}"
+    )
+    
+    # 변경 감지 및 세션 상태 저장
+    if edited_df is not None:
+        for idx, (_, edited_row) in enumerate(edited_df.iterrows()):
+            original_row = input_df.iloc[idx]
+            ingredient_name = original_row['재료명']
+            
+            # 숫자 비교 (부동소수점 오차 고려)
+            new_current = float(edited_row.get('현재고', original_row['현재고']))
+            new_safety = float(edited_row.get('안전재고', original_row['안전재고']))
+            orig_current = float(original_row['현재고'])
+            orig_safety = float(original_row['안전재고'])
+            
+            # 변경 감지 (0.01 이상 차이)
+            if abs(new_current - orig_current) > 0.01 or abs(new_safety - orig_safety) > 0.01:
+                # 세션 상태에 저장
+                session_key = f"inventory_input_{ingredient_name}"
+                st.session_state[session_key] = {
+                    'current': new_current,
+                    'safety': new_safety
+                }
+                
+                # 변경 표시를 위해 세션 상태 업데이트
+                if 'inventory_changed_items' not in st.session_state:
+                    st.session_state['inventory_changed_items'] = set()
+                st.session_state['inventory_changed_items'].add(ingredient_name)
+                
+                # 상태 재계산 및 업데이트 (다음 렌더링 시 반영)
+                conversion_rate = original_row['_conversion_rate']
+                current_base = new_current * conversion_rate
+                safety_base = new_safety * conversion_rate
+                status_text, _ = _calculate_status(current_base, safety_base)
+                
+                # 상태를 세션 상태에 저장 (다음 렌더링 시 사용)
+                if f"inventory_status_{ingredient_name}" not in st.session_state:
+                    st.session_state[f"inventory_status_{ingredient_name}"] = status_text
+                else:
+                    st.session_state[f"inventory_status_{ingredient_name}"] = status_text
+
+
+
+
+def _render_zone_c_save_validation(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map):
+    """ZONE C: 저장 & 검증"""
+    render_section_header("💾 저장 & 검증", "💾")
+    
+    # 변경된 항목 수집
+    changed_items = {}
+    if 'inventory_changed_items' in st.session_state:
+        for ingredient_name in st.session_state['inventory_changed_items']:
+            session_key = f"inventory_input_{ingredient_name}"
+            if session_key in st.session_state:
+                changed_items[ingredient_name] = st.session_state[session_key]
+    
+    # 변경된 항목 표시
+    if changed_items:
+        st.info(f"**변경된 항목: {len(changed_items)}개**")
+        
+        # 변경된 항목 목록
+        with st.expander("변경된 항목 목록 보기"):
+            for ingredient_name in list(changed_items.keys())[:10]:  # 최대 10개만 표시
+                st.write(f"- {ingredient_name}")
+            if len(changed_items) > 10:
+                st.write(f"... 외 {len(changed_items) - 10}개")
+    else:
+        st.info("변경된 항목이 없습니다.")
+    
+    # 저장 버튼
+    col_save, col_cancel = st.columns([1, 1])
+    with col_save:
+        if st.button("💾 변경된 항목 저장", type="primary", key="inventory_save_changed", use_container_width=True):
+            if not changed_items:
+                ui_flash_error("저장할 변경 사항이 없습니다.")
+            else:
+                _save_changed_items(store_id, changed_items, full_ingredient_df)
+    
+    with col_cancel:
+        if st.button("🔄 초기화", key="inventory_reset_changes", use_container_width=True):
+            if 'inventory_changed_items' in st.session_state:
+                for ingredient_name in st.session_state['inventory_changed_items']:
+                    session_key = f"inventory_input_{ingredient_name}"
+                    if session_key in st.session_state:
+                        del st.session_state[session_key]
+                del st.session_state['inventory_changed_items']
+            st.rerun()
+    
+    # 전체 저장 버튼 (ZONE A에서 트리거된 경우)
+    if st.session_state.get('inventory_save_trigger', False):
+        st.session_state['inventory_save_trigger'] = False
+        _save_all_items(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map)
+    
+    # 기존 재고 불러오기 (ZONE A에서 트리거된 경우)
+    if st.session_state.get('inventory_load_existing', False):
+        st.session_state['inventory_load_existing'] = False
+        _load_existing_inventory(filtered_ingredient_df, inventory_map, full_ingredient_df)
+
+
+def _save_changed_items(store_id, changed_items, full_ingredient_df):
+    """변경된 항목만 저장"""
+    if not changed_items:
         return
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 재고 통계")
+    try:
+        saved_count = 0
+        failed_items = []
         
-        # 재고 등록률
-        total = len(ingredient_df)
-        registered = len(inventory_map)
-        registration_rate = (registered / total * 100) if total > 0 else 0
-        st.metric("재고 등록률", f"{registration_rate:.0f}%", delta=f"{registered}/{total}")
+        # 재료 정보 매핑 생성
+        ingredient_info_map = {}
+        for _, row in full_ingredient_df.iterrows():
+            ingredient_name = row['재료명']
+            conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
+            ingredient_info_map[ingredient_name] = {
+                'conversion_rate': conversion_rate
+            }
         
-        # 재고 정상률
-        normal_count = sum(1 for inv_data in inventory_map.values() 
-                          if inv_data['current'] > inv_data['safety'] * 1.2)
-        normal_rate = (normal_count / registered * 100) if registered > 0 else 0
-        st.metric("재고 정상률", f"{normal_rate:.0f}%", delta=f"{normal_count}/{registered}")
+        for ingredient_name, input_data in changed_items.items():
+            try:
+                # 발주 단위 → 기본 단위 변환
+                conversion_rate = ingredient_info_map.get(ingredient_name, {}).get('conversion_rate', 1.0)
+                current_stock = input_data['current'] * conversion_rate
+                safety_stock = input_data['safety'] * conversion_rate
+                
+                # 저장
+                success = save_inventory(ingredient_name, current_stock, safety_stock)
+                if success:
+                    saved_count += 1
+                    # 세션 상태에서 제거
+                    session_key = f"inventory_input_{ingredient_name}"
+                    if session_key in st.session_state:
+                        del st.session_state[session_key]
+                else:
+                    failed_items.append(f"{ingredient_name}: 저장 실패")
+            except Exception as e:
+                logger.error(f"재고 저장 중 예외 발생 ({ingredient_name}): {e}")
+                failed_items.append(f"{ingredient_name}: {str(e)}")
         
-        # 발주 필요 TOP 5
-        if needs_order:
-            st.markdown("**발주 필요 재료 TOP 5**")
-            needs_order_list = [name for name in needs_order.keys() if name in ingredient_df['재료명'].values]
-            for i, name in enumerate(needs_order_list[:5], 1):
-                st.write(f"{i}. {name}")
+        # 변경된 항목 목록 초기화
+        if 'inventory_changed_items' in st.session_state:
+            del st.session_state['inventory_changed_items']
         
-        if st.button("🛒 발주 관리로 이동", key="inventory_input_go_to_order", use_container_width=True):
-            st.session_state["current_page"] = "발주 관리"
+        if saved_count > 0:
+            if failed_items:
+                ui_flash_success(f"{saved_count}개 재고가 저장되었습니다. ({len(failed_items)}개 실패)")
+                for failed in failed_items:
+                    st.warning(failed)
+            else:
+                ui_flash_success(f"{saved_count}개 재고가 모두 저장되었습니다.")
             st.rerun()
-    
-    with col2:
-        st.markdown("### 연계 페이지")
+        else:
+            ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재고 모두 저장 실패.")
+            for failed in failed_items:
+                st.error(failed)
+    except Exception as e:
+        logger.error(f"일괄 저장 중 예외 발생: {e}")
+        ui_flash_error(f"저장 실패: {str(e)}")
+
+
+def _save_all_items(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map):
+    """전체 항목 저장 (현재 페이지의 모든 항목)"""
+    try:
+        # 현재 페이지의 모든 항목 수집
+        current_page = st.session_state.get('inventory_page', 1)
+        start_idx = (current_page - 1) * ITEMS_PER_PAGE
+        end_idx = start_idx + ITEMS_PER_PAGE
+        page_df = filtered_ingredient_df.iloc[start_idx:end_idx]
         
-        # 최근 사용량 TOP 5
-        if recent_usage:
-            st.markdown("**최근 사용량 TOP 5**")
-            sorted_usage = sorted(recent_usage.items(), key=lambda x: x[1], reverse=True)[:5]
-            for name, usage_val in sorted_usage:
-                st.write(f"- {name}: {usage_val:.1f}")
+        saved_count = 0
+        failed_items = []
         
-        if st.button("🧺 사용 재료 입력으로 이동", key="inventory_input_go_to_ingredient", use_container_width=True):
-            st.session_state["current_page"] = "재료 입력"
+        # 재료 정보 매핑 생성
+        ingredient_info_map = {}
+        for _, row in full_ingredient_df.iterrows():
+            ingredient_name = row['재료명']
+            conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
+            ingredient_info_map[ingredient_name] = {
+                'conversion_rate': conversion_rate
+            }
+        
+        for _, row in page_df.iterrows():
+            ingredient_name = row['재료명']
+            
+            # 세션 상태에서 입력 데이터 가져오기
+            session_key = f"inventory_input_{ingredient_name}"
+            if session_key in st.session_state:
+                input_data = st.session_state[session_key]
+                current_input = input_data['current']
+                safety_input = input_data['safety']
+            else:
+                # 기존 재고 정보 사용
+                existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
+                conversion_rate = ingredient_info_map.get(ingredient_name, {}).get('conversion_rate', 1.0)
+                current_input = existing_inv['current'] / conversion_rate if conversion_rate > 0 else existing_inv['current']
+                safety_input = existing_inv['safety'] / conversion_rate if conversion_rate > 0 else existing_inv['safety']
+            
+            try:
+                # 발주 단위 → 기본 단위 변환
+                conversion_rate = ingredient_info_map.get(ingredient_name, {}).get('conversion_rate', 1.0)
+                current_stock = current_input * conversion_rate
+                safety_stock = safety_input * conversion_rate
+                
+                # 저장
+                success = save_inventory(ingredient_name, current_stock, safety_stock)
+                if success:
+                    saved_count += 1
+                    # 세션 상태에서 제거
+                    if session_key in st.session_state:
+                        del st.session_state[session_key]
+                else:
+                    failed_items.append(f"{ingredient_name}: 저장 실패")
+            except Exception as e:
+                logger.error(f"재고 저장 중 예외 발생 ({ingredient_name}): {e}")
+                failed_items.append(f"{ingredient_name}: {str(e)}")
+        
+        # 변경된 항목 목록 초기화
+        if 'inventory_changed_items' in st.session_state:
+            del st.session_state['inventory_changed_items']
+        
+        if saved_count > 0:
+            if failed_items:
+                ui_flash_success(f"{saved_count}개 재고가 저장되었습니다. ({len(failed_items)}개 실패)")
+                for failed in failed_items:
+                    st.warning(failed)
+            else:
+                ui_flash_success(f"{saved_count}개 재고가 모두 저장되었습니다.")
             st.rerun()
+        else:
+            ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재고 모두 저장 실패.")
+            for failed in failed_items:
+                st.error(failed)
+    except Exception as e:
+        logger.error(f"전체 저장 중 예외 발생: {e}")
+        ui_flash_error(f"저장 실패: {str(e)}")
+
+
+def _load_existing_inventory(filtered_ingredient_df, inventory_map, full_ingredient_df):
+    """기존 재고 정보 불러오기"""
+    try:
+        current_page = st.session_state.get('inventory_page', 1)
+        start_idx = (current_page - 1) * ITEMS_PER_PAGE
+        end_idx = start_idx + ITEMS_PER_PAGE
+        page_df = filtered_ingredient_df.iloc[start_idx:end_idx]
         
-        if st.button("📊 재료 사용량 집계로 이동", key="inventory_input_go_to_usage", use_container_width=True):
-            st.session_state["current_page"] = "재료 사용량 집계"
+        loaded_count = 0
+        
+        for _, row in page_df.iterrows():
+            ingredient_name = row['재료명']
+            
+            # 기존 재고 정보 가져오기
+            existing_inv = inventory_map.get(ingredient_name, {'current': 0, 'safety': 0})
+            if existing_inv['current'] > 0 or existing_inv['safety'] > 0:
+                # 발주 단위로 변환
+                conversion_rate = float(row.get('변환비율', 1.0)) if row.get('변환비율') else 1.0
+                current_order = existing_inv['current'] / conversion_rate if conversion_rate > 0 else existing_inv['current']
+                safety_order = existing_inv['safety'] / conversion_rate if conversion_rate > 0 else existing_inv['safety']
+                
+                # 세션 상태에 저장
+                session_key = f"inventory_input_{ingredient_name}"
+                st.session_state[session_key] = {
+                    'current': float(current_order),
+                    'safety': float(safety_order)
+                }
+                loaded_count += 1
+        
+        if loaded_count > 0:
+            ui_flash_success(f"{loaded_count}개 재고 정보를 불러왔습니다.")
             st.rerun()
+        else:
+            ui_flash_error("불러올 재고 정보가 없습니다.")
+    except Exception as e:
+        logger.error(f"기존 재고 불러오기 중 예외 발생: {e}")
+        ui_flash_error(f"불러오기 실패: {str(e)}")
