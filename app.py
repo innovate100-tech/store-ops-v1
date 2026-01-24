@@ -575,21 +575,18 @@ def render_expanded_sidebar(menu):
         # CSS 문자열 생성
         css_content = """
         <style>
-        /* 프리미엄 블랙 테마 완전판 CSS v2 - :has() 기반 사이드바 스코프 */
+        /* 프리미엄 블랙 테마 완전판 CSS v2 - [data-testid="stSidebar"] 스코프 */
         /* 적용 보증: PROBE 요소 포함, 선택자 폴백, transform 정책 준수 */
+        /* ⚠️ [data-testid="stSidebar"]는 스코프 한정자로만 사용 (위치/크기/토글 CSS 금지) */
         
         /* ========== 전역 PROBE: CSS 주입 확인용 (빨간 outline) ========== */
-        section:has(.ps-sidebar-marker),
-        aside:has(.ps-sidebar-marker),
-        div:has(.ps-sidebar-marker) {
-            outline: 6px solid red !important;
+        [data-testid="stSidebar"] {
+            outline: 5px solid red !important;
         }
         
         /* ========== prefers-reduced-motion 대응 ========== */
         @media (prefers-reduced-motion: reduce) {
-            section:has(.ps-sidebar-marker) *,
-            aside:has(.ps-sidebar-marker) *,
-            div:has(.ps-sidebar-marker) * {
+            [data-testid="stSidebar"] * {
                 animation: none !important;
                 transition: none !important;
             }
@@ -645,17 +642,13 @@ def render_expanded_sidebar(menu):
         
         /* ========== 백드롭 블러 효과 ========== */
         
-        /* 사이드바 배경에 미묘한 블러 효과 */
-        section:has(.ps-sidebar-marker),
-        aside:has(.ps-sidebar-marker),
-        div:has(.ps-sidebar-marker) {
+        /* 사이드바 배경에 미묘한 블러 효과 (내부 콘텐츠만) */
+        [data-testid="stSidebar"] > div {
             position: relative;
         }
         
         /* 백드롭 블러 오버레이 */
-        section:has(.ps-sidebar-marker)::before,
-        aside:has(.ps-sidebar-marker)::before,
-        div:has(.ps-sidebar-marker)::before {
+        [data-testid="stSidebar"] > div::before {
             content: '';
             position: absolute;
             top: 0;
@@ -671,9 +664,7 @@ def render_expanded_sidebar(menu):
         }
         
         /* 사이드바 내부 콘텐츠는 블러 위에 표시 */
-        section:has(.ps-sidebar-marker) > *,
-        aside:has(.ps-sidebar-marker) > *,
-        div:has(.ps-sidebar-marker) > * {
+        [data-testid="stSidebar"] > div > * {
             position: relative;
             z-index: 1;
         }
@@ -681,9 +672,7 @@ def render_expanded_sidebar(menu):
         /* ========== 카테고리 제목 (그라데이션 텍스트 + PROBE 포함) ========== */
         
         /* PROBE: 카테고리 제목 앞 작은 점 (CSS 적용 확인용) */
-        section:has(.ps-sidebar-marker) .premium-category-title::before,
-        aside:has(.ps-sidebar-marker) .premium-category-title::before,
-        div:has(.ps-sidebar-marker) .premium-category-title::before {
+        [data-testid="stSidebar"] .premium-category-title::before {
             content: '•';
             display: inline-block;
             color: rgba(59, 130, 246, 0.6);
@@ -692,9 +681,7 @@ def render_expanded_sidebar(menu):
             vertical-align: middle;
         }
         
-        section:has(.ps-sidebar-marker) .premium-category-title,
-        aside:has(.ps-sidebar-marker) .premium-category-title,
-        div:has(.ps-sidebar-marker) .premium-category-title {
+        [data-testid="stSidebar"] .premium-category-title {
             background: linear-gradient(135deg, 
                 #94A3B8 0%, 
                 #60A5FA 50%, 
@@ -719,18 +706,14 @@ def render_expanded_sidebar(menu):
         
         /* 그라데이션을 지원하지 않는 브라우저용 fallback */
         @supports not (-webkit-background-clip: text) {
-            section:has(.ps-sidebar-marker) .premium-category-title,
-            aside:has(.ps-sidebar-marker) .premium-category-title,
-            div:has(.ps-sidebar-marker) .premium-category-title {
+            [data-testid="stSidebar"] .premium-category-title {
                 -webkit-text-fill-color: #94A3B8;
                 color: #94A3B8;
             }
         }
         
         /* 카테고리 제목 하단 미묘한 라인 */
-        section:has(.ps-sidebar-marker) .premium-category-title::after,
-        aside:has(.ps-sidebar-marker) .premium-category-title::after,
-        div:has(.ps-sidebar-marker) .premium-category-title::after {
+        [data-testid="stSidebar"] .premium-category-title::after {
             content: '';
             position: absolute;
             bottom: -0.5rem;
@@ -745,15 +728,9 @@ def render_expanded_sidebar(menu):
         /* ========== 고급 버튼 스타일 (선택자 폴백 포함) ========== */
         
         /* 공통 버튼: 고급 그라데이션 배경 + PROBE (border 변화) */
-        section:has(.ps-sidebar-marker) .stButton > button,
-        aside:has(.ps-sidebar-marker) .stButton > button,
-        div:has(.ps-sidebar-marker) .stButton > button,
-        section:has(.ps-sidebar-marker) button[kind],
-        aside:has(.ps-sidebar-marker) button[kind],
-        div:has(.ps-sidebar-marker) button[kind],
-        section:has(.ps-sidebar-marker) button,
-        aside:has(.ps-sidebar-marker) button,
-        div:has(.ps-sidebar-marker) button {
+        [data-testid="stSidebar"] .stButton > button,
+        [data-testid="stSidebar"] button[kind],
+        [data-testid="stSidebar"] button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -773,15 +750,9 @@ def render_expanded_sidebar(menu):
         }
         
         /* 버튼 내부 그라데이션 오버레이 (호버 효과용 - 스윕) */
-        section:has(.ps-sidebar-marker) .stButton > button::before,
-        aside:has(.ps-sidebar-marker) .stButton > button::before,
-        div:has(.ps-sidebar-marker) .stButton > button::before,
-        section:has(.ps-sidebar-marker) button[kind]::before,
-        aside:has(.ps-sidebar-marker) button[kind]::before,
-        div:has(.ps-sidebar-marker) button[kind]::before,
-        section:has(.ps-sidebar-marker) button::before,
-        aside:has(.ps-sidebar-marker) button::before,
-        div:has(.ps-sidebar-marker) button::before {
+        [data-testid="stSidebar"] .stButton > button::before,
+        [data-testid="stSidebar"] button[kind]::before,
+        [data-testid="stSidebar"] button::before {
             content: '';
             position: absolute;
             top: 0;
@@ -798,15 +769,9 @@ def render_expanded_sidebar(menu):
         }
         
         /* 리플 효과용 오버레이 (클릭 시) */
-        section:has(.ps-sidebar-marker) .stButton > button::after,
-        aside:has(.ps-sidebar-marker) .stButton > button::after,
-        div:has(.ps-sidebar-marker) .stButton > button::after,
-        section:has(.ps-sidebar-marker) button[kind]::after,
-        aside:has(.ps-sidebar-marker) button[kind]::after,
-        div:has(.ps-sidebar-marker) button[kind]::after,
-        section:has(.ps-sidebar-marker) button::after,
-        aside:has(.ps-sidebar-marker) button::after,
-        div:has(.ps-sidebar-marker) button::after {
+        [data-testid="stSidebar"] .stButton > button::after,
+        [data-testid="stSidebar"] button[kind]::after,
+        [data-testid="stSidebar"] button::after {
             content: '';
             position: absolute;
             top: 50%;
@@ -821,15 +786,9 @@ def render_expanded_sidebar(menu):
         }
         
         /* 호버 시: 그라데이션 배경 변화 + 슬라이드 효과 (폴백: 배경만 변화) */
-        section:has(.ps-sidebar-marker) .stButton > button:hover,
-        aside:has(.ps-sidebar-marker) .stButton > button:hover,
-        div:has(.ps-sidebar-marker) .stButton > button:hover,
-        section:has(.ps-sidebar-marker) button[kind]:hover,
-        aside:has(.ps-sidebar-marker) button[kind]:hover,
-        div:has(.ps-sidebar-marker) button[kind]:hover,
-        section:has(.ps-sidebar-marker) button:hover,
-        aside:has(.ps-sidebar-marker) button:hover,
-        div:has(.ps-sidebar-marker) button:hover {
+        [data-testid="stSidebar"] .stButton > button:hover,
+        [data-testid="stSidebar"] button[kind]:hover,
+        [data-testid="stSidebar"] button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.1) 0%, 
                 rgba(255, 255, 255, 0.05) 100%);
@@ -850,15 +809,9 @@ def render_expanded_sidebar(menu):
         }
         
         /* 클릭 시 리플 효과 (active 상태 - 폴백: 배경 하이라이트) */
-        section:has(.ps-sidebar-marker) .stButton > button:active,
-        aside:has(.ps-sidebar-marker) .stButton > button:active,
-        div:has(.ps-sidebar-marker) .stButton > button:active,
-        section:has(.ps-sidebar-marker) button[kind]:active,
-        aside:has(.ps-sidebar-marker) button[kind]:active,
-        div:has(.ps-sidebar-marker) button[kind]:active,
-        section:has(.ps-sidebar-marker) button:active,
-        aside:has(.ps-sidebar-marker) button:active,
-        div:has(.ps-sidebar-marker) button:active {
+        [data-testid="stSidebar"] .stButton > button:active,
+        [data-testid="stSidebar"] button[kind]:active,
+        [data-testid="stSidebar"] button:active {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.15) 0%, 
                 rgba(255, 255, 255, 0.08) 100%);
@@ -873,12 +826,8 @@ def render_expanded_sidebar(menu):
         }
         
         /* 활성 버튼: 고급 블루 그라데이션 + 펄스 애니메이션 (선택자 폴백) */
-        section:has(.ps-sidebar-marker) .stButton > button[kind="primary"],
-        aside:has(.ps-sidebar-marker) .stButton > button[kind="primary"],
-        div:has(.ps-sidebar-marker) .stButton > button[kind="primary"],
-        section:has(.ps-sidebar-marker) button[kind="primary"],
-        aside:has(.ps-sidebar-marker) button[kind="primary"],
-        div:has(.ps-sidebar-marker) button[kind="primary"] {
+        [data-testid="stSidebar"] .stButton > button[kind="primary"],
+        [data-testid="stSidebar"] button[kind="primary"] {
             background: linear-gradient(135deg, 
                 #3B82F6 0%, 
                 #2563EB 50%, 
@@ -894,12 +843,8 @@ def render_expanded_sidebar(menu):
         }
         
         /* 활성 버튼 내부 미묘한 빛 효과 */
-        section:has(.ps-sidebar-marker) .stButton > button[kind="primary"]::before,
-        aside:has(.ps-sidebar-marker) .stButton > button[kind="primary"]::before,
-        div:has(.ps-sidebar-marker) .stButton > button[kind="primary"]::before,
-        section:has(.ps-sidebar-marker) button[kind="primary"]::before,
-        aside:has(.ps-sidebar-marker) button[kind="primary"]::before,
-        div:has(.ps-sidebar-marker) button[kind="primary"]::before {
+        [data-testid="stSidebar"] .stButton > button[kind="primary"]::before,
+        [data-testid="stSidebar"] button[kind="primary"]::before {
             content: '';
             position: absolute;
             top: 0;
@@ -915,26 +860,16 @@ def render_expanded_sidebar(menu):
         }
         
         /* 활성 버튼의 리플 효과는 더 밝게 */
-        section:has(.ps-sidebar-marker) .stButton > button[kind="primary"]:active::after,
-        aside:has(.ps-sidebar-marker) .stButton > button[kind="primary"]:active::after,
-        div:has(.ps-sidebar-marker) .stButton > button[kind="primary"]:active::after,
-        section:has(.ps-sidebar-marker) button[kind="primary"]:active::after,
-        aside:has(.ps-sidebar-marker) button[kind="primary"]:active::after,
-        div:has(.ps-sidebar-marker) button[kind="primary"]:active::after {
+        [data-testid="stSidebar"] .stButton > button[kind="primary"]:active::after,
+        [data-testid="stSidebar"] button[kind="primary"]:active::after {
             background: rgba(255, 255, 255, 0.5);
         }
         
         /* ========== Expander 고급 스타일 (선택자 폴백) ========== */
         
-        section:has(.ps-sidebar-marker) .stExpander header,
-        aside:has(.ps-sidebar-marker) .stExpander header,
-        div:has(.ps-sidebar-marker) .stExpander header,
-        section:has(.ps-sidebar-marker) .stExpander summary,
-        aside:has(.ps-sidebar-marker) .stExpander summary,
-        div:has(.ps-sidebar-marker) .stExpander summary,
-        section:has(.ps-sidebar-marker) .stExpander label,
-        aside:has(.ps-sidebar-marker) .stExpander label,
-        div:has(.ps-sidebar-marker) .stExpander label {
+        [data-testid="stSidebar"] .stExpander header,
+        [data-testid="stSidebar"] .stExpander summary,
+        [data-testid="stSidebar"] .stExpander label {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.03) 0%, 
                 rgba(255, 255, 255, 0.01) 100%);
@@ -947,12 +882,8 @@ def render_expanded_sidebar(menu):
             -webkit-backdrop-filter: blur(4px);
         }
         
-        section:has(.ps-sidebar-marker) .stExpander header:hover,
-        aside:has(.ps-sidebar-marker) .stExpander header:hover,
-        div:has(.ps-sidebar-marker) .stExpander header:hover,
-        section:has(.ps-sidebar-marker) .stExpander summary:hover,
-        aside:has(.ps-sidebar-marker) .stExpander summary:hover,
-        div:has(.ps-sidebar-marker) .stExpander summary:hover {
+        [data-testid="stSidebar"] .stExpander header:hover,
+        [data-testid="stSidebar"] .stExpander summary:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -961,12 +892,8 @@ def render_expanded_sidebar(menu):
         }
         
         /* Expander 내부 버튼 (선택자 폴백) */
-        section:has(.ps-sidebar-marker) .stExpander .stButton > button,
-        aside:has(.ps-sidebar-marker) .stExpander .stButton > button,
-        div:has(.ps-sidebar-marker) .stExpander .stButton > button,
-        section:has(.ps-sidebar-marker) .stExpander button,
-        aside:has(.ps-sidebar-marker) .stExpander button,
-        div:has(.ps-sidebar-marker) .stExpander button {
+        [data-testid="stSidebar"] .stExpander .stButton > button,
+        [data-testid="stSidebar"] .stExpander button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.03) 0%, 
                 rgba(255, 255, 255, 0.01) 100%);
@@ -974,12 +901,8 @@ def render_expanded_sidebar(menu):
             padding: 0.75rem 1rem;
         }
         
-        section:has(.ps-sidebar-marker) .stExpander .stButton > button:hover,
-        aside:has(.ps-sidebar-marker) .stExpander .stButton > button:hover,
-        div:has(.ps-sidebar-marker) .stExpander .stButton > button:hover,
-        section:has(.ps-sidebar-marker) .stExpander button:hover,
-        aside:has(.ps-sidebar-marker) .stExpander button:hover,
-        div:has(.ps-sidebar-marker) .stExpander button:hover {
+        [data-testid="stSidebar"] .stExpander .stButton > button:hover,
+        [data-testid="stSidebar"] .stExpander button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.06) 0%, 
                 rgba(255, 255, 255, 0.03) 100%);
@@ -987,15 +910,9 @@ def render_expanded_sidebar(menu):
         
         /* ========== Selectbox 고급 스타일 (선택자 폴백) ========== */
         
-        section:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"],
-        aside:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"],
-        div:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"],
-        section:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"],
-        aside:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"],
-        div:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"],
-        section:has(.ps-sidebar-marker) .stSelectbox select,
-        aside:has(.ps-sidebar-marker) .stSelectbox select,
-        div:has(.ps-sidebar-marker) .stSelectbox select {
+        [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
+        [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
+        [data-testid="stSidebar"] .stSelectbox select {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -1007,15 +924,9 @@ def render_expanded_sidebar(menu):
             -webkit-backdrop-filter: blur(4px);
         }
         
-        section:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"]:hover,
-        aside:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"]:hover,
-        div:has(.ps-sidebar-marker) .stSelectbox div[role="combobox"]:hover,
-        section:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"]:hover,
-        aside:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"]:hover,
-        div:has(.ps-sidebar-marker) .stSelectbox [data-baseweb="select"]:hover,
-        section:has(.ps-sidebar-marker) .stSelectbox select:hover,
-        aside:has(.ps-sidebar-marker) .stSelectbox select:hover,
-        div:has(.ps-sidebar-marker) .stSelectbox select:hover {
+        [data-testid="stSidebar"] .stSelectbox div[role="combobox"]:hover,
+        [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"]:hover,
+        [data-testid="stSidebar"] .stSelectbox select:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.08) 0%, 
                 rgba(255, 255, 255, 0.04) 100%);
@@ -1023,18 +934,14 @@ def render_expanded_sidebar(menu):
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         
-        section:has(.ps-sidebar-marker) .stSelectbox label,
-        aside:has(.ps-sidebar-marker) .stSelectbox label,
-        div:has(.ps-sidebar-marker) .stSelectbox label {
+        [data-testid="stSidebar"] .stSelectbox label {
             color: #E2E8F0;
             font-weight: 500;
         }
         
         /* ========== 시스템 버튼 고급 스타일 ========== */
         
-        section:has(.ps-sidebar-marker) .premium-system-section,
-        aside:has(.ps-sidebar-marker) .premium-system-section,
-        div:has(.ps-sidebar-marker) .premium-system-section {
+        [data-testid="stSidebar"] .premium-system-section {
             margin-top: 2rem;
             padding-top: 1.5rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -1055,12 +962,8 @@ def render_expanded_sidebar(menu):
                 transparent 100%);
         }
         
-        section:has(.ps-sidebar-marker) .premium-system-section .stButton > button,
-        aside:has(.ps-sidebar-marker) .premium-system-section .stButton > button,
-        div:has(.ps-sidebar-marker) .premium-system-section .stButton > button,
-        section:has(.ps-sidebar-marker) .premium-system-section button,
-        aside:has(.ps-sidebar-marker) .premium-system-section button,
-        div:has(.ps-sidebar-marker) .premium-system-section button {
+        [data-testid="stSidebar"] .premium-system-section .stButton > button,
+        [data-testid="stSidebar"] .premium-system-section button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.04) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -1070,12 +973,8 @@ def render_expanded_sidebar(menu):
             transition: all 0.3s ease;
         }
         
-        section:has(.ps-sidebar-marker) .premium-system-section .stButton > button:hover,
-        aside:has(.ps-sidebar-marker) .premium-system-section .stButton > button:hover,
-        div:has(.ps-sidebar-marker) .premium-system-section .stButton > button:hover,
-        section:has(.ps-sidebar-marker) .premium-system-section button:hover,
-        aside:has(.ps-sidebar-marker) .premium-system-section button:hover,
-        div:has(.ps-sidebar-marker) .premium-system-section button:hover {
+        [data-testid="stSidebar"] .premium-system-section .stButton > button:hover,
+        [data-testid="stSidebar"] .premium-system-section button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.08) 0%, 
                 rgba(255, 255, 255, 0.04) 100%);
@@ -1088,9 +987,6 @@ def render_expanded_sidebar(menu):
         
         # CSS 주입: st.markdown 사용
         st.markdown(css_content, unsafe_allow_html=True)
-    
-    # 사이드바 마커 추가 (항상 렌더, :has() 선택자용)
-    st.markdown('<div class="ps-sidebar-marker" style="display:none;"></div>', unsafe_allow_html=True)
     
     # 강제 시각 PROBE: 함수 실행 및 위치 확인용 (원인 규명 후 제거)
     st.markdown(
