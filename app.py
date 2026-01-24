@@ -29,6 +29,20 @@ user_id = st.session_state.get('user_id')
 import logging
 logger = logging.getLogger(__name__)
 
+# 라우팅용 임포트 (파일 상단 이동)
+from ui_pages.home import render_home
+from ui_pages.strategy.mission_detail import render_mission_detail
+from ui_pages.input.input_hub import render_input_hub
+from ui_pages.analysis.analysis_hub import render_analysis_hub
+from ui_pages.daily_input_hub import render_daily_input_hub
+from ui_pages.manager_close import render_manager_close
+from ui_pages.sales_entry import render_sales_entry
+from ui_pages.analysis.analysis_summary import render_analysis_summary
+from ui_pages.analysis.sales_analysis import render_sales_analysis
+from ui_pages.input.menu_input import render_menu_input_page
+from ui_pages.input.ingredient_input import render_ingredient_input_page
+from ui_pages.input.inventory_input import render_inventory_input_page
+
 # 온보딩 상태 캐싱 (세션당 1회만 체크)
 _onboarding_check_key = "_onboarding_checked"
 _onboarding_complete_key = "_onboarding_complete"
@@ -1805,62 +1819,50 @@ if st.session_state.get("_show_supabase_diagnosis", False):
 
 # 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
-    from ui_pages.home import render_home
     render_home()  # Phase 9: _render_home_body(store_id) 통합 구조 (모드 구분 제거됨)
 
 # 오늘의 전략 실행 (미션 상세)
 elif page == "오늘의 전략 실행" or page == "미션 상세":
-    from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()
 
 # 입력 허브 페이지
 elif page == "입력 허브":
-    from ui_pages.input.input_hub import render_input_hub
     render_input_hub()
 
 # 분석 허브 페이지
 elif page == "분석 허브":
-    from ui_pages.analysis.analysis_hub import render_analysis_hub
     render_analysis_hub()
 
 # 일일 입력 통합 페이지
 elif page == "일일 입력(통합)":
-    from ui_pages.daily_input_hub import render_daily_input_hub
     render_daily_input_hub()
 
 # 점장 마감 페이지 (사이드바 제거, 직접 접근 가능)
 elif page == "점장 마감":
-    from ui_pages.manager_close import render_manager_close
     render_manager_close()
 
 # 매출 등록 페이지 (사이드바 제거, 직접 접근 가능)
 elif page == "매출 등록":
-    from ui_pages.sales_entry import render_sales_entry
     render_sales_entry()
 
 # 분석총평 페이지 (세부 분석 복합·고도화)
 elif page == "분석총평":
-    from ui_pages.analysis.analysis_summary import render_analysis_summary
     render_analysis_summary()
 
 # 매출 관리 페이지 (분석 전용, 리디자인)
 elif page == "매출 관리":
-    from ui_pages.analysis.sales_analysis import render_sales_analysis
     render_sales_analysis()
 
 # 메뉴 입력 페이지 (입력 전용)
 elif page == "메뉴 입력":
-    from ui_pages.input.menu_input import render_menu_input_page
     render_menu_input_page()
 
 # 재료 입력 페이지 (입력 전용)
 elif page == "재료 입력":
-    from ui_pages.input.ingredient_input import render_ingredient_input_page
     render_ingredient_input_page()
 
 # 재고 입력 페이지 (입력 전용)
 elif page == "재고 입력":
-    from ui_pages.input.inventory_input import render_inventory_input_page
     render_inventory_input_page()
 
 # 레시피 입력 페이지 (입력 전용)
@@ -1869,20 +1871,20 @@ elif page == "레시피 입력":
     # 헤더만 변경하고 기존 함수 재사용
     render_recipe_management()
     render_page_header("레시피 등록", "📝")
-    
+
     # 메뉴 및 재료 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
-    
+
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
-    
+
     render_section_divider()
-    
+
     # 일괄 입력 전용 폼
     st.subheader("📝 레시피 일괄 등록")
     st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다. (최대 30개 재료)")
-    
+
     if not menu_list:
         st.warning("먼저 메뉴를 등록해주세요.")
     elif not ingredient_list:
@@ -1894,7 +1896,7 @@ elif page == "레시피 입력":
             options=menu_list,
             key="batch_recipe_menu"
         )
-        
+
         # 등록할 재료 개수 선택 (최대 30개)
         ingredient_count = st.number_input(
             "등록할 재료 개수",
