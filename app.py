@@ -287,208 +287,149 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Material Icons 폰트 강제 적용 JavaScript - 본질적 해결책 (에러 핸들링 강화)
+# Material Icons 폰트 강제 적용 JavaScript - 최종 해결책
 st.markdown("""
 <script>
 (function() {
     'use strict';
     
-    try {
-        // Material Icons 폰트 강제 로드
-        function ensureMaterialIconsLoaded() {
-            try {
-                const linkId = 'material-icons-font-link';
-                if (!document.getElementById(linkId)) {
-                    const link = document.createElement('link');
-                    link.id = linkId;
-                    link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
-                    link.rel = 'stylesheet';
-                    document.head.insertBefore(link, document.head.firstChild);
-                }
-            } catch(e) {
-                console.warn('Material Icons 폰트 로드 실패:', e);
+    // Material Icons 폰트 강제 로드
+    const linkId = 'material-icons-font-link';
+    if (!document.getElementById(linkId)) {
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+        link.rel = 'stylesheet';
+        document.head.insertBefore(link, document.head.firstChild);
+    }
+    
+    // 아이콘 텍스트를 Material Icons 코드로 변환
+    function convertToIcon(element) {
+        if (!element) return false;
+        
+        const text = element.textContent.trim();
+        let iconCode = null;
+        
+        if (text === 'keyboard arrow right') {
+            iconCode = 'keyboard_arrow_right';
+        } else if (text === 'key') {
+            iconCode = 'menu';
+        } else if (text.includes('arrow') && text.length < 50) {
+            iconCode = 'keyboard_arrow_right';
+        }
+        
+        if (iconCode) {
+            element.style.setProperty('font-family', "'Material Icons'", 'important');
+            element.style.setProperty('font-weight', 'normal', 'important');
+            element.style.setProperty('font-style', 'normal', 'important');
+            element.style.setProperty('font-size', '24px', 'important');
+            element.style.setProperty('line-height', '1', 'important');
+            element.style.setProperty('letter-spacing', 'normal', 'important');
+            element.style.setProperty('text-transform', 'none', 'important');
+            element.style.setProperty('display', 'inline-block', 'important');
+            element.style.setProperty('white-space', 'nowrap', 'important');
+            element.style.setProperty('-webkit-font-feature-settings', "'liga'", 'important');
+            element.style.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
+            element.textContent = iconCode;
+            return true;
+        }
+        return false;
+    }
+    
+    // 모든 요소에서 아이콘 텍스트 찾기 및 변환
+    function fixAllIcons() {
+        // 1. 모든 버튼 확인
+        document.querySelectorAll('button').forEach(btn => {
+            const text = btn.textContent.trim();
+            if (text === 'key' || text === 'keyboard arrow right' || (text.includes('arrow') && text.length < 50)) {
+                convertToIcon(btn);
             }
-        }
-        
-        // 본질적 해결: 모든 텍스트 노드를 확인하고 아이콘 텍스트를 찾아서 변환
-        function fixMaterialIcons() {
-            try {
-                ensureMaterialIconsLoaded();
-                
-                // 아이콘 텍스트를 Material Icons 코드로 변환하는 함수
-                function convertIconText(element) {
-                    try {
-                        if (!element) return false;
-                        const text = element.textContent.trim();
-                        let iconCode = null;
-                        
-                        if (text === 'keyboard arrow right' || text === 'keyboard_arrow_right') {
-                            iconCode = 'keyboard_arrow_right';
-                        } else if (text === 'key') {
-                            iconCode = 'menu';
-                        } else if (text.includes('arrow') && text.length < 30) {
-                            iconCode = 'keyboard_arrow_right';
-                        }
-                        
-                        if (iconCode) {
-                            // Material Icons 폰트 강제 적용
-                            element.style.cssText = `
-                                font-family: 'Material Icons' !important;
-                                font-weight: normal !important;
-                                font-style: normal !important;
-                                font-size: 24px !important;
-                                line-height: 1 !important;
-                                letter-spacing: normal !important;
-                                text-transform: none !important;
-                                display: inline-block !important;
-                                white-space: nowrap !important;
-                                word-wrap: normal !important;
-                                direction: ltr !important;
-                                -webkit-font-feature-settings: 'liga' !important;
-                                -webkit-font-smoothing: antialiased !important;
-                            `;
-                            element.textContent = iconCode;
-                            return true;
-                        }
-                    } catch(e) {
-                        // 개별 요소 변환 실패는 무시
-                    }
-                    return false;
-                }
-                
-                // 모든 텍스트 노드를 찾아서 변환
-                function walkTree(node) {
-                    try {
-                        if (!node) return;
-                        
-                        // 텍스트 노드인 경우
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            const text = node.textContent.trim();
-                            const parent = node.parentElement;
-                            
-                            if (parent && (text === 'key' || text === 'keyboard arrow right' || 
-                                (text.includes('arrow') && text.length < 30))) {
-                                convertIconText(parent);
-                            }
-                        }
-                        // 요소 노드인 경우
-                        else if (node.nodeType === Node.ELEMENT_NODE) {
-                            // 직접 텍스트가 있는 경우
-                            const directText = node.textContent.trim();
-                            if (directText && (directText === 'key' || directText === 'keyboard arrow right' || 
-                                (directText.includes('arrow') && directText.length < 30))) {
-                                // 자식이 텍스트 노드만 있는 경우
-                                if (node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE) {
-                                    convertIconText(node);
-                                }
-                            }
-                            
-                            // 모든 자식 노드 순회
-                            for (let i = 0; i < node.childNodes.length; i++) {
-                                walkTree(node.childNodes[i]);
-                            }
-                        }
-                    } catch(e) {
-                        // 개별 노드 처리 실패는 무시
-                    }
-                }
-                
-                // 전체 문서 순회
-                if (document.body) {
-                    walkTree(document.body);
-                }
-                
-                // Streamlit 특정 요소들도 직접 확인
-                const streamlitSelectors = [
-                    '[data-testid="stExpander"] button',
-                    '[data-testid="stExpander"] > div > div',
-                    '[data-testid="stHeader"] button',
-                    'header button',
-                    'button[kind="header"]'
-                ];
-                
-                streamlitSelectors.forEach(selector => {
-                    try {
-                        document.querySelectorAll(selector).forEach(el => {
-                            const text = el.textContent.trim();
-                            if (text === 'key' || text === 'keyboard arrow right' || 
-                                (text.includes('arrow') && text.length < 30)) {
-                                convertIconText(el);
-                            }
-                        });
-                    } catch(e) {
-                        // 선택자 실패는 무시
-                    }
-                });
-            } catch(e) {
-                console.warn('Material Icons 수정 실패:', e);
-            }
-        }
-        
-        // 즉시 실행
-        ensureMaterialIconsLoaded();
-        fixMaterialIcons();
-        
-        // 여러 시점에서 실행
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                try { fixMaterialIcons(); } catch(e) {}
-            });
-        } else {
-            fixMaterialIcons();
-        }
-        
-        window.addEventListener('load', function() {
-            try {
-                setTimeout(fixMaterialIcons, 100);
-                setTimeout(fixMaterialIcons, 500);
-                setTimeout(fixMaterialIcons, 1000);
-            } catch(e) {}
         });
         
-        // DOM 변경 감지 - 매우 빠르게 반응
-        try {
-            const observer = new MutationObserver(function(mutations) {
-                try {
-                    let shouldFix = false;
-                    mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                            shouldFix = true;
-                        }
-                    });
-                    if (shouldFix) {
-                        setTimeout(function() {
-                            try { fixMaterialIcons(); } catch(e) {}
-                        }, 10);
-                    }
-                } catch(e) {
-                    // MutationObserver 콜백 에러 무시
-                }
-            });
-            
-            if (document.body) {
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true,
-                    attributes: false
-                });
+        // 2. 모든 div, span 확인
+        document.querySelectorAll('div, span').forEach(el => {
+            const text = el.textContent.trim();
+            if ((text === 'key' || text === 'keyboard arrow right' || (text.includes('arrow') && text.length < 50)) 
+                && el.children.length === 0) {
+                convertToIcon(el);
             }
-        } catch(e) {
-            console.warn('MutationObserver 설정 실패:', e);
+        });
+        
+        // 3. 모든 텍스트 노드 확인
+        const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+        
+        let node;
+        while (node = walker.nextNode()) {
+            const text = node.textContent.trim();
+            const parent = node.parentElement;
+            
+            if (parent && (text === 'key' || text === 'keyboard arrow right' || 
+                (text.includes('arrow') && text.length < 50))) {
+                convertToIcon(parent);
+            }
         }
         
-        // 주기적으로도 확인 (더 자주)
-        try {
-            setInterval(function() {
-                try { fixMaterialIcons(); } catch(e) {}
-            }, 500);
-        } catch(e) {
-            console.warn('setInterval 설정 실패:', e);
-        }
-    } catch(e) {
-        console.warn('Material Icons 스크립트 초기화 실패:', e);
+        // 4. Streamlit 특정 요소들
+        const selectors = [
+            '[data-testid="stExpander"] button',
+            '[data-testid="stExpander"] > div',
+            '[data-testid="stExpander"] > div > div',
+            '[data-testid="stExpander"] > div > div > button',
+            '[data-testid="stHeader"] button',
+            'header button',
+            'button[kind="header"]',
+            '[data-testid*="Icon"]',
+            '[data-testid*="icon"]'
+        ];
+        
+        selectors.forEach(selector => {
+            try {
+                document.querySelectorAll(selector).forEach(el => {
+                    const text = el.textContent.trim();
+                    if (text === 'key' || text === 'keyboard arrow right' || 
+                        (text.includes('arrow') && text.length < 50)) {
+                        convertToIcon(el);
+                    }
+                });
+            } catch(e) {}
+        });
     }
+    
+    // 즉시 실행
+    fixAllIcons();
+    
+    // DOMContentLoaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixAllIcons);
+    }
+    
+    // load 이벤트
+    window.addEventListener('load', function() {
+        setTimeout(fixAllIcons, 50);
+        setTimeout(fixAllIcons, 200);
+        setTimeout(fixAllIcons, 500);
+    });
+    
+    // MutationObserver - 매우 빠르게
+    const observer = new MutationObserver(function() {
+        setTimeout(fixAllIcons, 5);
+    });
+    
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    }
+    
+    // 주기적 확인 - 매우 자주
+    setInterval(fixAllIcons, 200);
 })();
 </script>
 """, unsafe_allow_html=True)
