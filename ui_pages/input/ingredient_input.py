@@ -168,12 +168,21 @@ def _set_ingredient_category(store_id, ingredient_name, category):
             
             # 캐시 무효화 (재료 데이터 갱신 필요)
             try:
-                from src.storage_supabase import soft_invalidate
+                from src.storage_supabase import soft_invalidate, clear_session_cache
+                # 소프트 무효화
                 soft_invalidate(
                     reason=f"재료 분류 수정: {ingredient_name}",
                     targets=["ingredients"],
                     session_keys=['ss_ingredient_master_df']
                 )
+                # 세션 캐시 직접 클리어 (즉시 반영)
+                clear_session_cache('ss_ingredient_master_df')
+                # load_csv 캐시도 무효화
+                try:
+                    from src.storage_supabase import load_csv
+                    load_csv.clear()
+                except Exception as e:
+                    logger.warning(f"load_csv 캐시 클리어 실패: {e}")
             except Exception as e:
                 logger.warning(f"캐시 무효화 실패: {e}")
             
@@ -746,14 +755,22 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                         # 재료 상태 저장 (수정 시에는 상태 변경 없음 - 필요시 추가)
                                         # 현재는 수정 모달에 상태 필드가 없으므로 생략
                                         
-                                        # 캐시 무효화 (데이터 갱신)
+                                        # 캐시 무효화 (데이터 갱신) - _set_ingredient_category에서 이미 처리하지만 추가로 확실히
                                         try:
-                                            from src.storage_supabase import soft_invalidate
+                                            from src.storage_supabase import soft_invalidate, clear_session_cache
                                             soft_invalidate(
                                                 reason=f"재료 수정: {ingredient_name} -> {new_name.strip()}",
                                                 targets=["ingredients"],
                                                 session_keys=['ss_ingredient_master_df']
                                             )
+                                            # 세션 캐시 직접 클리어
+                                            clear_session_cache('ss_ingredient_master_df')
+                                            # load_csv 캐시도 무효화
+                                            try:
+                                                from src.storage_supabase import load_csv
+                                                load_csv.clear()
+                                            except Exception as e:
+                                                logger.warning(f"load_csv 캐시 클리어 실패: {e}")
                                         except Exception as e:
                                             logger.warning(f"캐시 무효화 실패: {e}")
                                         
