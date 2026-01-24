@@ -176,11 +176,21 @@ def _set_ingredient_category(store_id, ingredient_name, category):
         # 빈 문자열이면 NULL로 설정 (분류 제거)
         update_value = category if category and category.strip() else None
         
-        # 업데이트 실행
-        update_result = supabase.table("ingredients")\
-            .update({"category": update_value})\
-            .eq("id", ingredient_id)\
-            .execute()
+        # 업데이트 실행 (에러 처리 강화)
+        try:
+            update_result = supabase.table("ingredients")\
+                .update({"category": update_value})\
+                .eq("id", ingredient_id)\
+                .execute()
+        except Exception as update_error:
+            # 컬럼이 없을 수 있음
+            error_msg = str(update_error)
+            if "column" in error_msg.lower() and "does not exist" in error_msg.lower():
+                logger.error(f"category 컬럼이 존재하지 않습니다. SQL 스키마를 실행해주세요: sql/schema_ingredient_category.sql")
+                logger.error(f"에러 상세: {error_msg}")
+                return False
+            else:
+                raise  # 다른 에러는 그대로 전파
         
         # 업데이트 확인 및 검증
         if update_result.data:
