@@ -1671,18 +1671,18 @@ with st.sidebar:
             _render_menu_buttons(items, st.sidebar)
             design_sub_items = menu_categories.get("🧠 설계 (세부설계선택)", [])
             if design_sub_items:
-                with st.sidebar.expander("세부설계선택", expanded=False):
-                    for idx, (label, key) in enumerate(design_sub_items):
-                        is_selected = selected_page_key == key
-                        btn = st.sidebar.button(
-                            label,
-                            key=f"design_sub_btn_{label}_{idx}",
-                            use_container_width=True,
-                            type="primary" if is_selected else "secondary",
-                        )
-                        if btn:
-                            st.session_state.current_page = key
-                            st.rerun()
+                exp_design = st.sidebar.expander("세부설계선택", expanded=False)
+                for idx, (label, key) in enumerate(design_sub_items):
+                    is_selected = selected_page_key == key
+                    btn = exp_design.button(
+                        label,
+                        key=f"design_sub_btn_{label}_{idx}",
+                        use_container_width=True,
+                        type="primary" if is_selected else "secondary",
+                    )
+                    if btn:
+                        st.session_state.current_page = key
+                        st.rerun()
         else:
             # 다른 카테고리는 일반 렌더링
             st.sidebar.markdown(f"""
