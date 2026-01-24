@@ -576,6 +576,11 @@ def render_expanded_sidebar(menu):
         /* 프리미엄 블랙 테마 완전판 CSS v2 - .ps-sidebar-scope 하위만 */
         /* 적용 보증: PROBE 요소 포함, 선택자 폴백, transform 정책 준수 */
         
+        /* ========== 전역 PROBE: CSS 주입 확인용 (빨간 outline) ========== */
+        .ps-sidebar-scope {
+            outline: 3px solid red !important;
+        }
+        
         /* ========== prefers-reduced-motion 대응 ========== */
         @media (prefers-reduced-motion: reduce) {
             .ps-sidebar-scope * {
@@ -979,6 +984,12 @@ def render_expanded_sidebar(menu):
     
     # 스코프 래퍼 시작
     st.markdown('<div class="ps-sidebar-scope">', unsafe_allow_html=True)
+    
+    # 강제 시각 PROBE: 함수 실행 및 위치 확인용 (원인 규명 후 제거)
+    st.markdown(
+        '<div style="background:red;color:white;padding:6px;border-radius:6px;font-weight:700;margin-bottom:10px;">PS SIDEBAR SCOPE ACTIVE</div>',
+        unsafe_allow_html=True
+    )
     
     # 매장 선택
     user_stores = get_user_stores()
