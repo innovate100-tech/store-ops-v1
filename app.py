@@ -655,12 +655,49 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 상태 동기화 JavaScript (최종 강화 버전)
+# 사이드바 상태 동기화 JavaScript (최종 강화 버전 - Streamlit 내부 함수 완전 차단)
 sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
 st.markdown(f"""
 <script>
 (function() {{
     'use strict';
+    
+    // Streamlit의 내부 함수 완전 차단 (최우선 실행)
+    (function() {{
+        // window.streamlit 객체가 있으면 완전 차단
+        if (window.streamlit) {{
+            // toggleSidebar 함수 완전 차단
+            if (window.streamlit.toggleSidebar) {{
+                window.streamlit.toggleSidebar = function() {{
+                    console.log('[Custom] Streamlit toggleSidebar blocked');
+                    return false;
+                }};
+            }}
+            
+            // setSidebarVisibility 함수도 차단
+            if (window.streamlit.setSidebarVisibility) {{
+                window.streamlit.setSidebarVisibility = function(visible) {{
+                    console.log('[Custom] Streamlit setSidebarVisibility blocked');
+                    return true; // 항상 visible로 유지
+                }};
+            }}
+        }}
+        
+        // Streamlit의 내부 이벤트 리스너 차단
+        const originalAddEventListener = EventTarget.prototype.addEventListener;
+        EventTarget.prototype.addEventListener = function(type, listener, options) {{
+            // 사이드바 토글 관련 이벤트 차단
+            if (type === 'click' && listener && (
+                listener.toString().includes('sidebar') ||
+                listener.toString().includes('toggle') ||
+                (listener.name && listener.name.includes('sidebar'))
+            )) {{
+                console.log('[Custom] Blocked sidebar click event listener');
+                return;
+            }}
+            return originalAddEventListener.call(this, type, listener, options);
+        }};
+    }})();
     
     // 햄버거 버튼 완전히 제거 함수 (전역) - DOM에서 완전 삭제
     function removeHamburgerButtons() {{
@@ -1123,17 +1160,35 @@ st.markdown(f"""
         setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 1000);
     }}, {{ passive: true }});
     
-    // Streamlit의 사이드바 토글 기능 완전 차단
-    const originalToggle = window.streamlit?.toggleSidebar;
-    if (window.streamlit) {{
-        window.streamlit.toggleSidebar = function() {{
-            // 아무것도 하지 않음
-            return false;
-        }};
-    }}
-    
-    // Streamlit의 사이드바 관련 모든 이벤트 차단
+    // Streamlit의 사이드바 관련 모든 이벤트 차단 (더 강력하게)
     document.addEventListener('click', function(e) {{
+        const target = e.target;
+        if (target && (
+            target.closest('[data-testid="stHeader"]') ||
+            target.getAttribute('aria-label')?.includes('sidebar') ||
+            target.closest('button[aria-label*="sidebar"]') ||
+            target.closest('button[aria-label*="메뉴"]') ||
+            target.closest('button[aria-label*="Menu"]')
+        )) {{
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            removeHamburgerButtons();
+            
+            // 사이드바 복구
+            const sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (sidebar) {{
+                sidebar.style.setProperty('display', 'block', 'important');
+                sidebar.style.setProperty('visibility', 'visible', 'important');
+                sidebar.setAttribute('aria-expanded', 'true');
+            }}
+            
+            return false;
+        }}
+    }}, true);
+    
+    // mousedown 이벤트도 차단
+    document.addEventListener('mousedown', function(e) {{
         const target = e.target;
         if (target && (
             target.closest('[data-testid="stHeader"]') ||
