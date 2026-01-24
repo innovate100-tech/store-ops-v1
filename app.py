@@ -9,24 +9,12 @@ import sys
 import os
 
 # Essential UI and Logic Imports
-from ui_pages.home import render_home
-from ui_pages.strategy.mission_detail import render_mission_detail
-from ui_pages.input.input_hub import render_input_hub
-from ui_pages.analysis.analysis_hub import render_analysis_hub
-from ui_pages.daily_input_hub import render_daily_input_hub
-from ui_pages.manager_close import render_manager_close
-from ui_pages.sales_entry import render_sales_entry
-from ui_pages.analysis.analysis_summary import render_analysis_summary
-from ui_pages.analysis.sales_analysis import render_sales_analysis
-from ui_pages.input.menu_input import render_menu_input_page
-from ui_pages.input.ingredient_input import render_ingredient_input_page
-from ui_pages.input.inventory_input import render_inventory_input_page
-
-from src.ui.theme_manager import inject_global_ui
-inject_global_ui()
 
 from src.bootstrap import bootstrap
 bootstrap(page_title="Store Ops")
+
+from src.ui.theme_manager import inject_global_ui
+inject_global_ui()
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 
@@ -188,18 +176,42 @@ page = st.session_state.current_page
 if st.session_state.get("_show_supabase_diagnosis", False):
     _diagnose_supabase_connection()
 
-if page == "홈": render_home()
-elif page == "오늘의 전략 실행": render_mission_detail()
-elif page == "입력 허브": render_input_hub()
-elif page == "분석 허브": render_analysis_hub()
-elif page == "일일 입력(통합)": render_daily_input_hub()
-elif page == "점장 마감": render_manager_close()
-elif page == "매출 등록": render_sales_entry()
-elif page == "분석총평": render_analysis_summary()
-elif page == "매출 관리": render_sales_analysis()
-elif page == "메뉴 입력": render_menu_input_page()
-elif page == "재료 입력": render_ingredient_input_page()
-elif page == "재고 입력": render_inventory_input_page()
+if page == "홈":
+    from ui_pages.home import render_home
+    render_home()
+elif page == "오늘의 전략 실행":
+    from ui_pages.strategy.mission_detail import render_mission_detail
+    render_mission_detail()
+elif page == "입력 허브":
+    from ui_pages.input.input_hub import render_input_hub
+    render_input_hub()
+elif page == "분석 허브":
+    from ui_pages.analysis.analysis_hub import render_analysis_hub
+    render_analysis_hub()
+elif page == "일일 입력(통합)":
+    from ui_pages.daily_input_hub import render_daily_input_hub
+    render_daily_input_hub()
+elif page == "점장 마감":
+    from ui_pages.manager_close import render_manager_close
+    render_manager_close()
+elif page == "매출 등록":
+    from ui_pages.sales_entry import render_sales_entry
+    render_sales_entry()
+elif page == "분석총평":
+    from ui_pages.analysis.analysis_summary import render_analysis_summary
+    render_analysis_summary()
+elif page == "매출 관리":
+    from ui_pages.analysis.sales_analysis import render_sales_analysis
+    render_sales_analysis()
+elif page == "메뉴 입력":
+    from ui_pages.input.menu_input import render_menu_input_page
+    render_menu_input_page()
+elif page == "재료 입력":
+    from ui_pages.input.ingredient_input import render_ingredient_input_page
+    render_ingredient_input_page()
+elif page == "재고 입력":
+    from ui_pages.input.inventory_input import render_inventory_input_page
+    render_inventory_input_page()
 elif page == "원가 파악":
     from ui_pages.cost_overview import render_cost_overview
     render_cost_overview()
