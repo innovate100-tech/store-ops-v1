@@ -1617,9 +1617,6 @@ def render_custom_sidebar(menu):
         
         # 사이드바 컨테이너 종료
         st.markdown('</div></div>', unsafe_allow_html=True)
-    
-    # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화 (강화 버전)
-    st.markdown(f"""
     <script>
     (function() {{
         const targetWidth = '{sidebar_width}';
@@ -1780,6 +1777,172 @@ except Exception as e:
     st.error(f"사이드바 렌더링 오류: {e}")
     import traceback
     st.code(traceback.format_exc())
+
+# JavaScript는 사이드바 밖에서 실행 (메인 콘텐츠 영역에 렌더링)
+# 사이드바 상태 가져오기
+sidebar_collapsed = st.session_state.get("sidebar_collapsed", False)
+sidebar_width = "4rem" if sidebar_collapsed else "15rem"
+sidebar_width_px = 64 if sidebar_collapsed else 240
+
+# JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화 (강화 버전)
+st.markdown(f"""
+<script>
+(function() {{
+    const targetWidth = '{sidebar_width}';
+    const targetWidthPx = {sidebar_width_px};
+    
+    // 사이드바 폭 강제 설정
+    function setSidebarWidth() {{
+        const sidebar = document.getElementById('custom-sidebar-container');
+        if (sidebar) {{
+            sidebar.style.setProperty('width', targetWidth, 'important');
+            sidebar.style.setProperty('max-width', targetWidth, 'important');
+            sidebar.style.setProperty('min-width', targetWidth, 'important');
+        }}
+        
+        // Streamlit 사이드바도 조정
+        const stSidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (stSidebar) {{
+            stSidebar.style.setProperty('width', targetWidth, 'important');
+            stSidebar.style.setProperty('max-width', targetWidth, 'important');
+            stSidebar.style.setProperty('min-width', targetWidth, 'important');
+        }}
+    }}
+    
+    // 메인 콘텐츠 영역 margin-left 조정 (모든 가능한 요소)
+    function adjustMainContent() {{
+        const viewportWidth = window.innerWidth;
+        const sidebarWidthPx = targetWidthPx;
+        const mainContentWidth = viewportWidth - sidebarWidthPx;
+        
+        // #root > div 조정 (최상위 레이아웃)
+        const rootDivs = document.querySelectorAll('#root > div');
+        rootDivs.forEach(function(el) {{
+            el.style.setProperty('margin-left', targetWidth, 'important');
+            el.style.setProperty('width', mainContentWidth + 'px', 'important');
+            el.style.setProperty('max-width', mainContentWidth + 'px', 'important');
+            el.style.setProperty('min-width', mainContentWidth + 'px', 'important');
+        }});
+        
+        // stAppViewContainer 조정 (가장 중요) - 사이드바 옆에 배치
+        const appContainer = document.querySelector('[data-testid="stAppViewContainer"]');
+        if (appContainer) {{
+            appContainer.style.setProperty('margin-left', targetWidth, 'important');
+            appContainer.style.setProperty('width', mainContentWidth + 'px', 'important');
+            appContainer.style.setProperty('max-width', mainContentWidth + 'px', 'important');
+            appContainer.style.setProperty('min-width', mainContentWidth + 'px', 'important');
+            appContainer.style.setProperty('position', 'relative', 'important');
+            appContainer.style.setProperty('left', '0', 'important');
+            appContainer.style.setProperty('right', 'auto', 'important');
+            appContainer.style.setProperty('float', 'none', 'important');
+            appContainer.style.setProperty('display', 'block', 'important');
+            appContainer.style.setProperty('flex', 'none', 'important');
+        }}
+        
+        // stAppViewContainer의 직접 자식 요소들 조정
+        const appContainerChildren = document.querySelectorAll('[data-testid="stAppViewContainer"] > div');
+        appContainerChildren.forEach(function(el) {{
+            // 사이드바 컨테이너가 아닌 경우만 조정
+            if (el.id !== 'custom-sidebar-container' && !el.querySelector('#custom-sidebar-container') && 
+                el.getAttribute('data-testid') !== 'stSidebar') {{
+                el.style.setProperty('margin-left', '0', 'important');
+                el.style.setProperty('width', '100%', 'important');
+                el.style.setProperty('max-width', '100%', 'important');
+                el.style.setProperty('float', 'none', 'important');
+                el.style.setProperty('display', 'block', 'important');
+            }}
+        }});
+        
+        // .main 요소 직접 조정
+        const mainElements = document.querySelectorAll('.main');
+        mainElements.forEach(function(el) {{
+            el.style.setProperty('margin-left', '0', 'important');
+            el.style.setProperty('width', '100%', 'important');
+            el.style.setProperty('max-width', '100%', 'important');
+            el.style.setProperty('position', 'relative', 'important');
+            el.style.setProperty('left', '0', 'important');
+            el.style.setProperty('right', 'auto', 'important');
+            el.style.setProperty('float', 'none', 'important');
+            el.style.setProperty('display', 'block', 'important');
+            el.style.setProperty('flex', 'none', 'important');
+        }});
+        
+        // .block-container 조정
+        const blockContainers = document.querySelectorAll('.main .block-container');
+        blockContainers.forEach(function(el) {{
+            el.style.setProperty('margin-left', '0', 'important');
+            el.style.setProperty('max-width', '100%', 'important');
+            el.style.setProperty('width', '100%', 'important');
+        }});
+        
+        // body와 html도 조정
+        document.body.style.setProperty('margin-left', '0', 'important');
+        document.body.style.setProperty('overflow-x', 'hidden', 'important');
+        document.body.style.setProperty('position', 'relative', 'important');
+        document.documentElement.style.setProperty('margin-left', '0', 'important');
+        document.documentElement.style.setProperty('overflow-x', 'hidden', 'important');
+    }}
+    
+    // 모든 조정 함수 실행
+    function applyAllAdjustments() {{
+        setSidebarWidth();
+        adjustMainContent();
+    }}
+    
+    // 즉시 실행 (여러 번)
+    applyAllAdjustments();
+    setTimeout(applyAllAdjustments, 10);
+    setTimeout(applyAllAdjustments, 50);
+    setTimeout(applyAllAdjustments, 100);
+    setTimeout(applyAllAdjustments, 300);
+    
+    // DOM 변경 감지
+    const observer = new MutationObserver(applyAllAdjustments);
+    if (document.body) {{
+        observer.observe(document.body, {{ 
+            childList: true, 
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        }});
+    }}
+    
+    // 주기적 확인 (매우 자주 - 안전장치)
+    setInterval(applyAllAdjustments, 50);
+    
+    // window load 이벤트
+    window.addEventListener('load', function() {{
+        setTimeout(applyAllAdjustments, 100);
+        setTimeout(applyAllAdjustments, 500);
+    }});
+    
+    // window resize 이벤트
+    window.addEventListener('resize', function() {{
+        applyAllAdjustments();
+    }});
+    
+    // 사이드바 내부 모든 요소의 width 제한 (추가 안전장치)
+    function limitSidebarContentWidth() {{
+        const sidebar = document.getElementById('custom-sidebar-container');
+        if (sidebar) {{
+            const allElements = sidebar.querySelectorAll('*');
+            allElements.forEach(function(el) {{
+                const computed = window.getComputedStyle(el);
+                if (computed.position !== 'fixed' && computed.position !== 'absolute') {{
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('box-sizing', 'border-box', 'important');
+                }}
+            }});
+        }}
+    }}
+    
+    // 사이드바 내부 width 제한도 주기적으로 실행
+    setInterval(function() {{
+        limitSidebarContentWidth();
+    }}, 100);
+}})();
+</script>
+""", unsafe_allow_html=True)
 
 # Page Routing
 page = st.session_state.get("current_page", "홈")
