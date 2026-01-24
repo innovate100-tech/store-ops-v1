@@ -263,7 +263,7 @@ def render_design_hub():
     <div style="padding: 1rem; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 8px; margin-bottom: 1.5rem;">
         <p style="margin: 0; font-size: 1rem; line-height: 1.6;">
             <strong>설계는 가게의 구조를 만드는 일입니다.</strong><br>
-            핵심만 먼저 보세요. 세부는 아래 '세부설계선택'에서 골라 들어가면 됩니다.
+            핵심만 먼저 보세요. 세부 설계는 사이드바 <strong>설계 (세부설계선택)</strong>에서 골라 들어가면 됩니다.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -339,24 +339,3 @@ def render_design_hub():
                     st.rerun()
     else:
         st.info("모든 설계 영역이 완료되었습니다. 🎉")
-
-    st.markdown("---")
-
-    # ZONE D: 세부설계선택 (expander)
-    sub_items = [
-        ("가게 설계 센터", "가게 설계 센터"),
-        ("전략 보드", "전략 보드"),
-        ("메뉴 포트폴리오 설계", "메뉴 등록"),
-        ("메뉴 수익 설계", "메뉴 수익 구조 설계실"),
-        ("재료 구조 설계", "재료 등록"),
-        ("수익 구조 설계", "수익 구조 설계실"),
-        ("레시피 설계", "레시피 등록"),
-        ("목표 비용 구조 입력", "목표 비용구조"),
-        ("목표 매출 구조 입력", "목표 매출구조"),
-    ]
-    with st.expander("세부설계선택", expanded=False):
-        st.caption("상세 설계가 필요할 때 페이지를 골라 들어가세요.")
-        for label, key in sub_items:
-            if st.button(label, key=f"design_hub_sub_{key}", use_container_width=True, type="secondary"):
-                st.session_state["current_page"] = key
-                st.rerun()
