@@ -331,20 +331,32 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
-    /* 사이드바 기본 폭 */
-    [data-testid="stSidebar"] {
+    /* 사이드바 기본 폭 - 모든 가능한 선택자 */
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebar"],
+    .css-1d391kg,
+    .css-1lcbmhc {
         width: 15rem !important;
         min-width: 15rem !important;
         max-width: 15rem !important;
+        flex-basis: 15rem !important;
         transition: width 0.3s ease !important;
     }
     
-    /* 접힌 상태 */
-    [data-testid="stSidebar"].sidebar-collapsed {
+    /* 접힌 상태 - 모든 가능한 선택자 */
+    [data-testid="stSidebar"].sidebar-collapsed,
+    section[data-testid="stSidebar"].sidebar-collapsed,
+    div[data-testid="stSidebar"].sidebar-collapsed,
+    .css-1d391kg.sidebar-collapsed,
+    .css-1lcbmhc.sidebar-collapsed {
         width: 4rem !important;
         min-width: 4rem !important;
         max-width: 4rem !important;
+        flex-basis: 4rem !important;
     }
+    
+    /* 메인 콘텐츠 영역 조정 - JavaScript에서 동적으로 처리 */
     
     /* 접힌 상태에서 텍스트 숨김 */
     [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
@@ -582,7 +594,7 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 상태 동기화 JavaScript (간소화)
+# 사이드바 상태 동기화 JavaScript (강화 버전 - 실제 폭 변경)
 sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
 st.markdown(f"""
 <script>
@@ -594,27 +606,109 @@ st.markdown(f"""
         if (!sidebar) return;
         
         const isCollapsed = sidebar.getAttribute('data-sidebar-collapsed') === 'true' || {sidebar_collapsed_js};
+        const targetWidth = isCollapsed ? '4rem' : '15rem';
+        const targetWidthPx = isCollapsed ? '64px' : '240px';
         
+        // 클래스 및 속성 설정
         if (isCollapsed) {{
             sidebar.classList.add('sidebar-collapsed');
             sidebar.setAttribute('data-sidebar-collapsed', 'true');
-            sidebar.style.width = '4rem';
-            sidebar.style.minWidth = '4rem';
-            sidebar.style.maxWidth = '4rem';
         }} else {{
             sidebar.classList.remove('sidebar-collapsed');
             sidebar.setAttribute('data-sidebar-collapsed', 'false');
-            sidebar.style.width = '15rem';
-            sidebar.style.minWidth = '15rem';
-            sidebar.style.maxWidth = '15rem';
         }}
+        
+        // 사이드바 자체에 인라인 스타일로 강제 적용
+        sidebar.style.cssText = `
+            width: ${{targetWidth}} !important;
+            min-width: ${{targetWidth}} !important;
+            max-width: ${{targetWidth}} !important;
+            flex-basis: ${{targetWidth}} !important;
+            transition: width 0.3s ease !important;
+        `;
+        
+        // 모든 가능한 사이드바 관련 요소에도 적용
+        const sidebarSelectors = [
+            '[data-testid="stSidebar"]',
+            'section[data-testid="stSidebar"]',
+            'div[data-testid="stSidebar"]',
+            '.css-1d391kg',
+            '.css-1lcbmhc',
+            '[class*="stSidebar"]'
+        ];
+        
+        sidebarSelectors.forEach(function(selector) {{
+            try {{
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(function(el) {{
+                    el.style.setProperty('width', targetWidth, 'important');
+                    el.style.setProperty('min-width', targetWidth, 'important');
+                    el.style.setProperty('max-width', targetWidth, 'important');
+                    el.style.setProperty('flex-basis', targetWidth, 'important');
+                }});
+            }} catch(e) {{
+                // 선택자 실패 무시
+            }}
+        }});
+        
+        // 부모 요소들도 조정
+        let parent = sidebar.parentElement;
+        let depth = 0;
+        while (parent && parent !== document.body && depth < 5) {{
+            if (parent.style) {{
+                parent.style.setProperty('width', 'auto', 'important');
+                parent.style.setProperty('min-width', 'auto', 'important');
+            }}
+            parent = parent.parentElement;
+            depth++;
+        }}
+        
+        // 메인 콘텐츠 영역도 조정 (모든 가능한 선택자)
+        const mainSelectors = [
+            '[data-testid="stAppViewContainer"] > div',
+            '[data-testid="stAppViewContainer"] > div > div',
+            '.main .block-container',
+            '[data-testid="stAppViewContainer"]',
+            '.main',
+            '[class*="block-container"]'
+        ];
+        
+        mainSelectors.forEach(function(selector) {{
+            try {{
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(function(el) {{
+                    // 현재 computed style 확인
+                    const computed = window.getComputedStyle(el);
+                    const currentMargin = computed.marginLeft;
+                    
+                    // margin-left가 sidebar width와 다르면 조정
+                    if (currentMargin !== targetWidthPx && currentMargin !== targetWidth) {{
+                        el.style.setProperty('margin-left', targetWidthPx, 'important');
+                    }}
+                }});
+            }} catch(e) {{
+                // 선택자 실패 무시
+            }}
+        }});
     }}
     
-    // 초기 실행
+    // 즉시 실행
     syncSidebarState();
     
-    // 주기적 확인 (1초마다)
-    setInterval(syncSidebarState, 1000);
+    // DOM 로드 후 실행
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', function() {{
+            syncSidebarState();
+            setTimeout(syncSidebarState, 100);
+            setTimeout(syncSidebarState, 300);
+        }});
+    }} else {{
+        setTimeout(syncSidebarState, 100);
+        setTimeout(syncSidebarState, 300);
+    }}
+    
+    // 주기적 확인 (더 자주 체크 - 100ms마다)
+    setInterval(syncSidebarState, 100);
     
     // DOM 변경 감지
     const observer = new MutationObserver(function() {{
@@ -625,9 +719,17 @@ st.markdown(f"""
     if (sidebar) {{
         observer.observe(sidebar, {{
             attributes: true,
-            attributeFilter: ['data-sidebar-collapsed', 'class']
+            childList: true,
+            subtree: false,
+            attributeFilter: ['data-sidebar-collapsed', 'class', 'style']
         }});
     }}
+    
+    // window load 이벤트
+    window.addEventListener('load', function() {{
+        setTimeout(syncSidebarState, 100);
+        setTimeout(syncSidebarState, 500);
+    }}, {{ passive: true }});
 }})();
 </script>
 """, unsafe_allow_html=True)
