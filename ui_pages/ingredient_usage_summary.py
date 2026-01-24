@@ -652,7 +652,7 @@ def _render_zone_c_usage_trend(usage_df, daily_trend_df, weekday_pattern_df, mon
                     st.metric("전년 동기 대비", f"{latest['전년동기대비변화율(%)']:+.1f}%")
             st.markdown("##### 전월 대비 변화율 TOP 10")
             latest_month = monthly["년월"].max()
-            latest = monthly[monthly["년월"] == latest_month].sort_values("전월대비변화율(%)", ascending=False, na_last=True)
+            latest = monthly[monthly["년월"] == latest_month].sort_values("전월대비변화율(%)", ascending=False, na_position="last")
             top_change = latest.head(10)[["재료명", "사용량", "전월대비변화율(%)"]]
             st.dataframe(top_change, use_container_width=True, hide_index=True)
         else:
