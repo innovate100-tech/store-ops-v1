@@ -567,13 +567,22 @@ menu = {
 }
 
 def render_expanded_sidebar(menu):
-    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마 완전판)"""
-    # CSS 주입 (세션에서 1회만, 버전 포함 플래그)
+    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마 완전판 - 적용 보증)"""
+    # CSS 주입 (세션에서 1회만, 버전 포함 플래그) - v2 강제
     if "ps__premium_sidebar_css_v2" not in st.session_state:
         st.session_state["ps__premium_sidebar_css_v2"] = True
         st.markdown("""
         <style>
-        /* 프리미엄 블랙 테마 완전판 CSS - .ps-sidebar-scope 하위만 */
+        /* 프리미엄 블랙 테마 완전판 CSS v2 - .ps-sidebar-scope 하위만 */
+        /* 적용 보증: PROBE 요소 포함, 선택자 폴백, transform 정책 준수 */
+        
+        /* ========== prefers-reduced-motion 대응 ========== */
+        @media (prefers-reduced-motion: reduce) {
+            .ps-sidebar-scope * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
         
         /* ========== CSS Keyframes 애니메이션 ========== */
         
@@ -589,20 +598,7 @@ def render_expanded_sidebar(menu):
             }
         }
         
-        /* 그라데이션 배경 애니메이션 (호버용) */
-        @keyframes premium-gradient-shift {
-            0% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-            100% {
-                background-position: 0% 50%;
-            }
-        }
-        
-        /* 미묘한 펄스 효과 (카테고리 제목용) */
+        /* 미묘한 펄스 효과 (카테고리 제목용) - translateY만 사용 */
         @keyframes premium-fade-in {
             from {
                 opacity: 0;
@@ -614,7 +610,7 @@ def render_expanded_sidebar(menu):
             }
         }
         
-        /* 리플 효과 애니메이션 (클릭용) */
+        /* 리플 효과 애니메이션 (클릭용) - scale만 사용 */
         @keyframes premium-ripple {
             0% {
                 transform: scale(0);
@@ -665,7 +661,17 @@ def render_expanded_sidebar(menu):
             z-index: 1;
         }
         
-        /* ========== 카테고리 제목 (그라데이션 텍스트 포함) ========== */
+        /* ========== 카테고리 제목 (그라데이션 텍스트 + PROBE 포함) ========== */
+        
+        /* PROBE: 카테고리 제목 앞 작은 점 (CSS 적용 확인용) */
+        .ps-sidebar-scope .premium-category-title::before {
+            content: '•';
+            display: inline-block;
+            color: rgba(59, 130, 246, 0.6);
+            margin-right: 0.5rem;
+            font-size: 0.5rem;
+            vertical-align: middle;
+        }
         
         .ps-sidebar-scope .premium-category-title {
             background: linear-gradient(135deg, 
@@ -711,15 +717,19 @@ def render_expanded_sidebar(menu):
                 transparent 100%);
         }
         
-        /* ========== 고급 버튼 스타일 ========== */
+        /* ========== 고급 버튼 스타일 (선택자 폴백 포함) ========== */
         
-        /* 공통 버튼: 고급 그라데이션 배경 */
-        .ps-sidebar-scope .stButton > button {
+        /* 공통 버튼: 고급 그라데이션 배경 + PROBE (border 변화) */
+        .ps-sidebar-scope .stButton > button,
+        .ps-sidebar-scope button[kind],
+        .ps-sidebar-scope button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
             color: #E2E8F0;
+            /* PROBE: border 변화 (CSS 적용 확인용) */
             border: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 2px solid rgba(59, 130, 246, 0.3);
             border-radius: 12px;
             padding: 0.875rem 1rem;
             font-weight: 500;
@@ -731,8 +741,10 @@ def render_expanded_sidebar(menu):
             overflow: hidden;
         }
         
-        /* 버튼 내부 그라데이션 오버레이 (호버 효과용) */
-        .ps-sidebar-scope .stButton > button::before {
+        /* 버튼 내부 그라데이션 오버레이 (호버 효과용 - 스윕) */
+        .ps-sidebar-scope .stButton > button::before,
+        .ps-sidebar-scope button[kind]::before,
+        .ps-sidebar-scope button::before {
             content: '';
             position: absolute;
             top: 0;
@@ -743,12 +755,15 @@ def render_expanded_sidebar(menu):
                 transparent 0%, 
                 rgba(255, 255, 255, 0.1) 50%, 
                 transparent 100%);
-            transition: left 0.5s ease;
+            transition: left 0.5s ease, opacity 0.3s ease;
             z-index: 1;
+            pointer-events: none;
         }
         
         /* 리플 효과용 오버레이 (클릭 시) */
-        .ps-sidebar-scope .stButton > button::after {
+        .ps-sidebar-scope .stButton > button::after,
+        .ps-sidebar-scope button[kind]::after,
+        .ps-sidebar-scope button::after {
             content: '';
             position: absolute;
             top: 50%;
@@ -762,36 +777,56 @@ def render_expanded_sidebar(menu):
             z-index: 2;
         }
         
-        /* 호버 시: 그라데이션 배경 변화 + 슬라이드 효과 + 기울기 */
-        .ps-sidebar-scope .stButton > button:hover {
+        /* 호버 시: 그라데이션 배경 변화 + 슬라이드 효과 (폴백: 배경만 변화) */
+        .ps-sidebar-scope .stButton > button:hover,
+        .ps-sidebar-scope button[kind]:hover,
+        .ps-sidebar-scope button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.1) 0%, 
                 rgba(255, 255, 255, 0.05) 100%);
             border-color: rgba(255, 255, 255, 0.25);
+            border-left-color: rgba(59, 130, 246, 0.6);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
                         0 0 0 1px rgba(255, 255, 255, 0.1);
-            transform: scale(1.01) rotate(0.5deg);
+            /* transform 정책: scale만 허용, rotate 금지 */
+            transform: scale(1.01);
         }
         
-        .ps-sidebar-scope .stButton > button:hover::before {
+        /* 호버 시 스윕 효과 (폴백: opacity 변화만 있어도 보이게) */
+        .ps-sidebar-scope .stButton > button:hover::before,
+        .ps-sidebar-scope button[kind]:hover::before,
+        .ps-sidebar-scope button:hover::before {
             left: 100%;
+            opacity: 1;
         }
         
-        /* 클릭 시 리플 효과 (active 상태) */
-        .ps-sidebar-scope .stButton > button:active::after {
+        /* 클릭 시 리플 효과 (active 상태 - 폴백: 배경 하이라이트) */
+        .ps-sidebar-scope .stButton > button:active,
+        .ps-sidebar-scope button[kind]:active,
+        .ps-sidebar-scope button:active {
+            background: linear-gradient(180deg, 
+                rgba(255, 255, 255, 0.15) 0%, 
+                rgba(255, 255, 255, 0.08) 100%);
+        }
+        
+        .ps-sidebar-scope .stButton > button:active::after,
+        .ps-sidebar-scope button[kind]:active::after,
+        .ps-sidebar-scope button:active::after {
             width: 300px;
             height: 300px;
             animation: premium-ripple 0.6s ease-out;
         }
         
-        /* 활성 버튼: 고급 블루 그라데이션 + 펄스 애니메이션 */
-        .ps-sidebar-scope .stButton > button[kind="primary"] {
+        /* 활성 버튼: 고급 블루 그라데이션 + 펄스 애니메이션 (선택자 폴백) */
+        .ps-sidebar-scope .stButton > button[kind="primary"],
+        .ps-sidebar-scope button[kind="primary"] {
             background: linear-gradient(135deg, 
                 #3B82F6 0%, 
                 #2563EB 50%, 
                 #1D4ED8 100%);
             background-size: 200% 200%;
             border-color: #60A5FA;
+            border-left-color: #60A5FA;
             box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4),
                         0 0 0 1px rgba(96, 165, 250, 0.3);
             color: #FFFFFF;
@@ -800,7 +835,8 @@ def render_expanded_sidebar(menu):
         }
         
         /* 활성 버튼 내부 미묘한 빛 효과 */
-        .ps-sidebar-scope .stButton > button[kind="primary"]::before {
+        .ps-sidebar-scope .stButton > button[kind="primary"]::before,
+        .ps-sidebar-scope button[kind="primary"]::before {
             content: '';
             position: absolute;
             top: 0;
@@ -816,13 +852,16 @@ def render_expanded_sidebar(menu):
         }
         
         /* 활성 버튼의 리플 효과는 더 밝게 */
-        .ps-sidebar-scope .stButton > button[kind="primary"]:active::after {
+        .ps-sidebar-scope .stButton > button[kind="primary"]:active::after,
+        .ps-sidebar-scope button[kind="primary"]:active::after {
             background: rgba(255, 255, 255, 0.5);
         }
         
-        /* ========== Expander 고급 스타일 ========== */
+        /* ========== Expander 고급 스타일 (선택자 폴백) ========== */
         
-        .ps-sidebar-scope .stExpander header {
+        .ps-sidebar-scope .stExpander header,
+        .ps-sidebar-scope .stExpander summary,
+        .ps-sidebar-scope .stExpander label {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.03) 0%, 
                 rgba(255, 255, 255, 0.01) 100%);
@@ -835,7 +874,8 @@ def render_expanded_sidebar(menu):
             -webkit-backdrop-filter: blur(4px);
         }
         
-        .ps-sidebar-scope .stExpander header:hover {
+        .ps-sidebar-scope .stExpander header:hover,
+        .ps-sidebar-scope .stExpander summary:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -843,14 +883,9 @@ def render_expanded_sidebar(menu):
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         
-        .ps-sidebar-scope .stExpander summary,
-        .ps-sidebar-scope .stExpander label {
-            color: #E2E8F0;
-            font-weight: 500;
-        }
-        
-        /* Expander 내부 버튼 */
-        .ps-sidebar-scope .stExpander .stButton > button {
+        /* Expander 내부 버튼 (선택자 폴백) */
+        .ps-sidebar-scope .stExpander .stButton > button,
+        .ps-sidebar-scope .stExpander button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.03) 0%, 
                 rgba(255, 255, 255, 0.01) 100%);
@@ -858,15 +893,18 @@ def render_expanded_sidebar(menu):
             padding: 0.75rem 1rem;
         }
         
-        .ps-sidebar-scope .stExpander .stButton > button:hover {
+        .ps-sidebar-scope .stExpander .stButton > button:hover,
+        .ps-sidebar-scope .stExpander button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.06) 0%, 
                 rgba(255, 255, 255, 0.03) 100%);
         }
         
-        /* ========== Selectbox 고급 스타일 ========== */
+        /* ========== Selectbox 고급 스타일 (선택자 폴백) ========== */
         
-        .ps-sidebar-scope .stSelectbox div[role="combobox"] {
+        .ps-sidebar-scope .stSelectbox div[role="combobox"],
+        .ps-sidebar-scope .stSelectbox [data-baseweb="select"],
+        .ps-sidebar-scope .stSelectbox select {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
@@ -878,23 +916,14 @@ def render_expanded_sidebar(menu):
             -webkit-backdrop-filter: blur(4px);
         }
         
-        .ps-sidebar-scope .stSelectbox div[role="combobox"]:hover {
+        .ps-sidebar-scope .stSelectbox div[role="combobox"]:hover,
+        .ps-sidebar-scope .stSelectbox [data-baseweb="select"]:hover,
+        .ps-sidebar-scope .stSelectbox select:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.08) 0%, 
                 rgba(255, 255, 255, 0.04) 100%);
             border-color: rgba(255, 255, 255, 0.2);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .ps-sidebar-scope .stSelectbox [data-baseweb="select"] {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                rgba(255, 255, 255, 0.02) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            color: #E2E8F0;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
         }
         
         .ps-sidebar-scope .stSelectbox label {
@@ -925,20 +954,24 @@ def render_expanded_sidebar(menu):
                 transparent 100%);
         }
         
-        .ps-sidebar-scope .premium-system-section .stButton > button {
+        .ps-sidebar-scope .premium-system-section .stButton > button,
+        .ps-sidebar-scope .premium-system-section button {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.04) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
             border: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 2px solid rgba(59, 130, 246, 0.3);
             border-radius: 12px;
             transition: all 0.3s ease;
         }
         
-        .ps-sidebar-scope .premium-system-section .stButton > button:hover {
+        .ps-sidebar-scope .premium-system-section .stButton > button:hover,
+        .ps-sidebar-scope .premium-system-section button:hover {
             background: linear-gradient(180deg, 
                 rgba(255, 255, 255, 0.08) 0%, 
                 rgba(255, 255, 255, 0.04) 100%);
             border-color: rgba(255, 255, 255, 0.25);
+            border-left-color: rgba(59, 130, 246, 0.6);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
         </style>
