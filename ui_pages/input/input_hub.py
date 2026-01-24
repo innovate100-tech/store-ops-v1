@@ -41,6 +41,7 @@ def _get_today_recommendations(store_id: str) -> list:
         has_close = status.get("has_close", False)
         has_any = status.get("has_sales", False) or status.get("has_visitors", False) or has_close
         
+        # 일일 매출/방문자 요약
         sales_val = 0
         visitors_val = 0
         try:
@@ -53,14 +54,31 @@ def _get_today_recommendations(store_id: str) -> list:
                     visitors_val = row.iloc[0].get("visitors", 0)
         except Exception: pass
 
+        # P1: 일일 마감
         if not has_close:
             msg = "📝 오늘 마감 필요" if not has_any else "📝 오늘 마감 미완료"
             recommendations.append({"status": "pending", "message": msg, "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "데이터 없음"})
         else:
             recommendations.append({"status": "completed", "message": "✅ 오늘 마감 완료", "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"})
         
+        # P4: QSC (로직 보강: 가장 최근 기록 조회)
         checklist_count = _count_completed_checklists_last_7_days(store_id)
-        recommendations.append({"status": "completed" if checklist_count > 0 else "pending", "message": f"🩺 QSC ({checklist_count}회)", "button_label": "🩺 QSC 입력", "page_key": "건강검진 실시", "priority": 4, "summary": "최근 7일"})
+        last_date_str = "기록 없음"
+        try:
+            supabase = get_supabase_client()
+            res = supabase.table("health_check_sessions").select("completed_at").eq("store_id", store_id).not_.is_("completed_at", "null").order("completed_at", desc=True).limit(1).execute()
+            if res.data:
+                last_date_str = res.data[0]["completed_at"][:10]
+        except Exception: pass
+
+        recommendations.append({
+            "status": "completed" if checklist_count > 0 else "pending", 
+            "message": f"🩺 QSC ({checklist_count}회)" if checklist_count > 0 else "🩺 QSC 미실시", 
+            "button_label": "🩺 QSC 입력", 
+            "page_key": "건강검진 실시", 
+            "priority": 4, 
+            "summary": f"최근: {last_date_str}"
+        })
             
         is_done = _is_current_month_settlement_done(store_id)
         recommendations.append({"status": "completed" if is_done else "pending", "message": "📅 월간 정산", "button_label": "📅 정산 입력", "page_key": "실제정산", "priority": 5, "summary": f"{current_month_kst()}월"})
