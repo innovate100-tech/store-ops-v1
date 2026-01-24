@@ -1115,13 +1115,6 @@ def get_today_one_action(store_id: str, level: int) -> dict:
                     "button_label": "💳 목표 비용구조 보기",
                     "target_page": "목표 비용구조"
                 }
-                else:
-                    return {
-                        "title": "숫자 구조 10초 복습",
-                        "reason": "매출이 오르면 얼마가 남는지 알고 있으면 의사결정이 빨라집니다.",
-                        "button_label": "💳 목표 비용구조 보기",
-                        "target_page": "목표 비용구조"
-                    }
         
         else:
             return fallback
@@ -1549,9 +1542,9 @@ def _render_home_body(store_id: str):
                 # 모두 완료
                 st.success("🎉 기본 세팅이 끝났습니다. 이제 홈이 매일 가게를 읽어드립니다.")
                 st.caption("💡 팁: 매일 점장마감을 하시면 홈이 자동으로 매출 흐름과 문제점을 분석해드립니다.")
-        except Exception as e:
-            # 미션 섹션 오류 시에도 홈이 죽지 않도록
-            pass
+    except Exception as e:
+        # 미션 섹션 오류 시에도 홈이 죽지 않도록
+        pass
 
     render_section_divider()
     
@@ -1700,8 +1693,8 @@ def _render_home_body(store_id: str):
         with st.container():
             st.markdown("### 🎯 오늘 코치의 한 가지 제안")
                 
-                # 추천 액션 결정 (DAY 단계별 톤 튜닝)
-                action = get_today_one_action_with_day_context(store_id, data_level, day_level)
+            # 추천 액션 결정 (DAY 단계별 톤 튜닝)
+            action = get_today_one_action_with_day_context(store_id, data_level, day_level)
             
             # 추천 카드 표시
             st.markdown(f"""
@@ -1715,20 +1708,20 @@ def _render_home_body(store_id: str):
             if st.button(action['button_label'], type="primary", use_container_width=True, key="home_btn_today_one"):
                 st.session_state.current_page = action['target_page']
                 st.rerun()
-        except Exception as e:
-            # Fallback: 예외 발생 시 기본 추천
-            try:
-                st.markdown("""
-                <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
-                    <h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4>
-                    <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p>
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
-                    st.session_state.current_page = "점장 마감"
-                    st.rerun()
-            except Exception:
-                pass
+    except Exception as e:
+        # Fallback: 예외 발생 시 기본 추천
+        try:
+            st.markdown("""
+            <div style="padding: 1.5rem; background: #fff3cd; border-radius: 12px; border-left: 4px solid #ffc107;">
+                <h4 style="color: #856404; margin-bottom: 0.5rem;">오늘 마감부터 시작</h4>
+                <p style="color: #856404; margin-bottom: 1rem; font-size: 0.9rem;">데이터가 없어서 분석이 불가능합니다. 오늘 마감 1회만 하면 홈이 채워집니다.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("📋 점장 마감 하러가기", type="primary", use_container_width=True, key="home_btn_fallback"):
+                st.session_state.current_page = "점장 마감"
+                st.rerun()
+        except Exception:
+            pass
 
     render_section_divider()
 
