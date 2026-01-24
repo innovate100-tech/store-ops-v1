@@ -118,22 +118,21 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
-    # 눈이 편안한 테마 대응 카드 (자산 현황용)
-    # </div> 누출 방지를 위해 HTML 구조 단순화 및 공백 제거
-    warning_html = f'<div style="font-size: 0.75rem; color: #ef4444; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning}</div>' if warning else ''
+    # 사용자 요청: 눈부심 방지를 위해 블랙 배경 적용
+    warning_html = f'<div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning}</div>' if warning else ''
     card_style = """
         padding: 1rem; 
-        background-color: var(--background-color, #f9fafb); 
+        background-color: #111827; 
         border-radius: 10px; 
-        border: 1px solid var(--ps-border, #e5e7eb); 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        border: 1px solid #374151; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
         margin-bottom: 0.8rem; 
         display: flex; 
         align-items: center; 
         gap: 1rem;
     """
-    title_style = "font-size: 0.8rem; color: var(--text-color, #4b5563); opacity: 0.8;"
-    value_style = "font-size: 1.1rem; font-weight: 700; color: var(--text-color, #111827);"
+    title_style = "font-size: 0.8rem; color: #9ca3af; font-weight: 500;"
+    value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff;"
     
     html_content = f"""<div style="{card_style}"><div style="font-size: 1.8rem;">{icon}</div><div style="flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div>{warning_html}</div></div>"""
     st.markdown(html_content, unsafe_allow_html=True)
