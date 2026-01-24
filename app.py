@@ -287,278 +287,396 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Material Icons 폰트 강제 적용 JavaScript - 본질적 해결책
+# Material Icons 폰트 강제 적용 JavaScript - 본질적 해결책 (에러 핸들링 강화)
 st.markdown("""
 <script>
 (function() {
-    // Material Icons 폰트 강제 로드
-    function ensureMaterialIconsLoaded() {
-        const linkId = 'material-icons-font-link';
-        if (!document.getElementById(linkId)) {
-            const link = document.createElement('link');
-            link.id = linkId;
-            link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
-            link.rel = 'stylesheet';
-            document.head.insertBefore(link, document.head.firstChild);
-        }
-    }
+    'use strict';
     
-    // 본질적 해결: 모든 텍스트 노드를 확인하고 아이콘 텍스트를 찾아서 변환
-    function fixMaterialIcons() {
-        ensureMaterialIconsLoaded();
-        
-        // 아이콘 텍스트를 Material Icons 코드로 변환하는 함수
-        function convertIconText(element) {
-            const text = element.textContent.trim();
-            let iconCode = null;
-            
-            if (text === 'keyboard arrow right' || text === 'keyboard_arrow_right') {
-                iconCode = 'keyboard_arrow_right';
-            } else if (text === 'key') {
-                iconCode = 'menu';
-            } else if (text.includes('arrow') && text.length < 30) {
-                iconCode = 'keyboard_arrow_right';
+    try {
+        // Material Icons 폰트 강제 로드
+        function ensureMaterialIconsLoaded() {
+            try {
+                const linkId = 'material-icons-font-link';
+                if (!document.getElementById(linkId)) {
+                    const link = document.createElement('link');
+                    link.id = linkId;
+                    link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+                    link.rel = 'stylesheet';
+                    document.head.insertBefore(link, document.head.firstChild);
+                }
+            } catch(e) {
+                console.warn('Material Icons 폰트 로드 실패:', e);
             }
-            
-            if (iconCode) {
-                // Material Icons 폰트 강제 적용
-                element.style.cssText = `
-                    font-family: 'Material Icons' !important;
-                    font-weight: normal !important;
-                    font-style: normal !important;
-                    font-size: 24px !important;
-                    line-height: 1 !important;
-                    letter-spacing: normal !important;
-                    text-transform: none !important;
-                    display: inline-block !important;
-                    white-space: nowrap !important;
-                    word-wrap: normal !important;
-                    direction: ltr !important;
-                    -webkit-font-feature-settings: 'liga' !important;
-                    -webkit-font-smoothing: antialiased !important;
-                `;
-                element.textContent = iconCode;
-                return true;
-            }
-            return false;
         }
         
-        // 모든 텍스트 노드를 찾아서 변환
-        function walkTree(node) {
-            if (!node) return;
-            
-            // 텍스트 노드인 경우
-            if (node.nodeType === Node.TEXT_NODE) {
-                const text = node.textContent.trim();
-                const parent = node.parentElement;
+        // 본질적 해결: 모든 텍스트 노드를 확인하고 아이콘 텍스트를 찾아서 변환
+        function fixMaterialIcons() {
+            try {
+                ensureMaterialIconsLoaded();
                 
-                if (parent && (text === 'key' || text === 'keyboard arrow right' || 
-                    (text.includes('arrow') && text.length < 30))) {
-                    convertIconText(parent);
+                // 아이콘 텍스트를 Material Icons 코드로 변환하는 함수
+                function convertIconText(element) {
+                    try {
+                        if (!element) return false;
+                        const text = element.textContent.trim();
+                        let iconCode = null;
+                        
+                        if (text === 'keyboard arrow right' || text === 'keyboard_arrow_right') {
+                            iconCode = 'keyboard_arrow_right';
+                        } else if (text === 'key') {
+                            iconCode = 'menu';
+                        } else if (text.includes('arrow') && text.length < 30) {
+                            iconCode = 'keyboard_arrow_right';
+                        }
+                        
+                        if (iconCode) {
+                            // Material Icons 폰트 강제 적용
+                            element.style.cssText = `
+                                font-family: 'Material Icons' !important;
+                                font-weight: normal !important;
+                                font-style: normal !important;
+                                font-size: 24px !important;
+                                line-height: 1 !important;
+                                letter-spacing: normal !important;
+                                text-transform: none !important;
+                                display: inline-block !important;
+                                white-space: nowrap !important;
+                                word-wrap: normal !important;
+                                direction: ltr !important;
+                                -webkit-font-feature-settings: 'liga' !important;
+                                -webkit-font-smoothing: antialiased !important;
+                            `;
+                            element.textContent = iconCode;
+                            return true;
+                        }
+                    } catch(e) {
+                        // 개별 요소 변환 실패는 무시
+                    }
+                    return false;
                 }
-            }
-            // 요소 노드인 경우
-            else if (node.nodeType === Node.ELEMENT_NODE) {
-                // 직접 텍스트가 있는 경우
-                const directText = node.textContent.trim();
-                if (directText && (directText === 'key' || directText === 'keyboard arrow right' || 
-                    (directText.includes('arrow') && directText.length < 30))) {
-                    // 자식이 텍스트 노드만 있는 경우
-                    if (node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE) {
-                        convertIconText(node);
+                
+                // 모든 텍스트 노드를 찾아서 변환
+                function walkTree(node) {
+                    try {
+                        if (!node) return;
+                        
+                        // 텍스트 노드인 경우
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node.textContent.trim();
+                            const parent = node.parentElement;
+                            
+                            if (parent && (text === 'key' || text === 'keyboard arrow right' || 
+                                (text.includes('arrow') && text.length < 30))) {
+                                convertIconText(parent);
+                            }
+                        }
+                        // 요소 노드인 경우
+                        else if (node.nodeType === Node.ELEMENT_NODE) {
+                            // 직접 텍스트가 있는 경우
+                            const directText = node.textContent.trim();
+                            if (directText && (directText === 'key' || directText === 'keyboard arrow right' || 
+                                (directText.includes('arrow') && directText.length < 30))) {
+                                // 자식이 텍스트 노드만 있는 경우
+                                if (node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE) {
+                                    convertIconText(node);
+                                }
+                            }
+                            
+                            // 모든 자식 노드 순회
+                            for (let i = 0; i < node.childNodes.length; i++) {
+                                walkTree(node.childNodes[i]);
+                            }
+                        }
+                    } catch(e) {
+                        // 개별 노드 처리 실패는 무시
                     }
                 }
                 
-                // 모든 자식 노드 순회
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    walkTree(node.childNodes[i]);
+                // 전체 문서 순회
+                if (document.body) {
+                    walkTree(document.body);
                 }
-            }
-        }
-        
-        // 전체 문서 순회
-        walkTree(document.body);
-        
-        // Streamlit 특정 요소들도 직접 확인
-        const streamlitSelectors = [
-            '[data-testid="stExpander"] button',
-            '[data-testid="stExpander"] > div > div',
-            '[data-testid="stHeader"] button',
-            'header button',
-            'button[kind="header"]'
-        ];
-        
-        streamlitSelectors.forEach(selector => {
-            try {
-                document.querySelectorAll(selector).forEach(el => {
-                    const text = el.textContent.trim();
-                    if (text === 'key' || text === 'keyboard arrow right' || 
-                        (text.includes('arrow') && text.length < 30)) {
-                        convertIconText(el);
+                
+                // Streamlit 특정 요소들도 직접 확인
+                const streamlitSelectors = [
+                    '[data-testid="stExpander"] button',
+                    '[data-testid="stExpander"] > div > div',
+                    '[data-testid="stHeader"] button',
+                    'header button',
+                    'button[kind="header"]'
+                ];
+                
+                streamlitSelectors.forEach(selector => {
+                    try {
+                        document.querySelectorAll(selector).forEach(el => {
+                            const text = el.textContent.trim();
+                            if (text === 'key' || text === 'keyboard arrow right' || 
+                                (text.includes('arrow') && text.length < 30)) {
+                                convertIconText(el);
+                            }
+                        });
+                    } catch(e) {
+                        // 선택자 실패는 무시
                     }
                 });
+            } catch(e) {
+                console.warn('Material Icons 수정 실패:', e);
+            }
+        }
+        
+        // 즉시 실행
+        ensureMaterialIconsLoaded();
+        fixMaterialIcons();
+        
+        // 여러 시점에서 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                try { fixMaterialIcons(); } catch(e) {}
+            });
+        } else {
+            fixMaterialIcons();
+        }
+        
+        window.addEventListener('load', function() {
+            try {
+                setTimeout(fixMaterialIcons, 100);
+                setTimeout(fixMaterialIcons, 500);
+                setTimeout(fixMaterialIcons, 1000);
             } catch(e) {}
         });
-    }
-    
-    // 즉시 실행
-    ensureMaterialIconsLoaded();
-    fixMaterialIcons();
-    
-    // 여러 시점에서 실행
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', fixMaterialIcons);
-    } else {
-        fixMaterialIcons();
-    }
-    
-    window.addEventListener('load', function() {
-        setTimeout(fixMaterialIcons, 100);
-        setTimeout(fixMaterialIcons, 500);
-        setTimeout(fixMaterialIcons, 1000);
-    });
-    
-    // DOM 변경 감지 - 매우 빠르게 반응
-    const observer = new MutationObserver(function(mutations) {
-        let shouldFix = false;
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                shouldFix = true;
+        
+        // DOM 변경 감지 - 매우 빠르게 반응
+        try {
+            const observer = new MutationObserver(function(mutations) {
+                try {
+                    let shouldFix = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                            shouldFix = true;
+                        }
+                    });
+                    if (shouldFix) {
+                        setTimeout(function() {
+                            try { fixMaterialIcons(); } catch(e) {}
+                        }, 10);
+                    }
+                } catch(e) {
+                    // MutationObserver 콜백 에러 무시
+                }
+            });
+            
+            if (document.body) {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true,
+                    attributes: false
+                });
             }
-        });
-        if (shouldFix) {
-            setTimeout(fixMaterialIcons, 10);
+        } catch(e) {
+            console.warn('MutationObserver 설정 실패:', e);
         }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: false
-    });
-    
-    // 주기적으로도 확인 (더 자주)
-    setInterval(fixMaterialIcons, 500);
+        
+        // 주기적으로도 확인 (더 자주)
+        try {
+            setInterval(function() {
+                try { fixMaterialIcons(); } catch(e) {}
+            }, 500);
+        } catch(e) {
+            console.warn('setInterval 설정 실패:', e);
+        }
+    } catch(e) {
+        console.warn('Material Icons 스크립트 초기화 실패:', e);
+    }
 })();
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 강제 열기 JavaScript - 더 강력한 버전
+# 사이드바 강제 열기 JavaScript - 더 강력한 버전 (에러 핸들링 강화)
 st.markdown("""
 <script>
 (function() {
-    function forceSidebarOpen() {
-        // 모든 가능한 사이드바 선택자로 찾기
-        const selectors = [
-            '[data-testid="stSidebar"]',
-            'section[data-testid="stSidebar"]',
-            'div[data-testid="stSidebar"]',
-            '.css-1d391kg',
-            '.css-1lcbmhc'
-        ];
+    'use strict';
+    
+    try {
+        let observer = null;
+        let intervalId = null;
         
-        let sidebar = null;
-        for (const selector of selectors) {
-            sidebar = document.querySelector(selector);
-            if (sidebar) break;
-        }
-        
-        if (sidebar) {
-            // 사이드바를 항상 열린 상태로 강제 설정
-            sidebar.setAttribute('aria-expanded', 'true');
-            sidebar.style.cssText = `
-                display: block !important;
-                visibility: visible !important;
-                transform: translateX(0) !important;
-                width: 21rem !important;
-                min-width: 21rem !important;
-                max-width: 21rem !important;
-                position: relative !important;
-                opacity: 1 !important;
-                z-index: 999 !important;
-            `;
-            
-            // 부모 요소도 확인
-            let parent = sidebar.parentElement;
-            while (parent && parent !== document.body) {
-                if (parent.style) {
-                    parent.style.overflow = 'visible';
+        function forceSidebarOpen() {
+            try {
+                // 모든 가능한 사이드바 선택자로 찾기
+                const selectors = [
+                    '[data-testid="stSidebar"]',
+                    'section[data-testid="stSidebar"]',
+                    'div[data-testid="stSidebar"]',
+                    '.css-1d391kg',
+                    '.css-1lcbmhc'
+                ];
+                
+                let sidebar = null;
+                for (const selector of selectors) {
+                    try {
+                        sidebar = document.querySelector(selector);
+                        if (sidebar) break;
+                    } catch(e) {
+                        // 선택자 실패는 무시
+                    }
                 }
-                parent = parent.parentElement;
+                
+                if (sidebar) {
+                    // 사이드바를 항상 열린 상태로 강제 설정
+                    sidebar.setAttribute('aria-expanded', 'true');
+                    sidebar.style.cssText = `
+                        display: block !important;
+                        visibility: visible !important;
+                        transform: translateX(0) !important;
+                        width: 21rem !important;
+                        min-width: 21rem !important;
+                        max-width: 21rem !important;
+                        position: relative !important;
+                        opacity: 1 !important;
+                        z-index: 999 !important;
+                    `;
+                    
+                    // 부모 요소도 확인
+                    try {
+                        let parent = sidebar.parentElement;
+                        while (parent && parent !== document.body) {
+                            if (parent.style) {
+                                parent.style.overflow = 'visible';
+                            }
+                            parent = parent.parentElement;
+                        }
+                    } catch(e) {
+                        // 부모 요소 처리 실패 무시
+                    }
+                }
+                
+                // 햄버거 메뉴 버튼 찾기 및 표시 - 모든 가능한 방법
+                try {
+                    const headerButtons = document.querySelectorAll('button[kind="header"], [data-testid="stHeader"] button, header button');
+                    headerButtons.forEach(btn => {
+                        try {
+                            const label = btn.getAttribute('aria-label') || '';
+                            if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu') || 
+                                label.includes('Close') || label.includes('열기') || label.includes('Open')) {
+                                btn.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
+                            }
+                        } catch(e) {
+                            // 개별 버튼 처리 실패 무시
+                        }
+                    });
+                } catch(e) {
+                    // 버튼 찾기 실패 무시
+                }
+                
+                // Streamlit의 사이드바 토글 버튼 클릭 이벤트 오버라이드 (한 번만)
+                try {
+                    const toggleButtons = document.querySelectorAll('[data-testid="stHeader"] button, button[kind="header"]');
+                    toggleButtons.forEach(btn => {
+                        // 이미 리스너가 추가되었는지 확인
+                        if (!btn.hasAttribute('data-sidebar-listener')) {
+                            btn.setAttribute('data-sidebar-listener', 'true');
+                            btn.addEventListener('click', function(e) {
+                                try {
+                                    setTimeout(function() {
+                                        try { forceSidebarOpen(); } catch(e) {}
+                                    }, 100);
+                                } catch(e) {
+                                    // 클릭 핸들러 에러 무시
+                                }
+                            }, { passive: true });
+                        }
+                    });
+                } catch(e) {
+                    // 토글 버튼 처리 실패 무시
+                }
+            } catch(e) {
+                console.warn('사이드바 강제 열기 실패:', e);
             }
         }
         
-        // 햄버거 메뉴 버튼 찾기 및 표시 - 모든 가능한 방법
-        const headerButtons = document.querySelectorAll('button[kind="header"], [data-testid="stHeader"] button, header button');
-        headerButtons.forEach(btn => {
-            const label = btn.getAttribute('aria-label') || '';
-            if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu') || 
-                label.includes('Close') || label.includes('열기') || label.includes('Open')) {
-                btn.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
-            }
-        });
-        
-        // Streamlit의 사이드바 토글 버튼 클릭 이벤트 오버라이드
-        const toggleButtons = document.querySelectorAll('[data-testid="stHeader"] button, button[kind="header"]');
-        toggleButtons.forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                setTimeout(() => {
-                    forceSidebarOpen();
-                }, 100);
-            });
-        });
-    }
-    
-    // 즉시 실행
-    forceSidebarOpen();
-    
-    // 페이지 로드 시 실행
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', forceSidebarOpen);
-    } else {
+        // 즉시 실행
         forceSidebarOpen();
-    }
-    
-    // window.load 이벤트
-    window.addEventListener('load', forceSidebarOpen);
-    
-    // 주기적으로 확인하여 사이드바가 접히면 다시 열기 (더 자주 체크)
-    setInterval(forceSidebarOpen, 200);
-    
-    // DOM 변경 감지하여 사이드바 상태 유지
-    const observer = new MutationObserver(function(mutations) {
-        let shouldForce = false;
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && 
-                (mutation.attributeName === 'aria-expanded' || 
-                 mutation.attributeName === 'style' || 
-                 mutation.attributeName === 'class')) {
-                shouldForce = true;
-            }
-            if (mutation.type === 'childList') {
-                shouldForce = true;
-            }
-        });
-        if (shouldForce) {
-            setTimeout(forceSidebarOpen, 50);
-        }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'aria-expanded', 'class', 'data-testid']
-    });
-    
-    // Streamlit의 내부 이벤트 리스너 오버라이드 시도
-    if (window.parent && window.parent !== window) {
-        try {
-            window.parent.addEventListener('message', function(e) {
-                setTimeout(forceSidebarOpen, 100);
+        
+        // 페이지 로드 시 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                try { forceSidebarOpen(); } catch(e) {}
             });
-        } catch(err) {}
+        } else {
+            forceSidebarOpen();
+        }
+        
+        // window.load 이벤트
+        window.addEventListener('load', function() {
+            try { forceSidebarOpen(); } catch(e) {}
+        }, { passive: true });
+        
+        // 주기적으로 확인하여 사이드바가 접히면 다시 열기
+        try {
+            intervalId = setInterval(function() {
+                try { forceSidebarOpen(); } catch(e) {}
+            }, 200);
+        } catch(e) {
+            console.warn('setInterval 설정 실패:', e);
+        }
+        
+        // DOM 변경 감지하여 사이드바 상태 유지
+        try {
+            observer = new MutationObserver(function(mutations) {
+                try {
+                    let shouldForce = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'attributes' && 
+                            (mutation.attributeName === 'aria-expanded' || 
+                             mutation.attributeName === 'style' || 
+                             mutation.attributeName === 'class')) {
+                            shouldForce = true;
+                        }
+                        if (mutation.type === 'childList') {
+                            shouldForce = true;
+                        }
+                    });
+                    if (shouldForce) {
+                        setTimeout(function() {
+                            try { forceSidebarOpen(); } catch(e) {}
+                        }, 50);
+                    }
+                } catch(e) {
+                    // MutationObserver 콜백 에러 무시
+                }
+            });
+            
+            if (document.body) {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['style', 'aria-expanded', 'class', 'data-testid']
+                });
+            }
+        } catch(e) {
+            console.warn('MutationObserver 설정 실패:', e);
+        }
+        
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', function() {
+            try {
+                if (observer) {
+                    observer.disconnect();
+                }
+                if (intervalId) {
+                    clearInterval(intervalId);
+                }
+            } catch(e) {
+                // 정리 실패 무시
+            }
+        }, { passive: true });
+        
+    } catch(e) {
+        console.warn('사이드바 스크립트 초기화 실패:', e);
     }
 })();
 </script>
