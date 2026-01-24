@@ -120,7 +120,49 @@ st.markdown("""
     .delay-4 { animation-delay: 0.4s; }
 
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+    
+    /* 기본 텍스트에 Noto Sans KR 적용 */
     * { font-family: 'Noto Sans KR', sans-serif !important; }
+    
+    /* Material Icons는 원래 폰트 유지 */
+    [class*="material-icons"],
+    [class*="MaterialIcons"],
+    [data-testid*="Icon"],
+    [data-testid*="icon"],
+    .material-icons,
+    .MaterialIcons,
+    .stExpander [class*="icon"],
+    .stExpander [data-testid*="Icon"],
+    .stExpander [data-testid*="icon"],
+    button [class*="material"],
+    button [data-testid*="Icon"],
+    button [data-testid*="icon"],
+    span[class*="material"],
+    span[class*="Material"],
+    /* Streamlit expander 화살표 */
+    [data-testid="stExpander"] [class*="icon"],
+    [data-testid="stExpander"] [data-testid*="Icon"],
+    [data-testid="stExpander"] [data-testid*="icon"],
+    /* 모든 아이콘 요소 */
+    i[class*="material"],
+    i[class*="Material"],
+    span[class*="material-icons"],
+    span[class*="MaterialIcons"] {
+        font-family: 'Material Icons' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 24px !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
+    }
     
     /* 상단 여백 강제 축소 */
     .main .block-container {
@@ -235,6 +277,79 @@ st.markdown("""
         display: none !important;
     }
 </style>
+""", unsafe_allow_html=True)
+
+# Material Icons 폰트 강제 적용 JavaScript
+st.markdown("""
+<script>
+(function() {
+    function applyMaterialIcons() {
+        // Material Icons 폰트가 로드되었는지 확인
+        if (!document.fonts.check('24px Material Icons')) {
+            // 폰트가 아직 로드되지 않았으면 로드
+            const link = document.createElement('link');
+            link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
+        }
+        
+        // 모든 가능한 아이콘 요소 찾기
+        const iconSelectors = [
+            '[class*="material-icons"]',
+            '[class*="MaterialIcons"]',
+            '[data-testid*="Icon"]',
+            '[data-testid*="icon"]',
+            '.stExpander [class*="icon"]',
+            '[data-testid="stExpander"] [class*="icon"]',
+            'button [class*="material"]',
+            'span[class*="material"]',
+            'i[class*="material"]'
+        ];
+        
+        iconSelectors.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    // 텍스트가 Material Icons 코드처럼 보이면 폰트 적용
+                    const text = el.textContent || el.innerText || '';
+                    if (text && (text.includes('arrow') || text.includes('_') || text.length < 20)) {
+                        el.style.fontFamily = "'Material Icons' !important";
+                        el.style.fontWeight = 'normal';
+                        el.style.fontStyle = 'normal';
+                        el.style.fontSize = '24px';
+                        el.style.lineHeight = '1';
+                    }
+                });
+            } catch(e) {}
+        });
+    }
+    
+    // 즉시 실행
+    applyMaterialIcons();
+    
+    // 페이지 로드 시 실행
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyMaterialIcons);
+    } else {
+        applyMaterialIcons();
+    }
+    
+    // window.load 이벤트
+    window.addEventListener('load', applyMaterialIcons);
+    
+    // DOM 변경 감지
+    const observer = new MutationObserver(function() {
+        setTimeout(applyMaterialIcons, 100);
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'data-testid']
+    });
+})();
+</script>
 """, unsafe_allow_html=True)
 
 # 사이드바 강제 열기 JavaScript - 더 강력한 버전
