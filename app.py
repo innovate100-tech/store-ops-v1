@@ -1323,11 +1323,6 @@ def render_custom_sidebar(menu):
             st.rerun()
         
         # 사이드바 메뉴 렌더링
-        if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
-            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
-            st.rerun()
-        
-        # 사이드바 메뉴 렌더링
         for cat, data in menu.items():
             # 카테고리 제목
             if not collapsed:
@@ -1560,6 +1555,9 @@ if "custom_sidebar_css_injected" not in st.session_state:
         right: auto !important;
         display: block !important;
         flex: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 1 !important;
     }
     
     /* Streamlit의 기본 flexbox 레이아웃 무시 */
@@ -1590,6 +1588,9 @@ if "custom_sidebar_css_injected" not in st.session_state:
         right: auto !important;
         display: block !important;
         flex: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 1 !important;
     }
     
     .main .block-container {
@@ -1598,6 +1599,9 @@ if "custom_sidebar_css_injected" not in st.session_state:
         width: 100% !important;
         padding-left: 2rem !important;
         padding-right: 2rem !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: block !important;
     }
     
     /* body와 html도 조정 */
@@ -1617,12 +1621,23 @@ if "custom_sidebar_css_injected" not in st.session_state:
         margin-left: 15rem !important;
         width: calc(100vw - 15rem) !important;
         max-width: calc(100vw - 15rem) !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: block !important;
     }
     
     body:has(#custom-sidebar-container.collapsed) #root > div {
         margin-left: 4rem !important;
         width: calc(100vw - 4rem) !important;
         max-width: calc(100vw - 4rem) !important;
+    }
+    
+    /* 메인 콘텐츠가 사이드바 뒤에 숨지 않도록 */
+    [data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"]) {
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: block !important;
+        z-index: 1 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1679,6 +1694,9 @@ st.markdown(f"""
             el.style.setProperty('width', mainContentWidth + 'px', 'important');
             el.style.setProperty('max-width', mainContentWidth + 'px', 'important');
             el.style.setProperty('min-width', mainContentWidth + 'px', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('display', 'block', 'important');
         }});
         
         // stAppViewContainer 조정 (가장 중요) - 사이드바 옆에 배치
@@ -1694,6 +1712,9 @@ st.markdown(f"""
             appContainer.style.setProperty('float', 'none', 'important');
             appContainer.style.setProperty('display', 'block', 'important');
             appContainer.style.setProperty('flex', 'none', 'important');
+            appContainer.style.setProperty('visibility', 'visible', 'important');
+            appContainer.style.setProperty('opacity', '1', 'important');
+            appContainer.style.setProperty('z-index', '1', 'important');
         }}
         
         // stAppViewContainer의 직접 자식 요소들 조정
@@ -1707,6 +1728,9 @@ st.markdown(f"""
                 el.style.setProperty('max-width', '100%', 'important');
                 el.style.setProperty('float', 'none', 'important');
                 el.style.setProperty('display', 'block', 'important');
+                el.style.setProperty('visibility', 'visible', 'important');
+                el.style.setProperty('opacity', '1', 'important');
+                el.style.setProperty('z-index', '1', 'important');
             }}
         }});
         
@@ -1722,6 +1746,9 @@ st.markdown(f"""
             el.style.setProperty('float', 'none', 'important');
             el.style.setProperty('display', 'block', 'important');
             el.style.setProperty('flex', 'none', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('z-index', '1', 'important');
         }});
         
         // .block-container 조정
@@ -1730,6 +1757,9 @@ st.markdown(f"""
             el.style.setProperty('margin-left', '0', 'important');
             el.style.setProperty('max-width', '100%', 'important');
             el.style.setProperty('width', '100%', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('display', 'block', 'important');
         }});
         
         // body와 html도 조정
