@@ -236,34 +236,34 @@ def _render_single_input(store_id):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        ingredient_name = st.text_input("재료명 *", key="single_ingredient_name", placeholder="재료명을 입력하세요")
+        ingredient_name = st.text_input("재료명 *", key="ingredient_input_single_name", placeholder="재료명을 입력하세요")
     with col2:
-        unit = st.selectbox("단위 *", options=UNIT_OPTIONS, key="single_ingredient_unit")
+        unit = st.selectbox("단위 *", options=UNIT_OPTIONS, key="ingredient_input_single_unit")
     with col3:
         unit_price = st.number_input("단가 (원/단위) *", min_value=0.0, value=0.0, step=100.0, 
-                                     format="%.2f", key="single_ingredient_price")
+                                     format="%.2f", key="ingredient_input_single_price")
     
     st.markdown("**📦 발주 단위 설정 (선택사항)**")
     col4, col5 = st.columns(2)
     with col4:
-        order_unit = st.selectbox("발주 단위", options=[""] + UNIT_OPTIONS, key="single_order_unit",
+        order_unit = st.selectbox("발주 단위", options=[""] + UNIT_OPTIONS, key="ingredient_input_single_order_unit",
                                   help="발주 시 사용할 단위 (비워두면 기본 단위와 동일)")
     with col5:
         conversion_rate = st.number_input("변환 비율 (1 발주단위 = ? 기본단위)", min_value=0.0, value=1.0, 
-                                         step=0.1, format="%.2f", key="single_conversion_rate",
+                                         step=0.1, format="%.2f", key="ingredient_input_single_conversion_rate",
                                          help="예: 버터 1개 = 500g이면 500 입력")
     
     col6, col7 = st.columns(2)
     with col6:
-        category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="single_ingredient_category")
+        category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="ingredient_input_single_category")
     with col7:
-        status = st.selectbox("상태", options=INGREDIENT_STATUSES, index=0, key="single_ingredient_status")
+        status = st.selectbox("상태", options=INGREDIENT_STATUSES, index=0, key="ingredient_input_single_status")
     
-    notes = st.text_area("메모 (선택)", key="single_ingredient_notes", height=100)
+    notes = st.text_area("메모 (선택)", key="ingredient_input_single_notes", height=100)
     
     col_save, col_reset = st.columns([1, 1])
     with col_save:
-        if st.button("💾 저장", type="primary", key="single_save", use_container_width=True):
+        if st.button("💾 저장", type="primary", key="ingredient_input_single_save", use_container_width=True):
             if not ingredient_name or not ingredient_name.strip():
                 ui_flash_error("재료명을 입력해주세요.")
             elif unit_price <= 0:
@@ -291,7 +291,7 @@ def _render_single_input(store_id):
                     ui_flash_error(f"저장 실패: {str(e)}")
     
     with col_reset:
-        if st.button("🔄 초기화", key="single_reset", use_container_width=True):
+        if st.button("🔄 초기화", key="ingredient_input_single_reset", use_container_width=True):
             st.rerun()
 
 
@@ -299,14 +299,14 @@ def _render_batch_input(store_id):
     """일괄 재료 입력"""
     st.markdown("### 📋 재료 일괄 등록")
     
-    ingredient_count = st.number_input("등록할 재료 개수", min_value=1, max_value=20, value=5, step=1, key="batch_ingredient_count")
+    ingredient_count = st.number_input("등록할 재료 개수", min_value=1, max_value=20, value=5, step=1, key="ingredient_input_batch_count")
     
     # 일괄 선택 옵션
     col_batch1, col_batch2 = st.columns(2)
     with col_batch1:
-        batch_category = st.selectbox("일괄 재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="batch_category")
+        batch_category = st.selectbox("일괄 재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="ingredient_input_batch_category")
     with col_batch2:
-        batch_status = st.selectbox("일괄 상태", options=[""] + INGREDIENT_STATUSES, key="batch_status")
+        batch_status = st.selectbox("일괄 상태", options=[""] + INGREDIENT_STATUSES, key="ingredient_input_batch_status")
     
     st.markdown("---")
     st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
@@ -316,29 +316,29 @@ def _render_batch_input(store_id):
         with st.expander(f"재료 {i+1}", expanded=(i < 3)):
             col1, col2, col3 = st.columns(3)
             with col1:
-                ingredient_name = st.text_input(f"재료명 {i+1}", key=f"batch_ingredient_name_{i}")
+                ingredient_name = st.text_input(f"재료명 {i+1}", key=f"ingredient_input_batch_name_{i}")
             with col2:
-                unit = st.selectbox(f"단위 {i+1}", options=UNIT_OPTIONS, key=f"batch_unit_{i}")
+                unit = st.selectbox(f"단위 {i+1}", options=UNIT_OPTIONS, key=f"ingredient_input_batch_unit_{i}")
             with col3:
                 unit_price = st.number_input(f"단가 (원) {i+1}", min_value=0.0, value=0.0, step=100.0, 
-                                            format="%.2f", key=f"batch_price_{i}")
+                                            format="%.2f", key=f"ingredient_input_batch_price_{i}")
             
             col4, col5 = st.columns(2)
             with col4:
-                order_unit = st.selectbox(f"발주단위 {i+1}", options=[""] + UNIT_OPTIONS, key=f"batch_order_unit_{i}")
+                order_unit = st.selectbox(f"발주단위 {i+1}", options=[""] + UNIT_OPTIONS, key=f"ingredient_input_batch_order_unit_{i}")
             with col5:
                 conversion_rate = st.number_input(f"변환비율 {i+1}", min_value=0.0, value=1.0, step=0.1, 
-                                                format="%.2f", key=f"batch_conversion_{i}")
+                                                format="%.2f", key=f"ingredient_input_batch_conversion_{i}")
             
             col6, col7 = st.columns(2)
             with col6:
                 category = st.selectbox(f"재료 분류 {i+1}", options=[""] + INGREDIENT_CATEGORIES,
                                       index=INGREDIENT_CATEGORIES.index(batch_category) + 1 if batch_category in INGREDIENT_CATEGORIES else 0,
-                                      key=f"batch_category_{i}")
+                                      key=f"ingredient_input_batch_category_{i}")
             with col7:
                 status = st.selectbox(f"상태 {i+1}", options=INGREDIENT_STATUSES,
                                       index=INGREDIENT_STATUSES.index(batch_status) if batch_status in INGREDIENT_STATUSES else 0,
-                                      key=f"batch_status_{i}")
+                                      key=f"ingredient_input_batch_status_{i}")
             
             if ingredient_name and ingredient_name.strip() and unit_price > 0:
                 ingredient_data.append({
@@ -351,7 +351,7 @@ def _render_batch_input(store_id):
                     'status': status
                 })
     
-    if st.button("💾 일괄 저장", type="primary", key="batch_save", use_container_width=True):
+    if st.button("💾 일괄 저장", type="primary", key="ingredient_input_batch_save", use_container_width=True):
         if not ingredient_data:
             ui_flash_error("저장할 재료가 없습니다. 재료명과 단가를 입력해주세요.")
         else:
@@ -381,16 +381,16 @@ def _render_zone_c_filters(ingredient_df, categories, ingredient_in_recipe, need
     
     with col1:
         category_filter = st.multiselect("재료 분류", options=["전체"] + INGREDIENT_CATEGORIES + ["미지정"], 
-                                         default=["전체"], key="filter_category")
+                                         default=["전체"], key="ingredient_input_filter_category")
     with col2:
-        status_filter = st.selectbox("상태", options=["전체"] + INGREDIENT_STATUSES, key="filter_status")
+        status_filter = st.selectbox("상태", options=["전체"] + INGREDIENT_STATUSES, key="ingredient_input_filter_status")
     with col3:
-        recipe_filter = st.selectbox("레시피 사용 상태", options=["전체", "레시피에서 사용", "레시피에서 미사용"], key="filter_recipe")
+        recipe_filter = st.selectbox("레시피 사용 상태", options=["전체", "레시피에서 사용", "레시피에서 미사용"], key="ingredient_input_filter_recipe")
     with col4:
-        order_filter = st.selectbox("발주 상태", options=["전체", "발주 필요", "발주 불필요"], key="filter_order")
+        order_filter = st.selectbox("발주 상태", options=["전체", "발주 필요", "발주 불필요"], key="ingredient_input_filter_order")
     
     # 검색
-    search_term = st.text_input("🔍 재료명 검색", key="ingredient_search", placeholder="재료명으로 검색...")
+    search_term = st.text_input("🔍 재료명 검색", key="ingredient_input_search", placeholder="재료명으로 검색...")
     
     # 필터링 적용
     filtered_df = ingredient_df.copy()
@@ -495,20 +495,20 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                 # 액션 버튼
                 action_col1, action_col2, action_col3, action_col4 = st.columns(4)
                 with action_col1:
-                    if st.button("✏️", key=f"edit_{ingredient_name}", help="수정"):
-                        st.session_state[f"edit_ingredient_{ingredient_name}"] = True
+                    if st.button("✏️", key=f"ingredient_input_edit_{ingredient_name}", help="수정"):
+                        st.session_state[f"ingredient_input_edit_{ingredient_name}"] = True
                 with action_col2:
-                    if st.button("🗑️", key=f"delete_{ingredient_name}", help="삭제"):
-                        st.session_state[f"delete_ingredient_{ingredient_name}"] = True
+                    if st.button("🗑️", key=f"ingredient_input_delete_{ingredient_name}", help="삭제"):
+                        st.session_state[f"ingredient_input_delete_{ingredient_name}"] = True
                 with action_col3:
                     if in_recipe:
-                        if st.button("📋", key=f"recipe_{ingredient_name}", help="레시피 보기"):
-                            st.session_state[f"view_recipe_{ingredient_name}"] = True
+                        if st.button("📋", key=f"ingredient_input_recipe_{ingredient_name}", help="레시피 보기"):
+                            st.session_state[f"ingredient_input_view_recipe_{ingredient_name}"] = True
                     else:
                         st.markdown("—")
                 with action_col4:
                     if needs_order_flag:
-                        if st.button("🛒", key=f"order_{ingredient_name}", help="발주 관리", type="primary"):
+                        if st.button("🛒", key=f"ingredient_input_order_{ingredient_name}", help="발주 관리", type="primary"):
                             st.session_state["current_page"] = "발주 관리"
                             st.session_state["selected_ingredient"] = ingredient_name
                             st.rerun()
@@ -516,26 +516,26 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                         st.markdown("—")
             
             # 수정 모달
-            if st.session_state.get(f"edit_ingredient_{ingredient_name}", False):
+            if st.session_state.get(f"ingredient_input_edit_{ingredient_name}", False):
                 with st.expander(f"✏️ {ingredient_name} 수정", expanded=True):
-                    new_name = st.text_input("재료명", value=ingredient_name, key=f"edit_name_{ingredient_name}")
+                    new_name = st.text_input("재료명", value=ingredient_name, key=f"ingredient_input_edit_name_{ingredient_name}")
                     new_unit = st.selectbox("단위", options=UNIT_OPTIONS, 
                                            index=UNIT_OPTIONS.index(unit) if unit in UNIT_OPTIONS else 0,
-                                           key=f"edit_unit_{ingredient_name}")
+                                           key=f"ingredient_input_edit_unit_{ingredient_name}")
                     new_price = st.number_input("단가 (원)", min_value=0.0, value=unit_price, step=100.0, 
-                                               format="%.2f", key=f"edit_price_{ingredient_name}")
+                                               format="%.2f", key=f"ingredient_input_edit_price_{ingredient_name}")
                     new_order_unit = st.selectbox("발주단위", options=[""] + UNIT_OPTIONS,
                                                 index=UNIT_OPTIONS.index(order_unit) + 1 if order_unit in UNIT_OPTIONS else 0,
-                                                key=f"edit_order_unit_{ingredient_name}")
+                                                key=f"ingredient_input_edit_order_unit_{ingredient_name}")
                     new_conversion = st.number_input("변환비율", min_value=0.0, value=float(conversion_rate), 
-                                                    step=0.1, format="%.2f", key=f"edit_conversion_{ingredient_name}")
+                                                    step=0.1, format="%.2f", key=f"ingredient_input_edit_conversion_{ingredient_name}")
                     new_category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES,
                                                index=INGREDIENT_CATEGORIES.index(category) + 1 if category in INGREDIENT_CATEGORIES else 0,
-                                               key=f"edit_category_{ingredient_name}")
+                                               key=f"ingredient_input_edit_category_{ingredient_name}")
                     
                     col_save, col_cancel = st.columns(2)
                     with col_save:
-                        if st.button("💾 저장", key=f"save_edit_{ingredient_name}"):
+                        if st.button("💾 저장", key=f"ingredient_input_save_edit_{ingredient_name}"):
                             try:
                                 # 재료 기본 정보 수정
                                 success, msg = update_ingredient(ingredient_name, new_name, new_unit, new_price)
@@ -569,42 +569,42 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                         _set_ingredient_category(store_id, new_name, new_category)
                                     
                                     ui_flash_success(f"재료 '{new_name}'이(가) 수정되었습니다.")
-                                    st.session_state[f"edit_ingredient_{ingredient_name}"] = False
+                                    st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
                                     st.rerun()
                                 else:
                                     ui_flash_error(msg)
                             except Exception as e:
                                 ui_flash_error(f"수정 실패: {str(e)}")
                     with col_cancel:
-                        if st.button("취소", key=f"cancel_edit_{ingredient_name}"):
-                            st.session_state[f"edit_ingredient_{ingredient_name}"] = False
+                        if st.button("취소", key=f"ingredient_input_cancel_edit_{ingredient_name}"):
+                            st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
                             st.rerun()
             
             # 삭제 확인
-            if st.session_state.get(f"delete_ingredient_{ingredient_name}", False):
+            if st.session_state.get(f"ingredient_input_delete_{ingredient_name}", False):
                 st.warning(f"'{ingredient_name}' 재료를 삭제하시겠습니까?")
                 if in_recipe:
                     st.error("⚠️ 이 재료는 레시피에서 사용 중입니다. 레시피를 먼저 삭제해주세요.")
                 col_del, col_cancel = st.columns(2)
                 with col_del:
-                    if st.button("🗑️ 삭제", key=f"confirm_delete_{ingredient_name}", type="primary"):
+                    if st.button("🗑️ 삭제", key=f"ingredient_input_confirm_delete_{ingredient_name}", type="primary"):
                         try:
                             success, msg, refs = delete_ingredient(ingredient_name)
                             if success:
                                 ui_flash_success(f"재료 '{ingredient_name}'이(가) 삭제되었습니다.")
-                                st.session_state[f"delete_ingredient_{ingredient_name}"] = False
+                                st.session_state[f"ingredient_input_delete_{ingredient_name}"] = False
                                 st.rerun()
                             else:
                                 ui_flash_error(msg)
                         except Exception as e:
                             ui_flash_error(f"삭제 실패: {str(e)}")
                 with col_cancel:
-                    if st.button("취소", key=f"cancel_delete_{ingredient_name}"):
-                        st.session_state[f"delete_ingredient_{ingredient_name}"] = False
+                    if st.button("취소", key=f"ingredient_input_cancel_delete_{ingredient_name}"):
+                        st.session_state[f"ingredient_input_delete_{ingredient_name}"] = False
                         st.rerun()
             
             # 레시피 보기
-            if st.session_state.get(f"view_recipe_{ingredient_name}", False):
+            if st.session_state.get(f"ingredient_input_view_recipe_{ingredient_name}", False):
                 with st.expander(f"📋 {ingredient_name} 레시피 보기", expanded=True):
                     recipe_df = load_csv('recipes.csv', store_id=store_id, default_columns=['메뉴명', '재료명', '사용량'])
                     if not recipe_df.empty:
@@ -617,8 +617,8 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                 st.write(f"- {menu} ({usage_qty}{unit})")
                         else:
                             st.info("이 재료를 사용하는 메뉴가 없습니다.")
-                    if st.button("닫기", key=f"close_recipe_{ingredient_name}"):
-                        st.session_state[f"view_recipe_{ingredient_name}"] = False
+                    if st.button("닫기", key=f"ingredient_input_close_recipe_{ingredient_name}"):
+                        st.session_state[f"ingredient_input_view_recipe_{ingredient_name}"] = False
                         st.rerun()
             
             st.markdown("---")
@@ -644,7 +644,7 @@ def _render_zone_e_management(ingredient_df, categories, ingredient_in_recipe, r
         for category, count in category_counts.items():
             st.metric(category, f"{count}개")
         
-        if st.button("💡 재료 구조 설계실로 이동", key="go_to_ingredient_design"):
+        if st.button("💡 재료 구조 설계실로 이동", key="ingredient_input_go_to_design"):
             st.session_state["current_page"] = "재료 등록"
             st.rerun()
     
@@ -664,6 +664,6 @@ def _render_zone_e_management(ingredient_df, categories, ingredient_in_recipe, r
             for name, usage_val in sorted_usage:
                 st.write(f"- {name}: {usage_val:.1f}")
         
-        if st.button("🛒 발주 관리로 이동", key="go_to_order"):
+        if st.button("🛒 발주 관리로 이동", key="ingredient_input_go_to_order"):
             st.session_state["current_page"] = "발주 관리"
             st.rerun()
