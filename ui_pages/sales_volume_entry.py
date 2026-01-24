@@ -17,65 +17,8 @@ bootstrap(page_title="Sales Volume Entry")
 def render_sales_volume_entry():
     """판매량 등록 페이지 렌더링 (FORM형 레이아웃 적용)"""
     
-    # 메뉴 목록 로드 (SummaryStrip용)
-    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
-    menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
-    
-    # 날짜 선택 (SummaryStrip용)
-    sales_date = today_kst()
-    if "sales_volume_entry_daily_sales_full_date" in st.session_state:
-        sales_date = st.session_state["sales_volume_entry_daily_sales_full_date"]
-    
-    # 마감 상태 확인 (SummaryStrip용)
-    store_id = get_current_store_id()
-    has_daily_close = False
-    if store_id and sales_date:
-        try:
-            supabase = get_supabase_client()
-            if supabase:
-                date_str = sales_date.strftime('%Y-%m-%d') if hasattr(sales_date, 'strftime') else str(sales_date)
-                daily_close_check = supabase.table("daily_close")\
-                    .select("id", count="exact")\
-                    .eq("store_id", store_id)\
-                    .eq("date", date_str)\
-                    .limit(1)\
-                    .execute()
-                has_daily_close = daily_close_check.count and daily_close_check.count > 0
-        except Exception:
-            pass
-    
-    # SummaryStrip 항목 구성 (기존 값 사용)
-    summary_items = [
-        {
-            "label": "판매 날짜",
-            "value": sales_date.strftime('%Y-%m-%d') if hasattr(sales_date, 'strftime') else str(sales_date),
-            "badge": None
-        },
-        {
-            "label": "마감 상태",
-            "value": "마감 완료" if has_daily_close else "미마감",
-            "badge": "success" if has_daily_close else "warning"
-        },
-        {
-            "label": "등록 메뉴",
-            "value": f"{len(menu_list)}개",
-            "badge": None
-        }
-    ]
-    
     def render_main_content():
         """Main Card 내용: 판매량 입력 UI"""
-    
-    # 저장 직후 알림 (rerun 후에도 유지)
-    if st.session_state.get("sales_volume_entry_success"):
-        msg = st.session_state.pop("sales_volume_entry_success", None)
-        verify_msg = st.session_state.pop("sales_volume_entry_verify", None)
-        st.success(msg)
-        st.balloons()
-        if verify_msg:
-            st.info(verify_msg)
-        if st.button("닫기", key="sales_volume_entry_close_msg"):
-            st.rerun()
         # 저장 직후 알림 (rerun 후에도 유지)
         if st.session_state.get("sales_volume_entry_success"):
             msg = st.session_state.pop("sales_volume_entry_success", None)
@@ -183,6 +126,52 @@ def render_sales_volume_entry():
                                 if store_id and verify_overrides_saved(store_id, sales_date, success_count):
                                     st.session_state["sales_volume_entry_verify"] = "🔧 override 저장 확인됨 (DEV)"
                             st.rerun()
+    
+    # 메뉴 목록 로드 (SummaryStrip용)
+    menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
+    menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
+    
+    # 날짜 선택 (SummaryStrip용)
+    sales_date = today_kst()
+    if "sales_volume_entry_daily_sales_full_date" in st.session_state:
+        sales_date = st.session_state["sales_volume_entry_daily_sales_full_date"]
+    
+    # 마감 상태 확인 (SummaryStrip용)
+    store_id = get_current_store_id()
+    has_daily_close = False
+    if store_id and sales_date:
+        try:
+            supabase = get_supabase_client()
+            if supabase:
+                date_str = sales_date.strftime('%Y-%m-%d') if hasattr(sales_date, 'strftime') else str(sales_date)
+                daily_close_check = supabase.table("daily_close")\
+                    .select("id", count="exact")\
+                    .eq("store_id", store_id)\
+                    .eq("date", date_str)\
+                    .limit(1)\
+                    .execute()
+                has_daily_close = daily_close_check.count and daily_close_check.count > 0
+        except Exception:
+            pass
+    
+    # SummaryStrip 항목 구성 (기존 값 사용)
+    summary_items = [
+        {
+            "label": "판매 날짜",
+            "value": sales_date.strftime('%Y-%m-%d') if hasattr(sales_date, 'strftime') else str(sales_date),
+            "badge": None
+        },
+        {
+            "label": "마감 상태",
+            "value": "마감 완료" if has_daily_close else "미마감",
+            "badge": "success" if has_daily_close else "warning"
+        },
+        {
+            "label": "등록 메뉴",
+            "value": f"{len(menu_list)}개",
+            "badge": None
+        }
+    ]
     
     # FORM형 레이아웃 적용
     render_form_layout(

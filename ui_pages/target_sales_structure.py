@@ -79,28 +79,28 @@ def render_target_sales_structure():
     def render_main_content():
         """Main Card 내용: 목표 매출 구조 입력 UI"""
         # ========== ZONE A: 기간 선택 ==========
-    col1, col2 = st.columns(2)
-    with col1:
-        selected_year = st.number_input(
-            "연도",
-            min_value=2020,
-            max_value=2100,
-            value=selected_year,
-            key="target_sales_structure_year"
-        )
-    with col2:
-        selected_month = st.number_input(
-            "월",
-            min_value=1,
-            max_value=12,
-            value=selected_month,
-            key="target_sales_structure_month"
-        )
-    
-    # 세션 상태 업데이트
-    st.session_state["expense_year"] = selected_year
-    st.session_state["expense_month"] = selected_month
-    
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_year = st.number_input(
+                "연도",
+                min_value=2020,
+                max_value=2100,
+                value=selected_year,
+                key="target_sales_structure_year"
+            )
+        with col2:
+            selected_month = st.number_input(
+                "월",
+                min_value=1,
+                max_value=12,
+                value=selected_month,
+                key="target_sales_structure_month"
+            )
+        
+        # 세션 상태 업데이트
+        st.session_state["expense_year"] = selected_year
+        st.session_state["expense_month"] = selected_month
+        
         render_section_divider()
         
         # ========== ZONE B: 목표 매출 입력 ==========
@@ -116,156 +116,156 @@ def render_target_sales_structure():
         if not targets_df.empty:
             target_row = targets_df[(targets_df['연도'] == selected_year) & (targets_df['월'] == selected_month)]
             target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        target_sales_input = st.number_input(
-            "목표 월매출 (원)",
-            min_value=0,
-            value=int(target_sales) if target_sales > 0 else 0,
-            step=100000,
-            key="target_sales_structure_target_sales_input",
-            help="이번 달 목표 매출을 입력하세요"
-        )
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("💾 목표 저장", key="target_sales_structure_save_target_sales", use_container_width=True):
-            try:
-                # 목표 매출만 저장 (나머지는 0으로 설정)
-                save_targets(
-                    selected_year, selected_month, 
-                    target_sales_input, 0, 0, 0, 0, 0
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            target_sales_input = st.number_input(
+                "목표 월매출 (원)",
+                min_value=0,
+                value=int(target_sales) if target_sales > 0 else 0,
+                step=100000,
+                key="target_sales_structure_target_sales_input",
+                help="이번 달 목표 매출을 입력하세요"
+            )
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("💾 목표 저장", key="target_sales_structure_save_target_sales", use_container_width=True):
+                try:
+                    # 목표 매출만 저장 (나머지는 0으로 설정)
+                    save_targets(
+                        selected_year, selected_month, 
+                        target_sales_input, 0, 0, 0, 0, 0
+                    )
+                    st.success("목표 매출이 저장되었습니다!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"저장 중 오류: {e}")
+        
+        render_section_divider()
+        
+        # ========== ZONE B-2: 목표 매출 구조 입력 (신규) ==========
+        render_section_header("목표 매출 구조 입력", "📊")
+        
+        st.info("목표 매출을 달성하기 위한 매출 구조를 입력하세요.")
+        
+        # 메뉴 카테고리별 목표 매출 비율
+        st.markdown("### 메뉴 카테고리별 목표 매출 비율")
+        
+        menu_categories = {
+            "메인 메뉴": 0.0,
+            "사이드 메뉴": 0.0,
+            "음료": 0.0,
+            "기타": 0.0
+        }
+        
+        # 기존 데이터 로드 (향후 구현)
+        # TODO: target_sales_structure 테이블에서 로드
+        
+        menu_ratios = {}
+        menu_total = 0.0
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            for category in ["메인 메뉴", "사이드 메뉴"]:
+                menu_ratios[category] = st.number_input(
+                    f"{category} (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=menu_categories.get(category, 0.0),
+                    step=0.1,
+                    format="%.1f",
+                    key=f"menu_ratio_{category}"
                 )
-                st.success("목표 매출이 저장되었습니다!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"저장 중 오류: {e}")
-    
-    render_section_divider()
-    
-    # ========== ZONE B-2: 목표 매출 구조 입력 (신규) ==========
-    render_section_header("목표 매출 구조 입력", "📊")
-    
-    st.info("목표 매출을 달성하기 위한 매출 구조를 입력하세요.")
-    
-    # 메뉴 카테고리별 목표 매출 비율
-    st.markdown("### 메뉴 카테고리별 목표 매출 비율")
-    
-    menu_categories = {
-        "메인 메뉴": 0.0,
-        "사이드 메뉴": 0.0,
-        "음료": 0.0,
-        "기타": 0.0
-    }
-    
-    # 기존 데이터 로드 (향후 구현)
-    # TODO: target_sales_structure 테이블에서 로드
-    
-    menu_ratios = {}
-    menu_total = 0.0
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        for category in ["메인 메뉴", "사이드 메뉴"]:
-            menu_ratios[category] = st.number_input(
-                f"{category} (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=menu_categories.get(category, 0.0),
-                step=0.1,
-                format="%.1f",
-                key=f"menu_ratio_{category}"
-            )
-            menu_total += menu_ratios[category]
-    
-    with col2:
-        for category in ["음료", "기타"]:
-            menu_ratios[category] = st.number_input(
-                f"{category} (%)",
-                min_value=0.0,
-                max_value=100.0,
-                value=menu_categories.get(category, 0.0),
-                step=0.1,
-                format="%.1f",
-                key=f"menu_ratio_{category}"
-            )
-            menu_total += menu_ratios[category]
-    
-    if abs(menu_total - 100.0) > 0.1:
-        st.warning(f"⚠️ 합계: {menu_total:.1f}% (100%가 되어야 합니다)")
-    else:
-        st.success(f"✓ 합계: {menu_total:.1f}%")
-    
-    # 시간대별 목표 매출 비율
-    st.markdown("### 시간대별 목표 매출 비율")
-    
-    time_periods = {
-        "점심": 0.0,
-        "저녁": 0.0,
-        "기타": 0.0
-    }
-    
-    # 기존 데이터 로드 (향후 구현)
-    # TODO: target_sales_structure 테이블에서 로드
-    
-    time_ratios = {}
-    time_total = 0.0
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        time_ratios["점심"] = st.number_input(
-            "점심 (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=time_periods.get("점심", 0.0),
-            step=0.1,
-            format="%.1f",
-            key="time_ratio_점심"
-        )
-        time_total += time_ratios["점심"]
-    
-    with col2:
-        time_ratios["저녁"] = st.number_input(
-            "저녁 (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=time_periods.get("저녁", 0.0),
-            step=0.1,
-            format="%.1f",
-            key="time_ratio_저녁"
-        )
-        time_total += time_ratios["저녁"]
-    
-    with col3:
-        time_ratios["기타"] = st.number_input(
-            "기타 (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=time_periods.get("기타", 0.0),
-            step=0.1,
-            format="%.1f",
-            key="time_ratio_기타"
-        )
-        time_total += time_ratios["기타"]
-    
-    if abs(time_total - 100.0) > 0.1:
-        st.warning(f"⚠️ 합계: {time_total:.1f}% (100%가 되어야 합니다)")
-    else:
-        st.success(f"✓ 합계: {time_total:.1f}%")
-    
-    # 저장 버튼
-    if st.button("💾 매출 구조 저장", key="target_sales_structure_save_structure", use_container_width=True):
+                menu_total += menu_ratios[category]
+        
+        with col2:
+            for category in ["음료", "기타"]:
+                menu_ratios[category] = st.number_input(
+                    f"{category} (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=menu_categories.get(category, 0.0),
+                    step=0.1,
+                    format="%.1f",
+                    key=f"menu_ratio_{category}"
+                )
+                menu_total += menu_ratios[category]
+        
         if abs(menu_total - 100.0) > 0.1:
-            st.error("메뉴 카테고리별 비율의 합이 100%가 되어야 합니다.")
-        elif abs(time_total - 100.0) > 0.1:
-            st.error("시간대별 비율의 합이 100%가 되어야 합니다.")
+            st.warning(f"⚠️ 합계: {menu_total:.1f}% (100%가 되어야 합니다)")
         else:
-            # TODO: target_sales_structure 테이블에 저장
-            st.info("매출 구조 저장 기능은 향후 구현 예정입니다.")
-            # st.success("매출 구조가 저장되었습니다!")
-            # st.rerun()
-    
+            st.success(f"✓ 합계: {menu_total:.1f}%")
+        
+        # 시간대별 목표 매출 비율
+        st.markdown("### 시간대별 목표 매출 비율")
+        
+        time_periods = {
+            "점심": 0.0,
+            "저녁": 0.0,
+            "기타": 0.0
+        }
+        
+        # 기존 데이터 로드 (향후 구현)
+        # TODO: target_sales_structure 테이블에서 로드
+        
+        time_ratios = {}
+        time_total = 0.0
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            time_ratios["점심"] = st.number_input(
+                "점심 (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=time_periods.get("점심", 0.0),
+                step=0.1,
+                format="%.1f",
+                key="time_ratio_점심"
+            )
+            time_total += time_ratios["점심"]
+        
+        with col2:
+            time_ratios["저녁"] = st.number_input(
+                "저녁 (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=time_periods.get("저녁", 0.0),
+                step=0.1,
+                format="%.1f",
+                key="time_ratio_저녁"
+            )
+            time_total += time_ratios["저녁"]
+        
+        with col3:
+            time_ratios["기타"] = st.number_input(
+                "기타 (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=time_periods.get("기타", 0.0),
+                step=0.1,
+                format="%.1f",
+                key="time_ratio_기타"
+            )
+            time_total += time_ratios["기타"]
+        
+        if abs(time_total - 100.0) > 0.1:
+            st.warning(f"⚠️ 합계: {time_total:.1f}% (100%가 되어야 합니다)")
+        else:
+            st.success(f"✓ 합계: {time_total:.1f}%")
+        
+        # 저장 버튼
+        if st.button("💾 매출 구조 저장", key="target_sales_structure_save_structure", use_container_width=True):
+            if abs(menu_total - 100.0) > 0.1:
+                st.error("메뉴 카테고리별 비율의 합이 100%가 되어야 합니다.")
+            elif abs(time_total - 100.0) > 0.1:
+                st.error("시간대별 비율의 합이 100%가 되어야 합니다.")
+            else:
+                # TODO: target_sales_structure 테이블에 저장
+                st.info("매출 구조 저장 기능은 향후 구현 예정입니다.")
+                # st.success("매출 구조가 저장되었습니다!")
+                # st.rerun()
+        
         render_section_divider()
         
         # ========== ZONE C: 입력 현황 요약 ==========

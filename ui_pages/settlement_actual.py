@@ -1599,16 +1599,21 @@ def render_settlement_actual():
             # SummaryStrip용 값 반환 (클로저로 접근)
             return year, month, total_sales, totals
         
-        # SummaryStrip용 값 가져오기 (임시 렌더링)
-        # 실제로는 _render_header_section에서 반환되는 값 사용
+        # SummaryStrip용 값 가져오기 (기존 session_state 값 사용)
         temp_year = st.session_state.get("settlement_year", current_year_kst())
         temp_month = st.session_state.get("settlement_month", current_month_kst())
+        temp_total_sales = st.session_state.get(f"settlement_total_sales_{temp_year}_{temp_month}", 0)
         
         # SummaryStrip 항목 구성 (기존 값 사용)
         summary_items = [
             {
                 "label": "정산 기간",
                 "value": f"{temp_year}년 {temp_month}월",
+                "badge": None
+            },
+            {
+                "label": "총매출",
+                "value": f"{temp_total_sales:,.0f}원" if temp_total_sales > 0 else "0원",
                 "badge": None
             }
         ]

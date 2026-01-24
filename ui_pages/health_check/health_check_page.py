@@ -1,6 +1,7 @@
 """
 매장 체크리스트 페이지 (리디자인)
 QSCPPPMHF 9개 영역 매장 체크리스트 UI - 빠른 입력 중심
+Header + GuideBox 추가 (탭 구조 유지)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -8,7 +9,8 @@ import logging
 import time
 from datetime import datetime
 from typing import Dict, Optional, List
-from src.ui_helpers import render_page_header, handle_data_error, render_section_header
+from src.ui_helpers import handle_data_error, render_section_header
+from src.ui.layouts.input_layouts import render_guide_box, INPUT_LAYOUT_CSS
 from src.auth import get_current_store_id
 from src.health_check.storage import (
     create_health_session,
@@ -35,20 +37,34 @@ AUTO_SAVE_DELAY = 2.0  # 자동 저장 지연 시간 (초)
 
 
 def render_health_check_page():
-    """매장 체크리스트 페이지 렌더링 (리디자인)"""
-    render_page_header("QSC 입력", "📋")
+    """매장 체크리스트 페이지 렌더링 (리디자인, Header + GuideBox 추가)"""
+    # CSS 주입
+    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+    
+    # Header
+    header_html = """
+    <div class="ps-input-header">
+        <div class="ps-input-header-left">
+            <span class="ps-input-header-icon">📋</span>
+            <h1 class="ps-input-header-title">건강검진 실시</h1>
+        </div>
+    </div>
+    """
+    st.markdown(header_html, unsafe_allow_html=True)
+    
+    # GuideBox (G1)
+    render_guide_box(
+        kind="G1",
+        conclusion=None,  # 기본값 사용
+        bullets=None,  # 기본값 사용
+        next_action=None,  # 기본값 사용
+        inject_css=False  # CSS는 이미 위에서 주입
+    )
     
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
-    
-    # 페이지 설명
-    st.info("""
-    **월 2-3회, 7-10분 정기 매장 체크리스트**
-    
-    결과는 HOME/전략엔진에 반영됩니다(예정)
-    """)
     
     # 세션 상태 확인
     session_id = st.session_state.get('health_session_id')
