@@ -38,40 +38,40 @@ def render_recipe_management():
         elif not ingredient_list:
             st.warning("먼저 재료를 등록해주세요.")
         else:
-        # 메뉴 선택
-        selected_menu = st.selectbox(
-            "메뉴 선택",
-            options=menu_list,
-            key="recipe_management_batch_recipe_menu"
-        )
-        
-        # 등록할 재료 개수 선택 (최대 30개)
-        ingredient_count = st.number_input(
-            "등록할 재료 개수",
-            min_value=1,
-            max_value=30,
-            value=10,
-            step=1,
-            key="recipe_management_batch_recipe_count"
-        )
-        
-        st.markdown("---")
-        st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
-        
-        # 재료 정보를 딕셔너리로 변환 (검색 및 단위/단가 조회용)
-        ingredient_info_dict = {}
-        if not ingredient_df.empty:
-            for _, row in ingredient_df.iterrows():
-                ingredient_info_dict[row['재료명']] = {
-                    '단위': row.get('단위', ''),
-                    '단가': float(row.get('단가', 0))
-                }
-        
-        # 각 재료별 입력 필드 (재료명, 기준단위, 사용량, 사용단가)
-        recipe_data = []
-        
-        # 컴팩트 스타일 CSS 추가 (세로 구분선 포함, 엑셀처럼 오밀조밀하게)
-        st.markdown("""
+            # 메뉴 선택
+            selected_menu = st.selectbox(
+                "메뉴 선택",
+                options=menu_list,
+                key="recipe_management_batch_recipe_menu"
+            )
+            
+            # 등록할 재료 개수 선택 (최대 30개)
+            ingredient_count = st.number_input(
+                "등록할 재료 개수",
+                min_value=1,
+                max_value=30,
+                value=10,
+                step=1,
+                key="recipe_management_batch_recipe_count"
+            )
+            
+            st.markdown("---")
+            st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
+            
+            # 재료 정보를 딕셔너리로 변환 (검색 및 단위/단가 조회용)
+            ingredient_info_dict = {}
+            if not ingredient_df.empty:
+                for _, row in ingredient_df.iterrows():
+                    ingredient_info_dict[row['재료명']] = {
+                        '단위': row.get('단위', ''),
+                        '단가': float(row.get('단가', 0))
+                    }
+            
+            # 각 재료별 입력 필드 (재료명, 기준단위, 사용량, 사용단가)
+            recipe_data = []
+            
+            # 컴팩트 스타일 CSS 추가 (세로 구분선 포함, 엑셀처럼 오밀조밀하게)
+            st.markdown("""
         <style>
         .compact-recipe-row {
             margin: 0.05rem 0 !important;
@@ -142,216 +142,218 @@ def render_recipe_management():
             padding-right: 0.2rem !important;
         }
         </style>
-        """, unsafe_allow_html=True)
-        
-        # 헤더 행
-        header_col1, header_col2, header_col3, header_col4 = st.columns([3, 1.5, 2, 2])
-        with header_col1:
-            st.markdown("**재료명** (검색 가능)")
-        with header_col2:
-            st.markdown("**기준단위**")
-        with header_col3:
-            st.markdown("**사용량**")
-        with header_col4:
-            st.markdown("**사용단가**")
-        
-        st.markdown("<hr style='margin: 0.1rem 0; border-color: rgba(255,255,255,0.1); border-width: 0.5px;'>", unsafe_allow_html=True)
-        
-        for i in range(ingredient_count):
-            # 컴팩트 행 컨테이너
-            with st.container():
-                st.markdown('<div class="compact-recipe-row">', unsafe_allow_html=True)
-                col1, col2, col3, col4 = st.columns([3, 1.5, 2, 2])
-                
-                with col1:
-                    # 재료 검색 기능
-                    search_key = f"recipe_search_{i}"
-                    search_term = st.text_input(
-                        "",
-                        key=search_key,
-                        placeholder="🔍 재료명 검색...",
-                        label_visibility="collapsed"
-                    )
+            """, unsafe_allow_html=True)
+            
+            # 헤더 행
+            header_col1, header_col2, header_col3, header_col4 = st.columns([3, 1.5, 2, 2])
+            with header_col1:
+                st.markdown("**재료명** (검색 가능)")
+            with header_col2:
+                st.markdown("**기준단위**")
+            with header_col3:
+                st.markdown("**사용량**")
+            with header_col4:
+                st.markdown("**사용단가**")
+            
+            st.markdown("<hr style='margin: 0.1rem 0; border-color: rgba(255,255,255,0.1); border-width: 0.5px;'>", unsafe_allow_html=True)
+            
+            for i in range(ingredient_count):
+                # 컴팩트 행 컨테이너
+                with st.container():
+                    st.markdown('<div class="compact-recipe-row">', unsafe_allow_html=True)
+                    col1, col2, col3, col4 = st.columns([3, 1.5, 2, 2])
                     
-                    # 검색어로 필터링된 재료 목록 (단위 정보 포함)
-                    if search_term and search_term.strip():
-                        filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
-                        if not filtered_ingredients:
+                    with col1:
+                        # 재료 검색 기능
+                        search_key = f"recipe_search_{i}"
+                        search_term = st.text_input(
+                            "",
+                            key=search_key,
+                            placeholder="🔍 재료명 검색...",
+                            label_visibility="collapsed"
+                        )
+                        
+                        # 검색어로 필터링된 재료 목록 (단위 정보 포함)
+                        if search_term and search_term.strip():
+                            filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
+                            if not filtered_ingredients:
+                                filtered_ingredients = ingredient_list
+                        else:
                             filtered_ingredients = ingredient_list
-                    else:
-                        filtered_ingredients = ingredient_list
-                    
-                    # 재료 선택 옵션에 단위 정보 표시
-                    ingredient_options = []
-                    if '발주단위' in ingredient_df.columns:
-                        for ing in filtered_ingredients:
-                            ing_row = ingredient_df[ingredient_df['재료명'] == ing]
-                            if not ing_row.empty:
-                                # Phase 1: 안전한 DataFrame 접근
-                                unit = safe_get_value(ing_row, '단위', '')
-                                order_unit = safe_get_value(ing_row, '발주단위', unit)
-                                if order_unit != unit:
-                                    ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
-                                else:
-                                    ingredient_options.append(f"{ing} ({unit})")
-                            else:
-                                ingredient_options.append(ing)
-                    else:
-                        ingredient_options = filtered_ingredients
-                    
-                    # 재료 선택 (필터링된 목록에서)
-                    ingredient_key = f"batch_recipe_ingredient_{i}"
-                    selected_ingredient_option = st.selectbox(
-                        "",
-                        options=ingredient_options,
-                        key=ingredient_key,
-                        index=None,
-                        label_visibility="collapsed"
-                    )
-                    
-                    # 선택된 옵션에서 재료명 추출
-                    selected_ingredient = selected_ingredient_option.split(" (")[0] if selected_ingredient_option and " (" in selected_ingredient_option else selected_ingredient_option
-                
-                with col2:
-                    # 기준단위 (자동 표시, 발주 단위도 함께 표시)
-                    if selected_ingredient and selected_ingredient in ingredient_info_dict:
-                        unit = ingredient_info_dict[selected_ingredient]['단위']
-                        # 발주 단위 정보 가져오기
+                        
+                        # 재료 선택 옵션에 단위 정보 표시
+                        ingredient_options = []
                         if '발주단위' in ingredient_df.columns:
-                            ing_row = ingredient_df[ingredient_df['재료명'] == selected_ingredient]
-                            if not ing_row.empty:
-                                # Phase 1: 안전한 DataFrame 접근
-                                order_unit = safe_get_value(ing_row, '발주단위', unit)
-                                if order_unit != unit:
-                                    unit_display = f"{unit} / 발주: {order_unit}"
+                            for ing in filtered_ingredients:
+                                ing_row = ingredient_df[ingredient_df['재료명'] == ing]
+                                if not ing_row.empty:
+                                    # Phase 1: 안전한 DataFrame 접근
+                                    unit = safe_get_value(ing_row, '단위', '')
+                                    order_unit = safe_get_value(ing_row, '발주단위', unit)
+                                    if order_unit != unit:
+                                        ingredient_options.append(f"{ing} ({unit} / 발주: {order_unit})")
+                                    else:
+                                        ingredient_options.append(f"{ing} ({unit})")
+                                else:
+                                    ingredient_options.append(ing)
+                        else:
+                            ingredient_options = filtered_ingredients
+                        
+                        # 재료 선택 (필터링된 목록에서)
+                        ingredient_key = f"batch_recipe_ingredient_{i}"
+                        selected_ingredient_option = st.selectbox(
+                            "",
+                            options=ingredient_options,
+                            key=ingredient_key,
+                            index=None,
+                            label_visibility="collapsed"
+                        )
+                        
+                        # 선택된 옵션에서 재료명 추출
+                        selected_ingredient = selected_ingredient_option.split(" (")[0] if selected_ingredient_option and " (" in selected_ingredient_option else selected_ingredient_option
+                    
+                    with col2:
+                        # 기준단위 (자동 표시, 발주 단위도 함께 표시)
+                        if selected_ingredient and selected_ingredient in ingredient_info_dict:
+                            unit = ingredient_info_dict[selected_ingredient]['단위']
+                            # 발주 단위 정보 가져오기
+                            if '발주단위' in ingredient_df.columns:
+                                ing_row = ingredient_df[ingredient_df['재료명'] == selected_ingredient]
+                                if not ing_row.empty:
+                                    # Phase 1: 안전한 DataFrame 접근
+                                    order_unit = safe_get_value(ing_row, '발주단위', unit)
+                                    if order_unit != unit:
+                                        unit_display = f"{unit} / 발주: {order_unit}"
+                                    else:
+                                        unit_display = unit
                                 else:
                                     unit_display = unit
                             else:
                                 unit_display = unit
+                            st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{unit_display}</strong></div>", unsafe_allow_html=True)
                         else:
-                            unit_display = unit
-                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{unit_display}</strong></div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
-                
-                with col3:
-                    # 사용량 입력
-                    quantity_key = f"batch_recipe_quantity_{i}"
-                    quantity = st.number_input(
-                        "",
-                        min_value=0.0,
-                        value=0.0,
-                        step=0.1,
-                        format="%.2f",
-                        key=quantity_key,
-                        label_visibility="collapsed"
-                    )
-                
-                with col4:
-                    # 사용단가 (자동 계산: 사용량 × 1단위 단가)
-                    if selected_ingredient and selected_ingredient in ingredient_info_dict and quantity > 0:
-                        unit_price = ingredient_info_dict[selected_ingredient]['단가']
+                            st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
+                    
+                    with col3:
+                        # 사용량 입력
+                        quantity_key = f"batch_recipe_quantity_{i}"
+                        quantity = st.number_input(
+                            "",
+                            min_value=0.0,
+                            value=0.0,
+                            step=0.1,
+                            format="%.2f",
+                            key=quantity_key,
+                            label_visibility="collapsed"
+                        )
+                    
+                    with col4:
+                        # 사용단가 (자동 계산: 사용량 × 1단위 단가)
+                        if selected_ingredient and selected_ingredient in ingredient_info_dict and quantity > 0:
+                            unit_price = ingredient_info_dict[selected_ingredient]['단가']
+                            total_price = quantity * unit_price
+                            st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{total_price:,.1f}원</strong></div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # 유효한 데이터만 수집
+                    if selected_ingredient and quantity > 0:
+                        unit = ingredient_info_dict.get(selected_ingredient, {}).get('단위', '')
+                        unit_price = ingredient_info_dict.get(selected_ingredient, {}).get('단가', 0)
                         total_price = quantity * unit_price
-                        st.markdown(f"<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'><strong>{total_price:,.1f}원</strong></div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='margin-top: 0.2rem; margin-bottom: 0.1rem; font-size: 0.85rem;'>-</div>", unsafe_allow_html=True)
-                
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # 유효한 데이터만 수집
-                if selected_ingredient and quantity > 0:
-                    unit = ingredient_info_dict.get(selected_ingredient, {}).get('단위', '')
-                    unit_price = ingredient_info_dict.get(selected_ingredient, {}).get('단가', 0)
-                    total_price = quantity * unit_price
-                    recipe_data.append({
-                        'ingredient': selected_ingredient,
-                        'quantity': quantity,
-                        'unit': unit,
-                        'total_price': total_price
+                        recipe_data.append({
+                            'ingredient': selected_ingredient,
+                            'quantity': quantity,
+                            'unit': unit,
+                            'total_price': total_price
+                        })
+                    
+                    # 마지막 행이 아니면 얇은 구분선
+                    if i < ingredient_count - 1:
+                        st.markdown("<hr style='margin: 0.05rem 0; border-color: rgba(255,255,255,0.05); border-width: 0.5px;'>", unsafe_allow_html=True)
+            
+            # 조리방법 입력 필드
+            render_section_divider()
+            st.markdown("**👨‍🍳 조리방법**")
+            cooking_method = st.text_area(
+                "조리방법을 입력하세요 (줄글로 음식 만드는 방법을 적어주세요)",
+                height=150,
+                placeholder="예: 1. 재료를 준비합니다.\n2. 팬에 기름을 두르고 재료를 볶습니다.\n3. 물을 넣고 끓입니다.\n4. 간을 맞춰 완성합니다.",
+                key="recipe_management_cooking_method_input"
+            )
+            
+            render_section_divider()
+            
+            # 입력 요약 표시
+            if recipe_data:
+                st.write("**📊 입력 요약**")
+                summary_data = []
+                for item in recipe_data:
+                    summary_data.append({
+                        '재료명': item['ingredient'],
+                        '기준단위': item['unit'],
+                        '사용량': f"{item['quantity']:.2f}",
+                        '사용단가': f"{item['total_price']:,.1f}원"
                     })
-                
-                # 마지막 행이 아니면 얇은 구분선
-                if i < ingredient_count - 1:
-                    st.markdown("<hr style='margin: 0.05rem 0; border-color: rgba(255,255,255,0.05); border-width: 0.5px;'>", unsafe_allow_html=True)
-        
-        # 조리방법 입력 필드
-        render_section_divider()
-        st.markdown("**👨‍🍳 조리방법**")
-        cooking_method = st.text_area(
-            "조리방법을 입력하세요 (줄글로 음식 만드는 방법을 적어주세요)",
-            height=150,
-            placeholder="예: 1. 재료를 준비합니다.\n2. 팬에 기름을 두르고 재료를 볶습니다.\n3. 물을 넣고 끓입니다.\n4. 간을 맞춰 완성합니다.",
-            key="recipe_management_cooking_method_input"
-        )
-        
-        render_section_divider()
-        
-        # 입력 요약 표시
-        if recipe_data:
-            st.write("**📊 입력 요약**")
-            summary_data = []
-            for item in recipe_data:
-                summary_data.append({
-                    '재료명': item['ingredient'],
-                    '기준단위': item['unit'],
-                    '사용량': f"{item['quantity']:.2f}",
-                    '사용단가': f"{item['total_price']:,.1f}원"
-                })
-            summary_df = pd.DataFrame(summary_data)
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-            st.markdown(f"**총 {len(recipe_data)}개 재료**")
-        
-        # 일괄 저장 버튼 (항상 표시)
-        render_section_divider()
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("💾 일괄 저장", type="primary", use_container_width=True):
-                if not recipe_data:
-                    st.error("⚠️ 저장할 재료가 없습니다. 재료명과 사용량을 입력해주세요.")
-                else:
-                    errors = []
-                    success_count = 0
-                    
-                    # 재료 저장
-                    for item in recipe_data:
-                        try:
-                            save_recipe(selected_menu, item['ingredient'], item['quantity'])
-                            success_count += 1
-                        except Exception as e:
-                            errors.append(f"{item['ingredient']}: {e}")
-                    
-                    # 조리방법 저장 (입력된 경우)
-                    if cooking_method and cooking_method.strip():
-                        try:
-                            success, message = update_menu_cooking_method(selected_menu, cooking_method)
-                            if not success:
-                                errors.append(f"조리방법 저장 실패: {message}")
-                        except Exception as e:
-                            errors.append(f"조리방법 저장 중 오류: {e}")
-                    
-                    if errors:
-                        for error in errors:
-                            st.error(error)
-                    
-                    if success_count > 0:
-                        success_msg = f"✅ {success_count}개 레시피가 저장되었습니다!"
+                summary_df = pd.DataFrame(summary_data)
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                st.markdown(f"**총 {len(recipe_data)}개 재료**")
+            
+            # 일괄 저장 버튼 (항상 표시)
+            render_section_divider()
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                if st.button("💾 일괄 저장", type="primary", use_container_width=True):
+                    if not recipe_data:
+                        st.error("⚠️ 저장할 재료가 없습니다. 재료명과 사용량을 입력해주세요.")
+                    else:
+                        errors = []
+                        success_count = 0
+                        
+                        # 재료 저장
+                        for item in recipe_data:
+                            try:
+                                save_recipe(selected_menu, item['ingredient'], item['quantity'])
+                                success_count += 1
+                            except Exception as e:
+                                errors.append(f"{item['ingredient']}: {e}")
+                        
+                        # 조리방법 저장 (입력된 경우)
                         if cooking_method and cooking_method.strip():
-                            success_msg += " (조리방법도 함께 저장되었습니다.)"
-                        # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
-                        try:
-                            st.cache_data.clear()
-                        except Exception as e:
-                            import logging
-                            logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 저장): {e}")
-                        st.success(success_msg)
-                        st.balloons()
-        
-        render_section_divider()
-        
+                            try:
+                                success, message = update_menu_cooking_method(selected_menu, cooking_method)
+                                if not success:
+                                    errors.append(f"조리방법 저장 실패: {message}")
+                            except Exception as e:
+                                errors.append(f"조리방법 저장 중 오류: {e}")
+                        
+                        if errors:
+                            for error in errors:
+                                st.error(error)
+                        
+                        if success_count > 0:
+                            success_msg = f"✅ {success_count}개 레시피가 저장되었습니다!"
+                            if cooking_method and cooking_method.strip():
+                                success_msg += " (조리방법도 함께 저장되었습니다.)"
+                            # 캐시만 클리어하고 rerun 없이 성공 메시지만 표시
+                            try:
+                                st.cache_data.clear()
+                            except Exception as e:
+                                import logging
+                                logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 저장): {e}")
+                            st.success(success_msg)
+                            st.balloons()
+            
+            render_section_divider()
+    
+    def render_list_content():
+        """List: 레시피 검색 및 수정"""
         # 레시피 검색 및 수정 (등록된 레시피 헤더 제거, 메뉴별 편집 UI만 제공)
         recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
-    
-    if not recipe_df.empty:
+        
+        if not recipe_df.empty:
         # 레시피가 있는 메뉴 목록 추출
         menus_with_recipes = recipe_df['메뉴명'].unique().tolist()
         
@@ -636,7 +638,7 @@ def render_recipe_management():
         dashboard_content=render_dashboard_content,
         work_area_content=render_work_area_content,
         filter_content=None,
-        list_content=None,  # List는 Work Area 내부에 포함
+        list_content=render_list_content,
         cta_label=None,
         cta_action=None
     )
