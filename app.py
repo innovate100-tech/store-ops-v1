@@ -79,14 +79,20 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
     
-    /* 상단 여백 강제 축소 */
+    /* 상단 여백 강제 축소 및 헤더 숨김 */
     .main .block-container {
-        padding-top: 2rem !important;
+        padding-top: 0rem !important;
         padding-bottom: 1rem !important;
     }
-    [data-testid="stHeader"] {
-        background: rgba(0,0,0,0);
-        height: 0px;
+    header[data-testid="stHeader"] {
+        height: 0px !important;
+        visibility: hidden !important;
+        display: none !important;
+    }
+    
+    /* 제목 위 불필요한 간격 제거 */
+    #root > div:nth-child(1) > div > div > div > div > section > div {
+        padding-top: 0rem !important;
     }
     
     [data-testid="stIconMaterial"] {

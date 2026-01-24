@@ -13,9 +13,9 @@ def render_page_header(title, icon="📋"):
     """페이지 헤더 렌더링 (개선된 디자인)
     테마에 따라 텍스트 색상이 자동 조절되도록 수정.
     """
-    # 여백 최적화: margin-bottom을 2rem에서 0.5rem으로 줄임
+    # 최상단 밀착 배치를 위해 상단 margin 제거, 미세 패딩(1rem)만 추가
     st.markdown(f"""
-    <div style="margin-bottom: 0.5rem;">
+    <div style="margin-top: 0rem; margin-bottom: 0.5rem; padding-top: 1rem;">
         <h2 style="color: var(--ps-text, #101417); border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
             {icon} {title}
         </h2>
