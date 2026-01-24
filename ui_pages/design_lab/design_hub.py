@@ -1,6 +1,6 @@
 """
 설계 허브 페이지
-설계 상태 요약(9개 영역 완성도) + 우선순위 액션 + 세부설계 진입점
+설계 상태 요약(6개 영역 완성도) + 우선순위 액션 + 세부설계 진입점
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -9,12 +9,12 @@ from src.ui_helpers import render_page_header
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import (
     load_csv,
-    load_expense_structure,
     get_fixed_costs,
     get_variable_cost_ratio,
 )
 from src.analytics import calculate_menu_cost
 from src.auth import get_current_store_id
+from src.design.baseline_loader import load_baseline_structure, get_baseline_structure
 
 bootstrap(page_title="설계 허브")
 
@@ -42,19 +42,6 @@ def _check_ingredient_completion(store_id: str) -> dict:
         "status": "완료" if completion == 100 else "미시작",
         "indicator": f"재료 {count}개 등록",
         "page_key": "재료 등록",
-    }
-
-
-def _check_recipe_completion(store_id: str) -> dict:
-    """레시피 설계 완성도"""
-    recipe_df = load_csv("recipes.csv", default_columns=["메뉴명", "재료명", "사용량"], store_id=store_id)
-    count = len(recipe_df) if not recipe_df.empty else 0
-    completion = 100.0 if count > 0 else 0.0
-    return {
-        "completion": completion,
-        "status": "완료" if completion == 100 else "미시작",
-        "indicator": f"레시피 {count}개 등록",
-        "page_key": "레시피 등록",
     }
 
 
@@ -97,42 +84,6 @@ def _check_profit_structure_completion(store_id: str, year: int, month: int) -> 
         "status": "완료" if completion == 100 else "미시작",
         "indicator": indicator,
         "page_key": "수익 구조 설계실",
-    }
-
-
-def _check_target_cost_completion(store_id: str, year: int, month: int) -> dict:
-    """목표 비용 구조 입력 완성도"""
-    try:
-        exp_df = load_expense_structure(year, month, store_id=store_id)
-        has_data = isinstance(exp_df, pd.DataFrame) and not exp_df.empty
-    except Exception:
-        has_data = False
-    completion = 100.0 if has_data else 0.0
-    return {
-        "completion": completion,
-        "status": "완료" if completion == 100 else "미시작",
-        "indicator": "목표 비용 구조 입력됨" if has_data else "목표 비용 구조 미입력",
-        "page_key": "목표 비용구조",
-    }
-
-
-def _check_target_sales_completion(store_id: str, year: int, month: int) -> dict:
-    """목표 매출 구조 입력 완성도"""
-    try:
-        targets_df = load_csv("targets.csv", default_columns=["연도", "월", "목표매출"], store_id=store_id)
-        if targets_df.empty:
-            has_data = False
-        else:
-            r = targets_df[(targets_df["연도"] == year) & (targets_df["월"] == month)]
-            has_data = not r.empty and float(r.iloc[0].get("목표매출", 0) or 0) > 0
-    except Exception:
-        has_data = False
-    completion = 100.0 if has_data else 0.0
-    return {
-        "completion": completion,
-        "status": "완료" if completion == 100 else "미시작",
-        "indicator": f"{year}년 {month}월 목표 매출 입력됨" if has_data else "목표 매출 미입력",
-        "page_key": "목표 매출구조",
     }
 
 
@@ -182,8 +133,6 @@ def _get_priority_actions(completions: list) -> list:
     core_areas = [
         ("메뉴 포트폴리오 설계", "메뉴 등록"),
         ("재료 구조 설계", "재료 등록"),
-        ("레시피 설계", "레시피 등록"),
-        ("목표 매출 구조 입력", "목표 매출구조"),
     ]
     
     for area_name, page_key in core_areas:
@@ -201,7 +150,6 @@ def _get_priority_actions(completions: list) -> list:
             area_name_map = {
                 "메뉴 수익 구조 설계실": "메뉴 수익 설계",
                 "수익 구조 설계실": "수익 구조 설계",
-                "목표 비용구조": "목표 비용 구조 입력",
             }
             area_name = area_name_map.get(comp.get("page_key"), comp.get("page_key"))
             actions.append({
@@ -271,7 +219,49 @@ def render_design_hub():
     year = current_year_kst()
     month = current_month_kst()
 
-    # 각 영역 완성도 계산
+    # ZONE A: 기준 구조 불러오기 (1층 Baseline)
+    st.markdown("### 📐 기준 구조 (우리 매장 기본 설계도)")
+    baseline = get_baseline_structure(store_id, year, month)
+    if baseline is None:
+        if st.button("🔄 현재 가게 구조 불러오기", key="design_hub_load_baseline", use_container_width=True, type="primary"):
+            try:
+                baseline = load_baseline_structure(store_id, year, month)
+                st.success(f"{year}년 {month}월 기준 구조를 불러왔습니다. 이 구조를 기준으로 설계를 시작하세요.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"기준 구조 불러오기 실패: {e}")
+        st.caption("매출·비용·원가 분석 데이터에서 현재 월 구조를 자동 수집합니다. 먼저 일일 마감·월간 정산·비용 구조를 입력하세요.")
+    else:
+        sales = baseline.get("sales", {})
+        cost = baseline.get("cost", {})
+        profit = baseline.get("profit", {})
+        menu_info = baseline.get("menu", {})
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("월매출(기준)", f"{int(sales.get('monthly_sales', 0) or sales.get('forecast_sales', 0)):,.0f}원")
+            st.caption(f"일방문객 {sales.get('daily_visitors', 0):.0f} · 객단가 {sales.get('avg_price_per_customer', 0):,.0f}원")
+        with col2:
+            st.metric("고정비", f"{int(cost.get('fixed_costs', 0)):,.0f}원")
+            vr = (cost.get("variable_cost_ratio") or 0) * 100
+            st.caption(f"변동비율 {vr:.1f}%")
+        with col3:
+            st.metric("손익분기점", f"{int(profit.get('break_even_sales', 0)):,.0f}원")
+            st.caption(f"예상이익 {int(profit.get('expected_profit', 0)):,.0f}원")
+        with col4:
+            lcr = (cost.get("labor_cost_ratio") or 0) * 100
+            acr = (menu_info.get("avg_cost_rate") or 0) * 100
+            st.metric("인건비율", f"{lcr:.1f}%" if lcr else "—")
+            st.caption(f"평균 원가율 {acr:.1f}%" if acr else "원가 미계산")
+        if st.button("🔄 기준 구조 다시 불러오기", key="design_hub_reload_baseline", use_container_width=True):
+            try:
+                load_baseline_structure(store_id, year, month)
+                st.success("기준 구조를 다시 불러왔습니다.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"기준 구조 불러오기 실패: {e}")
+    st.markdown("---")
+
+    # 각 영역 완성도 계산 (6개: 레시피·목표비용·목표매출 페이지 제거됨)
     completions = [
         {"name": "가게 설계 센터", "icon": "🏗️", **_check_design_center_completion(store_id)},
         {"name": "전략 보드", "icon": "📋", **_check_strategy_board_completion(store_id, year, month)},
@@ -279,17 +269,14 @@ def render_design_hub():
         {"name": "메뉴 수익 설계", "icon": "💰", **_check_menu_profit_completion(store_id)},
         {"name": "재료 구조 설계", "icon": "🧺", **_check_ingredient_completion(store_id)},
         {"name": "수익 구조 설계", "icon": "📊", **_check_profit_structure_completion(store_id, year, month)},
-        {"name": "레시피 설계", "icon": "📝", **_check_recipe_completion(store_id)},
-        {"name": "목표 비용 구조 입력", "icon": "💳", **_check_target_cost_completion(store_id, year, month)},
-        {"name": "목표 매출 구조 입력", "icon": "🎯", **_check_target_sales_completion(store_id, year, month)},
     ]
 
     # 전체 완성도 계산
     overall_completion = _calculate_overall_completion(completions)
 
-    # ZONE A: 설계 상태 요약 헤더
+    # ZONE B: 설계 상태 요약 헤더
     st.markdown("### 설계 완성도")
-    st.caption("9개 설계 영역의 완성도를 확인하세요.")
+    st.caption("6개 설계 영역의 완성도를 확인하세요.")
 
     # 완성도 바
     st.progress(overall_completion / 100.0)
@@ -305,7 +292,7 @@ def render_design_hub():
 
     st.markdown("---")
 
-    # ZONE B: 설계 영역별 완성도 카드 (9개)
+    # ZONE B: 설계 영역별 완성도 카드 (6개)
     st.markdown("### 설계 영역별 완성도")
 
     # 3열 그리드로 표시
