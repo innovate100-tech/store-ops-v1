@@ -1,13 +1,15 @@
 """
 일일 마감 페이지
 매출, 네이버 방문자, 판매량, 메모를 입력하고 마감하는 통합 페이지
+FORM형 레이아웃 적용
 """
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import logging
 from datetime import date
-from src.ui_helpers import render_page_header, handle_data_error
+from src.ui_helpers import handle_data_error
+from src.ui.layouts.input_layouts import render_form_layout
 from src.storage_supabase import (
     load_csv, 
     get_day_record_status, 
@@ -32,16 +34,13 @@ if not check_login():
 
 
 def render_daily_input_hub():
-    """일일 마감 페이지 렌더링"""
-    render_page_header("오늘 마감 입력", "📝")
-    
+    """일일 마감 페이지 렌더링 (FORM형 레이아웃 적용)"""
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # ===== ZONE A: 날짜 & 상태 대시보드 =====
-    # 날짜 선택
+    # 날짜 선택 (레이아웃 외부에서 처리 - Summary Strip에 포함)
     selected_date = st.date_input(
         "입력할 날짜",
         value=today_kst(),
@@ -77,11 +76,11 @@ def render_daily_input_hub():
         except:
             pass
     
-    # 메모 확인 (간단히 - 실제로는 입력값 확인 필요)
-    has_memo = False  # 메모는 입력값을 직접 확인해야 하므로 기본값
+    # 메모 확인
+    has_memo = False
     
     # 진행률 계산
-    total_items = 4  # 매출, 네이버 방문자, 판매량, 메모
+    total_items = 4
     completed_items = sum([
         1 if has_sales else 0,
         1 if has_visitors else 0,
@@ -90,66 +89,44 @@ def render_daily_input_hub():
     ])
     progress_rate = (completed_items / total_items * 100) if total_items > 0 else 0
     
-    # 상태 대시보드
-    st.markdown(f"""
-    <div style="padding: 1.5rem; background: linear-gradient(135deg, #1f2937 0%, #111827 100%); 
-                border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <div style="font-size: 1.1rem; font-weight: 600;">
-                📅 {selected_date.strftime('%Y년 %m월 %d일')} ({['월', '화', '수', '목', '금', '토', '일'][selected_date.weekday()]}요일)
-            </div>
-            <div style="font-size: 0.9rem; background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px;">
-                {completed_items}/{total_items} 완료
-            </div>
-        </div>
-        <div style="margin-bottom: 1rem;">
-            <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="background: {'#4ade80' if has_close else '#fbbf24' if progress_rate > 0 else '#94a3b8'}; height: 100%; width: {progress_rate}%; transition: width 0.3s;"></div>
-            </div>
-        </div>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
-            <div style="flex: 1; min-width: 120px;">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">상태</div>
-                <div style="font-size: 1rem; font-weight: 600;">
-                    {'✅ 마감 완료' if has_close else '⚠️ 임시 기록' if (has_sales or has_visitors) else '📝 미입력'}
-                </div>
-            </div>
-        </div>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_sales else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_sales else 'none'};">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">💰 매출</div>
-                <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_sales else '—'}</div>
-                <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{best_total_sales:,.0f}원' if best_total_sales else '—'}</div>
-            </div>
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_visitors else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_visitors else 'none'};">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">👥 네이버 방문자</div>
-                <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_visitors else '—'}</div>
-                <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{visitors_best}명' if visitors_best else '—'}</div>
-            </div>
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: {'rgba(74, 222, 128, 0.2)' if has_sales_items else 'rgba(255,255,255,0.1)'}; border-radius: 8px; border: {'2px solid #4ade80' if has_sales_items else 'none'};">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">📦 판매량</div>
-                <div style="font-size: 1.2rem; font-weight: 700;">{'✓' if has_sales_items else '⚠' if has_sales or has_visitors else '—'}</div>
-                <div style="font-size: 0.9rem; margin-top: 0.3rem;">{f'{sales_items_count}개 메뉴' if has_sales_items else '—'}</div>
-            </div>
-            <div style="flex: 1; min-width: 100px; padding: 0.8rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); margin-bottom: 0.3rem;">📝 메모</div>
-                <div style="font-size: 1.2rem; font-weight: 700;">—</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 상태 배지
+    if has_close:
+        status_badge = {"text": "✅ 마감 완료", "type": "success"}
+    elif has_sales or has_visitors:
+        status_badge = {"text": "⚠️ 임시 기록", "type": "warning"}
+    else:
+        status_badge = {"text": "📝 미입력", "type": "neutral"}
     
-    st.markdown("---")
-    
-    # ===== ZONE B: 탭 기반 단계별 입력 =====
-    # Phase 1 STEP 2 최종: 저장/분석 정책 안내
-    st.info("""
-    💡 **네이버 방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
-    하지만 분석과 코칭은 **'매출'**이 있어야 시작됩니다.
-    """)
+    # Summary Strip 항목
+    summary_items = [
+        {
+            "label": "날짜",
+            "value": f"{selected_date.strftime('%Y-%m-%d')} ({['월', '화', '수', '목', '금', '토', '일'][selected_date.weekday()]})",
+            "badge": None
+        },
+        {
+            "label": "진행률",
+            "value": f"{completed_items}/{total_items}",
+            "badge": "success" if has_close else "warning" if progress_rate > 0 else None
+        },
+        {
+            "label": "매출",
+            "value": f"{best_total_sales:,.0f}원" if best_total_sales else "—",
+            "badge": "success" if has_sales else None
+        },
+        {
+            "label": "방문자",
+            "value": f"{visitors_best}명" if visitors_best else "—",
+            "badge": "success" if has_visitors else None
+        },
+        {
+            "label": "판매량",
+            "value": f"{sales_items_count}개" if has_sales_items else "—",
+            "badge": "success" if has_sales_items else "warning" if (has_sales or has_visitors) else None
+        }
+    ]
     
     # 기존 매출 값 로드
-    supabase = get_supabase_client()
     existing_card_sales = 0.0
     existing_cash_sales = 0.0
     if supabase and selected_date:
@@ -204,342 +181,354 @@ def render_daily_input_hub():
         except Exception as e:
             logger.warning(f"기존 판매량 로드 실패: {e}")
     
-    # 탭 생성
-    tab1, tab2, tab3, tab4 = st.tabs(["💰 매출", "👥 네이버 방문자", "📦 판매량", "📝 메모"])
-    
-    # 탭 1: 매출 입력
-    with tab1:
-        st.markdown("#### 💰 매출 입력")
-        col_card, col_cash, col_total = st.columns(3)
-        with col_card:
-            card_sales = st.number_input(
-                "카드 매출",
-                min_value=0.0,
-                value=default_card,
-                step=1000.0,
-                key="daily_input_card_sales"
-            )
-        with col_cash:
-            cash_sales = st.number_input(
-                "현금 매출",
-                min_value=0.0,
-                value=default_cash,
-                step=1000.0,
-                key="daily_input_cash_sales"
-            )
-        with col_total:
-            # 총 매출은 자동 계산 (카드 + 현금)
-            total_sales = card_sales + cash_sales
-            st.metric("총 매출 (자동 계산)", f"{total_sales:,.0f}원")
+    # Main Content 함수 정의 (탭 기반 입력)
+    def render_main_content():
+        """Main Card 내용: 탭 기반 단계별 입력"""
+        # Phase 1 STEP 2 최종: 저장/분석 정책 안내
+        st.info("""
+        💡 **네이버 방문자·메모·판매량만 입력해도 기록은 저장됩니다.**  
+        하지만 분석과 코칭은 **'매출'**이 있어야 시작됩니다.
+        """)
         
-        st.caption("💡 팁: 카드/현금 중 하나만 입력해도 됩니다.")
+        # 탭 생성
+        tab1, tab2, tab3, tab4 = st.tabs(["💰 매출", "👥 네이버 방문자", "📦 판매량", "📝 메모"])
         
-        # 임시 저장 버튼
-        col_save1, col_next1 = st.columns([1, 1])
-        with col_save1:
-            if st.button("💾 임시 저장", key="temp_save_sales", use_container_width=True):
-                try:
-                    from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
-                    has_sales = card_sales > 0 or cash_sales > 0
-                    if has_sales:
-                        result = save_sales_entry(
-                            date=selected_date,
-                            store_name="",
-                            card_sales=card_sales,
-                            cash_sales=cash_sales,
-                            total_sales=total_sales,
-                            visitors=None
-                        )
-                        if result.get("success"):
-                            ui_flash_success("매출이 임시 저장되었습니다.")
-                            st.rerun()
-                        else:
-                            st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
-                    else:
-                        ui_flash_warning("매출을 입력해주세요.")
-                except Exception as e:
-                    logger.error(f"임시 저장 실패: {e}")
-                    st.error(f"저장 실패: {str(e)}")
-    
-    # 탭 2: 네이버 방문자 입력
-    with tab2:
-        st.markdown("#### 👥 네이버 방문자 입력")
-        visitors = st.number_input(
-            "네이버 스마트플레이스 방문자 수",
-            min_value=0,
-            value=int(visitors_best) if visitors_best else 0,
-            step=1,
-            key="daily_input_visitors"
-        )
-        
-        st.caption("💡 네이버 스마트플레이스에서 확인한 방문자 수를 입력하세요.")
-        
-        # 임시 저장 버튼
-        col_save2, col_next2 = st.columns([1, 1])
-        with col_save2:
-            if st.button("💾 임시 저장", key="temp_save_visitors", use_container_width=True):
-                try:
-                    from src.ui_helpers import ui_flash_success
-                    if visitors > 0:
-                        result = save_sales_entry(
-                            date=selected_date,
-                            store_name="",
-                            card_sales=0,
-                            cash_sales=0,
-                            total_sales=0,
-                            visitors=visitors
-                        )
-                        if result.get("success"):
-                            ui_flash_success("네이버 방문자 수가 임시 저장되었습니다.")
-                            st.rerun()
-                        else:
-                            st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
-                    else:
-                        st.warning("방문자 수를 입력해주세요.")
-                except Exception as e:
-                    logger.error(f"임시 저장 실패: {e}")
-                    st.error(f"저장 실패: {str(e)}")
-    
-    # 탭 3: 판매량 입력
-    with tab3:
-        st.markdown("#### 📦 판매량 입력")
-        
-        if not menu_list:
-            st.warning("먼저 메뉴를 등록해주세요.")
-            sales_items = []
-        else:
-            # 메뉴별 판매량 입력 (3열 그리드)
-            sales_items = []
-            num_rows = (len(menu_list) + 2) // 3
-            for row in range(num_rows):
-                cols = st.columns(3)
-                for col_idx in range(3):
-                    menu_idx = row * 3 + col_idx
-                    if menu_idx < len(menu_list):
-                        menu_name = menu_list[menu_idx]
-                        with cols[col_idx]:
-                            qty = st.number_input(
-                                menu_name,
-                                min_value=0,
-                                value=existing_items.get(menu_name, 0),
-                                step=1,
-                                key=f"daily_input_sales_item_{menu_name}_{selected_date}"
+        # 탭 1: 매출 입력
+        with tab1:
+            st.markdown("#### 💰 매출 입력")
+            col_card, col_cash, col_total = st.columns(3)
+            with col_card:
+                card_sales = st.number_input(
+                    "카드 매출",
+                    min_value=0.0,
+                    value=default_card,
+                    step=1000.0,
+                    key="daily_input_card_sales"
+                )
+            with col_cash:
+                cash_sales = st.number_input(
+                    "현금 매출",
+                    min_value=0.0,
+                    value=default_cash,
+                    step=1000.0,
+                    key="daily_input_cash_sales"
+                )
+            with col_total:
+                # 총 매출은 자동 계산 (카드 + 현금)
+                total_sales = card_sales + cash_sales
+                st.metric("총 매출 (자동 계산)", f"{total_sales:,.0f}원")
+            
+            st.caption("💡 팁: 카드/현금 중 하나만 입력해도 됩니다.")
+            
+            # 임시 저장 버튼
+            col_save1, col_next1 = st.columns([1, 1])
+            with col_save1:
+                if st.button("💾 임시 저장", key="temp_save_sales", use_container_width=True):
+                    try:
+                        from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+                        has_sales = card_sales > 0 or cash_sales > 0
+                        if has_sales:
+                            result = save_sales_entry(
+                                date=selected_date,
+                                store_name="",
+                                card_sales=card_sales,
+                                cash_sales=cash_sales,
+                                total_sales=total_sales,
+                                visitors=None
                             )
-                            if qty > 0:
-                                sales_items.append((menu_name, qty))
+                            if result.get("success"):
+                                ui_flash_success("매출이 임시 저장되었습니다.")
+                                st.rerun()
+                            else:
+                                st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
+                        else:
+                            ui_flash_warning("매출을 입력해주세요.")
+                    except Exception as e:
+                        logger.error(f"임시 저장 실패: {e}")
+                        st.error(f"저장 실패: {str(e)}")
         
-        # 임시 저장 버튼
-        col_save3, col_next3 = st.columns([1, 1])
-        with col_save3:
-            if st.button("💾 임시 저장", key="temp_save_sales_items", use_container_width=True):
-                try:
-                    from src.ui_helpers import ui_flash_success
-                    has_sales_items = False
-                    if sales_items:
-                        for menu_name, qty in sales_items:
-                            if qty > 0:
-                                has_sales_items = True
-                                try:
-                                    save_daily_sales_item(
-                                        date=selected_date,
-                                        menu_name=menu_name,
-                                        quantity=qty,
-                                        reason="일일 마감 페이지"
-                                    )
-                                except Exception as e:
-                                    logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
-                                    st.warning(f"판매량 저장 실패: {menu_name}")
-                    
-                    if has_sales_items:
-                        ui_flash_success("판매량이 임시 저장되었습니다.")
-                        st.rerun()
-                    else:
-                        st.warning("판매량을 입력해주세요.")
-                except Exception as e:
-                    logger.error(f"임시 저장 실패: {e}")
-                    st.error(f"저장 실패: {str(e)}")
-    
-    # 탭 4: 메모 입력
-    with tab4:
-        st.markdown("#### 📝 운영 메모")
-        memo = st.text_area(
-            "운영 메모 (선택사항)",
-            placeholder="특이사항, 메모 등을 입력하세요...",
-            key="daily_input_memo",
-            height=150
-        )
+        # 탭 2: 네이버 방문자 입력
+        with tab2:
+            st.markdown("#### 👥 네이버 방문자 입력")
+            visitors = st.number_input(
+                "네이버 스마트플레이스 방문자 수",
+                min_value=0,
+                value=int(visitors_best) if visitors_best else 0,
+                step=1,
+                key="daily_input_visitors"
+            )
+            
+            st.caption("💡 네이버 스마트플레이스에서 확인한 방문자 수를 입력하세요.")
+            
+            # 임시 저장 버튼
+            col_save2, col_next2 = st.columns([1, 1])
+            with col_save2:
+                if st.button("💾 임시 저장", key="temp_save_visitors", use_container_width=True):
+                    try:
+                        from src.ui_helpers import ui_flash_success
+                        if visitors > 0:
+                            result = save_sales_entry(
+                                date=selected_date,
+                                store_name="",
+                                card_sales=0,
+                                cash_sales=0,
+                                total_sales=0,
+                                visitors=visitors
+                            )
+                            if result.get("success"):
+                                ui_flash_success("네이버 방문자 수가 임시 저장되었습니다.")
+                                st.rerun()
+                            else:
+                                st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
+                        else:
+                            st.warning("방문자 수를 입력해주세요.")
+                    except Exception as e:
+                        logger.error(f"임시 저장 실패: {e}")
+                        st.error(f"저장 실패: {str(e)}")
         
-        st.caption("💡 특이사항이나 메모를 기록하세요. 마감 시 함께 저장됩니다.")
+        # 탭 3: 판매량 입력
+        with tab3:
+            st.markdown("#### 📦 판매량 입력")
+            
+            if not menu_list:
+                st.warning("먼저 메뉴를 등록해주세요.")
+                sales_items = []
+            else:
+                # 메뉴별 판매량 입력 (3열 그리드)
+                sales_items = []
+                num_rows = (len(menu_list) + 2) // 3
+                for row in range(num_rows):
+                    cols = st.columns(3)
+                    for col_idx in range(3):
+                        menu_idx = row * 3 + col_idx
+                        if menu_idx < len(menu_list):
+                            menu_name = menu_list[menu_idx]
+                            with cols[col_idx]:
+                                qty = st.number_input(
+                                    menu_name,
+                                    min_value=0,
+                                    value=existing_items.get(menu_name, 0),
+                                    step=1,
+                                    key=f"daily_input_sales_item_{menu_name}_{selected_date}"
+                                )
+                                if qty > 0:
+                                    sales_items.append((menu_name, qty))
+            
+            # 임시 저장 버튼
+            col_save3, col_next3 = st.columns([1, 1])
+            with col_save3:
+                if st.button("💾 임시 저장", key="temp_save_sales_items", use_container_width=True):
+                    try:
+                        from src.ui_helpers import ui_flash_success
+                        has_sales_items = False
+                        if sales_items:
+                            for menu_name, qty in sales_items:
+                                if qty > 0:
+                                    has_sales_items = True
+                                    try:
+                                        save_daily_sales_item(
+                                            date=selected_date,
+                                            menu_name=menu_name,
+                                            quantity=qty,
+                                            reason="일일 마감 페이지"
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
+                                        st.warning(f"판매량 저장 실패: {menu_name}")
+                        
+                        if has_sales_items:
+                            ui_flash_success("판매량이 임시 저장되었습니다.")
+                            st.rerun()
+                        else:
+                            st.warning("판매량을 입력해주세요.")
+                    except Exception as e:
+                        logger.error(f"임시 저장 실패: {e}")
+                        st.error(f"저장 실패: {str(e)}")
+        
+        # 탭 4: 메모 입력
+        with tab4:
+            st.markdown("#### 📝 운영 메모")
+            memo = st.text_area(
+                "운영 메모 (선택사항)",
+                placeholder="특이사항, 메모 등을 입력하세요...",
+                key="daily_input_memo",
+                height=150
+            )
+            
+            st.caption("💡 특이사항이나 메모를 기록하세요. 마감 시 함께 저장됩니다.")
     
-    st.markdown("---")
-    
-    # ===== ZONE C: 액션 버튼 영역 =====
-    st.markdown("### 💾 저장 옵션")
-    
-    # 저장 버튼
-    col_save, col_close = st.columns([2, 1])
-    
-    with col_save:
-        if st.button("💾 임시 저장", type="secondary", use_container_width=True, key="daily_input_save"):
-            st.caption("지금까지 입력한 내용을 임시 저장합니다.")
-            try:
-                # Phase 1 STEP 2: 입력 유효성 체크
-                from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
-                
-                # 입력 유효성 판정
-                if not has_any_input(
+    # 액션 함수 정의 (session_state에서 값 읽기)
+    def handle_temp_save():
+        """임시 저장 액션"""
+        try:
+            from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+            
+            # session_state에서 값 읽기
+            card_sales = st.session_state.get("daily_input_card_sales", 0.0)
+            cash_sales = st.session_state.get("daily_input_cash_sales", 0.0)
+            total_sales = card_sales + cash_sales
+            visitors = st.session_state.get("daily_input_visitors", 0)
+            memo = st.session_state.get("daily_input_memo", "")
+            
+            # 판매량 수집
+            sales_items = []
+            for menu_name in menu_list:
+                qty_key = f"daily_input_sales_item_{menu_name}_{selected_date}"
+                qty = st.session_state.get(qty_key, 0)
+                if qty > 0:
+                    sales_items.append((menu_name, qty))
+            
+            # 입력 유효성 판정
+            if not has_any_input(
+                card_sales=card_sales,
+                cash_sales=cash_sales,
+                total_sales=total_sales,
+                visitors=visitors,
+                sales_items=sales_items,
+                memo=memo
+            ):
+                ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
+                return
+            
+            # 매출/방문자 저장 (값이 있는 것만)
+            has_sales = card_sales > 0 or cash_sales > 0 or total_sales > 0
+            has_visitors = visitors > 0
+            
+            if has_sales or has_visitors:
+                result = save_sales_entry(
+                    date=selected_date,
+                    store_name="",
                     card_sales=card_sales,
                     cash_sales=cash_sales,
                     total_sales=total_sales,
-                    visitors=visitors,
-                    sales_items=sales_items,
-                    memo=memo
-                ):
-                    ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
+                    visitors=visitors if has_visitors else None
+                )
+                
+                if not result.get("success"):
+                    st.error(f"매출 저장 실패: {result.get('message', '알 수 없는 오류')}")
                     return
+            
+            # 판매량 저장 (값이 있는 것만)
+            has_sales_items = False
+            if sales_items:
+                for menu_name, qty in sales_items:
+                    if qty > 0:
+                        has_sales_items = True
+                        try:
+                            save_daily_sales_item(
+                                date=selected_date,
+                                menu_name=menu_name,
+                                quantity=qty,
+                                reason="일일 입력 통합 페이지"
+                            )
+                        except Exception as e:
+                            logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
+                            st.warning(f"판매량 저장 실패: {menu_name}")
+            
+            # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
+            from src.ui_helpers import has_sales_input
+            
+            has_sales = has_sales_input(card_sales, cash_sales, total_sales)
+            
+            if has_sales:
+                saved_items = []
+                if has_sales:
+                    saved_items.append("매출")
+                if has_visitors:
+                    saved_items.append("네이버 방문자")
+                if has_sales_items:
+                    saved_items.append("판매량")
+                if memo and memo.strip():
+                    saved_items.append("메모")
                 
-                # 매출/방문자 저장 (값이 있는 것만)
-                has_sales = card_sales > 0 or cash_sales > 0 or total_sales > 0
-                has_visitors = visitors > 0
+                if len(saved_items) > 1:
+                    ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
+                else:
+                    ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
+            else:
+                saved_items = []
+                if has_visitors:
+                    saved_items.append("네이버 방문자")
+                if has_sales_items:
+                    saved_items.append("판매량")
+                if memo and memo.strip():
+                    saved_items.append("메모")
                 
-                if has_sales or has_visitors:
-                    result = save_sales_entry(
-                        date=selected_date,
-                        store_name="",  # store_id로 처리되므로 불필요
-                        card_sales=card_sales,
-                        cash_sales=cash_sales,
-                        total_sales=total_sales,
-                        visitors=visitors if has_visitors else None
-                    )
-                    
-                    if not result.get("success"):
-                        st.error(f"매출 저장 실패: {result.get('message', '알 수 없는 오류')}")
-                        return
-                
-                # 판매량 저장 (값이 있는 것만)
-                has_sales_items = False
-                if sales_items:
-                    for menu_name, qty in sales_items:
-                        if qty > 0:
-                            has_sales_items = True
-                            try:
-                                save_daily_sales_item(
-                                    date=selected_date,
-                                    menu_name=menu_name,
-                                    quantity=qty,
-                                    reason="일일 입력 통합 페이지"
-                                )
-                            except Exception as e:
-                                logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
-                                st.warning(f"판매량 저장 실패: {menu_name}")
-                
-                # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
+                if saved_items:
+                    ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                else:
+                    ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+            
+            st.balloons()
+            st.rerun()
+            
+        except Exception as e:
+            logger.error(f"저장 실패: {e}", exc_info=True)
+            st.error(f"저장 실패: {str(e)}")
+    
+    def handle_close():
+        """마감하기 액션"""
+        try:
+            from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
+            
+            # issues는 기본값으로 설정
+            issues = {
+                '품절': False,
+                '컴플레인': False,
+                '단체손님': False,
+                '직원이슈': False
+            }
+            
+            # session_state에서 값 읽기
+            card_sales = st.session_state.get("daily_input_card_sales", 0.0)
+            cash_sales = st.session_state.get("daily_input_cash_sales", 0.0)
+            total_sales = card_sales + cash_sales
+            visitors = st.session_state.get("daily_input_visitors", 0)
+            memo = st.session_state.get("daily_input_memo", "")
+            
+            # 모든 메뉴의 판매량 수집 (0도 포함)
+            all_sales_items = []
+            for menu_name in menu_list:
+                qty_key = f"daily_input_sales_item_{menu_name}_{selected_date}"
+                qty = st.session_state.get(qty_key, 0)
+                all_sales_items.append((menu_name, qty))
+            
+            # 입력 유효성 판정
+            if not has_any_input(
+                card_sales=card_sales,
+                cash_sales=cash_sales,
+                total_sales=total_sales,
+                visitors=visitors,
+                sales_items=all_sales_items,
+                memo=memo,
+                issues=issues
+            ):
+                ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
+                return
+            
+            # 마감 저장
+            success = save_daily_close(
+                date=selected_date,
+                store_name="",
+                card_sales=card_sales,
+                cash_sales=cash_sales,
+                total_sales=total_sales,
+                visitors=visitors if visitors > 0 else 0,
+                sales_items=all_sales_items,
+                issues=issues,
+                memo=memo if memo else ""
+            )
+            
+            if success:
                 from src.ui_helpers import has_sales_input
-                
                 has_sales = has_sales_input(card_sales, cash_sales, total_sales)
                 
                 if has_sales:
-                    # 매출이 있으면 분석 시작 안내
                     saved_items = []
                     if has_sales:
                         saved_items.append("매출")
-                    if has_visitors:
-                        saved_items.append("네이버 방문자")
-                    if has_sales_items:
-                        saved_items.append("판매량")
-                    if memo and memo.strip():
-                        saved_items.append("메모")
-                    
-                    if len(saved_items) > 1:
-                        ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
-                    else:
-                        ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
-                else:
-                    # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
-                    saved_items = []
-                    if has_visitors:
-                        saved_items.append("네이버 방문자")
-                    if has_sales_items:
-                        saved_items.append("판매량")
-                    if memo and memo.strip():
-                        saved_items.append("메모")
-                    
-                    if saved_items:
-                        ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
-                    else:
-                        ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
-                    
-                    # 매출 입력하러 가기 버튼 표시
-                    if st.button("💰 오늘 매출 입력하러 가기", type="primary", use_container_width=True, key="go_to_sales_input"):
-                        st.session_state["current_page"] = "일일 입력(통합)"
-                        st.rerun()
-                
-                st.balloons()
-                st.rerun()
-                
-            except Exception as e:
-                logger.error(f"저장 실패: {e}", exc_info=True)
-                st.error(f"저장 실패: {str(e)}")
-    
-    with col_close:
-        st.caption("⚠️ 마감 후에는 보정만 가능합니다")
-        if st.button("📋 마감하기", type="primary", use_container_width=True, key="daily_input_close"):
-            try:
-                # Phase 1 STEP 2: 입력 유효성 체크
-                from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
-                
-                # issues는 기본값으로 설정
-                issues = {
-                    '품절': False,
-                    '컴플레인': False,
-                    '단체손님': False,
-                    '직원이슈': False
-                }
-                
-                # 모든 메뉴의 판매량 수집 (0도 포함)
-                all_sales_items = []
-                for menu_name in menu_list:
-                    qty = 0
-                    # sales_items에서 찾기
-                    for item_name, item_qty in sales_items:
-                        if item_name == menu_name:
-                            qty = item_qty
-                            break
-                    all_sales_items.append((menu_name, qty))
-                
-                # 입력 유효성 판정
-                if not has_any_input(
-                    card_sales=card_sales,
-                    cash_sales=cash_sales,
-                    total_sales=total_sales,
-                    visitors=visitors,
-                    sales_items=all_sales_items,
-                    memo=memo,
-                    issues=issues
-                ):
-                    ui_flash_warning("아무것도 입력되지 않았습니다. 하나만 입력해도 저장됩니다.")
-                    return
-                
-                # 마감 저장
-                success = save_daily_close(
-                    date=selected_date,
-                    store_name="",  # store_id로 처리되므로 불필요
-                    card_sales=card_sales,
-                    cash_sales=cash_sales,
-                    total_sales=total_sales,
-                    visitors=visitors if visitors > 0 else 0,
-                    sales_items=all_sales_items,
-                    issues=issues,
-                    memo=memo if memo else ""
-                )
-                
-                if success:
-                    # 부분 저장 안내
-                    saved_items = []
-                    if card_sales > 0 or cash_sales > 0 or total_sales > 0:
-                        saved_items.append("매출")
                     if visitors > 0:
-                        saved_items.append("네이버 방문자")
+                        saved_items.append("방문자")
                     if any(qty > 0 for _, qty in all_sales_items):
                         saved_items.append("판매량")
                     if memo and memo.strip():
@@ -547,61 +536,60 @@ def render_daily_input_hub():
                     if any(issues.values()):
                         saved_items.append("이슈")
                     
-                    # Phase 1 STEP 2 최종: 저장 후 메시지 분기 (매출 있음/없음)
-                    from src.ui_helpers import has_sales_input
-                    
-                    has_sales = has_sales_input(card_sales, cash_sales, total_sales)
-                    
-                    if has_sales:
-                        # 매출이 있으면 분석 시작 안내
-                        saved_items = []
-                        if has_sales:
-                            saved_items.append("매출")
-                        if visitors > 0:
-                            saved_items.append("방문자")
-                        if any(qty > 0 for _, qty in all_sales_items):
-                            saved_items.append("판매량")
-                        if memo and memo.strip():
-                            saved_items.append("메모")
-                        if any(issues.values()):
-                            saved_items.append("이슈")
-                        
-                        if len(saved_items) > 1:
-                            ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
-                        else:
-                            ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
+                    if len(saved_items) > 1:
+                        ui_flash_success(f"저장 완료! 매출이 입력되어 분석이 시작됩니다. ({', '.join(saved_items)})")
                     else:
-                        # 매출이 없으면 기록만 저장 안내 + 다음 행동 유도
-                        saved_items = []
-                        if visitors > 0:
-                            saved_items.append("방문자")
-                        if any(qty > 0 for _, qty in all_sales_items):
-                            saved_items.append("판매량")
-                        if memo and memo.strip():
-                            saved_items.append("메모")
-                        if any(issues.values()):
-                            saved_items.append("이슈")
-                        
-                        if saved_items:
-                            ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
-                        else:
-                            ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
-                        
-                        # 매출 입력하러 가기 버튼 표시
-                        if st.button("💰 오늘 매출 입력하러 가기", type="primary", use_container_width=True, key="go_to_sales_input_close"):
-                            st.session_state["current_page"] = "일일 입력(통합)"
-                            st.rerun()
-                    
-                    st.balloons()
-                    st.rerun()
+                        ui_flash_success("저장 완료! 매출이 입력되어 분석이 시작됩니다.")
                 else:
-                    st.error("마감 저장에 실패했습니다.")
+                    saved_items = []
+                    if visitors > 0:
+                        saved_items.append("방문자")
+                    if any(qty > 0 for _, qty in all_sales_items):
+                        saved_items.append("판매량")
+                    if memo and memo.strip():
+                        saved_items.append("메모")
+                    if any(issues.values()):
+                        saved_items.append("이슈")
                     
-            except Exception as e:
-                logger.error(f"마감 저장 실패: {e}", exc_info=True)
-                st.error(f"마감 저장 실패: {str(e)}")
+                    if saved_items:
+                        ui_flash_warning(f"기록은 저장되었습니다 ({', '.join(saved_items)}). 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                    else:
+                        ui_flash_warning("기록은 저장되었습니다. 분석을 시작하려면 오늘 매출을 입력해 주세요.")
+                
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("마감 저장에 실패했습니다.")
+                
+        except Exception as e:
+            logger.error(f"마감 저장 실패: {e}", exc_info=True)
+            st.error(f"마감 저장 실패: {str(e)}")
     
-    # 안내 메시지
+    # FORM형 레이아웃 적용
+    render_form_layout(
+        title="오늘 마감 입력",
+        icon="📝",
+        status_badge=status_badge,
+        guide_kind="G1",
+        guide_bullets=None,  # 기본값 사용
+        guide_warnings=None,
+        summary_items=summary_items,
+        action_primary={
+            "label": "📋 마감하기",
+            "key": "daily_input_close",
+            "action": handle_close
+        },
+        action_secondary=[
+            {
+                "label": "💾 임시 저장",
+                "key": "daily_input_save",
+                "action": handle_temp_save
+            }
+        ],
+        main_content=render_main_content
+    )
+    
+    # 안내 메시지 (레이아웃 외부)
     if has_close:
         st.info("ℹ️ **이미 마감된 날짜입니다.** 이번 저장은 보정 기록으로 반영됩니다.")
     else:
