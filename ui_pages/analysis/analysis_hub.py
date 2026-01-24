@@ -56,7 +56,6 @@ def _safe_actual_costs(store_id, year, month):
 def _hub_card(title: str, value: str, sub: str, page_key: str, help_text: str = "", icon: str = "📊"):
     """분석 허브 카드 렌더링 (시각적으로 보기 좋게)"""
     sub_html = f'<div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.8rem;">{sub}</div>' if sub else ''
-    help_html = f'<div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">{help_text}</div>' if help_text else ''
     st.markdown(f"""
     <div style="padding: 1.2rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); 
                 border-radius: 12px; border: 1px solid rgba(148,163,184,0.3); 
@@ -69,9 +68,10 @@ def _hub_card(title: str, value: str, sub: str, page_key: str, help_text: str = 
             {value if value else "—"}
         </div>
         {sub_html}
-        {help_html}
     </div>
     """, unsafe_allow_html=True)
+    if help_text:
+        st.caption(help_text)
     if st.button("자세히 보기", key=f"hub_go_{page_key}", use_container_width=True, type="primary"):
         st.session_state["current_page"] = page_key
         st.rerun()
