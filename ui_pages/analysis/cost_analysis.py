@@ -77,13 +77,14 @@ def _load_five_core_costs(store_id: str, year: int, month: int, monthly_sales: f
     return result
 
 
-def _calculate_costs_by_sales_level(sales_level: float, five_core_costs: dict) -> dict:
+def _calculate_costs_by_sales_level(sales_level: float, five_core_costs: dict, expense_df: pd.DataFrame = None) -> dict:
     """
     매출 수준별 5대 비용 계산
     
     Args:
         sales_level: 시뮬레이션 매출 (원)
         five_core_costs: _load_five_core_costs() 결과
+        expense_df: expense_structure DataFrame (고정비 원본 금액 추출용, 선택)
     
     Returns:
         dict: {
@@ -96,14 +97,23 @@ def _calculate_costs_by_sales_level(sales_level: float, five_core_costs: dict) -
             '영업이익': float
         }
     """
-    # 고정비: 금액 그대로
-    rent = five_core_costs['임차료']['amount']  # 고정비 금액
-    labor = five_core_costs['인건비']['amount']  # 고정비 금액
-    utility = five_core_costs['공과금']['amount']  # 고정비 금액
+    # 고정비: expense_structure의 원본 금액 사용 (매출과 무관)
+    if expense_df is not None and not expense_df.empty and 'category' in expense_df.columns and 'amount' in expense_df.columns:
+        rent_df = expense_df[expense_df['category'] == '임차료']
+        labor_df = expense_df[expense_df['category'] == '인건비']
+        utility_df = expense_df[expense_df['category'] == '공과금']
+        rent = float(rent_df['amount'].sum()) if not rent_df.empty else 0.0
+        labor = float(labor_df['amount'].sum()) if not labor_df.empty else 0.0
+        utility = float(utility_df['amount'].sum()) if not utility_df.empty else 0.0
+    else:
+        # fallback: five_core_costs의 amount 사용 (이미 expense_structure 원본 금액)
+        rent = five_core_costs.get('임차료', {}).get('amount', 0.0)
+        labor = five_core_costs.get('인건비', {}).get('amount', 0.0)
+        utility = five_core_costs.get('공과금', {}).get('amount', 0.0)
     
     # 변동비: 매출 × 비율(%)
-    material_rate = five_core_costs['재료비']['rate']  # % 단위
-    fee_rate = five_core_costs['부가세&카드수수료']['rate']  # % 단위
+    material_rate = five_core_costs.get('재료비', {}).get('rate', 0.0)  # % 단위
+    fee_rate = five_core_costs.get('부가세&카드수수료', {}).get('rate', 0.0)  # % 단위
     
     material = sales_level * (material_rate / 100) if material_rate else 0.0
     fee = sales_level * (fee_rate / 100) if fee_rate else 0.0
@@ -252,7 +262,12 @@ def render_cost_analysis():
             cat_data = five_core_costs.get(cat, {})
             amount = cat_data.get('amount', 0.0)
             rate = cat_data.get('rate', 0.0)
-            st.metric(cat, f"{int(amount):,}원", delta=f"{rate:.1f}%")
+            if cat in _FIXED_CATEGORIES:
+                # 고정비: 금액 중심
+                st.metric(cat, f"{int(amount):,}원", delta=f"{rate:.1f}%")
+            else:
+                # 변동비: 비율 중심
+                st.metric(cat, f"{rate:.2f}%", delta=f"{int(amount):,}원")
     
     st.caption(f"**총 비용**: {int(total_cost):,}원 · **비용률**: {cost_rate:.1f}%")
 
@@ -272,10 +287,18 @@ def render_cost_analysis():
                 items = cat_data.get('items', [])
                 
                 col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("금액", f"{int(amount):,}원")
-                with col2:
-                    st.metric("매출 대비 비율", f"{rate:.2f}%")
+                if cat in _FIXED_CATEGORIES:
+                    # 고정비: 금액 중심
+                    with col1:
+                        st.metric("금액", f"{int(amount):,}원")
+                    with col2:
+                        st.metric("매출 대비 비율", f"{rate:.2f}%")
+                else:
+                    # 변동비: 비율 중심
+                    with col1:
+                        st.metric("비율", f"{rate:.2f}%")
+                    with col2:
+                        st.metric("금액 (현재 매출 기준)", f"{int(amount):,}원")
                 
                 if items:
                     st.markdown("**세부 항목**")
@@ -292,10 +315,16 @@ def render_cost_analysis():
                     prev_year, prev_month = selected_year, selected_month - 1
                 try:
                     prev_costs = _load_five_core_costs(store_id, prev_year, prev_month)
-                    prev_amount = prev_costs.get(cat, {}).get('amount', 0.0)
-                    if prev_amount > 0:
-                        change = ((amount - prev_amount) / prev_amount * 100) if prev_amount > 0 else 0.0
-                        st.caption(f"📈 전월 대비: **{change:+.1f}%** ({int(prev_amount):,}원 → {int(amount):,}원)")
+                    if cat in _FIXED_CATEGORIES:
+                        prev_amount = prev_costs.get(cat, {}).get('amount', 0.0)
+                        if prev_amount > 0:
+                            change = ((amount - prev_amount) / prev_amount * 100) if prev_amount > 0 else 0.0
+                            st.caption(f"📈 전월 대비: **{change:+.1f}%** ({int(prev_amount):,}원 → {int(amount):,}원)")
+                    else:
+                        prev_rate = prev_costs.get(cat, {}).get('rate', 0.0)
+                        if prev_rate > 0:
+                            change = rate - prev_rate
+                            st.caption(f"📈 전월 대비: **{change:+.2f}%p** ({prev_rate:.2f}% → {rate:.2f}%)")
                 except Exception:
                     pass
 
@@ -329,7 +358,7 @@ def render_cost_analysis():
     # ZONE D: 목표매출 달성 시 비용구조 (강화: 5대 비용 각각 표시)
     render_section_header("목표매출 달성 시 비용구조", "🎯")
     if target_sales and target_sales > 0 and (fixed or variable_ratio):
-        target_costs = _calculate_costs_by_sales_level(target_sales, five_core_costs)
+        target_costs = _calculate_costs_by_sales_level(target_sales, five_core_costs, expense_df)
         profit = target_costs['영업이익']
         profit_rate = (profit / target_sales * 100) if target_sales else 0
         
@@ -383,27 +412,6 @@ def render_cost_analysis():
             st.rerun()
 
     render_section_divider()
-
-    # ZONE C: 비용 구조 입력 현황 (5개 카테고리)
-    render_section_header("비용 구조 입력 현황", "📋")
-    if expense_df.empty:
-        st.caption("아직 비용 구조가 입력되지 않았습니다. 목표 비용 구조 입력에서 설정하세요.")
-        if st.button("🧾 목표 비용 구조 입력으로 이동", key="cost_analysis_go_target"):
-            st.session_state["current_page"] = "목표 비용구조"
-            st.rerun()
-    else:
-        has_cat = "category" in expense_df.columns
-        has_amt = "amount" in expense_df.columns
-        if has_cat and has_amt:
-            for cat in ["임차료", "인건비", "재료비", "공과금", "부가세&카드수수료"]:
-                sub = expense_df[expense_df["category"] == cat]
-                total = float(sub["amount"].sum()) if not sub.empty else 0.0
-                st.caption(f"**{cat}**: {int(total):,}원")
-        elif has_amt:
-            total = float(expense_df["amount"].sum())
-            st.caption(f"**비용 합계**: {int(total):,}원")
-
-    render_section_divider()
     
     # ZONE E: 매출 수준별 5대 비용 시뮬레이션 (강화)
     render_section_header("매출 수준별 5대 비용 시뮬레이션", "📈")
@@ -417,7 +425,7 @@ def render_cost_analysis():
             help="다양한 매출 수준에서 5대 비용 각각의 변화를 확인하세요"
         )
         if sim_sales > 0:
-            sim_costs = _calculate_costs_by_sales_level(sim_sales, five_core_costs)
+            sim_costs = _calculate_costs_by_sales_level(sim_sales, five_core_costs, expense_df)
             sim_profit = sim_costs['영업이익']
             sim_rate = (sim_profit / sim_sales * 100) if sim_sales > 0 else 0
             
@@ -461,7 +469,7 @@ def render_cost_analysis():
             
             comparison_data = []
             for label, sales_val in comparison_levels:
-                comp_costs = _calculate_costs_by_sales_level(sales_val, five_core_costs)
+                comp_costs = _calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)
                 comparison_data.append({
                     '매출 수준': label,
                     '매출': f"{int(sales_val):,}원",
@@ -478,11 +486,11 @@ def render_cost_analysis():
             # 스택 바 차트: 여러 매출 수준별 5대 비용 구성
             stack_comparison = pd.DataFrame({
                 '매출 수준': [label for label, _ in comparison_levels],
-                '임차료': [_calculate_costs_by_sales_level(sales_val, five_core_costs)['임차료'] for _, sales_val in comparison_levels],
-                '인건비': [_calculate_costs_by_sales_level(sales_val, five_core_costs)['인건비'] for _, sales_val in comparison_levels],
-                '공과금': [_calculate_costs_by_sales_level(sales_val, five_core_costs)['공과금'] for _, sales_val in comparison_levels],
-                '재료비': [_calculate_costs_by_sales_level(sales_val, five_core_costs)['재료비'] for _, sales_val in comparison_levels],
-                '부가세&카드': [_calculate_costs_by_sales_level(sales_val, five_core_costs)['부가세&카드수수료'] for _, sales_val in comparison_levels],
+                '임차료': [_calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)['임차료'] for _, sales_val in comparison_levels],
+                '인건비': [_calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)['인건비'] for _, sales_val in comparison_levels],
+                '공과금': [_calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)['공과금'] for _, sales_val in comparison_levels],
+                '재료비': [_calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)['재료비'] for _, sales_val in comparison_levels],
+                '부가세&카드': [_calculate_costs_by_sales_level(sales_val, five_core_costs, expense_df)['부가세&카드수수료'] for _, sales_val in comparison_levels],
             })
             st.bar_chart(stack_comparison.set_index('매출 수준'), height=300)
     else:
