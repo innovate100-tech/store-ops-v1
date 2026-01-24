@@ -1315,19 +1315,8 @@ def render_custom_sidebar(menu):
         st.session_state.custom_sidebar_css_injected = True
         st.markdown("""
         <style>
-        /* Streamlit 기본 사이드바 완전히 숨기기 */
-        [data-testid="stSidebar"],
-        section[data-testid="stSidebar"],
-        div[data-testid="stSidebar"] {
-            display: none !important;
-            visibility: hidden !important;
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
-        }
-        
-        /* 커스텀 사이드바 컨테이너 - 화면 왼쪽에 고정 */
-        #custom-sidebar-container {
+        /* Streamlit 기본 사이드바 스타일링 */
+        [data-testid="stSidebar"] {
             position: fixed !important;
             left: 0 !important;
             top: 0 !important;
@@ -1344,6 +1333,27 @@ def render_custom_sidebar(menu):
             padding: 1rem 0.5rem !important;
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
             box-sizing: border-box !important;
+        }
+        
+        /* 접힌 상태일 때 */
+        [data-testid="stSidebar"]:has(#custom-sidebar-container.collapsed),
+        body:has(#custom-sidebar-container.collapsed) [data-testid="stSidebar"] {
+            width: 4rem !important;
+            max-width: 4rem !important;
+            min-width: 4rem !important;
+        }
+        
+        /* 커스텀 사이드바 컨테이너 - Streamlit 사이드바 내부에 배치 */
+        #custom-sidebar-container {
+            position: relative !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
         
         /* 사이드바 내부 콘텐츠 */
@@ -1523,92 +1533,90 @@ def render_custom_sidebar(menu):
         </style>
         """, unsafe_allow_html=True)
     
-    # 사이드바 컨테이너 시작 (Streamlit 위젯 밖에 배치)
-    sidebar_class = "collapsed" if collapsed else "expanded"
-    
-    # 사이드바 컨테이너 div 시작
-    st.markdown(f'<div id="custom-sidebar-container" class="{sidebar_class}"><div class="custom-sidebar-content">', unsafe_allow_html=True)
-    
-    # 토글 버튼 (Streamlit 버튼 사용)
-    toggle_label = "▶" if collapsed else "◀ 접기"
-    col1 = st.columns([1])
-    with col1[0]:
+    # 사이드바를 Streamlit의 기본 사이드바 안에 렌더링 (CSS로 위치 조정)
+    with st.sidebar:
+        # 사이드바 컨테이너 div 시작
+        sidebar_class = "collapsed" if collapsed else "expanded"
+        st.markdown(f'<div id="custom-sidebar-container" class="{sidebar_class}"><div class="custom-sidebar-content">', unsafe_allow_html=True)
+        
+        # 토글 버튼 (Streamlit 버튼 사용)
+        toggle_label = "▶" if collapsed else "◀ 접기"
         if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
             st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
             st.rerun()
-    
-    # 사이드바 메뉴 렌더링
-    for cat, data in menu.items():
-        # 카테고리 제목
-        if not collapsed:
-            st.markdown(f'<div class="custom-sidebar-category">{cat}</div>', unsafe_allow_html=True)
         
-        # 메뉴 항목
-        if isinstance(data, list):
-            # 단순 리스트
-            for label, key in data:
-                icon = "🏠" if "홈" in label else "🛠"
-                is_active = "primary" if current_page == key else "secondary"
-                if collapsed:
-                    if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
-                        st.session_state.current_page = key
-                        st.rerun()
-                else:
-                    if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
-                        st.session_state.current_page = key
-                        st.rerun()
-        else:
-            # 딕셔너리 (main/sub)
-            # Main 항목
-            for label, key in data["main"]:
-                icon = "🧠" if "설계" in cat else "📊" if "분석" in cat else "✍"
-                is_active = "primary" if current_page == key else "secondary"
-                if collapsed:
-                    if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
-                        st.session_state.current_page = key
-                        st.rerun()
-                else:
-                    if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
-                        st.session_state.current_page = key
-                        st.rerun()
-            
-            # Sub 항목 (접힌 상태에서는 숨김)
+        # 사이드바 메뉴 렌더링
+        for cat, data in menu.items():
+            # 카테고리 제목
             if not collapsed:
-                for label, key in data["sub"]:
+                st.markdown(f'<div class="custom-sidebar-category">{cat}</div>', unsafe_allow_html=True)
+            
+            # 메뉴 항목
+            if isinstance(data, list):
+                # 단순 리스트
+                for label, key in data:
+                    icon = "🏠" if "홈" in label else "🛠"
                     is_active = "primary" if current_page == key else "secondary"
-                    if st.button(label, key=f"nav_{key}", use_container_width=True, type=is_active):
-                        st.session_state.current_page = key
-                        st.rerun()
-    
-    # 매장 선택
-    if not collapsed:
-        user_stores = get_user_stores()
-        if len(user_stores) > 1:
-            st.markdown('<div class="custom-sidebar-category">매장 선택</div>', unsafe_allow_html=True)
-            store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
-            curr_name = get_current_store_name()
-            selected_display = f"{curr_name} ({next((s['role'] for s in user_stores if s['name'] == curr_name), '')})"
-            selected = st.selectbox("", options=list(store_options.keys()), 
-                                  index=list(store_options.keys()).index(selected_display) if selected_display in store_options else 0,
-                                  key="custom_store_select", label_visibility="collapsed")
-            if selected != selected_display:
-                switch_store(store_options[selected])
-                st.rerun()
-    
-    # 로그아웃, 캐시 클리어
-    st.markdown('<div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(232, 238, 247, 0.12);">', unsafe_allow_html=True)
-    if not collapsed:
-        st.markdown('<div class="custom-sidebar-category">시스템</div>', unsafe_allow_html=True)
-    
-    if st.button("🚪 로그아웃", key="custom_logout", use_container_width=True):
-        logout()
-        st.rerun()
-    if st.button("🔄 캐시 클리어", key="custom_cache_clear", use_container_width=True):
-        load_csv.clear()
-        st.rerun()
-    
-    # 사이드바 컨테이너 종료
-    st.markdown('</div></div>', unsafe_allow_html=True)
+                    if collapsed:
+                        if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
+                            st.session_state.current_page = key
+                            st.rerun()
+                    else:
+                        if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
+                            st.session_state.current_page = key
+                            st.rerun()
+            else:
+                # 딕셔너리 (main/sub)
+                # Main 항목
+                for label, key in data["main"]:
+                    icon = "🧠" if "설계" in cat else "📊" if "분석" in cat else "✍"
+                    is_active = "primary" if current_page == key else "secondary"
+                    if collapsed:
+                        if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
+                            st.session_state.current_page = key
+                            st.rerun()
+                    else:
+                        if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
+                            st.session_state.current_page = key
+                            st.rerun()
+                
+                # Sub 항목 (접힌 상태에서는 숨김)
+                if not collapsed:
+                    for label, key in data["sub"]:
+                        is_active = "primary" if current_page == key else "secondary"
+                        if st.button(label, key=f"nav_{key}", use_container_width=True, type=is_active):
+                            st.session_state.current_page = key
+                            st.rerun()
+        
+        # 매장 선택
+        if not collapsed:
+            user_stores = get_user_stores()
+            if len(user_stores) > 1:
+                st.markdown('<div class="custom-sidebar-category">매장 선택</div>', unsafe_allow_html=True)
+                store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
+                curr_name = get_current_store_name()
+                selected_display = f"{curr_name} ({next((s['role'] for s in user_stores if s['name'] == curr_name), '')})"
+                selected = st.selectbox("", options=list(store_options.keys()), 
+                                      index=list(store_options.keys()).index(selected_display) if selected_display in store_options else 0,
+                                      key="custom_store_select", label_visibility="collapsed")
+                if selected != selected_display:
+                    switch_store(store_options[selected])
+                    st.rerun()
+        
+        # 로그아웃, 캐시 클리어
+        st.markdown('<div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(232, 238, 247, 0.12);">', unsafe_allow_html=True)
+        if not collapsed:
+            st.markdown('<div class="custom-sidebar-category">시스템</div>', unsafe_allow_html=True)
+        
+        if st.button("🚪 로그아웃", key="custom_logout", use_container_width=True):
+            logout()
+            st.rerun()
+        if st.button("🔄 캐시 클리어", key="custom_cache_clear", use_container_width=True):
+            load_csv.clear()
+            st.rerun()
+        
+        # 사이드바 컨테이너 종료
+        st.markdown('</div></div>', unsafe_allow_html=True)
     
     # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화 (강화 버전)
     st.markdown(f"""
