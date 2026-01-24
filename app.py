@@ -74,12 +74,17 @@ from src.storage_supabase import load_csv, create_backup
 from src.ui_helpers import render_page_header, render_section_divider
 
 # Theme and CSS
+# @import 규칙은 반드시 별도의 스타일 블록에서 최상단에 위치해야 함
 st.markdown("""
 <style>
-    /* @import 규칙은 반드시 최상단에 위치해야 함 */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-    
+</style>
+""", unsafe_allow_html=True)
+
+# 나머지 CSS는 별도 스타일 블록으로
+st.markdown("""
+<style>
     /* 디자인 고도화: 컬러 시스템 및 애니메이션 */
     :root {
         --base-bg: #0F172A;
