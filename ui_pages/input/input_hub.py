@@ -152,42 +152,37 @@ def render_input_hub_v3():
     if assets.get('recipe_rate', 0) >= 80: score += 25
     if assets.get('has_target'): score += 25
 
-    # [1] 통합 가이드 카드 (동적 애니메이션 적용)
-    st.markdown(f"""
-    <div class="animate-in" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
-        <!-- 배경 일렁임 효과 -->
-        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%); animation: shimmer 10s infinite linear;"></div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: relative;">
-            <div>
-                <h4 style="margin: 0 0 0.6rem 0; color: #F8FAFC; font-size: 1.2rem; font-weight: 700;">💡 데이터 자산 가이드</h4>
-                <p style="margin: 0; color: #94A3B8; font-size: 0.95rem; line-height: 1.6;">
-                    정교한 분석의 시작은 정확한 데이터 입력입니다.<br>
-                    <span style="color: #3B82F6; font-weight: 600;">데이터 성숙도</span>를 높여 매장 운영의 통찰력을 확보하세요.
-                </p>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600;">MATURITY LEVEL</div>
-                <div style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">{score}<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
-            </div>
-        </div>
-        
-        <!-- 물결 애니메이션이 포함된 프로그레스 바 -->
-        <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 12px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
-            <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden;">
-                <!-- 리퀴드 웨이브 효과 (CSS 전용) -->
-                <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave 2s infinite linear;"></div>
-            </div>
-        </div>
-        
-        <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background: { '#10B981' if score == 100 else '#3B82F6' }; animation: pulse 2s infinite;"></div>
-            <p style="margin: 0; color: { '#10B981' if score == 100 else '#3B82F6' }; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em;">
-                {f"PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."}
+    # [1] 통합 가이드 카드 (들여쓰기 에러 해결 버전)
+    status_color = "#10B981" if score == 100 else "#3B82F6"
+    status_msg = "PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."
+    
+    guide_html = f"""
+<div class="animate-in" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%); animation: shimmer 10s infinite linear;"></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: relative;">
+        <div>
+            <h4 style="margin: 0 0 0.6rem 0; color: #F8FAFC; font-size: 1.2rem; font-weight: 700;">💡 데이터 자산 가이드</h4>
+            <p style="margin: 0; color: #94A3B8; font-size: 0.95rem; line-height: 1.6;">
+                정교한 분석의 시작은 정확한 데이터 입력입니다.<br>
+                <span style="color: #3B82F6; font-weight: 600;">데이터 성숙도</span>를 높여 매장 운영의 통찰력을 확보하세요.
             </p>
         </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600;">MATURITY LEVEL</div>
+            <div style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">{score}<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
+        </div>
     </div>
-    """, unsafe_allow_html=True)
+    <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 12px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
+        <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave 2s infinite linear;"></div>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: {status_color}; animation: pulse 2s infinite;"></div>
+        <p style="margin: 0; color: {status_color}; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em;">{status_msg}</p>
+    </div>
+</div>"""
+    st.markdown(guide_html, unsafe_allow_html=True)
 
     # [2] 관제 보드 (시퀀셜 등장 적용)
     st.markdown("### 📊 실시간 입력 현황")
