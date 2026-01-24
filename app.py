@@ -1659,6 +1659,30 @@ with st.sidebar:
                         if btn:
                             st.session_state.current_page = key
                             st.rerun()
+        # 설계 카테고리는 특별 처리: 설계 허브 항상 노출 + expander로 세부설계선택
+        elif category_name == "🧠 설계":
+            st.sidebar.markdown(f"""
+            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                    {category_name}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            _render_menu_buttons(items, st.sidebar)
+            design_sub_items = menu_categories.get("🧠 설계 (세부설계선택)", [])
+            if design_sub_items:
+                with st.sidebar.expander("세부설계선택", expanded=False):
+                    for idx, (label, key) in enumerate(design_sub_items):
+                        is_selected = selected_page_key == key
+                        btn = st.button(
+                            label,
+                            key=f"design_sub_btn_{label}_{idx}",
+                            use_container_width=True,
+                            type="primary" if is_selected else "secondary",
+                        )
+                        if btn:
+                            st.session_state.current_page = key
+                            st.rerun()
         else:
             # 다른 카테고리는 일반 렌더링
             st.sidebar.markdown(f"""
