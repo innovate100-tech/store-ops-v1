@@ -195,13 +195,6 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
-    [data-testid="stIconMaterial"] {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 28px; height: 28px; border-radius: 999px; background-color: #667eea;
-        font-size: 0 !important; color: transparent !important;
-    }
-    [data-testid="stIconMaterial"]::before { content: '😊'; font-size: 18px; color: #ffffff; }
-    
     /* 사이드바 항상 표시 보장 및 접기 방지 - 모든 가능한 선택자 사용 */
     section[data-testid="stSidebar"],
     [data-testid="stSidebar"],
