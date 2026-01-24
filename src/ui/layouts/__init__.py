@@ -7,6 +7,7 @@ from src.ui.layouts.input_layouts import (
     render_guide_box,
     render_action_bar,
     render_summary_strip,
+    render_mini_progress_panel,
 )
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "render_guide_box",
     "render_action_bar",
     "render_summary_strip",
+    "render_mini_progress_panel",
 ]

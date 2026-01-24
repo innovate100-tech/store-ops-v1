@@ -97,32 +97,36 @@ def render_daily_input_hub():
     else:
         status_badge = {"text": "📝 미입력", "type": "neutral"}
     
-    # Summary Strip 항목
+    # Summary Strip 항목 (요약+경고용: 날짜만 간단히)
     summary_items = [
         {
-            "label": "날짜",
+            "label": "입력 날짜",
             "value": f"{selected_date.strftime('%Y-%m-%d')} ({['월', '화', '수', '목', '금', '토', '일'][selected_date.weekday()]})",
             "badge": None
+        }
+    ]
+    
+    # Mini Progress Panel 항목 (4항목 완료 여부)
+    mini_progress_items = [
+        {
+            "label": "💰 매출",
+            "status": "success" if has_sales else "none",
+            "value": f"{best_total_sales:,.0f}원" if best_total_sales else "—"
         },
         {
-            "label": "진행률",
-            "value": f"{completed_items}/{total_items}",
-            "badge": "success" if has_close else "warning" if progress_rate > 0 else None
+            "label": "👥 네이버 방문자",
+            "status": "success" if has_visitors else "none",
+            "value": f"{visitors_best}명" if visitors_best else "—"
         },
         {
-            "label": "매출",
-            "value": f"{best_total_sales:,.0f}원" if best_total_sales else "—",
-            "badge": "success" if has_sales else None
+            "label": "📦 판매량",
+            "status": "success" if has_sales_items else "pending" if (has_sales or has_visitors) else "none",
+            "value": f"{sales_items_count}개 메뉴" if has_sales_items else "—"
         },
         {
-            "label": "방문자",
-            "value": f"{visitors_best}명" if visitors_best else "—",
-            "badge": "success" if has_visitors else None
-        },
-        {
-            "label": "판매량",
-            "value": f"{sales_items_count}개" if has_sales_items else "—",
-            "badge": "success" if has_sales_items else "warning" if (has_sales or has_visitors) else None
+            "label": "📝 메모",
+            "status": "success" if has_memo else "none",
+            "value": "입력됨" if has_memo else "—"
         }
     ]
     
@@ -571,9 +575,11 @@ def render_daily_input_hub():
         icon="📝",
         status_badge=status_badge,
         guide_kind="G1",
+        guide_conclusion=None,  # 기본값 사용
         guide_bullets=None,  # 기본값 사용
-        guide_warnings=None,
+        guide_next_action=None,  # 기본값 사용
         summary_items=summary_items,
+        mini_progress_items=mini_progress_items,
         action_primary={
             "label": "📋 마감하기",
             "key": "daily_input_close",

@@ -218,6 +218,61 @@ INPUT_LAYOUT_CSS = """
     margin-bottom: 1.5rem;
 }
 
+/* Mini Progress Panel 스타일 */
+.ps-mini-progress-panel {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ps-mini-progress-item {
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ps-mini-progress-label {
+    font-size: 0.85rem;
+    color: rgba(226, 232, 240, 0.7);
+    font-weight: 500;
+}
+
+.ps-mini-progress-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ps-mini-progress-icon {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.ps-mini-progress-icon-success {
+    color: #4ade80;
+}
+
+.ps-mini-progress-icon-pending {
+    color: #fbbf24;
+}
+
+.ps-mini-progress-icon-none {
+    color: #94a3b8;
+}
+
+.ps-mini-progress-value {
+    font-size: 0.9rem;
+    color: #E2E8F0;
+    font-weight: 500;
+}
+
 /* CONSOLE형 레이아웃 스타일 */
 .ps-console-dashboard {
     margin-bottom: 2rem;
@@ -252,57 +307,62 @@ INPUT_LAYOUT_CSS = """
 
 
 # ============================================
-# GuideBox 템플릿
+# GuideBox 템플릿 (3줄 규격: 결론 1줄 + bullet 2개 + 다음 행동 1줄)
 # ============================================
 
 def render_guide_box(
     kind: str = "G1",
-    title: Optional[str] = None,
+    conclusion: Optional[str] = None,
     bullets: Optional[List[str]] = None,
-    warnings: Optional[List[str]] = None
+    next_action: Optional[str] = None,
+    inject_css: bool = True
 ):
     """
-    GuideBox 렌더링 (G1/G2/G3 템플릿)
+    GuideBox 렌더링 (G1/G2/G3 템플릿) - 3줄 규격
     
     Args:
         kind: "G1" (일일 입력), "G2" (보정 도구), "G3" (월간)
-        title: 커스텀 제목 (None이면 기본 제목 사용)
-        bullets: 안내 항목 리스트
-        warnings: 경고 메시지 리스트
+        conclusion: 결론 1줄 (None이면 기본값 사용)
+        bullets: bullet 2개 리스트 (None이면 기본값 사용, 최대 2개만 표시)
+        next_action: 다음 행동 1줄 (None이면 기본값 사용)
+        inject_css: CSS 주입 여부 (기본값: True, render_form_layout 내부에서는 False)
     """
-    # CSS 주입
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-    
-    # 기본 제목
-    default_titles = {
-        "G1": "💡 일일 입력 가이드",
-        "G2": "⚠️ 보정 도구 안내",
-        "G3": "📅 월간 입력 가이드"
+    # 기본값
+    default_data = {
+        "G1": {
+            "conclusion": "오늘 입력할 내용을 단계별로 입력하세요",
+            "bullets": [
+                "임시 저장: 마감 전 수정 가능한 임시 기록",
+                "마감하기: 최종 마감 저장 (이후 보정만 가능)"
+            ],
+            "next_action": "매출이 있어야 분석이 시작됩니다"
+        },
+        "G2": {
+            "conclusion": "이 페이지는 과거 데이터 입력 및 보정용입니다",
+            "bullets": [
+                "일반적인 입력은 '일일 입력(통합)' 페이지를 사용하세요",
+                "보정 시 충돌 감지 및 경고가 표시됩니다"
+            ],
+            "next_action": "마감 완료된 날짜는 공식 반영됩니다"
+        },
+        "G3": {
+            "conclusion": "월 단위로 목표와 실제를 입력합니다",
+            "bullets": [
+                "목표 → 실제 → 성적표 순서로 진행됩니다",
+                "확정 후에는 readonly 모드로 전환됩니다"
+            ],
+            "next_action": "템플릿 저장/불러오기로 반복 입력을 최소화하세요"
+        }
     }
-    display_title = title or default_titles.get(kind, "💡 안내")
     
-    # 기본 bullets
-    default_bullets = {
-        "G1": [
-            "오늘 입력할 내용을 단계별로 입력하세요",
-            "임시 저장: 마감 전 수정 가능한 임시 기록",
-            "마감하기: 최종 마감 저장 (이후 보정만 가능)",
-            "매출이 있어야 분석이 시작됩니다"
-        ],
-        "G2": [
-            "이 페이지는 과거 데이터 입력 및 보정용입니다",
-            "일반적인 입력은 '일일 입력(통합)' 페이지를 사용하세요",
-            "보정 시 충돌 감지 및 경고가 표시됩니다",
-            "마감 완료된 날짜는 공식 반영됩니다"
-        ],
-        "G3": [
-            "월 단위로 목표와 실제를 입력합니다",
-            "목표 → 실제 → 성적표 순서로 진행됩니다",
-            "확정 후에는 readonly 모드로 전환됩니다",
-            "템플릿 저장/불러오기로 반복 입력을 최소화하세요"
-        ]
-    }
-    display_bullets = bullets or default_bullets.get(kind, [])
+    data = default_data.get(kind, default_data["G1"])
+    display_conclusion = conclusion or data["conclusion"]
+    display_bullets = bullets or data["bullets"]
+    display_next_action = next_action or data["next_action"]
+    
+    # bullet은 최대 2개만 표시
+    if len(display_bullets) > 2:
+        display_bullets = display_bullets[:2]
     
     # 클래스명
     box_class = f"ps-guide-box ps-guide-box-{kind.lower()}"
@@ -315,17 +375,13 @@ def render_guide_box(
             bullets_html += f"<li>{bullet}</li>"
         bullets_html += "</ul>"
     
-    warnings_html = ""
-    if warnings:
-        for warning in warnings:
-            warnings_html += f'<div class="ps-guide-box-warning">⚠️ {warning}</div>'
-    
     html = f"""
     <div class="{box_class}">
-        <div class="ps-guide-box-title">{display_title}</div>
+        <div class="ps-guide-box-title">💡 가이드</div>
         <div class="ps-guide-box-content">
+            <div style="font-weight: 600; margin-bottom: 0.5rem;">{display_conclusion}</div>
             {bullets_html}
-            {warnings_html}
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: rgba(226, 232, 240, 0.8);">→ {display_next_action}</div>
         </div>
     </div>
     """
@@ -383,13 +439,11 @@ def render_summary_strip(
     items: List[Dict[str, Any]]
 ):
     """
-    Summary Strip 렌더링 (날짜/월 + 핵심 숫자 + 배지)
+    Summary Strip 렌더링 (요약+경고용: 날짜/월 + 핵심 숫자 + 배지)
     
     Args:
         items: [{"label": "...", "value": "...", "badge": "success|warning|error|None"}, ...]
     """
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-    
     items_html = ""
     for item in items:
         label = item.get("label", "")
@@ -411,6 +465,55 @@ def render_summary_strip(
     
     html = f"""
     <div class="ps-summary-strip">
+        {items_html}
+    </div>
+    """
+    
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ============================================
+# Mini Progress Panel 컴포넌트
+# ============================================
+
+def render_mini_progress_panel(
+    items: List[Dict[str, Any]]
+):
+    """
+    Mini Progress Panel 렌더링 (4항목 완료 여부 표시)
+    
+    Args:
+        items: [{"label": "...", "status": "success|pending|none", "value": "..."}, ...]
+    """
+    items_html = ""
+    for item in items:
+        label = item.get("label", "")
+        status = item.get("status", "none")  # "success" | "pending" | "none"
+        value = item.get("value", "")
+        
+        # 아이콘 선택
+        if status == "success":
+            icon = "✓"
+            icon_class = "ps-mini-progress-icon-success"
+        elif status == "pending":
+            icon = "⚠"
+            icon_class = "ps-mini-progress-icon-pending"
+        else:
+            icon = "—"
+            icon_class = "ps-mini-progress-icon-none"
+        
+        items_html += f"""
+        <div class="ps-mini-progress-item">
+            <div class="ps-mini-progress-label">{label}</div>
+            <div class="ps-mini-progress-status">
+                <span class="ps-mini-progress-icon {icon_class}">{icon}</span>
+                <span class="ps-mini-progress-value">{value}</span>
+            </div>
+        </div>
+        """
+    
+    html = f"""
+    <div class="ps-mini-progress-panel">
         {items_html}
     </div>
     """
@@ -469,25 +572,21 @@ def render_form_layout(
     """
     st.markdown(header_html, unsafe_allow_html=True)
     
-    # GuideBox
+    # GuideBox (CSS는 이미 위에서 주입했으므로 inject_css=False)
     if guide_kind:
         render_guide_box(
             kind=guide_kind,
+            conclusion=guide_conclusion,
             bullets=guide_bullets,
-            warnings=guide_warnings
+            next_action=guide_next_action,
+            inject_css=False
         )
     
-    # Summary Strip
+    # Summary Strip (요약+경고용)
     if summary_items:
         render_summary_strip(summary_items)
     
-    # Main Card
-    if main_content:
-        st.markdown('<div class="ps-main-card">', unsafe_allow_html=True)
-        main_content()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # ActionBar
+    # ActionBar (폼 상단 고정 위치)
     if action_primary:
         render_action_bar(
             primary_label=action_primary.get("label", "저장"),
@@ -495,6 +594,16 @@ def render_form_layout(
             primary_action=action_primary.get("action", lambda: None),
             secondary_actions=action_secondary
         )
+    
+    # Mini Progress Panel (Main Card 위에 표시)
+    if mini_progress_items:
+        render_mini_progress_panel(mini_progress_items)
+    
+    # Main Card
+    if main_content:
+        st.markdown('<div class="ps-main-card">', unsafe_allow_html=True)
+        main_content()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ============================================
