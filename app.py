@@ -76,6 +76,10 @@ from src.ui_helpers import render_page_header, render_section_divider
 # Theme and CSS
 st.markdown("""
 <style>
+    /* @import 규칙은 반드시 최상단에 위치해야 함 */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+    
     /* 디자인 고도화: 컬러 시스템 및 애니메이션 */
     :root {
         --base-bg: #0F172A;
@@ -118,9 +122,6 @@ st.markdown("""
     .delay-2 { animation-delay: 0.2s; }
     .delay-3 { animation-delay: 0.3s; }
     .delay-4 { animation-delay: 0.4s; }
-
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
-    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
     
     /* Material Icons 폰트 preload로 빠른 로드 보장 */
     @font-face {
