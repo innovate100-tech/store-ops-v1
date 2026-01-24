@@ -544,20 +544,27 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                 # 액션 버튼
                 action_col1, action_col2, action_col3, action_col4 = st.columns(4)
                 with action_col1:
-                    if st.button("✏️", key=f"ingredient_input_edit_{ingredient_name}", help="수정"):
+                    edit_key = f"ingredient_input_btn_edit_{ingredient_name}"
+                    if st.button("✏️", key=edit_key, help="수정"):
                         st.session_state[f"ingredient_input_edit_{ingredient_name}"] = True
+                        st.rerun()
                 with action_col2:
-                    if st.button("🗑️", key=f"ingredient_input_delete_{ingredient_name}", help="삭제"):
+                    delete_key = f"ingredient_input_btn_delete_{ingredient_name}"
+                    if st.button("🗑️", key=delete_key, help="삭제"):
                         st.session_state[f"ingredient_input_delete_{ingredient_name}"] = True
+                        st.rerun()
                 with action_col3:
                     if in_recipe:
-                        if st.button("📋", key=f"ingredient_input_recipe_{ingredient_name}", help="레시피 보기"):
+                        recipe_key = f"ingredient_input_btn_recipe_{ingredient_name}"
+                        if st.button("📋", key=recipe_key, help="레시피 보기"):
                             st.session_state[f"ingredient_input_view_recipe_{ingredient_name}"] = True
+                            st.rerun()
                     else:
                         st.markdown("—")
                 with action_col4:
                     if needs_order_flag:
-                        if st.button("🛒", key=f"ingredient_input_order_{ingredient_name}", help="발주 관리", type="primary"):
+                        order_key = f"ingredient_input_btn_order_{ingredient_name}"
+                        if st.button("🛒", key=order_key, help="발주 관리", type="primary"):
                             st.session_state["current_page"] = "발주 관리"
                             st.session_state["selected_ingredient"] = ingredient_name
                             st.rerun()
