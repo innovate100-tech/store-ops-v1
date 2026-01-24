@@ -10,8 +10,8 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import load_csv, save_targets
 from src.auth import get_current_store_id
 
-# 공통 설정 적용
-bootstrap(page_title="Target Sales Structure")
+# 공통 설정 제거 (app.py에서 이미 실행됨)
+# bootstrap(page_title="Target Sales Structure")
 
 
 def render_target_sales_structure():
@@ -31,8 +31,14 @@ def render_target_sales_structure():
     current_month = current_month_kst()
     
     # 비용구조 페이지에서 사용한 연/월을 우선 사용하고, 없으면 현재 연/월 사용
-    selected_year = int(st.session_state.get("expense_year", current_year))
-    selected_month = int(st.session_state.get("expense_month", current_month))
+    selected_year = st.session_state.get("expense_year")
+    if selected_year is None: selected_year = current_year
+    
+    selected_month = st.session_state.get("expense_month")
+    if selected_month is None: selected_month = current_month
+    
+    selected_year = int(selected_year)
+    selected_month = int(selected_month)
     
     # 세션 상태 업데이트
     st.session_state["expense_year"] = selected_year

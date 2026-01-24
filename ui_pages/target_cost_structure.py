@@ -16,11 +16,11 @@ from ui_pages.design_lab.design_lab_frame import (
     render_school_cards,
     render_design_tools_container,
 )
-from ui_pages.design_lab.design_lab_coach_data import get_revenue_structure_design_coach_data
+# from ui_pages.design_lab.design_lab_coach_data import get_revenue_structure_design_coach_data
 import logging
 
-# 공통 설정 적용
-bootstrap(page_title="Target Cost Structure")
+# 공통 설정 제거 (app.py에서 이미 실행됨)
+# bootstrap(page_title="Target Cost Structure")
 
 
 def render_target_cost_structure():
@@ -28,16 +28,7 @@ def render_target_cost_structure():
     # 성능 측정 시작
     t0 = time.perf_counter()
     
-    # 비용구조 페이지 전용 헤더 (화이트 모드에서도 항상 흰색 텍스트로 표시)
-    header_color = "#ffffff"
-    page_title = "목표 비용 구조(입력)"
-    st.markdown(f"""
-    <div style="margin: 0 0 1.0rem 0;">
-        <h2 style="color: {header_color}; font-weight: 700; margin: 0;">
-            💳 {page_title}
-        </h2>
-    </div>
-    """, unsafe_allow_html=True)
+    render_page_header("목표 비용 구조(입력)", "💳")
     
     # 기존 기능만 유지 (공통 프레임 제거)
     store_id = get_current_store_id()
@@ -374,11 +365,9 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         # 섹션 헤더와 총액 표시
         col1, col2 = st.columns([3, 1])
         with col1:
-            # 화이트 테마일 때도 비용구조 카테고리 텍스트는 흰색으로 보이도록 색상 분기
-            header_color = "#ffffff" if st.session_state.get("theme", "light") == "light" else "#ffffff"
             st.markdown(f"""
             <div style="margin: 1.5rem 0 0.5rem 0;">
-                <h3 style="color: {header_color}; font-weight: 600; margin: 0;">
+                <h3 style="color: var(--ps-text, #101417); font-weight: 600; margin: 0;">
                     {info['icon']} {category}
                 </h3>
             </div>

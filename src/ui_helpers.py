@@ -11,13 +11,12 @@ logger = logging.getLogger(__name__)
 
 def render_page_header(title, icon="📋"):
     """페이지 헤더 렌더링 (개선된 디자인)
-
-    화이트/다크 테마 상관없이 제목 텍스트는 항상 흰색으로 표시.
-    배경은 각 페이지의 레이아웃/CSS에서 제어하도록 분리한다.
+    테마에 따라 텍스트 색상이 자동 조절되도록 수정.
     """
+    # 전역 UI 토큰(--ps-text) 사용 시도, 실패 시 기본값 적용
     st.markdown(f"""
     <div style="margin-bottom: 2rem;">
-        <h2 style="color: #ffffff; border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+        <h2 style="color: var(--ps-text, #101417); border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 1rem;">
             {icon} {title}
         </h2>
     </div>
@@ -41,10 +40,12 @@ def render_page_header(title, icon="📋"):
 
 
 def render_section_header(title, icon="📋"):
-    """섹션 헤더 렌더링 (개선된 디자인)"""
+    """섹션 헤더 렌더링 (개선된 디자인)
+    테마에 따라 텍스트 색상이 자동 조절되도록 수정.
+    """
     st.markdown(f"""
     <div style="margin: 2rem 0 1rem 0;">
-        <h3 style="color: #2c3e50; font-weight: 600; margin: 0;">
+        <h3 style="color: var(--ps-text, #2c3e50); font-weight: 600; margin: 0;">
             {icon} {title}
         </h3>
     </div>
