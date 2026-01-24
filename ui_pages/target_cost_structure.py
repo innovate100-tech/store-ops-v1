@@ -28,7 +28,7 @@ def render_target_cost_structure():
     # 성능 측정 시작
     t0 = time.perf_counter()
     
-    render_page_header("목표 비용 구조(입력)", "💳")
+    render_page_header("비용 목표 입력", "💳")
     
     # 기존 기능만 유지 (공통 프레임 제거)
     store_id = get_current_store_id()

@@ -14,7 +14,7 @@ bootstrap(page_title="Sales Volume Entry")
 
 def render_sales_volume_entry():
     """판매량 등록 페이지 렌더링"""
-    render_page_header("🛠 판매량 보정 / 과거 입력", "📦")
+    render_page_header("판매량 입력", "📦")
     
     # STEP 2: 보정 도구 안내
     st.markdown("""

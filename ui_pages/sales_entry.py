@@ -25,7 +25,7 @@ if not check_login():
 
 def render_sales_entry():
     """매출 등록 페이지 렌더링"""
-    render_page_header("🛠 매출 보정 / 과거 매출 입력", "💰")
+    render_page_header("매출/방문자 입력", "💰")
     
     # STEP 3: 보정/이관 성격 안내
     st.markdown("""

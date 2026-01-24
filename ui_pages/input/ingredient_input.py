@@ -25,7 +25,7 @@ UNIT_OPTIONS = ["g", "ml", "ea", "개", "kg", "L", "박스", "봉지"]
 
 def render_ingredient_input_page():
     """사용 재료 입력 페이지 렌더링 (5-Zone 구조)"""
-    render_page_header("🧺 사용 재료 입력", "🧺")
+    render_page_header("재료 입력", "🧺")
     
     store_id = get_current_store_id()
     if not store_id:

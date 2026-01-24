@@ -36,7 +36,7 @@ AUTO_SAVE_DELAY = 2.0  # 자동 저장 지연 시간 (초)
 
 def render_health_check_page():
     """매장 체크리스트 페이지 렌더링 (리디자인)"""
-    render_page_header("매장 체크리스트", "📋")
+    render_page_header("QSC 입력", "📋")
     
     store_id = get_current_store_id()
     if not store_id:

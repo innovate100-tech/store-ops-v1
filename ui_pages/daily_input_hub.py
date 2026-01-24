@@ -33,7 +33,7 @@ if not check_login():
 
 def render_daily_input_hub():
     """일일 마감 페이지 렌더링"""
-    render_page_header("일일 마감", "📝")
+    render_page_header("오늘 마감 입력", "📝")
     
     store_id = get_current_store_id()
     if not store_id:

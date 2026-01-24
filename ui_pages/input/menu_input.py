@@ -30,7 +30,7 @@ ROLE_TAGS = ["미끼", "볼륨", "마진"]
 
 def render_menu_input_page():
     """판매 메뉴 입력 페이지 렌더링 (5-Zone 구조)"""
-    render_page_header("📘 판매 메뉴 입력", "📘")
+    render_page_header("메뉴 입력", "📘")
     
     store_id = get_current_store_id()
     if not store_id:

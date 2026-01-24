@@ -10,7 +10,7 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 
 # Phase G: 로깅 설정
 logger = logging.getLogger(__name__)
-from src.ui_helpers import render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
+from src.ui_helpers import render_page_header, render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -1493,13 +1493,7 @@ def render_settlement_actual():
         user_id, store_id = require_auth_and_store()
         
         # 페이지 제목
-        st.markdown("""
-        <div style="margin: 0 0 1.0rem 0;">
-            <h2 style="color: #ffffff; font-weight: 700; margin: 0;">
-                🧾 실제정산
-            </h2>
-        </div>
-        """, unsafe_allow_html=True)
+        render_page_header("월간 정산 입력", "📅")
         
         # PHASE 7-4: PDF 성적표 다운로드 버튼 (임시로 여기 배치, 나중에 year/month 확인 후 이동 가능)
         # 일단 여기서는 year/month를 아직 모르므로, _render_header_section 이후에 추가

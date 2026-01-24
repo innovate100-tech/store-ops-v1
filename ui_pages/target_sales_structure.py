@@ -19,7 +19,7 @@ def render_target_sales_structure():
     # 성능 측정 시작
     t0 = time.perf_counter()
     
-    page_title = "목표 매출 구조 입력"
+    page_title = "매출 목표 입력"
     render_page_header(page_title, "📈")
     
     store_id = get_current_store_id()

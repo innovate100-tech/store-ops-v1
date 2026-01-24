@@ -135,8 +135,8 @@ def _hub_asset_card(title: str, value: str, icon: str, delay_class: str = ""):
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v3():
-    """입력 허브 페이지 렌더링 (Stage 6: 동적 경험 고도화 버전)"""
-    render_page_header("✍ 입력 허브", "✍")
+    """데이터 입력 센터 페이지 렌더링 (Stage 6: 동적 경험 고도화 버전)"""
+    render_page_header("✍ 데이터 입력 센터", "✍")
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
@@ -202,7 +202,8 @@ def render_input_hub_v3():
     st.markdown(guide_html, unsafe_allow_html=True)
 
     # [2] 관제 보드 (시퀀셜 등장 적용)
-    st.markdown("### 📊 실시간 입력 현황")
+    st.markdown("### 📊 오늘의 입력 현황")
+    st.caption("오늘 입력해야 할 항목들의 현황을 확인하세요.")
     c1, c2, c3 = st.columns(3)
     r1 = next((r for r in recs if r["priority"] == 1), {"status": "pending", "summary": "확인 불가"})
     r4 = next((r for r in recs if r["priority"] == 4), {"status": "pending", "summary": "확인 불가"})
@@ -215,8 +216,8 @@ def render_input_hub_v3():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # [3] 자산 구축 현황 (시퀀셜 등장 적용)
-    st.markdown("### 🏗️ 가게 데이터 기초 체력")
-    st.caption("매장의 '디지털 자산'입니다. 누락된 항목을 채워 분석 정밀도를 높이세요.")
+    st.markdown("### 🏗️ 입력 데이터 완성도")
+    st.caption("입력된 데이터의 완성도를 확인하세요. 누락된 항목을 입력하여 분석 정밀도를 높이세요.")
     a1, a2, a3, a4 = st.columns(4)
     with a1: 
         _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", "delay-1")
@@ -239,63 +240,63 @@ def render_input_hub_v3():
     st.markdown("<br><br>", unsafe_allow_html=True)
 
     # [4] 사용 주기별 워크플로우
-    st.markdown("#### ⚡ 매일 · 매주 · 매월 루틴")
-    st.caption("정기적으로 기록해야 하는 핵심 데이터입니다.")
+    st.markdown("#### ⚡ 정기 입력 작업")
+    st.caption("정기적으로 입력해야 하는 핵심 데이터입니다.")
     col1, col2, col3 = st.columns(3)
     with col1:
         btn_type = "primary" if r1["status"] != "completed" else "secondary"
         if st.button("📝 오늘 마감 입력", use_container_width=True, type=btn_type, key="btn_daily"):
             st.session_state.current_page = "일일 입력(통합)"; st.rerun()
     with col2:
-        if st.button("🩺 QSC 점검 (격주)", use_container_width=True, key="btn_qsc"):
+        if st.button("🩺 QSC 입력", use_container_width=True, key="btn_qsc"):
             st.session_state.current_page = "건강검진 실시"; st.rerun()
     with col3:
-        if st.button("📅 월간 실제 정산", use_container_width=True, key="btn_settle"):
+        if st.button("📅 월간 정산 입력", use_container_width=True, key="btn_settle"):
             st.session_state.current_page = "실제정산"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### 🎯 목표 및 분석 기준")
-    st.caption("비교 기준을 설정합니다. 누락 시 파란색으로 강조됩니다.")
+    st.markdown("#### 🎯 목표 입력")
+    st.caption("분석 기준이 될 목표를 입력합니다. 누락 시 파란색으로 강조됩니다.")
     s1, s2 = st.columns(2)
     with s1:
         btn_type = "primary" if not assets.get('has_target') else "secondary"
-        label = "🎯 매출 목표 설정" + (" (필수)" if not assets.get('has_target') else "")
+        label = "🎯 매출 목표 입력" + (" (필수)" if not assets.get('has_target') else "")
         if st.button(label, use_container_width=True, type=btn_type, key="btn_target_sales"):
             st.session_state.current_page = "목표 매출구조"; st.rerun()
     with s2:
-        if st.button("🧾 비용 목표 구조 설정", use_container_width=True, key="btn_target_cost"):
+        if st.button("🧾 비용 목표 입력", use_container_width=True, key="btn_target_cost"):
             st.session_state.current_page = "목표 비용구조"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### 🛠️ 가게 정의 (기초 뼈대)")
-    st.caption("메뉴나 재료 변경 시 수정합니다. 누락 발견 시 파란색으로 강조됩니다.")
+    st.markdown("#### 🛠️ 기초 데이터 입력")
+    st.caption("메뉴, 재료 등 기초 데이터를 입력합니다. 누락 발견 시 파란색으로 강조됩니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         btn_type = "primary" if assets.get('missing_price', 0) > 0 else "secondary"
-        label = "📘 메뉴 관리" + (f" ({assets.get('missing_price')}건)" if assets.get('missing_price', 0) > 0 else "")
+        label = "📘 메뉴 입력" + (f" ({assets.get('missing_price')}건)" if assets.get('missing_price', 0) > 0 else "")
         if st.button(label, use_container_width=True, type=btn_type, key="btn_menu"):
             st.session_state.current_page = "메뉴 입력"; st.rerun()
     with b2:
         btn_type = "primary" if assets.get('missing_cost', 0) > 0 else "secondary"
-        label = "🧺 재료 관리" + (f" ({assets.get('missing_cost')}건)" if assets.get('missing_cost', 0) > 0 else "")
+        label = "🧺 재료 입력" + (f" ({assets.get('missing_cost')}건)" if assets.get('missing_cost', 0) > 0 else "")
         if st.button(label, use_container_width=True, type=btn_type, key="btn_ing"):
             st.session_state.current_page = "재료 입력"; st.rerun()
     with b3:
         btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "secondary"
-        if st.button("🍳 레시피 관리", use_container_width=True, type=btn_type, key="btn_recipe"):
+        if st.button("🍳 레시피 입력", use_container_width=True, type=btn_type, key="btn_recipe"):
             st.session_state.current_page = "레시피 등록"; st.rerun()
     with b4:
-        if st.button("📦 재고 관리", use_container_width=True, key="btn_inv"):
+        if st.button("📦 재고 입력", use_container_width=True, key="btn_inv"):
             st.session_state.current_page = "재고 입력"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("⚙️ 데이터 보정 도구 (과거 일괄 수정)"):
+    with st.expander("⚙️ 과거 데이터 입력"):
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
+            if st.button("🧮 매출/방문자 입력", use_container_width=True, key="btn_bulk_sales"):
                 st.session_state.current_page = "매출 등록"; st.rerun()
         with c2:
-            if st.button("📦 판매량 일괄 등록", use_container_width=True, key="btn_bulk_qty"):
+            if st.button("📦 판매량 입력", use_container_width=True, key="btn_bulk_qty"):
                 st.session_state.current_page = "판매량 등록"; st.rerun()
 
     st.markdown("---")
