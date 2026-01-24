@@ -6,13 +6,13 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import logging
-from src.ui_helpers import render_section_divider, handle_data_error
+from src.ui_helpers import handle_data_error
 from src.storage_supabase import save_sales, save_visitor, save_sales_entry, get_day_record_status
 from src.ui import render_sales_input, render_sales_batch_input, render_visitor_input, render_visitor_batch_input
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
 from src.ui.layouts.input_layouts import render_form_layout
-from src.ui.components.form_kit import inject_form_kit_css, ps_notice
+from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_notice
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +206,11 @@ def render_sales_entry():
         date = st.session_state.get("visitor_date")
         visitors = st.session_state.get("visitor_count", 0)
         
+        if not date:
+            st.session_state["sales_entry_success_message"] = "❌ 날짜를 선택해주세요."
+            st.session_state["sales_entry_message_type"] = "error"
+            return
+        
         if visitors <= 0:
             st.session_state["sales_entry_success_message"] = "❌ 네이버 스마트플레이스 방문자수는 0보다 큰 값이어야 합니다."
             st.session_state["sales_entry_message_type"] = "error"
@@ -364,10 +369,9 @@ def render_sales_entry():
                     if "sales_entry_message_type" in st.session_state:
                         del st.session_state["sales_entry_message_type"]
                     # Phase 0 STEP 3: 플래그 삭제만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
-            
-            render_section_divider()
         
         # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
+        ps_section("카테고리 선택", icon="📋")
         category = st.radio(
             "카테고리",
             ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
@@ -375,11 +379,9 @@ def render_sales_entry():
             key="sales_entry_sales_category"
         )
         
-        render_section_divider()
-        
         # ========== 매출 입력 섹션 ==========
         if category == "💰 매출":
-            # 입력 모드 선택 (단일 / 일괄)
+            ps_section("입력 모드 선택", icon="⚙️")
             input_mode = st.radio(
                 "입력 모드",
                 ["단일 입력", "일괄 입력 (여러 날짜)"],
@@ -387,12 +389,11 @@ def render_sales_entry():
                 key="sales_input_mode"
             )
             
-            render_section_divider()
-            
             if input_mode == "단일 입력":
+                ps_section("매출 입력", icon="💰")
                 # 단일 입력 폼 (st.form으로 감싸기)
                 with st.form(key="sales_entry_single_form", clear_on_submit=False):
-                    # 매출 입력
+                    # 매출 입력 (render_sales_input은 내부에서 st.subheader를 호출하므로 제거 필요 없음)
                     date, store, card_sales, cash_sales, total_sales = render_sales_input()
                     
                     # 날짜 선택 시 상태바 표시 (form 내부에서 처리)
@@ -462,8 +463,21 @@ def render_sales_entry():
                         key="sales_entry_visitors"
                     )
                     
-                    # 폼 제출 버튼 (하단 action bar로 이동하므로 여기서는 제거)
-                    # 저장은 action bar에서 처리
+                    # Streamlit form 요구사항: form_submit_button 필요
+                    # 실제 저장은 action bar에서 처리하므로, 여기서는 form validation만 수행
+                    # CSS로 버튼을 숨김 처리
+                    st.markdown("""
+                    <style>
+                    div[data-testid="stFormSubmitButton"] button {
+                        display: none !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    submit_clicked = st.form_submit_button("저장", use_container_width=True)
+                    if submit_clicked:
+                        # form submit은 action bar의 저장 로직을 트리거하지 않음
+                        # 단순히 form validation을 위해 존재
+                        pass
                 
                 # 저장 버튼 텍스트 결정 (action bar용) - form 밖에서 status 재확인
                 store_id = get_current_store_id()
@@ -488,13 +502,11 @@ def render_sales_entry():
             
             else:
                 # 일괄 입력 폼
+                ps_section("매출 일괄 입력", icon="📊")
                 sales_data = render_sales_batch_input()
                 
                 if sales_data:
-                    render_section_divider()
-                    
-                    # 입력 요약 표시
-                    st.write("**📊 입력 요약**")
+                    ps_section("입력 요약", icon="📋")
                     summary_df = pd.DataFrame(
                         [(d.strftime('%Y-%m-%d'), s, f"{card:,}원", f"{cash:,}원", f"{total:,}원") 
                          for d, s, card, cash, total in sales_data],
@@ -514,7 +526,7 @@ def render_sales_entry():
         
         # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
         else:
-            # 입력 모드 선택 (단일 / 일괄)
+            ps_section("입력 모드 선택", icon="⚙️")
             input_mode = st.radio(
                 "입력 모드",
                 ["단일 입력", "일괄 입력 (여러 날짜)"],
@@ -522,27 +534,38 @@ def render_sales_entry():
                 key="sales_entry_visitor_input_mode"
             )
             
-            render_section_divider()
-            
             if input_mode == "단일 입력":
+                ps_section("방문자 입력", icon="👥")
                 # 단일 입력 폼 (st.form으로 감싸기)
                 with st.form(key="visitor_entry_single_form", clear_on_submit=False):
                     date, visitors = render_visitor_input()
-                    # 폼 제출 버튼은 action bar로 이동
+                    # Streamlit form 요구사항: form_submit_button 필요
+                    # 실제 저장은 action bar에서 처리하므로, 여기서는 form validation만 수행
+                    # CSS로 버튼을 숨김 처리
+                    st.markdown("""
+                    <style>
+                    div[data-testid="stFormSubmitButton"] button {
+                        display: none !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    submit_clicked = st.form_submit_button("저장", use_container_width=True)
+                    if submit_clicked:
+                        # form submit은 action bar의 저장 로직을 트리거하지 않음
+                        # 단순히 form validation을 위해 존재
+                        pass
                 
                 # action bar에 전달할 함수 저장
                 st.session_state["_sales_entry_single_visitor_save"] = handle_save_single_visitor
                 st.session_state["_sales_entry_primary_label"] = "💾 저장"
             
             else:
+                ps_section("방문자 일괄 입력", icon="👥")
                 # 일괄 입력 폼
                 visitor_data = render_visitor_batch_input()
                 
                 if visitor_data:
-                    render_section_divider()
-                    
-                    # 입력 요약 표시
-                    st.write("**📊 입력 요약**")
+                    ps_section("입력 요약", icon="📋")
                     summary_df = pd.DataFrame(
                         [(d.strftime('%Y-%m-%d'), f"{v}명") for d, v in visitor_data],
                         columns=['날짜', '네이버 스마트플레이스 방문자수']
