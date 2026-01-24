@@ -567,7 +567,124 @@ menu = {
 }
 
 def render_expanded_sidebar(menu):
-    """펼친 상태 사이드바 렌더링"""
+    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마)"""
+    # CSS 주입 (세션에서 1회만, 버전 포함 플래그)
+    if "ps__premium_sidebar_css_v1" not in st.session_state:
+        st.session_state["ps__premium_sidebar_css_v1"] = True
+        st.markdown("""
+        <style>
+        /* 프리미엄 블랙 테마 CSS - .ps-sidebar-scope 하위만 */
+        
+        /* 카테고리 제목 */
+        .ps-sidebar-scope .premium-category-title {
+            color: #94A3B8;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            padding: 0 0.5rem;
+        }
+        
+        /* 공통 버튼: 이것만으로도 프리미엄 완성 */
+        .ps-sidebar-scope .stButton > button {
+            background: rgba(255, 255, 255, 0.04);
+            color: #E2E8F0;
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            font-weight: 500;
+            transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+            margin-bottom: 0.5rem;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+        
+        /* hover: 이동 금지 */
+        .ps-sidebar-scope .stButton > button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.20);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+        }
+        
+        /* primary는 "추가 효과"만 (안 먹어도 망하지 않게) */
+        .ps-sidebar-scope .stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            border-color: #3B82F6;
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.28);
+            color: #fff;
+        }
+        
+        /* Expander 헤더: DOM 변화에 강하게 */
+        .ps-sidebar-scope .stExpander header {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            color: #E2E8F0;
+            font-weight: 500;
+        }
+        
+        .ps-sidebar-scope .stExpander summary,
+        .ps-sidebar-scope .stExpander label {
+            color: #E2E8F0;
+            font-weight: 500;
+        }
+        
+        /* Expander 내부 버튼 */
+        .ps-sidebar-scope .stExpander .stButton > button {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+        }
+        
+        .ps-sidebar-scope .stExpander .stButton > button:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        
+        /* Selectbox: DOM 변화에 강하게 (role 기반) */
+        .ps-sidebar-scope .stSelectbox div[role="combobox"] {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            color: #E2E8F0;
+        }
+        
+        .ps-sidebar-scope .stSelectbox [data-baseweb="select"] {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+            color: #E2E8F0;
+        }
+        
+        .ps-sidebar-scope .stSelectbox label {
+            color: #E2E8F0;
+            font-weight: 500;
+        }
+        
+        /* 시스템 버튼 섹션 */
+        .ps-sidebar-scope .premium-system-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .ps-sidebar-scope .premium-system-section .stButton > button {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 12px;
+        }
+        
+        .ps-sidebar-scope .premium-system-section .stButton > button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.20);
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    
+    # 스코프 래퍼 시작
+    st.markdown('<div class="ps-sidebar-scope">', unsafe_allow_html=True)
+    
     # 매장 선택
     user_stores = get_user_stores()
     curr_name = get_current_store_name()
@@ -584,7 +701,11 @@ def render_expanded_sidebar(menu):
         st.session_state.current_page = "홈"
     
     for cat, data in menu.items():
-        st.markdown(f"**{cat}**")
+        # 카테고리 제목 (HTML div로 변경)
+        st.markdown(
+            f'<div class="premium-category-title">{cat}</div>',
+            unsafe_allow_html=True
+        )
         if isinstance(data, list):
             for label, key in data:
                 if st.button(label, key=f"btn_{key}", use_container_width=True, 
@@ -606,14 +727,18 @@ def render_expanded_sidebar(menu):
                         st.session_state.current_page = key
                         st.rerun()
     
-    # 로그아웃, 캐시 클리어
-    st.markdown("<br>", unsafe_allow_html=True)
+    # 시스템 버튼 (wrapper 추가)
+    st.markdown('<div class="premium-system-section">', unsafe_allow_html=True)
     if st.button("🚪 로그아웃"): 
         logout()
         st.rerun()
     if st.button("🔄 캐시 클리어"): 
         load_csv.clear()
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 스코프 래퍼 종료
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # current_page 초기화
 if "current_page" not in st.session_state:
