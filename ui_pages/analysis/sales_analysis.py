@@ -428,7 +428,8 @@ def _render_daily_profit_table(daily_profit_df):
     render_section_header("일자별 손익 분석표", "📋")
 
     if daily_profit_df is None or daily_profit_df.empty:
-        st.info("일별 매출 데이터가 없으면 손익표를 만들 수 없습니다. **일일 마감**을 입력해주세요.")
+        st.info("💡 일별 매출 데이터가 없으면 손익표를 만들 수 없습니다. **일일 마감**을 입력해주세요.")
+        st.caption("또한 **목표 비용구조**에서 고정비·변동비를 설정해야 일자별 손익을 계산할 수 있습니다.")
         return
 
     display_cols = ["날짜", "매출", "고정비(일할)", "변동비", "총비용", "영업이익", "이익률", "손익분기대비", "목표대비", "등급"]
@@ -460,7 +461,8 @@ def _render_weekday_patterns(weekday_summary, target_daily):
     render_section_header("요일별 패턴 분석", "📅")
 
     if weekday_summary is None or weekday_summary.empty:
-        st.caption("요일별 데이터가 없습니다. 일별 손익표가 있으면 표시됩니다.")
+        st.info("💡 요일별 데이터가 없습니다. 일별 손익표가 있으면 표시됩니다.")
+        st.caption("**일일 마감**과 **목표 비용구조**를 입력하면 요일별 패턴 분석이 가능합니다.")
         return
 
     st.bar_chart(weekday_summary.set_index("요일")[["매출", "총비용", "영업이익"]], height=260)
@@ -491,10 +493,18 @@ def _render_sensitivity(month_sales, fixed, var_ratio):
     """ZONE G: 비용 구조 민감도 분석"""
     render_section_header("비용 구조 민감도 분석", "📐")
 
+    if not fixed or fixed <= 0:
+        st.info("💡 고정비가 없으면 민감도 분석을 할 수 없습니다. **목표 비용구조**에서 고정비를 입력해주세요.")
+        return
+    
+    if not var_ratio or var_ratio <= 0:
+        st.info("💡 변동비율이 없으면 민감도 분석을 할 수 없습니다. **목표 비용구조**에서 변동비율을 입력해주세요.")
+        return
+
     base = month_sales if month_sales and month_sales > 0 else 10_000_000
     sens = _sensitivity_analysis(base, fixed or 0.0, var_ratio or 0.0)
     if sens.empty:
-        st.caption("고정비·변동비가 없으면 민감도 분석을 할 수 없습니다.")
+        st.info("💡 민감도 분석 데이터를 생성할 수 없습니다.")
         return
     st.dataframe(sens, use_container_width=True, hide_index=True, column_config={
         "매출": st.column_config.NumberColumn("매출", format="%d원"),
@@ -510,6 +520,10 @@ def _render_diagnosis(daily_profit_df, weekday_summary, target_sales, breakeven_
     """ZONE H: 자동 진단 및 액션 아이템"""
     render_section_header("자동 진단 및 액션 아이템", "⚠️")
 
+    if daily_profit_df is None or daily_profit_df.empty:
+        st.info("💡 일별 손익 데이터가 없으면 자동 진단을 할 수 없습니다. **일일 마감**과 **목표 비용구조**를 입력해주세요.")
+        return
+
     target_daily = 0.0
     days_in_month = monthrange(year, month)[1]
     if target_sales and target_sales > 0 and days_in_month > 0:
@@ -519,7 +533,7 @@ def _render_diagnosis(daily_profit_df, weekday_summary, target_sales, breakeven_
     for s in diag["insights"]:
         st.warning(s)
     if not diag["insights"]:
-        st.caption("진단 결과: 특별한 이슈 없음.")
+        st.success("✅ 진단 결과: 특별한 이슈 없음.")
 
     if target_sales and target_sales > 0:
         diff = _assess_target_difficulty(year, month, month_sales, target_sales, daily_avg, required_daily)
