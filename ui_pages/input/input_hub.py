@@ -156,7 +156,8 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
-    warning_html = f'<div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning}</div>' if warning else ''
+    # 개선안: 모든 카드의 높이를 고정(min-height)하고 내부 배치를 정돈하여 통일감 부여
+    warning_html = f'<div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-top: 0.3rem; line-height: 1.2;">⚠️ {warning}</div>' if warning else ''
     card_style = """
         padding: 1rem; 
         background-color: #111827; 
@@ -166,11 +167,22 @@ def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
         margin-bottom: 0.8rem; 
         display: flex; 
         align-items: center; 
-        gap: 1rem;
+        gap: 0.8rem;
+        min-height: 110px; /* 모든 카드의 최소 높이를 통일 */
     """
-    title_style = "font-size: 0.8rem; color: #9ca3af; font-weight: 500;"
-    value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff;"
-    html_content = f"""<div style="{card_style}"><div style="font-size: 1.8rem;">{icon}</div><div style="flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div>{warning_html}</div></div>"""
+    title_style = "font-size: 0.75rem; color: #9ca3af; font-weight: 500; margin-bottom: 0.2rem;"
+    value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff; line-height: 1;"
+    
+    html_content = f"""
+    <div style="{card_style}">
+        <div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div>
+        <div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">
+            <div style="{title_style}">{title}</div>
+            <div style="{value_style}">{value}</div>
+            {warning_html}
+        </div>
+    </div>
+    """
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v2():
