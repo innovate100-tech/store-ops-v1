@@ -170,6 +170,19 @@ st.markdown("""
         font-size: 0 !important; color: transparent !important;
     }
     [data-testid="stIconMaterial"]::before { content: '😊'; font-size: 18px; color: #ffffff; }
+    
+    /* 사이드바 항상 표시 보장 */
+    [data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        width: 21rem !important;
+    }
+    
+    /* 사이드바 컨테이너 보장 */
+    section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
