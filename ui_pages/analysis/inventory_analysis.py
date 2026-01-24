@@ -188,25 +188,56 @@ def _predict_inventory_usage(usage_df, days_for_avg=7, forecast_days=3, consider
 
 
 def _simulate_safety_stock_change(ingredient_name, safety_stock_change_pct, inventory_df, usage_df, ingredient_df):
-    """안전재고 변경 시뮬레이션. 변경 전/후 회전율·가치·품절위험."""
-    res = {"before": {}, "after": {}, "delta": {}}
+    """안전재고 변경 시뮬레이션. 변경 전/후 재고 효율성·품절위험·예상소진일."""
+    res = {"before": {}, "after": {}, "delta": {}, "insight": ""}
     inv = inventory_df[inventory_df["재료명"] == ingredient_name]
     if inv.empty:
         return res
     row = inv.iloc[0]
     cur = _safe_float(row.get("현재고", 0))
     safety = _safe_float(row.get("안전재고", 0))
+    if safety <= 0:
+        return res
+    
     new_safety = max(0, safety * (1 + safety_stock_change_pct / 100))
-    gap_before = safety - cur
-    gap_after = new_safety - cur
+    
+    # 현재고 대비 안전재고 비율
+    ratio_before = (cur / safety * 100) if safety > 0 else 0
+    ratio_after = (cur / new_safety * 100) if new_safety > 0 else 0
+    
+    # 부족량 (안전재고 - 현재고, 양수면 부족)
+    gap_before = max(0, safety - cur)
+    gap_after = max(0, new_safety - cur)
+    
+    # 품절위험도
     risk_before = "긴급" if cur < safety * 0.5 else ("주의" if cur < safety else "정상")
     risk_after = "긴급" if cur < new_safety * 0.5 else ("주의" if cur < new_safety else "정상")
+    
+    # 단가 및 재고 가치
     unit_price = 0.0
     if ingredient_df is not None and not ingredient_df.empty:
         ir = ingredient_df[ingredient_df["재료명"] == ingredient_name]
         if not ir.empty:
             unit_price = _safe_float(ir.iloc[0].get("단가", 0))
-    val = cur * unit_price
+    val_current = cur * unit_price
+    val_safety_before = safety * unit_price
+    val_safety_after = new_safety * unit_price
+    
+    # 일평균 사용량 및 예상 소진일
+    daily_usage = 0.0
+    if usage_df is not None and not usage_df.empty:
+        u = _normalize_usage_date(usage_df)
+        if "재료명" in u.columns and "총사용량" in u.columns:
+            cut = u["날짜"].max() - timedelta(days=7)
+            su = u[(u["날짜"] >= cut) & (u["재료명"] == ingredient_name)]["총사용량"].sum()
+            days_span = max(1, (u["날짜"].max() - cut).days + 1)
+            daily_usage = su / days_span if days_span > 0 else 0
+    
+    days_left_before = (cur / daily_usage) if daily_usage > 0 else None
+    days_to_safety_before = (gap_before / daily_usage) if daily_usage > 0 and gap_before > 0 else None
+    days_to_safety_after = (gap_after / daily_usage) if daily_usage > 0 and gap_after > 0 else None
+    
+    # 재고 회전율 (30일 기준)
     usage_30 = 0.0
     if usage_df is not None and not usage_df.empty:
         u = _normalize_usage_date(usage_df)
@@ -215,9 +246,68 @@ def _simulate_safety_stock_change(ingredient_name, safety_stock_change_pct, inve
             su = u[(u["날짜"] >= cut) & (u["재료명"] == ingredient_name)]["총사용량"].sum()
             usage_30 = su
     turn_before = (usage_30 / cur) if cur > 0 else 0
-    res["before"] = {"재고회전율": turn_before, "재고가치": val, "품절위험": risk_before, "안전재고": safety, "부족량": gap_before}
-    res["after"] = {"재고회전율": turn_before, "재고가치": val, "품절위험": risk_after, "안전재고": new_safety, "부족량": gap_after}
-    res["delta"] = {"재고가치": 0, "품절위험변화": risk_before != risk_after, "부족량변화": gap_after - gap_before}
+    
+    res["before"] = {
+        "현재고": cur,
+        "안전재고": safety,
+        "현재고비율(%)": round(ratio_before, 1),
+        "부족량": gap_before,
+        "품절위험": risk_before,
+        "재고가치(현재)": val_current,
+        "재고가치(안전재고기준)": val_safety_before,
+        "재고회전율": round(turn_before, 2),
+        "예상소진일": round(days_left_before, 1) if days_left_before else None,
+        "안전재고도달일": round(days_to_safety_before, 1) if days_to_safety_before else None,
+    }
+    res["after"] = {
+        "현재고": cur,
+        "안전재고": new_safety,
+        "현재고비율(%)": round(ratio_after, 1),
+        "부족량": gap_after,
+        "품절위험": risk_after,
+        "재고가치(현재)": val_current,
+        "재고가치(안전재고기준)": val_safety_after,
+        "재고회전율": round(turn_before, 2),
+        "예상소진일": round(days_left_before, 1) if days_left_before else None,
+        "안전재고도달일": round(days_to_safety_after, 1) if days_to_safety_after else None,
+    }
+    
+    # 변화량 계산
+    val_safety_change = val_safety_after - val_safety_before
+    ratio_change = ratio_after - ratio_before
+    gap_change = gap_after - gap_before
+    
+    res["delta"] = {
+        "안전재고변화": new_safety - safety,
+        "안전재고가치변화": val_safety_change,
+        "현재고비율변화": ratio_change,
+        "부족량변화": gap_change,
+        "품절위험변화": risk_before != risk_after,
+        "품절위험개선": risk_after < risk_before if isinstance(risk_after, str) and isinstance(risk_before, str) else False,
+    }
+    
+    # 인사이트 생성
+    insights = []
+    if safety_stock_change_pct > 0:
+        insights.append(f"안전재고 {safety_stock_change_pct:.0f}% 증가 → 목표 재고 가치 {int(val_safety_change):,}원 증가")
+        if risk_after < risk_before:
+            insights.append(f"품절 위험이 '{risk_before}' → '{risk_after}'로 개선")
+        elif risk_after == risk_before and ratio_after > ratio_before:
+            insights.append(f"현재고 대비 안전재고 비율 {ratio_change:.1f}%p 개선")
+        if gap_after < gap_before:
+            insights.append(f"부족량 {int(gap_before - gap_after):,} 감소 (목표 달성에 더 가까워짐)")
+    elif safety_stock_change_pct < 0:
+        insights.append(f"안전재고 {abs(safety_stock_change_pct):.0f}% 감소 → 목표 재고 가치 {int(abs(val_safety_change)):,}원 절감")
+        if risk_after > risk_before:
+            insights.append(f"⚠️ 품절 위험이 '{risk_before}' → '{risk_after}'로 악화")
+        elif ratio_after < ratio_before:
+            insights.append(f"현재고 대비 안전재고 비율 {abs(ratio_change):.1f}%p 감소")
+        if gap_after < gap_before:
+            insights.append(f"부족량 {int(gap_before - gap_after):,} 감소 (목표 기준 완화)")
+    else:
+        insights.append("안전재고 변경 없음")
+    
+    res["insight"] = " | ".join(insights) if insights else ""
     return res
 
 
@@ -795,7 +885,7 @@ def _render_zone_d_forecast(inventory_df, usage_df, predict_df):
 
 
 def _render_zone_e_simulation(ingredient_df, inventory_df, usage_df, value_df, turnover_df):
-    """ZONE E: 안전재고 조정 시뮬레이션"""
+    """ZONE E: 안전재고 조정 시뮬레이션 (개선)"""
     render_section_header("🎛️ 재고 최적화 시뮬레이션", "🎛️")
     
     if inventory_df.empty:
@@ -803,18 +893,122 @@ def _render_zone_e_simulation(ingredient_df, inventory_df, usage_df, value_df, t
         return
     
     names = inventory_df["재료명"].tolist()
+    if not names:
+        st.info("재료가 없습니다.")
+        return
+    
     sel = st.selectbox("재료 선택", names, key="sim_ingredient")
     pct = st.slider("안전재고 변경 (%)", -50, 100, 0, 10, key="sim_pct")
     
     sim = _simulate_safety_stock_change(sel, pct, inventory_df, usage_df, ingredient_df)
     b, a = sim.get("before", {}), sim.get("after", {})
-    st.markdown("##### 변경 전")
-    st.json({"안전재고": b.get("안전재고"), "부족량": b.get("부족량"), "품절위험": b.get("품절위험")})
-    st.markdown("##### 변경 후")
-    st.json({"안전재고": a.get("안전재고"), "부족량": a.get("부족량"), "품절위험": a.get("품절위험")})
     delta = sim.get("delta", {})
+    insight = sim.get("insight", "")
+    
+    if not b or not a:
+        st.warning("시뮬레이션 데이터를 계산할 수 없습니다.")
+        return
+    
+    # 인사이트 표시
+    if insight:
+        if pct > 0:
+            st.success(f"💡 {insight}")
+        elif pct < 0:
+            st.warning(f"⚠️ {insight}")
+        else:
+            st.info(insight)
+    
+    # 변경 전/후 비교 테이블
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("##### 📊 변경 전")
+        before_data = {
+            "현재고": f"{b.get('현재고', 0):,.0f}",
+            "안전재고": f"{b.get('안전재고', 0):,.0f}",
+            "현재고 비율": f"{b.get('현재고비율(%)', 0):.1f}%",
+            "부족량": f"{b.get('부족량', 0):,.0f}",
+            "품절위험": b.get("품절위험", "-"),
+            "재고가치(현재)": f"{b.get('재고가치(현재)', 0):,.0f}원",
+            "재고가치(목표)": f"{b.get('재고가치(안전재고기준)', 0):,.0f}원",
+            "재고회전율": f"{b.get('재고회전율', 0):.2f}",
+        }
+        if b.get("예상소진일"):
+            before_data["예상소진일"] = f"{b.get('예상소진일', 0):.1f}일"
+        if b.get("안전재고도달일"):
+            before_data["안전재고도달일"] = f"{b.get('안전재고도달일', 0):.1f}일"
+        
+        for k, v in before_data.items():
+            st.text(f"{k}: {v}")
+    
+    with col2:
+        st.markdown("##### 📊 변경 후")
+        after_data = {
+            "현재고": f"{a.get('현재고', 0):,.0f}",
+            "안전재고": f"{a.get('안전재고', 0):,.0f}",
+            "현재고 비율": f"{a.get('현재고비율(%)', 0):.1f}%",
+            "부족량": f"{a.get('부족량', 0):,.0f}",
+            "품절위험": a.get("품절위험", "-"),
+            "재고가치(현재)": f"{a.get('재고가치(현재)', 0):,.0f}원",
+            "재고가치(목표)": f"{a.get('재고가치(안전재고기준)', 0):,.0f}원",
+            "재고회전율": f"{a.get('재고회전율', 0):.2f}",
+        }
+        if a.get("예상소진일"):
+            after_data["예상소진일"] = f"{a.get('예상소진일', 0):.1f}일"
+        if a.get("안전재고도달일"):
+            after_data["안전재고도달일"] = f"{a.get('안전재고도달일', 0):.1f}일"
+        
+        for k, v in after_data.items():
+            st.text(f"{k}: {v}")
+    
+    # 변화량 요약
+    st.markdown("---")
+    st.markdown("##### 📈 변화량 요약")
+    
+    change_cols = []
+    if delta.get("안전재고변화"):
+        change_cols.append(("안전재고 변화", f"{delta['안전재고변화']:+,.0f}"))
+    if delta.get("안전재고가치변화"):
+        change_cols.append(("목표 재고가치 변화", f"{delta['안전재고가치변화']:+,.0f}원"))
+    if delta.get("현재고비율변화") is not None:
+        change_cols.append(("현재고 비율 변화", f"{delta['현재고비율변화']:+.1f}%p"))
+    if delta.get("부족량변화") is not None:
+        change_cols.append(("부족량 변화", f"{delta['부족량변화']:+,.0f}"))
+    
+    if change_cols:
+        change_df = pd.DataFrame(change_cols, columns=["지표", "변화량"])
+        st.dataframe(change_df, use_container_width=True, hide_index=True)
+    
+    # 품절위험 변화 알림
     if delta.get("품절위험변화"):
-        st.warning("품절 위험 등급이 변경됩니다.")
+        if delta.get("품절위험개선"):
+            st.success(f"✅ 품절 위험이 '{b.get('품절위험')}' → '{a.get('품절위험')}'로 개선되었습니다.")
+        else:
+            st.warning(f"⚠️ 품절 위험이 '{b.get('품절위험')}' → '{a.get('품절위험')}'로 변경되었습니다.")
+    
+    # 트레이드오프 설명
+    st.markdown("---")
+    st.markdown("##### 💡 트레이드오프 분석")
+    if pct > 0:
+        st.info(f"""
+        **안전재고 증가의 효과:**
+        - ✅ 품절 위험 감소 (재고 여유 확보)
+        - ✅ 목표 재고 가치 증가 (재고 목표 상향)
+        - ⚠️ 목표 재고 가치 기준으로 더 많은 재고 유지 필요
+        - ⚠️ 재고 회전율은 현재고 기준이므로 변화 없음 (실제 재고 증가 시 개선)
+        """)
+    elif pct < 0:
+        st.warning(f"""
+        **안전재고 감소의 효과:**
+        - ⚠️ 품절 위험 증가 가능성 (재고 여유 감소)
+        - ✅ 목표 재고 가치 기준 완화 (재고 목표 하향)
+        - ✅ 부족량 기준 완화 (목표 달성 용이)
+        - ⚠️ 실제 재고는 변하지 않으므로 재고 회전율 변화 없음
+        """)
+    else:
+        st.info("안전재고 변경 없음")
+    
+    st.caption("💡 **참고**: 안전재고는 '목표 재고 수준'입니다. 실제 재고(현재고)는 변하지 않으므로, 안전재고 변경은 목표 기준과 품절 위험 평가에만 영향을 줍니다. 실제 재고 효율성 개선을 위해서는 발주량 조정이 필요합니다.")
 
 
 def _render_zone_f_usage_trend(usage_df, inventory_df):
