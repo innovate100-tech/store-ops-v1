@@ -333,41 +333,40 @@ st.markdown("""
         --sidebar-width-px: 240px;
     }
     
-    /* 사이드바 기본 폭 - 모든 가능한 선택자 */
-    [data-testid="stSidebar"],
-    section[data-testid="stSidebar"],
-    div[data-testid="stSidebar"],
-    .css-1d391kg,
-    .css-1lcbmhc {
-        width: var(--sidebar-width, 15rem) !important;
-        min-width: var(--sidebar-width, 15rem) !important;
-        max-width: var(--sidebar-width, 15rem) !important;
-        flex-basis: var(--sidebar-width, 15rem) !important;
-        flex: 0 0 var(--sidebar-width, 15rem) !important;
+    /* 사이드바 기본 폭 - 모든 가능한 선택자 (최고 우선순위) */
+    [data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
+    section[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
+    div[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
+    .css-1d391kg:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
+    .css-1lcbmhc:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]) {
+        width: 15rem !important;
+        min-width: 15rem !important;
+        max-width: 15rem !important;
+        flex-basis: 15rem !important;
+        flex: 0 0 15rem !important;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
         transition: width 0.3s ease, flex-basis 0.3s ease !important;
     }
     
-    /* 접힌 상태 - 모든 가능한 선택자 */
+    /* 접힌 상태 - 모든 가능한 선택자 (최고 우선순위) */
     [data-testid="stSidebar"].sidebar-collapsed,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"],
     section[data-testid="stSidebar"].sidebar-collapsed,
+    section[data-testid="stSidebar"][data-sidebar-collapsed="true"],
     div[data-testid="stSidebar"].sidebar-collapsed,
+    div[data-testid="stSidebar"][data-sidebar-collapsed="true"],
     .css-1d391kg.sidebar-collapsed,
-    .css-1lcbmhc.sidebar-collapsed {
+    .css-1d391kg[data-sidebar-collapsed="true"],
+    .css-1lcbmhc.sidebar-collapsed,
+    .css-1lcbmhc[data-sidebar-collapsed="true"] {
         width: 4rem !important;
         min-width: 4rem !important;
         max-width: 4rem !important;
         flex-basis: 4rem !important;
         flex: 0 0 4rem !important;
-    }
-    
-    /* flexbox 레이아웃 조정 */
-    [data-testid="stAppViewContainer"][style*="display: flex"],
-    [data-testid="stAppViewContainer"][style*="display:flex"] {
-        --sidebar-width: 15rem;
-    }
-    
-    [data-testid="stAppViewContainer"]:has([data-testid="stSidebar"].sidebar-collapsed) {
-        --sidebar-width: 4rem;
+        flex-shrink: 0 !important;
+        flex-grow: 0 !important;
     }
     
     /* 메인 콘텐츠 영역 조정 - JavaScript에서 동적으로 처리 */
@@ -656,14 +655,14 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 상태 동기화 JavaScript (강화 버전 - 실제 폭 변경)
+# 사이드바 상태 동기화 JavaScript (최종 강화 버전)
 sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
 st.markdown(f"""
 <script>
 (function() {{
     'use strict';
     
-    // 햄버거 버튼 완전히 제거 함수 (전역)
+    // 햄버거 버튼 완전히 제거 함수 (전역) - DOM에서 완전 삭제
     function removeHamburgerButtons() {{
         const headerButtons = document.querySelectorAll(
             '[data-testid="stHeader"] button, ' +
@@ -691,32 +690,40 @@ st.markdown(f"""
                 (icon && (icon.textContent?.includes('menu') || icon.getAttribute('data-icon')?.includes('menu')));
             
             if (isHamburger) {{
-                // 완전히 숨김 및 비활성화
-                btn.style.setProperty('display', 'none', 'important');
-                btn.style.setProperty('visibility', 'hidden', 'important');
-                btn.style.setProperty('opacity', '0', 'important');
-                btn.style.setProperty('pointer-events', 'none', 'important');
-                btn.style.setProperty('width', '0', 'important');
-                btn.style.setProperty('height', '0', 'important');
-                btn.style.setProperty('padding', '0', 'important');
-                btn.style.setProperty('margin', '0', 'important');
-                btn.style.setProperty('position', 'absolute', 'important');
-                btn.style.setProperty('left', '-9999px', 'important');
-                btn.setAttribute('disabled', 'true');
-                btn.setAttribute('aria-hidden', 'true');
-                btn.setAttribute('tabindex', '-1', 'important');
-                
-                // 클릭 이벤트 완전 차단
-                const blockClick = function(e) {{
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    return false;
-                }};
-                btn.removeEventListener('click', blockClick, true);
-                btn.addEventListener('click', blockClick, true);
-                btn.removeEventListener('mousedown', blockClick, true);
-                btn.addEventListener('mousedown', blockClick, true);
+                // DOM에서 완전히 제거 (가장 확실한 방법)
+                try {{
+                    if (btn.parentNode) {{
+                        btn.parentNode.removeChild(btn);
+                    }}
+                }} catch(e) {{
+                    // 제거 실패 시 완전히 숨김
+                    btn.style.setProperty('display', 'none', 'important');
+                    btn.style.setProperty('visibility', 'hidden', 'important');
+                    btn.style.setProperty('opacity', '0', 'important');
+                    btn.style.setProperty('pointer-events', 'none', 'important');
+                    btn.style.setProperty('width', '0', 'important');
+                    btn.style.setProperty('height', '0', 'important');
+                    btn.style.setProperty('padding', '0', 'important');
+                    btn.style.setProperty('margin', '0', 'important');
+                    btn.style.setProperty('position', 'absolute', 'important');
+                    btn.style.setProperty('left', '-9999px', 'important');
+                    btn.style.setProperty('z-index', '-1', 'important');
+                    btn.setAttribute('disabled', 'true');
+                    btn.setAttribute('aria-hidden', 'true');
+                    btn.setAttribute('tabindex', '-1', 'important');
+                    
+                    // 클릭 이벤트 완전 차단
+                    const blockClick = function(e) {{
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        return false;
+                    }};
+                    btn.removeEventListener('click', blockClick, true);
+                    btn.addEventListener('click', blockClick, true);
+                    btn.removeEventListener('mousedown', blockClick, true);
+                    btn.addEventListener('mousedown', blockClick, true);
+                }}
             }}
         }});
     }}
@@ -831,15 +838,13 @@ st.markdown(f"""
                 children.forEach(function(child) {{
                     if (child === sidebar || child.querySelector('[data-testid="stSidebar"]') || 
                         child.getAttribute('data-testid') === 'stSidebar') {{
-                        child.style.cssText += `
-                            flex: 0 0 ${{targetWidth}} !important;
-                            flex-basis: ${{targetWidth}} !important;
-                            flex-shrink: 0 !important;
-                            flex-grow: 0 !important;
-                            width: ${{targetWidth}} !important;
-                            min-width: ${{targetWidth}} !important;
-                            max-width: ${{targetWidth}} !important;
-                        `;
+                        child.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
+                        child.style.setProperty('flex-basis', targetWidth, 'important');
+                        child.style.setProperty('flex-shrink', '0', 'important');
+                        child.style.setProperty('flex-grow', '0', 'important');
+                        child.style.setProperty('width', targetWidth, 'important');
+                        child.style.setProperty('min-width', targetWidth, 'important');
+                        child.style.setProperty('max-width', targetWidth, 'important');
                     }} else {{
                         // 메인 콘텐츠 영역
                         child.style.setProperty('flex', '1 1 auto', 'important');
@@ -922,59 +927,89 @@ st.markdown(f"""
         }}
     }}
     
-    // 즉시 실행
+    // 즉시 실행 (여러 번 실행)
     syncSidebarState();
+    removeHamburgerButtons();
     
-    // DOM 로드 후 실행
+    // DOM 로드 후 실행 (여러 번 실행)
     if (document.readyState === 'loading') {{
         document.addEventListener('DOMContentLoaded', function() {{
+            removeHamburgerButtons();
             syncSidebarState();
-            setTimeout(syncSidebarState, 100);
-            setTimeout(syncSidebarState, 300);
+            setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 10);
+            setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 50);
+            setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 100);
+            setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 200);
+            setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 500);
         }});
     }} else {{
-        setTimeout(syncSidebarState, 100);
-        setTimeout(syncSidebarState, 300);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 10);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 50);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 100);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 200);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 500);
     }}
     
-    // 주기적 확인 (더 자주 체크 - 50ms마다)
+    // 주기적 확인 (매우 자주 체크 - 10ms마다)
     setInterval(function() {{
         removeHamburgerButtons();
         syncSidebarState();
-    }}, 50);
+    }}, 10);
     
-    // requestAnimationFrame으로도 지속적으로 강제 적용
+    // requestAnimationFrame으로도 지속적으로 강제 적용 (매우 자주)
     function forceSidebarWidth() {{
+        removeHamburgerButtons();
+        
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) {{
-            const isCollapsed = sidebar.getAttribute('data-sidebar-collapsed') === 'true' || {sidebar_collapsed_js};
-            const targetWidth = isCollapsed ? '4rem' : '15rem';
-            
-            // 사이드바 폭 강제 적용
-            sidebar.style.setProperty('width', targetWidth, 'important');
-            sidebar.style.setProperty('min-width', targetWidth, 'important');
-            sidebar.style.setProperty('max-width', targetWidth, 'important');
-            sidebar.style.setProperty('flex-basis', targetWidth, 'important');
-            sidebar.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
-            
-            // 부모 요소들도 조정
-            let parent = sidebar.parentElement;
-            let depth = 0;
-            while (parent && parent !== document.body && depth < 10) {{
-                const computed = window.getComputedStyle(parent);
-                if (computed.display === 'flex' || computed.display === 'inline-flex') {{
-                    // flex 컨테이너인 경우 자식 요소 조정
-                    Array.from(parent.children).forEach(function(child) {{
-                        if (child === sidebar || child.querySelector('[data-testid="stSidebar"]')) {{
-                            child.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
-                            child.style.setProperty('width', targetWidth, 'important');
-                        }}
-                    }});
-                }}
-                parent = parent.parentElement;
-                depth++;
-            }}
+        if (!sidebar) {{
+            requestAnimationFrame(forceSidebarWidth);
+            return;
         }}
+        
+        const isCollapsed = sidebar.getAttribute('data-sidebar-collapsed') === 'true' || {sidebar_collapsed_js};
+        const targetWidth = isCollapsed ? '4rem' : '15rem';
+        const targetWidthPx = isCollapsed ? '64px' : '240px';
+        
+        // 사이드바 폭 강제 적용 (모든 방법 시도)
+        sidebar.style.setProperty('width', targetWidth, 'important');
+        sidebar.style.setProperty('min-width', targetWidth, 'important');
+        sidebar.style.setProperty('max-width', targetWidth, 'important');
+        sidebar.style.setProperty('flex-basis', targetWidth, 'important');
+        sidebar.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
+        sidebar.style.setProperty('flex-shrink', '0', 'important');
+        sidebar.style.setProperty('flex-grow', '0', 'important');
+        
+        // 사이드바의 모든 부모 요소들도 조정
+        let parent = sidebar.parentElement;
+        let depth = 0;
+        while (parent && parent !== document.body && depth < 15) {{
+            const computed = window.getComputedStyle(parent);
+            if (computed.display === 'flex' || computed.display === 'inline-flex') {{
+                // flex 컨테이너인 경우 자식 요소 조정
+                Array.from(parent.children).forEach(function(child) {{
+                    if (child === sidebar || child.querySelector('[data-testid="stSidebar"]') || 
+                        child.getAttribute('data-testid') === 'stSidebar') {{
+                        child.style.setProperty('flex', '0 0 ' + targetWidth, 'important');
+                        child.style.setProperty('width', targetWidth, 'important');
+                        child.style.setProperty('min-width', targetWidth, 'important');
+                        child.style.setProperty('max-width', targetWidth, 'important');
+                        child.style.setProperty('flex-basis', targetWidth, 'important');
+                    }}
+                }});
+            }}
+            if (computed.display === 'grid') {{
+                parent.style.setProperty('grid-template-columns', targetWidth + ' 1fr', 'important');
+            }}
+            parent = parent.parentElement;
+            depth++;
+        }}
+        
+        // 메인 콘텐츠 영역도 조정
+        const mainContent = document.querySelector('[data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"])');
+        if (mainContent) {{
+            mainContent.style.setProperty('margin-left', targetWidthPx, 'important');
+        }}
+        
         requestAnimationFrame(forceSidebarWidth);
     }}
     requestAnimationFrame(forceSidebarWidth);
@@ -1039,13 +1074,29 @@ st.markdown(f"""
         }}
     }}, true);
     
-    // 마우스 오버 시에도 햄버거 버튼 제거
+    // 마우스 오버 시에도 햄버거 버튼 제거 (더 자주 체크)
     document.addEventListener('mouseover', function(e) {{
         const target = e.target;
-        if (target && target.closest('[data-testid="stHeader"]')) {{
+        if (target && (target.closest('[data-testid="stHeader"]') || target.closest('header'))) {{
             removeHamburgerButtons();
         }}
     }}, true);
+    
+    // 마우스 이동 시에도 체크
+    document.addEventListener('mousemove', function(e) {{
+        const target = e.target;
+        if (target && (target.closest('[data-testid="stHeader"]') || target.closest('header'))) {{
+            removeHamburgerButtons();
+        }}
+    }}, true);
+    
+    // 헤더 영역에 마우스가 들어가면 즉시 제거
+    const header = document.querySelector('[data-testid="stHeader"]') || document.querySelector('header');
+    if (header) {{
+        header.addEventListener('mouseenter', function() {{
+            removeHamburgerButtons();
+        }}, true);
+    }}
     
     // DOM 변경 감지
     const observer = new MutationObserver(function() {{
@@ -1064,9 +1115,38 @@ st.markdown(f"""
     
     // window load 이벤트
     window.addEventListener('load', function() {{
-        setTimeout(syncSidebarState, 100);
-        setTimeout(syncSidebarState, 500);
+        removeHamburgerButtons();
+        syncSidebarState();
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 100);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 300);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 500);
+        setTimeout(function() {{ removeHamburgerButtons(); syncSidebarState(); }}, 1000);
     }}, {{ passive: true }});
+    
+    // Streamlit의 사이드바 토글 기능 완전 차단
+    const originalToggle = window.streamlit?.toggleSidebar;
+    if (window.streamlit) {{
+        window.streamlit.toggleSidebar = function() {{
+            // 아무것도 하지 않음
+            return false;
+        }};
+    }}
+    
+    // Streamlit의 사이드바 관련 모든 이벤트 차단
+    document.addEventListener('click', function(e) {{
+        const target = e.target;
+        if (target && (
+            target.closest('[data-testid="stHeader"]') ||
+            target.getAttribute('aria-label')?.includes('sidebar') ||
+            target.closest('button[aria-label*="sidebar"]')
+        )) {{
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            removeHamburgerButtons();
+            return false;
+        }}
+    }}, true);
 }})();
 </script>
 """, unsafe_allow_html=True)
