@@ -36,7 +36,8 @@ def render_ingredient_input_page():
     ingredient_df = load_csv('ingredient_master.csv', store_id=store_id, 
                             default_columns=['재료명', '단위', '단가', '발주단위', '변환비율'])
     
-    # 재료 분류 로드 (DB에서)
+    # 재료 분류 로드 (DB에서) - 매번 새로 조회 (캐시 사용 안 함)
+    # 세션 상태에 저장하지 않고 매번 DB에서 직접 조회하여 최신 데이터 보장
     categories = _get_ingredient_categories(store_id, ingredient_df)
     
     # 레시피 및 사용량 정보 로드
@@ -119,15 +120,16 @@ def render_ingredient_input_page():
 
 
 def _get_ingredient_categories(store_id, ingredient_df):
-    """재료 분류 조회 (DB에서)"""
+    """재료 분류 조회 (DB에서) - 매번 새로 조회하여 최신 데이터 보장"""
     categories = {}
     if ingredient_df.empty:
         return categories
     
-    # DB에서 category 필드 확인
+    # DB에서 category 필드 확인 (캐시 없이 직접 조회)
     supabase = get_supabase_client()
     if supabase:
         try:
+            # 모든 재료의 분류를 한 번에 조회
             result = supabase.table("ingredients")\
                 .select("name,category")\
                 .eq("store_id", store_id)\
@@ -138,10 +140,14 @@ def _get_ingredient_categories(store_id, ingredient_df):
                     ingredient_name = row.get('name')
                     category_value = row.get('category')
                     # category가 None이 아니고 빈 문자열이 아니면 저장
-                    if ingredient_name and category_value and category_value.strip():
-                        categories[ingredient_name] = category_value.strip()
+                    if ingredient_name:
+                        if category_value and category_value.strip():
+                            categories[ingredient_name] = category_value.strip()
+                        # category가 None이거나 빈 문자열이면 딕셔너리에 추가하지 않음 (미지정으로 표시됨)
+            
+            logger.debug(f"재료 분류 조회 완료: {len(categories)}개 재료에 분류가 있음")
         except Exception as e:
-            logger.warning(f"재료 분류 조회 실패: {e}")
+            logger.error(f"재료 분류 조회 실패: {e}")
             logger.exception(e)  # 상세 에러 로그
     
     return categories
@@ -176,11 +182,33 @@ def _set_ingredient_category(store_id, ingredient_name, category):
             .eq("id", ingredient_id)\
             .execute()
         
-        # 업데이트 확인
+        # 업데이트 확인 및 검증
         if update_result.data:
-            logger.info(f"재료 분류 저장 성공: {ingredient_name} -> {update_value} (id: {ingredient_id})")
+            updated_category = update_result.data[0].get('category')
+            logger.info(f"재료 분류 저장 성공: {ingredient_name} -> {update_value} (id: {ingredient_id}, DB 저장값: {updated_category})")
         else:
             logger.warning(f"재료 분류 업데이트 결과가 없습니다: {ingredient_name}")
+            # 결과가 없어도 업데이트는 성공했을 수 있으므로 확인
+            verify_result = supabase.table("ingredients")\
+                .select("category")\
+                .eq("id", ingredient_id)\
+                .execute()
+            if verify_result.data:
+                actual_category = verify_result.data[0].get('category')
+                logger.info(f"재료 분류 저장 확인: {ingredient_name} -> DB에 저장된 값: {actual_category}")
+        
+        # 저장 후 즉시 DB에서 다시 조회하여 확인
+        verify_result = supabase.table("ingredients")\
+            .select("name,category")\
+            .eq("store_id", store_id)\
+            .eq("name", ingredient_name)\
+            .execute()
+        
+        if verify_result.data:
+            actual_category = verify_result.data[0].get('category')
+            logger.info(f"재료 분류 저장 최종 확인: {ingredient_name} -> DB에 저장된 값: {actual_category if actual_category else 'NULL'}")
+            if actual_category != update_value:
+                logger.warning(f"재료 분류 저장 불일치: 저장하려던 값={update_value}, 실제 DB 값={actual_category}")
         
         # 캐시 무효화 (재료 데이터 갱신 필요)
         try:
@@ -771,6 +799,15 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                                 ui_flash_error(f"재료 분류 저장에 실패했습니다: {new_name.strip()}")
                                             else:
                                                 logger.info(f"재료 분류 저장 성공: {new_name.strip()} -> {category_to_save}")
+                                                # 저장 후 즉시 DB에서 확인
+                                                verify_result = supabase.table("ingredients")\
+                                                    .select("name,category")\
+                                                    .eq("store_id", store_id)\
+                                                    .eq("name", new_name.strip())\
+                                                    .execute()
+                                                if verify_result.data:
+                                                    actual_category = verify_result.data[0].get('category')
+                                                    logger.info(f"재료 분류 저장 확인: {new_name.strip()} -> DB에 저장된 값: {actual_category}")
                                         
                                         # 재료 상태 저장 (수정 시에는 상태 변경 없음 - 필요시 추가)
                                         # 현재는 수정 모달에 상태 필드가 없으므로 생략
@@ -794,8 +831,17 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                         except Exception as e:
                                             logger.warning(f"캐시 무효화 실패: {e}")
                                         
-                                        ui_flash_success(f"재료 '{new_name.strip()}'이(가) 수정되었습니다.")
+                                        # 수정 완료 후 세션 상태 초기화 및 강제 새로고침
                                         st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
+                                        
+                                        # 모든 관련 세션 캐시 클리어
+                                        try:
+                                            from src.storage_supabase import clear_session_cache
+                                            clear_session_cache('ss_ingredient_master_df')
+                                        except Exception as e:
+                                            logger.warning(f"세션 캐시 클리어 실패: {e}")
+                                        
+                                        ui_flash_success(f"재료 '{new_name.strip()}'이(가) 수정되었습니다.")
                                         st.rerun()
                                     else:
                                         ui_flash_error(msg)
