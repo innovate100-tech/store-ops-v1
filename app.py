@@ -82,6 +82,304 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ============================================
+# 사이드바 프리미엄 CSS 주입 함수
+# ============================================
+def inject_sidebar_premium_css():
+    """사이드바 울트라 시크 CSS 주입 (매 rerun마다 실행)"""
+    css_content = """
+    <style id="ps-ultra-sleek-css">
+    /* =========================
+       ULTRA SLEEK SIDEBAR v3
+       scope: sidebar only
+       ========================= */
+    
+    @keyframes ultra-neon-pulse {
+        0%, 100% {
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.25),
+                        0 0 0 0 rgba(59, 130, 246, 0.25),
+                        0 0 24px rgba(59, 130, 246, 0.10);
+        }
+        50% {
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35),
+                        0 0 0 4px rgba(59, 130, 246, 0.12),
+                        0 0 36px rgba(59, 130, 246, 0.18);
+        }
+    }
+    
+    @keyframes ultra-gradient-shift {
+        0%, 100% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+        [data-testid="stSidebar"] * {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+    
+    /* ---------- CATEGORY TITLE (with PROBE dot) ---------- */
+    [data-testid="stSidebar"] .ultra-category {
+        margin: 22px 0 10px;
+        padding: 0 10px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        position: relative;
+        background: linear-gradient(135deg, #94A3B8 0%, #60A5FA 35%, #3B82F6 50%, #60A5FA 65%, #94A3B8 100%);
+        background-size: 260% 260%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 10px rgba(96, 165, 250, 0.18);
+        animation: ultra-gradient-shift 4.5s ease infinite;
+        /* Fallback */
+        color: #94A3B8;
+    }
+    
+    @supports not (-webkit-background-clip: text) {
+        [data-testid="stSidebar"] .ultra-category {
+            -webkit-text-fill-color: #94A3B8;
+            color: #94A3B8;
+        }
+    }
+    
+    /* PROBE #1: dot */
+    [data-testid="stSidebar"] .ultra-category::before {
+        content: "•";
+        position: absolute;
+        left: -2px;
+        top: 0;
+        color: rgba(96, 165, 250, 0.85);
+        text-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
+    }
+    
+    [data-testid="stSidebar"] .ultra-category::after {
+        content: "";
+        position: absolute;
+        left: 10px;
+        bottom: -10px;
+        width: 48px;
+        height: 2px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), rgba(96, 165, 250, 0.55), transparent);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+    
+    /* ---------- BUTTON BASE (3-step fallback) ---------- */
+    [data-testid="stSidebar"] .stButton > button,
+    [data-testid="stSidebar"] button[kind],
+    [data-testid="stSidebar"] button {
+        border-radius: 14px !important;
+        min-height: 56px !important;
+        padding: 14px 16px !important;
+        font-size: 0.90rem !important;
+        font-weight: 550 !important;
+        line-height: 1.42 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        display: flex !important;
+        align-items: center !important;
+        text-align: left !important;
+        color: #E2E8F0 !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.012) 100%),
+            radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 55%) !important;
+        box-shadow:
+            0 2px 5px rgba(0, 0, 0, 0.18),
+            0 10px 22px rgba(0, 0, 0, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: background 0.32s ease, border-color 0.32s ease, box-shadow 0.32s ease, transform 0.18s ease !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* PROBE #2: left accent bar */
+    [data-testid="stSidebar"] .stButton > button::before,
+    [data-testid="stSidebar"] button[kind]::before,
+    [data-testid="stSidebar"] button::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: rgba(59, 130, 246, 0.35);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.20);
+        opacity: 1;
+        z-index: 1;
+    }
+    
+    /* hover sweep overlay via ::after */
+    [data-testid="stSidebar"] .stButton > button::after,
+    [data-testid="stSidebar"] button[kind]::after,
+    [data-testid="stSidebar"] button::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -120%;
+        width: 120%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.10) 35%, rgba(96, 165, 250, 0.18) 50%, rgba(255, 255, 255, 0.10) 65%, transparent 100%);
+        opacity: 0;
+        transition: left 0.62s ease, opacity 0.25s ease;
+        pointer-events: none;
+        z-index: 2;
+    }
+    
+    /* HOVER */
+    [data-testid="stSidebar"] .stButton > button:hover,
+    [data-testid="stSidebar"] button[kind]:hover,
+    [data-testid="stSidebar"] button:hover {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.025) 100%),
+            radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 55%) !important;
+        border-color: rgba(255, 255, 255, 0.28) !important;
+        box-shadow:
+            0 6px 14px rgba(0, 0, 0, 0.24),
+            0 18px 34px rgba(0, 0, 0, 0.22),
+            0 0 0 1px rgba(255, 255, 255, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+        transform: scale(1.01) !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:hover::before,
+    [data-testid="stSidebar"] button[kind]:hover::before,
+    [data-testid="stSidebar"] button:hover::before {
+        background: rgba(59, 130, 246, 0.62);
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.28);
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:hover::after,
+    [data-testid="stSidebar"] button[kind]:hover::after,
+    [data-testid="stSidebar"] button:hover::after {
+        left: 120%;
+        opacity: 1;
+    }
+    
+    /* ACTIVE CLICK FEEDBACK (ripple may fail, so ensure highlight) */
+    [data-testid="stSidebar"] .stButton > button:active,
+    [data-testid="stSidebar"] button[kind]:active,
+    [data-testid="stSidebar"] button:active {
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.10) 55%, rgba(255, 255, 255, 0.05) 100%),
+            radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.16) 0%, transparent 55%) !important;
+    }
+    
+    /* PRIMARY (selected) */
+    [data-testid="stSidebar"] .stButton > button[kind="primary"],
+    [data-testid="stSidebar"] button[kind="primary"] {
+        color: #fff !important;
+        border-color: rgba(96, 165, 250, 0.72) !important;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 30%, #1D4ED8 60%, #1E40AF 100%) !important;
+        background-size: 220% 220% !important;
+        box-shadow:
+            0 10px 26px rgba(59, 130, 246, 0.32),
+            0 18px 44px rgba(59, 130, 246, 0.22),
+            0 0 0 1px rgba(96, 165, 250, 0.35),
+            0 0 46px rgba(59, 130, 246, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+        animation: ultra-neon-pulse 3.6s ease-in-out infinite, ultra-gradient-shift 4.2s ease infinite !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button[kind="primary"]::before,
+    [data-testid="stSidebar"] button[kind="primary"]::before {
+        width: 3px;
+        background: rgba(255, 255, 255, 0.55);
+        box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
+    }
+    
+    /* EXPANDER / SELECTBOX : keep minimal, consistent */
+    [data-testid="stSidebar"] .stExpander header,
+    [data-testid="stSidebar"] .stExpander summary {
+        border-radius: 14px !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)) !important;
+        color: #E2E8F0 !important;
+        transition: all 0.32s ease !important;
+    }
+    
+    [data-testid="stSidebar"] .stExpander header:hover,
+    [data-testid="stSidebar"] .stExpander summary:hover {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+    }
+    
+    /* Expander 내부 버튼도 동일한 높이 통일 */
+    [data-testid="stSidebar"] .stExpander .stButton > button,
+    [data-testid="stSidebar"] .stExpander button {
+        min-height: 56px !important;
+        display: flex !important;
+        align-items: center !important;
+        line-height: 1.42 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
+    [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
+    [data-testid="stSidebar"] .stSelectbox select {
+        border-radius: 14px !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)) !important;
+        color: #E2E8F0 !important;
+        transition: all 0.32s ease !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox div[role="combobox"]:hover,
+    [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"]:hover,
+    [data-testid="stSidebar"] .stSelectbox select:hover {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox label {
+        color: #E2E8F0 !important;
+        font-weight: 500 !important;
+    }
+    
+    /* SYSTEM SECTION */
+    [data-testid="stSidebar"] .ultra-system {
+        margin-top: 26px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        position: relative;
+    }
+    
+    [data-testid="stSidebar"] .ultra-system::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.35), rgba(96, 165, 250, 0.55), rgba(59, 130, 246, 0.35), transparent);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.22);
+    }
+    
+    /* 시스템 버튼도 동일한 높이 통일 */
+    [data-testid="stSidebar"] .ultra-system .stButton > button,
+    [data-testid="stSidebar"] .ultra-system button {
+        min-height: 56px !important;
+        display: flex !important;
+        align-items: center !important;
+        line-height: 1.42 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+    </style>
+    """
+    # CSS 주입: 매 rerun마다 무조건 실행 (플래그 없음)
+    st.markdown(css_content, unsafe_allow_html=True)
+
 # 나머지 CSS는 별도 스타일 블록으로
 st.markdown("""
 <style>
@@ -567,309 +865,7 @@ menu = {
 }
 
 def render_expanded_sidebar(menu):
-    """펼친 상태 사이드바 렌더링 (울트라 시크 v3)"""
-    # CSS 주입: 안정성 최우선 (매 rerun마다 실행, DOM 체크로 중복 방지)
-    # [data-testid="stSidebar"] 스코프 덕분에 전역 오염 없음
-    
-    # CSS 주입: 매 rerun마다 실행 (안정성 최우선)
-    # 플래그는 버전 관리용, 실제로는 매번 주입 (브라우저가 중복 처리)
-    if "ps__sidebar_ultra_css_v3" not in st.session_state:
-        st.session_state["ps__sidebar_ultra_css_v3"] = True
-    
-    # CSS 주입 (매번 실행)
-        css_content = """
-        <style id="ps-ultra-sleek-css">
-        /* =========================
-           ULTRA SLEEK SIDEBAR v3
-           scope: sidebar only
-           ========================= */
-        
-        @keyframes ultra-neon-pulse {
-            0%, 100% {
-                box-shadow: 0 6px 18px rgba(59, 130, 246, 0.25),
-                            0 0 0 0 rgba(59, 130, 246, 0.25),
-                            0 0 24px rgba(59, 130, 246, 0.10);
-            }
-            50% {
-                box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35),
-                            0 0 0 4px rgba(59, 130, 246, 0.12),
-                            0 0 36px rgba(59, 130, 246, 0.18);
-            }
-        }
-        
-        @keyframes ultra-gradient-shift {
-            0%, 100% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-        }
-        
-        @media (prefers-reduced-motion: reduce) {
-            [data-testid="stSidebar"] * {
-                animation: none !important;
-                transition: none !important;
-            }
-        }
-        
-        /* ---------- CATEGORY TITLE (with PROBE dot) ---------- */
-        [data-testid="stSidebar"] .ultra-category {
-            margin: 22px 0 10px;
-            padding: 0 10px;
-            font-size: 0.74rem;
-            font-weight: 700;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-            position: relative;
-            background: linear-gradient(135deg, #94A3B8 0%, #60A5FA 35%, #3B82F6 50%, #60A5FA 65%, #94A3B8 100%);
-            background-size: 260% 260%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 10px rgba(96, 165, 250, 0.18);
-            animation: ultra-gradient-shift 4.5s ease infinite;
-            /* Fallback */
-            color: #94A3B8;
-        }
-        
-        @supports not (-webkit-background-clip: text) {
-            [data-testid="stSidebar"] .ultra-category {
-                -webkit-text-fill-color: #94A3B8;
-                color: #94A3B8;
-            }
-        }
-        
-        /* PROBE #1: dot */
-        [data-testid="stSidebar"] .ultra-category::before {
-            content: "•";
-            position: absolute;
-            left: -2px;
-            top: 0;
-            color: rgba(96, 165, 250, 0.85);
-            text-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
-        }
-        
-        [data-testid="stSidebar"] .ultra-category::after {
-            content: "";
-            position: absolute;
-            left: 10px;
-            bottom: -10px;
-            width: 48px;
-            height: 2px;
-            border-radius: 2px;
-            background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), rgba(96, 165, 250, 0.55), transparent);
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
-        }
-        
-        /* ---------- BUTTON BASE (3-step fallback) ---------- */
-        [data-testid="stSidebar"] .stButton > button,
-        [data-testid="stSidebar"] button[kind],
-        [data-testid="stSidebar"] button {
-            border-radius: 14px !important;
-            min-height: 56px !important;
-            padding: 14px 16px !important;
-            font-size: 0.90rem !important;
-            font-weight: 550 !important;
-            line-height: 1.42 !important;
-            white-space: normal !important;
-            word-break: break-word !important;
-            display: flex !important;
-            align-items: center !important;
-            text-align: left !important;
-            color: #E2E8F0 !important;
-            border: 1px solid rgba(255, 255, 255, 0.14) !important;
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.012) 100%),
-                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 55%) !important;
-            box-shadow:
-                0 2px 5px rgba(0, 0, 0, 0.18),
-                0 10px 22px rgba(0, 0, 0, 0.16),
-                inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
-            position: relative !important;
-            overflow: hidden !important;
-            transition: background 0.32s ease, border-color 0.32s ease, box-shadow 0.32s ease, transform 0.18s ease !important;
-            margin-bottom: 0.5rem;
-        }
-        
-        /* PROBE #2: left accent bar */
-        [data-testid="stSidebar"] .stButton > button::before,
-        [data-testid="stSidebar"] button[kind]::before,
-        [data-testid="stSidebar"] button::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: rgba(59, 130, 246, 0.35);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.20);
-            opacity: 1;
-            z-index: 1;
-        }
-        
-        /* hover sweep overlay via ::after */
-        [data-testid="stSidebar"] .stButton > button::after,
-        [data-testid="stSidebar"] button[kind]::after,
-        [data-testid="stSidebar"] button::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -120%;
-            width: 120%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.10) 35%, rgba(96, 165, 250, 0.18) 50%, rgba(255, 255, 255, 0.10) 65%, transparent 100%);
-            opacity: 0;
-            transition: left 0.62s ease, opacity 0.25s ease;
-            pointer-events: none;
-            z-index: 2;
-        }
-        
-        /* HOVER */
-        [data-testid="stSidebar"] .stButton > button:hover,
-        [data-testid="stSidebar"] button[kind]:hover,
-        [data-testid="stSidebar"] button:hover {
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.025) 100%),
-                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 55%) !important;
-            border-color: rgba(255, 255, 255, 0.28) !important;
-            box-shadow:
-                0 6px 14px rgba(0, 0, 0, 0.24),
-                0 18px 34px rgba(0, 0, 0, 0.22),
-                0 0 0 1px rgba(255, 255, 255, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
-            transform: scale(1.01) !important;
-        }
-        
-        [data-testid="stSidebar"] .stButton > button:hover::before,
-        [data-testid="stSidebar"] button[kind]:hover::before,
-        [data-testid="stSidebar"] button:hover::before {
-            background: rgba(59, 130, 246, 0.62);
-            box-shadow: 0 0 14px rgba(59, 130, 246, 0.28);
-        }
-        
-        [data-testid="stSidebar"] .stButton > button:hover::after,
-        [data-testid="stSidebar"] button[kind]:hover::after,
-        [data-testid="stSidebar"] button:hover::after {
-            left: 120%;
-            opacity: 1;
-        }
-        
-        /* ACTIVE CLICK FEEDBACK (ripple may fail, so ensure highlight) */
-        [data-testid="stSidebar"] .stButton > button:active,
-        [data-testid="stSidebar"] button[kind]:active,
-        [data-testid="stSidebar"] button:active {
-            background:
-                linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.10) 55%, rgba(255, 255, 255, 0.05) 100%),
-                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.16) 0%, transparent 55%) !important;
-        }
-        
-        /* PRIMARY (selected) */
-        [data-testid="stSidebar"] .stButton > button[kind="primary"],
-        [data-testid="stSidebar"] button[kind="primary"] {
-            color: #fff !important;
-            border-color: rgba(96, 165, 250, 0.72) !important;
-            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 30%, #1D4ED8 60%, #1E40AF 100%) !important;
-            background-size: 220% 220% !important;
-            box-shadow:
-                0 10px 26px rgba(59, 130, 246, 0.32),
-                0 18px 44px rgba(59, 130, 246, 0.22),
-                0 0 0 1px rgba(96, 165, 250, 0.35),
-                0 0 46px rgba(59, 130, 246, 0.16),
-                inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-            animation: ultra-neon-pulse 3.6s ease-in-out infinite, ultra-gradient-shift 4.2s ease infinite !important;
-        }
-        
-        [data-testid="stSidebar"] .stButton > button[kind="primary"]::before,
-        [data-testid="stSidebar"] button[kind="primary"]::before {
-            width: 3px;
-            background: rgba(255, 255, 255, 0.55);
-            box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
-        }
-        
-        /* EXPANDER / SELECTBOX : keep minimal, consistent */
-        [data-testid="stSidebar"] .stExpander header,
-        [data-testid="stSidebar"] .stExpander summary {
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.14) !important;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)) !important;
-            color: #E2E8F0 !important;
-            transition: all 0.32s ease !important;
-        }
-        
-        [data-testid="stSidebar"] .stExpander header:hover,
-        [data-testid="stSidebar"] .stExpander summary:hover {
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)) !important;
-            border-color: rgba(255, 255, 255, 0.22) !important;
-        }
-        
-        /* Expander 내부 버튼도 동일한 높이 통일 */
-        [data-testid="stSidebar"] .stExpander .stButton > button,
-        [data-testid="stSidebar"] .stExpander button {
-            min-height: 56px !important;
-            display: flex !important;
-            align-items: center !important;
-            line-height: 1.42 !important;
-            white-space: normal !important;
-            word-break: break-word !important;
-        }
-        
-        [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
-        [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
-        [data-testid="stSidebar"] .stSelectbox select {
-            border-radius: 14px !important;
-            border: 1px solid rgba(255, 255, 255, 0.14) !important;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)) !important;
-            color: #E2E8F0 !important;
-            transition: all 0.32s ease !important;
-        }
-        
-        [data-testid="stSidebar"] .stSelectbox div[role="combobox"]:hover,
-        [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"]:hover,
-        [data-testid="stSidebar"] .stSelectbox select:hover {
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
-            border-color: rgba(255, 255, 255, 0.22) !important;
-        }
-        
-        [data-testid="stSidebar"] .stSelectbox label {
-            color: #E2E8F0 !important;
-            font-weight: 500 !important;
-        }
-        
-        /* SYSTEM SECTION */
-        [data-testid="stSidebar"] .ultra-system {
-            margin-top: 26px;
-            padding-top: 18px;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            position: relative;
-        }
-        
-        [data-testid="stSidebar"] .ultra-system::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.35), rgba(96, 165, 250, 0.55), rgba(59, 130, 246, 0.35), transparent);
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.22);
-        }
-        
-        /* 시스템 버튼도 동일한 높이 통일 */
-        [data-testid="stSidebar"] .ultra-system .stButton > button,
-        [data-testid="stSidebar"] .ultra-system button {
-            min-height: 56px !important;
-            display: flex !important;
-            align-items: center !important;
-            line-height: 1.42 !important;
-            white-space: normal !important;
-            word-break: break-word !important;
-        }
-        </style>
-        """
-        # CSS 주입: 매 rerun마다 실행
-        st.markdown(css_content, unsafe_allow_html=True)
-    
+    """펼친 상태 사이드바 렌더링 (구조만 담당, CSS는 전역 주입)"""
     # 매장 선택
     user_stores = get_user_stores()
     curr_name = get_current_store_name()
@@ -921,6 +917,10 @@ def render_expanded_sidebar(menu):
         load_csv.clear()
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
+# 사이드바 프리미엄 CSS 주입 (매 rerun마다 실행)
+# 로그인 체크 후, 페이지 라우팅 전에 무조건 실행
+inject_sidebar_premium_css()
 
 # current_page 초기화
 if "current_page" not in st.session_state:
