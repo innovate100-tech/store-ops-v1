@@ -46,23 +46,23 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
         
         # 오늘의 1순위 행동 결정
         # 1순위: 로드맵 1순위
-    if roadmap and len(roadmap) > 0:
-        today_action = roadmap[0]
-        action_title = today_action.get("task", "가게 전략 센터부터 시작")
-        action_cta = today_action.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}})
-    # 2순위: 전략 카드 1순위
-    elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
-        first_card = cards_result["cards"][0]
-        impact = first_card.get("impact", {})
-        action_plan = first_card.get("action_plan", {})
-        
-        today_action = {
-            "task": first_card.get("title", "가게 전략 센터부터 시작"),
-            "why": first_card.get("why", ""),
-            "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}}),
-            "impact": impact,
-            "action_plan": action_plan
-        }
+        if roadmap and len(roadmap) > 0:
+            today_action = roadmap[0]
+            action_title = today_action.get("task", "가게 전략 센터부터 시작")
+            action_cta = today_action.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}})
+        # 2순위: 전략 카드 1순위
+        elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
+            first_card = cards_result["cards"][0]
+            impact = first_card.get("impact", {})
+            action_plan = first_card.get("action_plan", {})
+            
+            today_action = {
+                "task": first_card.get("title", "가게 전략 센터부터 시작"),
+                "why": first_card.get("why", ""),
+                "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}}),
+                "impact": impact,
+                "action_plan": action_plan
+            }
             action_title = today_action["task"]
             action_cta = today_action["cta"]
         
