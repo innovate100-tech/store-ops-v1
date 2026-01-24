@@ -122,35 +122,46 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
     
-    /* 상단 여백 강제 축소 및 헤더 최소화 (햄버거 메뉴는 유지) */
+    /* 상단 여백 강제 축소 */
     .main .block-container {
         padding-top: 0rem !important;
         padding-bottom: 2rem !important;
     }
+    
+    /* 헤더 완전히 표시 (햄버거 메뉴를 위해) */
     header[data-testid="stHeader"] {
-        height: 3.5rem !important;
+        display: flex !important;
+        visibility: visible !important;
+        height: auto !important;
         min-height: 3.5rem !important;
         padding: 0.5rem 1rem !important;
+        background: transparent !important;
+        border-bottom: none !important;
     }
     
-    /* 헤더 내용 숨기기 (햄버거 메뉴 버튼은 유지) */
-    header[data-testid="stHeader"] > div:first-child {
-        display: none !important;
-    }
-    
-    /* 햄버거 메뉴 버튼만 보이도록 */
+    /* 헤더의 모든 버튼 표시 */
+    header[data-testid="stHeader"] button,
+    [data-testid="stHeader"] button,
     button[kind="header"] {
         display: block !important;
         visibility: visible !important;
+        opacity: 1 !important;
     }
     
-    /* 사이드바 토글 버튼 강제 표시 */
-    [data-testid="stHeader"] button[aria-label*="sidebar"],
-    [data-testid="stHeader"] button[aria-label*="메뉴"],
-    [data-testid="stHeader"] button[aria-label*="Menu"] {
+    /* 사이드바 토글 버튼 강제 표시 - 모든 가능한 선택자 */
+    [data-testid="stHeader"] button,
+    header button,
+    button[kind="header"],
+    button[aria-label*="sidebar"],
+    button[aria-label*="메뉴"],
+    button[aria-label*="Menu"],
+    button[aria-label*="Close"],
+    button[aria-label*="열기"],
+    button[aria-label*="Open"] {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        z-index: 1000 !important;
     }
     
     /* 제목 위 불필요한 간격 제거 */
@@ -191,69 +202,122 @@ st.markdown("""
     }
     [data-testid="stIconMaterial"]::before { content: '😊'; font-size: 18px; color: #ffffff; }
     
-    /* 사이드바 항상 표시 보장 및 접기 방지 */
-    [data-testid="stSidebar"] {
+    /* 사이드바 항상 표시 보장 및 접기 방지 - 모든 가능한 선택자 사용 */
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"],
+    div[data-testid="stSidebar"],
+    .css-1d391kg,
+    .css-1lcbmhc,
+    [class*="stSidebar"] {
         display: block !important;
         visibility: visible !important;
         width: 21rem !important;
+        min-width: 21rem !important;
+        max-width: 21rem !important;
         transform: translateX(0) !important;
+        position: relative !important;
+        opacity: 1 !important;
+        z-index: 999 !important;
     }
     
-    /* 사이드바 컨테이너 보장 */
-    section[data-testid="stSidebar"] {
+    /* 사이드바가 접힌 상태로 보이지 않도록 - 모든 상태에서 강제 표시 */
+    [data-testid="stSidebar"][aria-expanded="false"],
+    [data-testid="stSidebar"][aria-expanded="true"],
+    section[data-testid="stSidebar"][aria-expanded="false"],
+    section[data-testid="stSidebar"][aria-expanded="true"] {
         display: block !important;
         visibility: visible !important;
-    }
-    
-    /* 사이드바가 접힌 상태로 보이지 않도록 */
-    [data-testid="stSidebar"][aria-expanded="false"] {
-        display: block !important;
-        visibility: visible !important;
         transform: translateX(0) !important;
+        width: 21rem !important;
+        min-width: 21rem !important;
     }
     
-    /* 메인 콘텐츠 영역 조정 (사이드바가 열려있을 때) */
+    /* Streamlit 앱 뷰 컨테이너 조정 */
+    [data-testid="stAppViewContainer"] {
+        margin-left: 21rem !important;
+    }
+    
+    /* 메인 콘텐츠 영역 조정 */
     .main .block-container {
         margin-left: 0 !important;
     }
     
-    /* 사이드바가 열려있을 때 메인 영역 조정 */
-    [data-testid="stSidebar"][aria-expanded="true"] ~ * .main,
-    [data-testid="stSidebar"]:not([aria-expanded="false"]) ~ * .main {
-        margin-left: 0 !important;
+    /* 사이드바 오버레이 제거 */
+    .css-1d391kg[aria-expanded="false"]::before,
+    [data-testid="stSidebar"][aria-expanded="false"]::before {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 사이드바 강제 열기 JavaScript
+# 사이드바 강제 열기 JavaScript - 더 강력한 버전
 st.markdown("""
 <script>
 (function() {
     function forceSidebarOpen() {
-        // 사이드바 요소 찾기
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
-        if (sidebar) {
-            // 사이드바를 항상 열린 상태로 설정
-            sidebar.setAttribute('aria-expanded', 'true');
-            sidebar.style.display = 'block';
-            sidebar.style.visibility = 'visible';
-            sidebar.style.transform = 'translateX(0)';
-            sidebar.style.width = '21rem';
+        // 모든 가능한 사이드바 선택자로 찾기
+        const selectors = [
+            '[data-testid="stSidebar"]',
+            'section[data-testid="stSidebar"]',
+            'div[data-testid="stSidebar"]',
+            '.css-1d391kg',
+            '.css-1lcbmhc'
+        ];
+        
+        let sidebar = null;
+        for (const selector of selectors) {
+            sidebar = document.querySelector(selector);
+            if (sidebar) break;
         }
         
-        // 햄버거 메뉴 버튼 찾기 및 표시
-        const menuButtons = document.querySelectorAll('button[kind="header"]');
-        menuButtons.forEach(btn => {
-            if (btn.getAttribute('aria-label') && 
-                (btn.getAttribute('aria-label').includes('sidebar') || 
-                 btn.getAttribute('aria-label').includes('메뉴') ||
-                 btn.getAttribute('aria-label').includes('Menu'))) {
-                btn.style.display = 'block';
-                btn.style.visibility = 'visible';
-                btn.style.opacity = '1';
+        if (sidebar) {
+            // 사이드바를 항상 열린 상태로 강제 설정
+            sidebar.setAttribute('aria-expanded', 'true');
+            sidebar.style.cssText = `
+                display: block !important;
+                visibility: visible !important;
+                transform: translateX(0) !important;
+                width: 21rem !important;
+                min-width: 21rem !important;
+                max-width: 21rem !important;
+                position: relative !important;
+                opacity: 1 !important;
+                z-index: 999 !important;
+            `;
+            
+            // 부모 요소도 확인
+            let parent = sidebar.parentElement;
+            while (parent && parent !== document.body) {
+                if (parent.style) {
+                    parent.style.overflow = 'visible';
+                }
+                parent = parent.parentElement;
+            }
+        }
+        
+        // 햄버거 메뉴 버튼 찾기 및 표시 - 모든 가능한 방법
+        const headerButtons = document.querySelectorAll('button[kind="header"], [data-testid="stHeader"] button, header button');
+        headerButtons.forEach(btn => {
+            const label = btn.getAttribute('aria-label') || '';
+            if (label.includes('sidebar') || label.includes('메뉴') || label.includes('Menu') || 
+                label.includes('Close') || label.includes('열기') || label.includes('Open')) {
+                btn.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important;';
             }
         });
+        
+        // Streamlit의 사이드바 토글 버튼 클릭 이벤트 오버라이드
+        const toggleButtons = document.querySelectorAll('[data-testid="stHeader"] button, button[kind="header"]');
+        toggleButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                setTimeout(() => {
+                    forceSidebarOpen();
+                }, 100);
+            });
+        });
     }
+    
+    // 즉시 실행
+    forceSidebarOpen();
     
     // 페이지 로드 시 실행
     if (document.readyState === 'loading') {
@@ -262,17 +326,46 @@ st.markdown("""
         forceSidebarOpen();
     }
     
-    // 주기적으로 확인하여 사이드바가 접히면 다시 열기
-    setInterval(forceSidebarOpen, 500);
+    // window.load 이벤트
+    window.addEventListener('load', forceSidebarOpen);
+    
+    // 주기적으로 확인하여 사이드바가 접히면 다시 열기 (더 자주 체크)
+    setInterval(forceSidebarOpen, 200);
     
     // DOM 변경 감지하여 사이드바 상태 유지
-    const observer = new MutationObserver(forceSidebarOpen);
+    const observer = new MutationObserver(function(mutations) {
+        let shouldForce = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && 
+                (mutation.attributeName === 'aria-expanded' || 
+                 mutation.attributeName === 'style' || 
+                 mutation.attributeName === 'class')) {
+                shouldForce = true;
+            }
+            if (mutation.type === 'childList') {
+                shouldForce = true;
+            }
+        });
+        if (shouldForce) {
+            setTimeout(forceSidebarOpen, 50);
+        }
+    });
+    
     observer.observe(document.body, {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['style', 'aria-expanded', 'class']
+        attributeFilter: ['style', 'aria-expanded', 'class', 'data-testid']
     });
+    
+    // Streamlit의 내부 이벤트 리스너 오버라이드 시도
+    if (window.parent && window.parent !== window) {
+        try {
+            window.parent.addEventListener('message', function(e) {
+                setTimeout(forceSidebarOpen, 100);
+            });
+        } catch(err) {}
+    }
 })();
 </script>
 """, unsafe_allow_html=True)
