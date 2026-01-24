@@ -576,13 +576,8 @@ def render_expanded_sidebar(menu):
         css_content = """
         <style>
         /* 프리미엄 블랙 테마 완전판 CSS v2 - [data-testid="stSidebar"] 스코프 */
-        /* 적용 보증: PROBE 요소 포함, 선택자 폴백, transform 정책 준수 */
         /* ⚠️ [data-testid="stSidebar"]는 스코프 한정자로만 사용 (위치/크기/토글 CSS 금지) */
-        
-        /* ========== 전역 PROBE: CSS 주입 확인용 (빨간 outline) ========== */
-        [data-testid="stSidebar"] {
-            outline: 5px solid red !important;
-        }
+        /* 모든 선택자는 [data-testid="stSidebar"]로 시작하여 메인 콘텐츠 영향 0 보장 */
         
         /* ========== prefers-reduced-motion 대응 ========== */
         @media (prefers-reduced-motion: reduce) {
@@ -669,17 +664,7 @@ def render_expanded_sidebar(menu):
             z-index: 1;
         }
         
-        /* ========== 카테고리 제목 (그라데이션 텍스트 + PROBE 포함) ========== */
-        
-        /* PROBE: 카테고리 제목 앞 작은 점 (CSS 적용 확인용) */
-        [data-testid="stSidebar"] .premium-category-title::before {
-            content: '•';
-            display: inline-block;
-            color: rgba(59, 130, 246, 0.6);
-            margin-right: 0.5rem;
-            font-size: 0.5rem;
-            vertical-align: middle;
-        }
+        /* ========== 카테고리 제목 (그라데이션 텍스트) ========== */
         
         [data-testid="stSidebar"] .premium-category-title {
             background: linear-gradient(135deg, 
@@ -727,7 +712,7 @@ def render_expanded_sidebar(menu):
         
         /* ========== 고급 버튼 스타일 (선택자 폴백 포함) ========== */
         
-        /* 공통 버튼: 고급 그라데이션 배경 + PROBE (border 변화) */
+        /* 공통 버튼: 고급 그라데이션 배경 */
         [data-testid="stSidebar"] .stButton > button,
         [data-testid="stSidebar"] button[kind],
         [data-testid="stSidebar"] button {
@@ -735,9 +720,7 @@ def render_expanded_sidebar(menu):
                 rgba(255, 255, 255, 0.05) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
             color: #E2E8F0;
-            /* PROBE: border 변화 (CSS 적용 확인용) */
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-left: 2px solid rgba(59, 130, 246, 0.3);
             border-radius: 12px;
             padding: 0.875rem 1rem;
             font-weight: 500;
@@ -779,7 +762,7 @@ def render_expanded_sidebar(menu):
             width: 0;
             height: 0;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.25);
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 2;
@@ -793,7 +776,6 @@ def render_expanded_sidebar(menu):
                 rgba(255, 255, 255, 0.1) 0%, 
                 rgba(255, 255, 255, 0.05) 100%);
             border-color: rgba(255, 255, 255, 0.25);
-            border-left-color: rgba(59, 130, 246, 0.6);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
                         0 0 0 1px rgba(255, 255, 255, 0.1);
             /* transform 정책: scale만 허용, rotate 금지 */
@@ -801,9 +783,9 @@ def render_expanded_sidebar(menu):
         }
         
         /* 호버 시 스윕 효과 (폴백: opacity 변화만 있어도 보이게) */
-        .ps-sidebar-scope .stButton > button:hover::before,
-        .ps-sidebar-scope button[kind]:hover::before,
-        .ps-sidebar-scope button:hover::before {
+        [data-testid="stSidebar"] .stButton > button:hover::before,
+        [data-testid="stSidebar"] button[kind]:hover::before,
+        [data-testid="stSidebar"] button:hover::before {
             left: 100%;
             opacity: 1;
         }
@@ -817,9 +799,9 @@ def render_expanded_sidebar(menu):
                 rgba(255, 255, 255, 0.08) 100%);
         }
         
-        .ps-sidebar-scope .stButton > button:active::after,
-        .ps-sidebar-scope button[kind]:active::after,
-        .ps-sidebar-scope button:active::after {
+        [data-testid="stSidebar"] .stButton > button:active::after,
+        [data-testid="stSidebar"] button[kind]:active::after,
+        [data-testid="stSidebar"] button:active::after {
             width: 300px;
             height: 300px;
             animation: premium-ripple 0.6s ease-out;
@@ -834,7 +816,6 @@ def render_expanded_sidebar(menu):
                 #1D4ED8 100%);
             background-size: 200% 200%;
             border-color: #60A5FA;
-            border-left-color: #60A5FA;
             box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4),
                         0 0 0 1px rgba(96, 165, 250, 0.3);
             color: #FFFFFF;
@@ -862,7 +843,7 @@ def render_expanded_sidebar(menu):
         /* 활성 버튼의 리플 효과는 더 밝게 */
         [data-testid="stSidebar"] .stButton > button[kind="primary"]:active::after,
         [data-testid="stSidebar"] button[kind="primary"]:active::after {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.4);
         }
         
         /* ========== Expander 고급 스타일 (선택자 폴백) ========== */
@@ -878,8 +859,16 @@ def render_expanded_sidebar(menu):
             color: #E2E8F0;
             font-weight: 500;
             transition: all 0.3s ease;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+        }
+        
+        /* Expander backdrop-filter (브라우저 지원 확인) */
+        @supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
+            [data-testid="stSidebar"] .stExpander header,
+            [data-testid="stSidebar"] .stExpander summary,
+            [data-testid="stSidebar"] .stExpander label {
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            }
         }
         
         [data-testid="stSidebar"] .stExpander header:hover,
@@ -920,8 +909,16 @@ def render_expanded_sidebar(menu):
             border-radius: 12px;
             color: #E2E8F0;
             transition: all 0.3s ease;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+        }
+        
+        /* Selectbox backdrop-filter (브라우저 지원 확인) */
+        @supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
+            [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
+            [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
+            [data-testid="stSidebar"] .stSelectbox select {
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            }
         }
         
         [data-testid="stSidebar"] .stSelectbox div[role="combobox"]:hover,
@@ -949,7 +946,7 @@ def render_expanded_sidebar(menu):
         }
         
         /* 시스템 섹션 상단 그라데이션 라인 */
-        .ps-sidebar-scope .premium-system-section::before {
+        [data-testid="stSidebar"] .premium-system-section::before {
             content: '';
             position: absolute;
             top: 0;
@@ -968,7 +965,6 @@ def render_expanded_sidebar(menu):
                 rgba(255, 255, 255, 0.04) 0%, 
                 rgba(255, 255, 255, 0.02) 100%);
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-left: 2px solid rgba(59, 130, 246, 0.3);
             border-radius: 12px;
             transition: all 0.3s ease;
         }
@@ -979,7 +975,6 @@ def render_expanded_sidebar(menu):
                 rgba(255, 255, 255, 0.08) 0%, 
                 rgba(255, 255, 255, 0.04) 100%);
             border-color: rgba(255, 255, 255, 0.25);
-            border-left-color: rgba(59, 130, 246, 0.6);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
         </style>
@@ -987,12 +982,6 @@ def render_expanded_sidebar(menu):
         
         # CSS 주입: st.markdown 사용
         st.markdown(css_content, unsafe_allow_html=True)
-    
-    # 강제 시각 PROBE: 함수 실행 및 위치 확인용 (원인 규명 후 제거)
-    st.markdown(
-        '<div style="background:red;color:white;padding:6px;border-radius:6px;font-weight:700;margin-bottom:10px;">PS SIDEBAR SCOPE ACTIVE</div>',
-        unsafe_allow_html=True
-    )
     
     # 매장 선택
     user_stores = get_user_stores()
