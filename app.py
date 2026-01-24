@@ -1526,7 +1526,7 @@ with st.sidebar:
             ("판매 메뉴 입력", "메뉴 입력"),  # 라벨 변경: 메뉴 입력 → 판매 메뉴 입력
             ("사용 재료 입력", "재료 입력"),  # 라벨 변경: 재료 입력 → 사용 재료 입력
             ("판매 레시피 입력", "레시피 입력"),  # 라벨 변경: 레시피 입력 → 판매 레시피 입력
-            # ("재고 관리", "재고 관리"),  # 향후 추가 예정 (현재 라우팅 없음)
+            ("재고 입력", "재고 입력"),  # 재고 현황과 안전재고 입력
             ("일괄 매출/방문자 등록", "매출 등록"),  # 라벨 변경: 매출 등록(과거/수정) → 일괄 매출/방문자 등록
             ("일괄 메뉴별 판매량 등록", "판매량 등록"),  # 라벨 변경: 판매량 등록(과거/수정) → 일괄 메뉴별 판매량 등록
         ],
@@ -1804,6 +1804,11 @@ elif page == "메뉴 입력":
 elif page == "재료 입력":
     from ui_pages.input.ingredient_input import render_ingredient_input_page
     render_ingredient_input_page()
+
+# 재고 입력 페이지 (입력 전용)
+elif page == "재고 입력":
+    from ui_pages.input.inventory_input import render_inventory_input_page
+    render_inventory_input_page()
 
 # 레시피 입력 페이지 (입력 전용)
 elif page == "레시피 입력":

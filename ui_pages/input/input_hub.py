@@ -531,13 +531,12 @@ def render_input_hub():
             st.session_state["current_page"] = "레시피 입력"  # page key 변경
             st.rerun()
     
-    # 재고 관리는 향후 추가 예정 (현재 라우팅 없음)
-    # with col4:
-    #     st.markdown("**📦 재고 관리**")
-    #     st.caption("재고 현황과 입출고를 관리합니다")
-    #     if st.button("📦 재고 관리", use_container_width=True, type="primary", key="input_hub_inventory_management"):
-    #         st.session_state["current_page"] = "재고 관리"  # page key 유지
-    #         st.rerun()
+    with col4:
+        st.markdown("**📦 재고 입력**")
+        st.caption("재고 현황과 안전재고를 입력합니다")
+        if st.button("📦 재고 입력", use_container_width=True, type="primary", key="input_hub_inventory_input"):
+            st.session_state["current_page"] = "재고 입력"  # page key
+            st.rerun()
     
     st.markdown("---")
     
