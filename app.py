@@ -18,8 +18,6 @@ inject_global_ui()
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 
-st.sidebar.warning("DEBUG: APP RELOADED")
-
 if not check_login():
     show_login_page()
     st.stop()
@@ -127,7 +125,7 @@ with st.sidebar:
                 ("매출 하락 원인 찾기", "매출 하락 원인 찾기")
             ]
         },
-        "✍ 입력(New)": {
+        "✍ 입력": {
             "main": [("입력 허브", "입력 허브")],
             "sub": [
                 ("오늘 입력", "일일 입력(통합)"),

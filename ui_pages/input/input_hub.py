@@ -1,6 +1,6 @@
 """
 입력 허브 페이지
-입력 관련 모든 페이지로의 네비게이션 허브 (2단계 고도화 버전)
+입력 관련 모든 페이지로의 네비게이션 허브 (2단계 고도화 버전 - UI 개선안)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -10,9 +10,6 @@ from src.storage_supabase import get_day_record_status, load_actual_settlement_i
 from src.utils.time_utils import today_kst, current_year_kst, current_month_kst
 from datetime import timedelta
 import pandas as pd
-
-# 공통 설정 적용
-# bootstrap(page_title="Input Hub") # app.py에서 이미 실행되므로 주석 처리
 
 def _count_completed_checklists_last_7_days(store_id: str) -> int:
     if not store_id: return 0
@@ -44,7 +41,6 @@ def _get_today_recommendations(store_id: str) -> list:
         has_close = status.get("has_close", False)
         has_any = status.get("has_sales", False) or status.get("has_visitors", False) or has_close
         
-        # 일일 매출/방문자 요약
         sales_val = 0
         visitors_val = 0
         try:
@@ -57,18 +53,15 @@ def _get_today_recommendations(store_id: str) -> list:
                     visitors_val = row.iloc[0].get("visitors", 0)
         except Exception: pass
 
-        # P1: 일일 마감
         if not has_close:
             msg = "📝 오늘 입력을 시작하세요" if not has_any else "📝 오늘 마감을 완료하세요"
             recommendations.append({"status": "pending", "message": msg, "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "미입력"})
         else:
             recommendations.append({"status": "completed", "message": "✅ 오늘 마감 완료", "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"})
         
-        # P4: QSC
         checklist_count = _count_completed_checklists_last_7_days(store_id)
         recommendations.append({"status": "completed" if checklist_count > 0 else "pending", "message": f"🩺 QSC 점검 ({checklist_count}회)", "button_label": "🩺 QSC 입력", "page_key": "건강검진 실시", "priority": 4, "summary": "이번 주"})
             
-        # P5: 정산
         is_done = _is_current_month_settlement_done(store_id)
         recommendations.append({"status": "completed" if is_done else "pending", "message": "📅 월간 정산", "button_label": "📅 정산 입력", "page_key": "실제정산", "priority": 5, "summary": "이번 달"})
         
@@ -78,21 +71,18 @@ def _get_today_recommendations(store_id: str) -> list:
 def _get_asset_readiness(store_id: str) -> dict:
     if not store_id: return {}
     try:
-        # 메뉴 품질 체크
         menu_df = load_csv("menu_master.csv", store_id=store_id)
         menu_count = len(menu_df) if not menu_df.empty else 0
         missing_price = 0
         if not menu_df.empty and "판매가" in menu_df.columns:
             missing_price = menu_df["판매가"].isna().sum() + (menu_df["판매가"] == 0).sum()
         
-        # 재료 품질 체크
         ing_df = load_csv("ingredient_master.csv", store_id=store_id)
         ing_count = len(ing_df) if not ing_df.empty else 0
         missing_cost = 0
         if not ing_df.empty and "단가" in ing_df.columns:
             missing_cost = ing_df["단가"].isna().sum() + (ing_df["단가"] == 0).sum()
         
-        # 레시피 및 목표
         recipe_df = load_csv("recipes.csv", store_id=store_id)
         recipe_ready = 0
         if not menu_df.empty and not recipe_df.empty:
@@ -113,6 +103,7 @@ def _get_asset_readiness(store_id: str) -> dict:
     except Exception: return {}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
+    # 어두운 배경 카드 (관제 보드용)
     bg = "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
     border = "rgba(148,163,184,0.3)"
     if status == "completed": border = "rgba(74, 222, 128, 0.5)"
@@ -127,22 +118,28 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
+    # 눈이 편안한 테마 대응 카드 (자산 현황용)
+    # </div> 누출 방지를 위해 HTML 구조 단순화 및 공백 제거
     warning_html = f'<div style="font-size: 0.75rem; color: #ef4444; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning}</div>' if warning else ''
-    st.markdown(f"""
-    <div style="padding: 1rem; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; 
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 0.8rem; display: flex; align-items: center; gap: 1rem;">
-        <div style="font-size: 1.8rem;">{icon}</div>
-        <div style="flex-grow: 1;">
-            <div style="font-size: 0.75rem; color: #64748b;">{title}</div>
-            <div style="font-size: 1rem; font-weight: 700; color: #1e293b;">{value}</div>
-            {warning_html}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    card_style = """
+        padding: 1rem; 
+        background-color: var(--background-color, #f9fafb); 
+        border-radius: 10px; 
+        border: 1px solid var(--ps-border, #e5e7eb); 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        margin-bottom: 0.8rem; 
+        display: flex; 
+        align-items: center; 
+        gap: 1rem;
+    """
+    title_style = "font-size: 0.8rem; color: var(--text-color, #4b5563); opacity: 0.8;"
+    value_style = "font-size: 1.1rem; font-weight: 700; color: var(--text-color, #111827);"
+    
+    html_content = f"""<div style="{card_style}"><div style="font-size: 1.8rem;">{icon}</div><div style="flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div>{warning_html}</div></div>"""
+    st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v2():
     """입력 허브 페이지 렌더링"""
-    st.info("🔄 V2.2 고도화 버전이 적용되었습니다. (목표 설정 버튼 전진 배치)")
     render_page_header("✍ 입력 허브", "✍")
     store_id = get_current_store_id()
     if not store_id:
@@ -165,8 +162,8 @@ def render_input_hub_v2():
     st.markdown("### 🏗️ 가게 자산 구축 현황")
     st.caption("시스템 운영을 위한 기초 데이터 완성도입니다.")
     a1, a2, a3, a4 = st.columns(4)
-    with a1: _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", f"가격 미입력 {assets['missing_price']}개" if assets.get('missing_price', 0) > 0 else "")
-    with a2: _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", f"단가 미입력 {assets['missing_cost']}개" if assets.get('missing_cost', 0) > 0 else "")
+    with a1: _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", f"가격 미입력 {assets.get('missing_price', 0)}개" if assets.get('missing_price', 0) > 0 else "")
+    with a2: _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", f"단가 미입력 {assets.get('missing_cost', 0)}개" if assets.get('missing_cost', 0) > 0 else "")
     with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳", "레시피 보완 필요" if assets.get('recipe_rate', 0) < 50 else "")
     with a4: _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯", "목표를 설정하세요" if not assets.get('has_target') else "")
 
