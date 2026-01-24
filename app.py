@@ -1794,6 +1794,15 @@ with st.sidebar:
 
 page = st.session_state.current_page
 
+# Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
+if st.session_state.get("_show_supabase_diagnosis", False):
+    try:
+        _diagnose_supabase_connection()
+    except Exception as e:
+        st.error(f"진단 기능 실행 중 오류: {e}")
+        st.exception(e)
+    # 플래그는 유지 (사용자가 닫을 때까지 보이도록)
+
 # 홈 (사장 계기판) 페이지 (Phase 3 STEP 1)
 if page == "홈":
     from ui_pages.home import render_home
@@ -1803,15 +1812,6 @@ if page == "홈":
 elif page == "오늘의 전략 실행" or page == "미션 상세":
     from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()
-
-# Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
-if st.session_state.get("_show_supabase_diagnosis", False):
-    try:
-        _diagnose_supabase_connection()
-    except Exception as e:
-        st.error(f"진단 기능 실행 중 오류: {e}")
-        st.exception(e)
-    # 플래그는 유지 (사용자가 닫을 때까지 보이도록)
 
 # 입력 허브 페이지
 elif page == "입력 허브":
