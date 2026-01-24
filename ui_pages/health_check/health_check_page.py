@@ -1,17 +1,17 @@
 """
-매장 체크리스트 페이지
-QSCPPPMHF 9개 영역 매장 체크리스트 UI
+매장 체크리스트 페이지 (리디자인)
+QSCPPPMHF 9개 영역 매장 체크리스트 UI - 빠른 입력 중심
 """
 from src.bootstrap import bootstrap
 import streamlit as st
 import logging
+import time
 from datetime import datetime
 from typing import Dict, Optional, List
-from src.ui_helpers import render_page_header, handle_data_error
+from src.ui_helpers import render_page_header, handle_data_error, render_section_header
 from src.auth import get_current_store_id
 from src.health_check.storage import (
     create_health_session,
-    upsert_health_answer,
     upsert_health_answers_batch,
     finalize_health_session,
     get_health_session,
@@ -28,22 +28,14 @@ from src.health_check.questions_bank import (
 
 logger = logging.getLogger(__name__)
 
-# 주의: bootstrap은 app.py에서 이미 호출됨 (중복 호출 방지)
-# bootstrap(page_title="매장 체크리스트")  # 주석 처리 - app.py에서 이미 호출됨
-
-# 로그인 체크 (app.py에서도 체크하지만, 추가 안전장치)
-from src.auth import check_login, show_login_page
-if not check_login():
-    show_login_page()
-    st.stop()
-
 # 상수
 MIN_COMPLETION_RATIO = 0.8  # 완료 가능 최소 비율 (80%)
 TOTAL_QUESTIONS = 90  # 전체 문항 수
+AUTO_SAVE_DELAY = 2.0  # 자동 저장 지연 시간 (초)
 
 
 def render_health_check_page():
-    """매장 체크리스트 페이지 렌더링"""
+    """매장 체크리스트 페이지 렌더링 (리디자인)"""
     render_page_header("매장 체크리스트", "📋")
     
     store_id = get_current_store_id()
@@ -60,29 +52,19 @@ def render_health_check_page():
     
     # 세션 상태 확인
     session_id = st.session_state.get('health_session_id')
-    view_mode = st.session_state.get('health_check_view_mode', 'input')  # 'input' or 'result' or 'history'
+    view_mode = st.session_state.get('health_check_view_mode', 'input')
     
     # 세션이 있으면 완료 여부 확인
     if session_id:
         session = get_health_session(session_id)
         if session and session.get('completed_at'):
-            # 완료된 세션이지만 view_mode가 'result'면 결과 보기 모드이므로 유지
-            # view_mode가 'input'이고 완료된 세션이면 초기화하고 시작 화면으로
             if view_mode == 'input':
                 # 완료된 세션을 입력 모드로 보려고 하면 초기화
-                if 'health_session_id' in st.session_state:
-                    del st.session_state['health_session_id']
-                if 'health_check_view_mode' in st.session_state:
-                    del st.session_state['health_check_view_mode']
-                # 답변 상태 완전 초기화
-                for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                # 기존 답변 개수 캐시도 초기화
-                answer_count_key = f"health_check_answer_count_{session_id}"
-                if answer_count_key in st.session_state:
-                    del st.session_state[answer_count_key]
+                _clear_session_state()
                 session_id = None
+        else:
+            # 진행 중인 세션
+            pass
     
     # 최근 미완료 세션 확인
     if not session_id:
@@ -90,27 +72,19 @@ def render_health_check_page():
         if latest_open:
             session_id = latest_open['id']
             st.session_state['health_session_id'] = session_id
-            # 기존 답변 상태 초기화 (이어하기 시에도 새로 로드)
-            for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
-                if key in st.session_state:
-                    del st.session_state[key]
+            _clear_session_state()
             st.info(f"📝 진행 중인 체크가 있습니다. 이어서 진행하세요. (시작: {latest_open['started_at'][:10]})")
     
-    # 탭: 입력 / 결과 / 이력
-    if session_id:
-        # view_mode가 'result'이고 세션이 완료되었으면 결과 리포트를 먼저 표시
+    # view_mode가 'result'이고 세션이 완료되었으면 결과 리포트 표시
+    if session_id and view_mode == 'result':
         session = get_health_session(session_id)
-        if view_mode == 'result' and session and session.get('completed_at'):
-            # 결과 리포트를 먼저 표시 (보기 버튼 클릭 시)
+        if session and session.get('completed_at'):
             st.info("📊 체크 결과를 확인하세요.")
             try:
                 render_result_report(store_id, session_id)
             except Exception as e:
                 logger.error(f"Error rendering result report: {e}", exc_info=True)
                 st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
-                with st.expander("🔧 에러 상세 정보"):
-                    import traceback
-                    st.code(traceback.format_exc(), language="python")
             
             st.markdown("---")
             col1, col2, col3 = st.columns([1, 1, 1])
@@ -118,32 +92,47 @@ def render_health_check_page():
                 if st.button("← 체크 입력으로 돌아가기", use_container_width=True):
                     st.session_state['health_check_view_mode'] = 'input'
                     st.rerun()
-        else:
-            tab1, tab2, tab3 = st.tabs(["📝 체크 입력", "📊 결과 리포트", "📋 체크 이력"])
-            
-            with tab1:
-                render_input_form(store_id, session_id)
-            
-            with tab2:
-                # 결과 리포트 탭
-                try:
-                    render_result_report(store_id, session_id)
-                except Exception as e:
-                    logger.error(f"Error rendering result report in tab: {e}", exc_info=True)
-                    st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
-                    with st.expander("🔧 에러 상세 정보"):
-                        import traceback
-                        st.code(traceback.format_exc(), language="python")
-            
-            with tab3:
-                render_history(store_id)
+            return
+    
+    # 세션이 있으면 입력 폼 표시
+    if session_id:
+        # 탭: 입력 / 결과 / 이력
+        tab1, tab2, tab3 = st.tabs(["📝 체크 입력", "📊 결과 리포트", "📋 체크 이력"])
+        
+        with tab1:
+            render_input_form_redesigned(store_id, session_id)
+        
+        with tab2:
+            try:
+                render_result_report(store_id, session_id)
+            except Exception as e:
+                logger.error(f"Error rendering result report in tab: {e}", exc_info=True)
+                st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
+        
+        with tab3:
+            render_history(store_id)
     else:
         # 세션이 없으면 시작 화면
         render_start_screen(store_id)
         
-        # 이력은 별도 탭으로
+        # 이력은 별도 섹션으로
         st.markdown("---")
         render_history(store_id)
+
+
+def _clear_session_state():
+    """세션 상태 초기화"""
+    keys_to_remove = []
+    for key in list(st.session_state.keys()):
+        if (key.startswith("hc_") or 
+            key.startswith("qsc_") or
+            key.startswith("answer_") or 
+            key.startswith("q_") or 
+            key.startswith("health_check_answer_count_")):
+            keys_to_remove.append(key)
+    for key in keys_to_remove:
+        if key in st.session_state:
+            del st.session_state[key]
 
 
 def render_start_screen(store_id: str):
@@ -163,21 +152,7 @@ def render_start_screen(store_id: str):
         if st.button("📋 새 체크 시작", type="primary", use_container_width=True):
             session_id, error_msg = create_health_session(store_id, check_type='monthly')
             if session_id:
-                # 기존 답변 상태 완전 초기화 (새 체크 시작)
-                for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                # 기존 키들도 정리
-                keys_to_remove = []
-                for key in st.session_state.keys():
-                    if (key.startswith("answer_") or 
-                        key.startswith("q_") or 
-                        key.startswith("health_check_answer_count_")):
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                
+                _clear_session_state()
                 st.session_state['health_session_id'] = session_id
                 st.session_state['health_check_view_mode'] = 'input'
                 st.success("체크가 시작되었습니다!")
@@ -185,7 +160,6 @@ def render_start_screen(store_id: str):
             else:
                 st.error(f"체크 시작에 실패했습니다.\n\n{error_msg or '알 수 없는 오류가 발생했습니다.'}")
                 
-                # 테이블 미생성 안내
                 if error_msg and "테이블이 생성되지 않았습니다" in error_msg:
                     st.info("""
                     **해결 방법:**
@@ -193,34 +167,13 @@ def render_start_screen(store_id: str):
                     2. `sql/health_check_phase1.sql` 파일 내용을 복사하여 실행
                     3. 페이지를 새로고침하고 다시 시도
                     """)
-                
-                # 디버그 정보 (DEV 모드에서만)
-                if st.session_state.get("dev_mode", False):
-                    with st.expander("🔧 디버그 정보"):
-                        st.write(f"**store_id**: {store_id}")
-                        st.write(f"**에러 메시지**: {error_msg}")
-                        try:
-                            from src.auth import get_supabase_client
-                            supabase = get_supabase_client()
-                            st.write(f"**Supabase 클라이언트**: {'있음' if supabase else '없음'}")
-                            
-                            # 테이블 존재 여부 확인
-                            if supabase:
-                                try:
-                                    test_result = supabase.table("health_check_sessions").select("id").limit(1).execute()
-                                    st.write(f"**health_check_sessions 테이블**: 존재함")
-                                except Exception as table_error:
-                                    st.write(f"**health_check_sessions 테이블**: 존재하지 않음 또는 접근 불가")
-                                    st.write(f"**테이블 확인 오류**: {table_error}")
-                        except Exception as e:
-                            st.write(f"**Supabase 클라이언트 확인 오류**: {e}")
 
 
 def _initialize_health_check_state(store_id: str, session_id: str):
     """매장 체크리스트 session_state 초기화 (초기 1회만 DB 로드)"""
-    hc_loaded_key = "hc_loaded_session_id"
-    hc_answers_key = "hc_answers"
-    hc_dirty_key = "hc_dirty"
+    hc_loaded_key = "qsc_loaded_session_id"
+    hc_answers_key = "qsc_answers"
+    hc_dirty_key = "qsc_dirty"
     
     # 세션이 변경되었거나 처음 로드하는 경우
     current_loaded = st.session_state.get(hc_loaded_key)
@@ -229,13 +182,13 @@ def _initialize_health_check_state(store_id: str, session_id: str):
         st.session_state[hc_answers_key] = {}
         st.session_state[hc_dirty_key] = set()
         
-        # 기존 session_state 키들 정리 (이전 방식과의 호환성)
+        # 기존 session_state 키들 정리
         keys_to_remove = []
         for key in st.session_state.keys():
-            if (key.startswith("answer_") or 
+            if (key.startswith("qsc_btn_") or 
+                key.startswith("answer_") or 
                 key.startswith("q_") or 
-                key.startswith("health_check_answer_count_") or
-                key.startswith(f"hc_{session_id}_") and key.endswith("_prev")):
+                key.startswith("health_check_answer_count_")):
                 keys_to_remove.append(key)
         for key in keys_to_remove:
             if key in st.session_state:
@@ -244,8 +197,6 @@ def _initialize_health_check_state(store_id: str, session_id: str):
         # DB에서 기존 답변 로드 (초기 1회만)
         try:
             existing_answers = get_health_answers(session_id)
-            # raw_value -> 한국어 옵션 매핑 (역방향)
-            raw_to_korean = {"yes": "예", "maybe": "애매함", "no": "아니다"}
             for ans in existing_answers:
                 category = ans.get('category')
                 question_code = ans.get('question_code')
@@ -253,13 +204,6 @@ def _initialize_health_check_state(store_id: str, session_id: str):
                 if category and question_code and raw_value:
                     key = (category, question_code)
                     st.session_state[hc_answers_key][key] = raw_value
-                    
-                    # 라디오 버튼의 이전 값도 설정 (초기 로드 시)
-                    radio_key = f"hc_{session_id}_{category}_{question_code}"
-                    radio_prev_key = f"{radio_key}_prev"
-                    # raw_value를 한국어 옵션으로 변환
-                    korean_option = raw_to_korean.get(raw_value, "선택 안 함")
-                    st.session_state[radio_prev_key] = korean_option
         except Exception as e:
             logger.error(f"Error loading answers: {e}")
         
@@ -267,22 +211,10 @@ def _initialize_health_check_state(store_id: str, session_id: str):
         st.session_state[hc_loaded_key] = session_id
 
 
-def _invalidate_answers_cache(session_id: str):
-    """
-    답변 캐시 무효화 (필요한 경우)
-    
-    Args:
-        session_id: 세션 ID
-    """
-    # 현재 캐시된 함수가 없으면 아무것도 하지 않음
-    # 향후 @st.cache_data로 캐싱된 함수가 추가되면 여기서 clear() 호출
-    pass
-
-
 def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[str]]:
     """dirty 답변 일괄 저장"""
-    hc_answers_key = "hc_answers"
-    hc_dirty_key = "hc_dirty"
+    hc_answers_key = "qsc_answers"
+    hc_dirty_key = "qsc_dirty"
     
     dirty = st.session_state.get(hc_dirty_key, set())
     if not dirty:
@@ -292,7 +224,6 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
     rows = []
     for (category, question_code) in dirty:
         raw_value = answers.get((category, question_code))
-        # raw_value가 None이면 저장하지 않음 ("선택 안 함" 옵션)
         if raw_value and raw_value in ["yes", "maybe", "no"]:
             rows.append({
                 "category": category,
@@ -305,105 +236,202 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
     
     success, error_msg = upsert_health_answers_batch(store_id, session_id, rows)
     if success:
-        # 저장 성공 시 dirty 비우기
         st.session_state[hc_dirty_key] = set()
     return success, error_msg
 
-def render_input_form(store_id: str, session_id: str):
-    """입력 폼 렌더링 (9개 섹션) - 임시 저장 방식"""
-    # session_state 초기화 (초기 1회만 DB 로드) - 최상단에서 먼저 실행
+
+def render_input_form_redesigned(store_id: str, session_id: str):
+    """입력 폼 렌더링 (리디자인) - 버튼 그리드 방식"""
+    # session_state 초기화 (초기 1회만 DB 로드)
     _initialize_health_check_state(store_id, session_id)
     
-    # 강제 초기화 옵션 (항상 표시 - 문제 해결용)
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("🔄 상태 초기화", type="secondary", use_container_width=True):
-            # 모든 매장 체크리스트 관련 session_state 초기화
-            keys_to_remove = []
-            for key in list(st.session_state.keys()):
-                if (key.startswith("hc_") or 
-                    key.startswith("answer_") or 
-                    key.startswith("q_") or 
-                    key.startswith("health_check_answer_count_")):
-                    keys_to_remove.append(key)
-            for key in keys_to_remove:
-                if key in st.session_state:
-                    del st.session_state[key]
-            
-            # 라디오 버튼의 이전 값도 모두 초기화
-            radio_prev_keys = [k for k in st.session_state.keys() if k.endswith("_prev")]
-            for key in radio_prev_keys:
-                if key in st.session_state:
-                    del st.session_state[key]
-            
-            st.success("상태가 초기화되었습니다. 페이지를 새로고침합니다.")
-            st.rerun()
+    hc_answers_key = "qsc_answers"
+    hc_dirty_key = "qsc_dirty"
     
-    hc_answers_key = "hc_answers"
-    hc_dirty_key = "hc_dirty"
-    
-    # 답변 개수 계산 (실제로 값이 있는 항목만)
+    # 답변 개수 계산
     answers = st.session_state.get(hc_answers_key, {})
-    # answers는 {(category, code): raw_value} 형태
-    # raw_value가 "yes", "maybe", "no" 중 하나인 경우만 카운트
     valid_values = ["yes", "maybe", "no"]
     answered_count = len([v for v in answers.values() if v in valid_values])
     dirty_count = len(st.session_state.get(hc_dirty_key, set()))
     
-    # 진행률 계산 (정확도 개선)
+    # 영역별 진행률 계산
+    category_progress = {}
+    for category in CATEGORIES_ORDER:
+        category_questions = QUESTIONS.get(category, [])
+        category_answered = 0
+        for q in category_questions:
+            key = (category, q['code'])
+            if answers.get(key) in valid_values:
+                category_answered += 1
+        category_progress[category] = {
+            'answered': category_answered,
+            'total': len(category_questions),
+            'ratio': category_answered / len(category_questions) if len(category_questions) > 0 else 0
+        }
+    
+    # 진행률 계산
     progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0.0
     can_complete = answered_count >= 60  # 최소 60개 이상
     
-    # 진행률 표시
-    st.progress(min(progress_ratio, 1.0))  # 1.0을 넘지 않도록
+    # ============================================
+    # ZONE A: 대시보드 & 진행 상황
+    # ============================================
+    render_section_header("📊 진행 상황 대시보드", "📊")
+    
+    # 핵심 지표 카드
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("전체 문항", f"{TOTAL_QUESTIONS}개")
+    with col2:
+        st.metric("완료 문항", f"{answered_count}개", delta=f"{TOTAL_QUESTIONS - answered_count}개 남음")
+    with col3:
+        st.metric("미완료", f"{TOTAL_QUESTIONS - answered_count}개")
+    with col4:
+        completion_rate = (answered_count / TOTAL_QUESTIONS * 100) if TOTAL_QUESTIONS > 0 else 0
+        st.metric("완료율", f"{completion_rate:.0f}%")
+    
+    # 진행률 바
+    st.progress(min(progress_ratio, 1.0))
     st.caption(f"진행률: {answered_count}/{TOTAL_QUESTIONS} 문항 완료 ({progress_ratio*100:.1f}%)")
     
-    # 디버그 정보 (임시로 항상 표시 - 문제 해결 후 제거)
-    with st.expander("🔍 디버그 정보 (임시)", expanded=False):
-        st.write(f"**answers 딕셔너리 크기**: {len(answers)}")
-        st.write(f"**유효한 답변 개수**: {answered_count}")
-        st.write(f"**dirty 개수**: {dirty_count}")
-        st.write(f"**TOTAL_QUESTIONS**: {TOTAL_QUESTIONS}")
-        st.write(f"**session_id**: {session_id}")
-        st.write(f"**hc_loaded_session_id**: {st.session_state.get('hc_loaded_session_id')}")
-        if answers:
-            st.write("**답변 샘플 (최대 5개)**:")
-            sample_items = list(answers.items())[:5]
-            for key, value in sample_items:
-                st.write(f"  - {key}: {value}")
+    # 영역별 진행률
+    st.markdown("### 영역별 진행률")
+    progress_cols = st.columns(9)
+    for idx, category in enumerate(CATEGORIES_ORDER):
+        with progress_cols[idx]:
+            cat_progress = category_progress[category]
+            st.progress(cat_progress['ratio'])
+            st.caption(f"{category}: {cat_progress['answered']}/{cat_progress['total']}")
     
-    # 저장 상태 표시
+    # 스마트 알림
+    alerts = []
     if dirty_count > 0:
-        st.warning(f"💾 저장되지 않은 변경: {dirty_count}개")
+        alerts.append(f"💾 저장되지 않은 변경: {dirty_count}개")
     else:
-        st.success("✅ 모든 변경사항이 저장되었습니다.")
+        alerts.append("✅ 모든 변경사항이 저장되었습니다.")
+    
+    incomplete_categories = [cat for cat, prog in category_progress.items() if prog['answered'] < prog['total']]
+    if incomplete_categories:
+        alerts.append(f"ℹ️ 미완료 영역: {', '.join(incomplete_categories)}")
     
     if can_complete:
-        st.success(f"✅ 완료 가능합니다! ({answered_count}개 답변 완료)")
+        alerts.append(f"✅ 완료 가능합니다! ({answered_count}개 답변 완료)")
     else:
         needed = 60
         remaining = needed - answered_count
-        st.info(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개, 남은 문항: {remaining}개)")
+        alerts.append(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개, 남은 문항: {remaining}개)")
+    
+    for alert in alerts:
+        if "저장되지 않은" in alert:
+            st.warning(alert)
+        elif "완료 가능" in alert:
+            st.success(alert)
+        else:
+            st.info(alert)
     
     st.markdown("---")
     
-    # 저장 버튼
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+    # ============================================
+    # 필터 & 네비게이션
+    # ============================================
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        category_filter = st.multiselect(
+            "영역 필터",
+            options=["전체"] + CATEGORIES_ORDER,
+            default=["전체"],
+            key="qsc_category_filter"
+        )
     with col2:
-        if st.button("💾 임시저장(서버에 반영)", use_container_width=True, disabled=dirty_count == 0):
+        search_term = st.text_input(
+            "🔍 질문 검색",
+            key="qsc_search",
+            placeholder="질문 코드 또는 텍스트로 검색..."
+        )
+    
+    st.markdown("---")
+    
+    # ============================================
+    # ZONE B: 빠른 입력 테이블 (핵심)
+    # ============================================
+    render_section_header("📝 빠른 입력", "📝")
+    
+    # 모든 질문 수집
+    all_questions = []
+    for category in CATEGORIES_ORDER:
+        category_questions = QUESTIONS.get(category, [])
+        for q in category_questions:
+            all_questions.append({
+                'category': category,
+                'code': q['code'],
+                'text': q['text']
+            })
+    
+    # 필터링 적용
+    filtered_questions = all_questions.copy()
+    
+    # 영역 필터
+    if "전체" not in category_filter:
+        filtered_questions = [q for q in filtered_questions if q['category'] in category_filter]
+    
+    # 검색 필터
+    if search_term and search_term.strip():
+        search_lower = search_term.lower()
+        filtered_questions = [
+            q for q in filtered_questions
+            if search_lower in q['code'].lower() or search_lower in q['text'].lower()
+        ]
+    
+    # 질문 렌더링 (영역별로 그룹화)
+    current_category = None
+    for question in filtered_questions:
+        category = question['category']
+        
+        # 영역 헤더 표시
+        if category != current_category:
+            if current_category is not None:
+                st.markdown("---")
+            st.markdown(f"### {category} ({CATEGORY_LABELS.get(category, category)})")
+            current_category = category
+        
+        # 질문별 버튼 그리드 렌더링
+        render_question_buttons(store_id, session_id, category, question['code'], question['text'])
+    
+    st.markdown("---")
+    
+    # ============================================
+    # ZONE C: 저장 & 완료
+    # ============================================
+    render_section_header("💾 저장 & 완료", "💾")
+    
+    # 저장 상태 표시
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        if dirty_count > 0:
+            st.warning(f"💾 저장되지 않은 변경: {dirty_count}개")
+        else:
+            st.success("✅ 모든 변경사항이 저장되었습니다.")
+        
+        # 마지막 저장 시간 표시
+        last_save_time = st.session_state.get('qsc_last_save_time')
+        if last_save_time:
+            st.caption(f"마지막 저장: {datetime.fromtimestamp(last_save_time).strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    with col2:
+        if st.button("💾 수동 저장", use_container_width=True, disabled=dirty_count == 0):
             success, error_msg = _save_answers_batch(store_id, session_id)
             if success:
+                st.session_state['qsc_last_save_time'] = time.time()
                 st.success("저장되었습니다!")
                 st.rerun()
             else:
                 st.error(f"저장 실패: {error_msg}")
     
-    # 9개 섹션 탭
-    category_tabs = st.tabs([f"{cat} ({CATEGORY_LABELS.get(cat, cat)})" for cat in CATEGORIES_ORDER])
-    
-    for idx, category in enumerate(CATEGORIES_ORDER):
-        with category_tabs[idx]:
-            render_category_questions(store_id, session_id, category)
+    with col3:
+        if st.button("🔄 초기화", use_container_width=True, type="secondary"):
+            _clear_session_state()
+            st.success("상태가 초기화되었습니다.")
+            st.rerun()
     
     # 완료 버튼
     st.markdown("---")
@@ -421,159 +449,83 @@ def render_input_form(store_id: str, session_id: str):
                 # finalize 실행
                 success = finalize_health_session(store_id, session_id)
                 if success:
-                    # 세션 상태 초기화
+                    _clear_session_state()
                     if 'health_session_id' in st.session_state:
                         del st.session_state['health_session_id']
                     if 'health_check_view_mode' in st.session_state:
                         del st.session_state['health_check_view_mode']
-                    # 답변 상태 초기화
-                    for key in ["hc_answers", "hc_dirty", "hc_loaded_session_id"]:
-                        if key in st.session_state:
-                            del st.session_state[key]
                     st.success("체크가 완료되었습니다!")
                     st.rerun()
                 else:
                     st.error("체크 완료 처리에 실패했습니다.")
         else:
             st.button("⏳ 완료 불가", disabled=True, use_container_width=True)
-    
-    # DEV 모드 디버그 정보
-    if st.session_state.get("dev_mode", False):
-        with st.expander("🔧 디버그 정보"):
-            st.write(f"**session_id**: {session_id}")
-            st.write(f"**답변 개수**: {answered_count}")
-            st.write(f"**dirty 개수**: {dirty_count}")
-            st.write(f"**hc_loaded_session_id**: {st.session_state.get('hc_loaded_session_id')}")
 
 
-def render_category_questions(store_id: str, session_id: str, category: str):
-    """카테고리별 질문 렌더링 (임시 저장 방식, 1클릭 라디오)"""
-    category_questions = QUESTIONS.get(category, [])
-    hc_answers_key = "hc_answers"
-    hc_dirty_key = "hc_dirty"
+def render_question_buttons(store_id: str, session_id: str, category: str, question_code: str, question_text: str):
+    """질문별 버튼 그리드 렌더링"""
+    hc_answers_key = "qsc_answers"
+    hc_dirty_key = "qsc_dirty"
     
-    # session_state에서 답변 가져오기
+    # 현재 답변 가져오기
+    key = (category, question_code)
     answers = st.session_state.get(hc_answers_key, {})
+    current_value = answers.get(key)
     
-    # radio 옵션 (첫 번째 옵션: "선택 안 함" - 초기 상태 표시용)
-    options = ["선택 안 함", "예", "애매함", "아니다"]
-    raw_value_map = {"선택 안 함": None, "예": "yes", "애매함": "maybe", "아니다": "no"}
+    # 버튼 옵션
+    options = [
+        ("예", "yes", "#22C55E"),
+        ("애매함", "maybe", "#F59E0B"),
+        ("아니다", "no", "#EF4444")
+    ]
     
-    # 각 질문을 1행으로 표시 (질문 텍스트 + 오른쪽 라디오)
-    for question_item in category_questions:
-        question_code = question_item.get("code", "")
-        question_text = question_item.get("text", "")
-        if not question_code or not question_text:
-            continue
-        
-        # session_state에서 현재 값 가져오기
-        key = (category, question_code)
-        current_value = answers.get(key)
-        
-        # 라디오 버튼의 key
-        radio_key = f"hc_{session_id}_{category}_{question_code}"
-        
-        # 라디오 버튼의 이전 값 추적 (실제 사용자 선택 여부 확인)
-        radio_prev_key = f"{radio_key}_prev"
-        previous_selected = st.session_state.get(radio_prev_key)
-        
-        # 현재 값에 맞는 인덱스 찾기
-        index = None
-        if current_value:
-            for i, opt in enumerate(options):
-                if raw_value_map[opt] == current_value:
-                    index = i
-                    break
-        else:
-            # current_value가 None이면 "선택 안 함" 옵션(인덱스 0) 사용
-            index = 0
-        
-        # 1행 레이아웃: 질문 텍스트(왼쪽) + 라디오 버튼(오른쪽)
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.markdown(f"**{question_code}** {question_text}")
-        
-        with col2:
-            try:
-                # 라디오 버튼 렌더링
-                # index가 None이면 "선택 안 함"(0번 인덱스) 사용
-                if index is not None and 0 <= index < len(options):
-                    radio_index = index
-                elif previous_selected and previous_selected in options:
-                    # 이전에 선택한 값이 있으면 그 값 사용
-                    radio_index = options.index(previous_selected)
-                else:
-                    # 기본값: "선택 안 함"
-                    radio_index = 0
+    # 질문 텍스트와 버튼 그리드
+    col1, col2, col3, col4 = st.columns([4, 1, 1, 1])
+    
+    with col1:
+        st.markdown(f"**{question_code}** {question_text}")
+    
+    # 버튼 그리드
+    for idx, (label, raw_value, color) in enumerate(options):
+        with [col2, col3, col4][idx]:
+            is_selected = current_value == raw_value
+            button_type = "primary" if is_selected else "secondary"
+            
+            button_key = f"qsc_btn_{session_id}_{category}_{question_code}_{raw_value}"
+            
+            if st.button(
+                label,
+                key=button_key,
+                type=button_type,
+                use_container_width=True
+            ):
+                # 답변 업데이트
+                if hc_answers_key not in st.session_state:
+                    st.session_state[hc_answers_key] = {}
+                st.session_state[hc_answers_key][key] = raw_value
                 
-                selected = st.radio(
-                    "",  # 라벨 없음 (col1에 질문 표시)
-                    options=options,
-                    index=radio_index,
-                    key=radio_key,
-                    horizontal=True,
-                    label_visibility="collapsed"
-                )
-            except Exception as e:
-                logger.error(f"Error rendering radio for {question_code}: {e}")
-                continue
-            
-            # selected가 None이거나 options에 없거나 raw_value_map에 없으면 스킵
-            if selected is None or selected not in options or selected not in raw_value_map:
-                continue
-            
-            # 값 변환
-            new_raw_value = raw_value_map[selected]
-            
-            # "선택 안 함"은 저장하지 않음 (None 값)
-            if new_raw_value is None:
-                # "선택 안 함"이 선택된 경우: 이전에 저장된 값이 있으면 제거
-                if previous_selected is None:
-                    # 첫 렌더링이고 "선택 안 함"이면 아무것도 하지 않음
-                    st.session_state[radio_prev_key] = selected
-                elif previous_selected != selected:
-                    # 사용자가 다른 옵션에서 "선택 안 함"으로 변경한 경우
-                    st.session_state[radio_prev_key] = selected
-                    # session_state에서 제거 (답변 취소)
-                    if hc_answers_key in st.session_state and key in st.session_state[hc_answers_key]:
-                        del st.session_state[hc_answers_key][key]
-                    # dirty에도 제거 (이미 저장된 경우)
-                    if hc_dirty_key in st.session_state and key in st.session_state[hc_dirty_key]:
+                # dirty에 추가
+                if hc_dirty_key not in st.session_state:
+                    st.session_state[hc_dirty_key] = set()
+                st.session_state[hc_dirty_key].add(key)
+                
+                # 즉시 저장 (단일 답변)
+                try:
+                    rows = [{
+                        "category": category,
+                        "question_code": question_code,
+                        "raw_value": raw_value
+                    }]
+                    success, error_msg = upsert_health_answers_batch(store_id, session_id, rows)
+                    if success:
                         st.session_state[hc_dirty_key].discard(key)
-                # 이전 선택값과 같으면 아무것도 하지 않음
-            else:
-                # 실제 답변이 선택된 경우
-                if previous_selected is None:
-                    # 첫 렌더링: 이전 값 저장만 하고, "선택 안 함"이 아니면 session_state에 저장
-                    st.session_state[radio_prev_key] = selected
-                    if current_value is None:
-                        # DB에 저장된 값이 없고 사용자가 실제 답변을 선택한 경우
-                        if hc_answers_key not in st.session_state:
-                            st.session_state[hc_answers_key] = {}
-                        st.session_state[hc_answers_key][key] = new_raw_value
-                        # dirty에 추가
-                        if hc_dirty_key not in st.session_state:
-                            st.session_state[hc_dirty_key] = set()
-                        st.session_state[hc_dirty_key].add(key)
-                    # DB에서 로드한 값이 있으면 이미 저장되어 있으므로 pass
-                elif previous_selected != selected:
-                    # 이전 선택값과 다르면 사용자가 변경한 것으로 간주
-                    st.session_state[radio_prev_key] = selected
-                    
-                    # session_state 업데이트
-                    if hc_answers_key not in st.session_state:
-                        st.session_state[hc_answers_key] = {}
-                    st.session_state[hc_answers_key][key] = new_raw_value
-                    
-                    # dirty에 추가
-                    if hc_dirty_key not in st.session_state:
-                        st.session_state[hc_dirty_key] = set()
-                    st.session_state[hc_dirty_key].add(key)
-                # 이전 선택값과 같으면 아무것도 하지 않음 (rerun만 발생, 저장 안 함)
-        
-        # 질문 간 간격
-        st.markdown("<br>", unsafe_allow_html=True)
+                        st.session_state['qsc_last_save_time'] = time.time()
+                    else:
+                        logger.warning(f"Auto-save failed for {question_code}: {error_msg}")
+                except Exception as e:
+                    logger.error(f"Auto-save error for {question_code}: {e}")
+                
+                st.rerun()
 
 
 def render_result_report(store_id: str, session_id: str):
@@ -628,7 +580,7 @@ def render_result_report(store_id: str, session_id: str):
     try:
         st.markdown("### 📋 영역별 결과")
         
-        # 결과를 카테고리별로 정리 (안전하게)
+        # 결과를 카테고리별로 정리
         results_dict = {}
         for r in results:
             if r and isinstance(r, dict) and 'category' in r:
@@ -639,7 +591,6 @@ def render_result_report(store_id: str, session_id: str):
         for category in CATEGORIES_ORDER:
             if category in results_dict:
                 r = results_dict[category]
-                # 안전하게 값 추출
                 score_avg = r.get('score_avg')
                 risk_level = r.get('risk_level', 'unknown')
                 
@@ -668,7 +619,6 @@ def render_result_report(store_id: str, session_id: str):
         st.markdown("---")
         st.markdown("### ⚠️ 주요 병목")
         
-        # 점수가 낮은 순으로 정렬 (안전하게)
         sorted_results = []
         for r in results:
             if r and isinstance(r, dict):
@@ -755,15 +705,8 @@ def render_history(store_id: str):
             st.write(f"{grade_colors.get(overall_grade, '⚪')} {overall_grade}")
         with col4:
             if st.button("보기", key=f"view_{session['id']}"):
-                # 보기 버튼 클릭 시 세션 ID와 view_mode 설정
                 st.session_state['health_session_id'] = session['id']
                 st.session_state['health_check_view_mode'] = 'result'
-                # 캐시 무효화 (필요한 경우)
-                try:
-                    _invalidate_answers_cache(session['id'])
-                except NameError:
-                    # 함수가 없으면 무시 (캐시가 없는 경우)
-                    pass
                 st.rerun()
         
         st.markdown("---")
