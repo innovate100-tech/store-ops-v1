@@ -47,7 +47,7 @@ def _get_additional_ctas(card_type: str, card: Dict) -> List[Dict]:
     elif card_type == "OPERATIONS" or "운영" in card.get("title", ""):
         additional_ctas.extend([
             {"label": "건강검진 다시하기", "page": "건강검진 실시", "params": {}, "is_primary": False},
-            {"label": "이번 주 운영 개선 TOP3", "page": "검진 결과 요약", "params": {"section": "actions"}, "is_primary": False}
+            {"label": "이번 주 운영 개선 TOP3", "page": "체크결과", "params": {"section": "actions"}, "is_primary": False}
         ])
     
     return additional_ctas

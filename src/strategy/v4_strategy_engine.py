@@ -177,8 +177,8 @@ def build_base_strategies(context: Dict) -> List[Dict]:
             "표준화 필요"
         ],
         "cta": {
-            "label": "검진 결과 보기",
-            "page_key": "검진 결과 요약",
+            "label": "체크결과 보기",
+            "page_key": "체크결과",
             "params": {}
         }
     })

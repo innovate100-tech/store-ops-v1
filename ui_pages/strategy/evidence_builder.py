@@ -246,8 +246,8 @@ def _build_health_evidence(
                 "summary": f"{risk_axis} 축 위험: {risk_reason}",
                 "detail": get_health_evidence_line(health_diag) or f"{pattern_title} 패턴이 감지되었습니다.",
                 "cta": {
-                    "label": "검진 결과 보기",
-                    "route": "검진 결과 요약"
+                    "label": "체크결과 보기",
+                    "route": "체크결과"
                 }
             }
         else:
@@ -257,8 +257,8 @@ def _build_health_evidence(
                 "summary": f"{pattern_title} 상태입니다.",
                 "detail": primary_pattern.get("description", ""),
                 "cta": {
-                    "label": "검진 결과 보기",
-                    "route": "검진 결과 요약"
+                    "label": "체크결과 보기",
+                    "route": "체크결과"
                 }
             }
     

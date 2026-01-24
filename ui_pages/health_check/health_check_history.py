@@ -1,6 +1,9 @@
 """
-체크 히스토리 페이지
-체크 회차별 비교 및 트렌드 표시
+체크 히스토리 페이지 (DEPRECATED)
+이 파일은 더 이상 사용되지 않습니다.
+기능은 ui_pages/health_check/health_check_result.py의 ZONE F로 통합되었습니다.
+
+체크 히스토리는 이제 "체크결과" 페이지 하단에서 확인할 수 있습니다.
 """
 import streamlit as st
 import logging

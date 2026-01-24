@@ -1542,8 +1542,7 @@ with st.sidebar:
             ("재료 사용량", "재료 사용량 집계"),
             ("판매·메뉴 분석", "판매 관리"),
             ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),
-            ("검진 결과 요약", "검진 결과 요약"),
-            ("검진 히스토리", "검진 히스토리"),
+            ("체크결과", "체크결과"),
         ],
         "🧠 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
@@ -3455,13 +3454,9 @@ elif page == "건강검진 실시":
     from ui_pages.health_check.health_check_page import render_health_check_page
     render_health_check_page()
 
-elif page == "검진 결과 요약":
+elif page == "체크결과":
     from ui_pages.health_check.health_check_result import render_health_check_result
     render_health_check_result()
-
-elif page == "검진 히스토리":
-    from ui_pages.health_check.health_check_history import render_health_check_history
-    render_health_check_history()
 
 # 게시판 페이지
 

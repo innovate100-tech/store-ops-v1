@@ -1,12 +1,13 @@
 """
-체크 결과 요약 페이지 (실행형 리포트)
-최근 완료 체크 기준으로 상세 결과 표시
+체크결과 통합 페이지 (실행형 리포트)
+선택 회차 결과 + 체크 히스토리 통합
 """
 import streamlit as st
 import logging
+import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from src.bootstrap import bootstrap
 from src.ui_helpers import render_page_header
@@ -14,21 +15,21 @@ from src.auth import get_current_store_id
 from src.health_check.storage import (
     get_health_session,
     get_health_results,
-    get_health_diagnosis
+    get_health_diagnosis,
+    get_health_answers
 )
 from src.health_check.health_diagnosis_engine import diagnose_health_check
-from src.health_check.questions_bank import CATEGORY_LABELS
-from ui_pages.home.home_data import load_latest_health_diag
+from src.health_check.questions_bank import CATEGORY_LABELS, QUESTIONS, CATEGORIES_ORDER
 
 logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
-bootstrap(page_title="체크 결과 요약")
+bootstrap(page_title="체크결과")
 
 
 def render_health_check_result():
-    """체크 결과 요약 페이지 렌더링"""
-    render_page_header("체크 결과 요약", "📋")
+    """체크결과 통합 페이지 렌더링"""
+    render_page_header("체크결과", "📋")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -36,24 +37,19 @@ def render_health_check_result():
         return
     
     try:
-        # 세션 ID가 전달되었으면 해당 세션 사용, 없으면 최신 세션
-        session_id_from_state = st.session_state.get("_health_check_session_id")
+        # 완료 세션 리스트 로드 (회차 선택용)
+        completed_sessions = _load_completed_sessions(store_id, limit=10)
         
-        if session_id_from_state:
-            session = get_health_session(session_id_from_state)
-            if not session or not session.get("completed_at"):
-                # 완료되지 않은 세션이면 최신 완료 세션으로 fallback
-                session = _load_latest_completed_session(store_id)
-        else:
-            # 최신 완료 체크 세션 로드
-            session = _load_latest_completed_session(store_id)
+        if not completed_sessions:
+            _render_no_session_view(store_id)
+            return
+        
+        # ZONE A: 회차 선택 + 헤더
+        session, session_id = _render_zone_a_session_selector(store_id, completed_sessions)
         
         if not session:
             _render_no_session_view(store_id)
             return
-        
-        session_id = session["id"]
-        completed_at = session.get("completed_at")
         
         # 판독 데이터 로드
         health_diag = get_health_diagnosis(session_id)
@@ -78,12 +74,13 @@ def render_health_check_result():
         results = get_health_results(session_id)
         
         # ZONE별 렌더링
-        _render_zone0_header(session, health_diag)
-        _render_zone1_scores_summary(results)
-        _render_zone2_top3_risks(health_diag)
-        _render_zone3_recommended_actions(health_diag)
-        _render_zone4_previous_comparison(store_id, session_id)
-        _render_zone5_next_checkup(store_id)
+        _render_zone_b_scores_summary(results, store_id, session_id)
+        _render_zone_b2_no_maybe_questions(session_id)
+        _render_zone_c_top3_risks(health_diag)
+        _render_zone_d_recommended_actions(health_diag)
+        _render_zone_e_previous_comparison(store_id, session_id)
+        _render_zone_f_history(store_id, completed_sessions)
+        _render_zone_g_next_checkup(store_id)
     
     except Exception as e:
         logger.error(f"render_health_check_result: Error - {e}", exc_info=True)
@@ -115,6 +112,133 @@ def _load_latest_completed_session(store_id: str) -> Optional[Dict]:
     except Exception as e:
         logger.warning(f"_load_latest_completed_session: Error - {e}")
         return None
+
+
+@st.cache_data(ttl=300)
+def _load_completed_sessions(store_id: str, limit: int = 10) -> List[Dict]:
+    """완료 체크 세션 리스트 로드"""
+    try:
+        from src.auth import get_supabase_client
+        supabase = get_supabase_client()
+        if not supabase:
+            return []
+        
+        result = supabase.table("health_check_sessions").select(
+            "id, completed_at, overall_score, overall_grade, main_bottleneck"
+        ).eq("store_id", store_id).not_.is_("completed_at", "null").order(
+            "completed_at", desc=True
+        ).limit(limit).execute()
+        
+        return result.data if result.data else []
+    
+    except Exception as e:
+        logger.warning(f"_load_completed_sessions: Error - {e}")
+        return []
+
+
+def _resolve_display_session(store_id: str, completed_sessions: List[Dict]) -> Tuple[Optional[Dict], Optional[str]]:
+    """표시할 세션 결정"""
+    session_id_from_state = st.session_state.get("_health_check_session_id")
+    
+    if session_id_from_state:
+        # 세션 ID가 있으면 해당 세션 사용
+        session = get_health_session(session_id_from_state)
+        if session and session.get("completed_at"):
+            # 완료된 세션이고 목록에 있으면 사용
+            if any(s["id"] == session_id_from_state for s in completed_sessions):
+                return session, session_id_from_state
+    
+    # 최신 완료 세션으로 fallback
+    if completed_sessions:
+        latest = completed_sessions[0]
+        return latest, latest["id"]
+    
+    return None, None
+
+
+def _build_session_select_options(completed_sessions: List[Dict]) -> List[Tuple[str, str]]:
+    """회차 선택 옵션 생성"""
+    options = []
+    for idx, session in enumerate(completed_sessions):
+        session_id = session["id"]
+        completed_at = session.get("completed_at")
+        
+        if completed_at:
+            try:
+                dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                kst = ZoneInfo("Asia/Seoul")
+                dt_kst = dt.astimezone(kst)
+                date_str = dt_kst.strftime("%Y-%m-%d")
+            except Exception:
+                date_str = completed_at[:10]
+        else:
+            date_str = "날짜 미확인"
+        
+        # 첫 번째는 "이번 체크" 표시
+        if idx == 0:
+            label = f"{date_str} (이번 체크)"
+        else:
+            label = date_str
+        
+        options.append((session_id, label))
+    
+    return options
+
+
+def _no_maybe_questions(session_id: str) -> List[Dict]:
+    """아니요·애매해요 질문 모아보기"""
+    answers = get_health_answers(session_id)
+    if not answers:
+        return []
+    
+    # no, maybe 필터
+    filtered = [
+        a for a in answers
+        if a.get("raw_value") in ["no", "maybe"]
+    ]
+    
+    # 질문 문구 매핑
+    result = []
+    for ans in filtered:
+        category = ans.get("category")
+        question_code = ans.get("question_code")
+        raw_value = ans.get("raw_value")
+        memo = ans.get("memo")
+        
+        if not category or not question_code:
+            continue
+        
+        # 질문 문구 찾기
+        question_text = None
+        if category in QUESTIONS:
+            for q in QUESTIONS[category]:
+                if q.get("code") == question_code:
+                    question_text = q.get("text", "")
+                    break
+        
+        if not question_text:
+            question_text = f"{question_code} (질문 문구 없음)"
+        
+        # raw_value → 한글
+        answer_kr = {"no": "아니요", "maybe": "애매해요"}.get(raw_value, raw_value)
+        
+        result.append({
+            "축": category,
+            "축한글": CATEGORY_LABELS.get(category, category),
+            "질문": question_text,
+            "답변": answer_kr,
+            "memo": memo
+        })
+    
+    # 축 순서 + 질문 코드 순 정렬
+    def sort_key(item):
+        axis_order = {ax: idx for idx, ax in enumerate(CATEGORIES_ORDER)}
+        axis_idx = axis_order.get(item["축"], 999)
+        question_code = item["질문"].split()[0] if item["질문"] else ""
+        return (axis_idx, question_code)
+    
+    result.sort(key=sort_key)
+    return result
 
 
 def _render_no_session_view(store_id: str):
@@ -167,8 +291,8 @@ def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
     st.divider()
 
 
-def _render_zone1_scores_summary(results: List[Dict]):
-    """ZONE 1: 9축 점수 요약"""
+def _render_zone_b_scores_summary(results: List[Dict], store_id: str, session_id: str):
+    """ZONE B: 9축 점수 요약"""
     st.markdown("### 📊 9축 점수 요약")
     
     if not results:
@@ -216,8 +340,50 @@ def _render_zone1_scores_summary(results: List[Dict]):
     st.divider()
 
 
-def _render_zone2_top3_risks(health_diag: Optional[Dict]):
-    """ZONE 2: Top3 리스크"""
+def _render_zone_b2_no_maybe_questions(session_id: str):
+    """ZONE B2: 아니요·애매해요 질문 모아보기"""
+    questions = _no_maybe_questions(session_id)
+    
+    if not questions:
+        st.markdown("### ✅ 아니요·애매해요 질문 모아보기")
+        st.info("이번 체크에서 '아니요' 또는 '애매해요'로 답한 질문이 없습니다. 모든 항목이 양호합니다! 🎉")
+        st.divider()
+        return
+    
+    count = len(questions)
+    with st.expander(f"### ⚠️ 아니요·애매해요 질문 모아보기 ({count}개)", expanded=True):
+        # 데이터프레임 생성
+        df_data = []
+        for q in questions:
+            row = {
+                "축": q["축한글"],
+                "질문": q["질문"],
+                "답변": q["답변"]
+            }
+            if q.get("memo"):
+                row["메모"] = q["memo"]
+            df_data.append(row)
+        
+        df = pd.DataFrame(df_data)
+        
+        # 컬럼 설정
+        column_config = {
+            "축": st.column_config.TextColumn("축", width="small"),
+            "질문": st.column_config.TextColumn("질문", width="large"),
+            "답변": st.column_config.TextColumn("답변", width="small")
+        }
+        if "메모" in df.columns:
+            column_config["메모"] = st.column_config.TextColumn("메모", width="medium")
+        
+        st.dataframe(df, use_container_width=True, hide_index=True, column_config=column_config)
+        
+        st.caption(f"총 {count}개의 질문에서 개선이 필요합니다.")
+    
+    st.divider()
+
+
+def _render_zone_c_top3_risks(health_diag: Optional[Dict]):
+    """ZONE C: Top3 리스크"""
     st.markdown("### ⚠️ Top3 리스크")
     
     if not health_diag:
@@ -263,8 +429,8 @@ def _render_zone2_top3_risks(health_diag: Optional[Dict]):
         st.divider()
 
 
-def _render_zone3_recommended_actions(health_diag: Optional[Dict]):
-    """ZONE 3: 권장 액션 TOP3"""
+def _render_zone_d_recommended_actions(health_diag: Optional[Dict]):
+    """ZONE D: 권장 액션 TOP3"""
     st.markdown("### 🎯 권장 액션 TOP3")
     
     if not health_diag:
@@ -346,8 +512,8 @@ def _build_health_actions(health_diag: Dict) -> List[Dict]:
     return actions
 
 
-def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
-    """ZONE 4: 이전 체크 대비"""
+def _render_zone_e_previous_comparison(store_id: str, current_session_id: str):
+    """ZONE E: 이전 체크 대비"""
     st.markdown("### 📈 이전 체크 대비")
     
     try:
@@ -413,12 +579,194 @@ def _render_zone4_previous_comparison(store_id: str, current_session_id: str):
             st.info("이전 체크 대비 큰 변화가 없습니다.")
     
     except Exception as e:
-        logger.warning(f"_render_zone4_previous_comparison: Error - {e}")
+        logger.warning(f"_render_zone_e_previous_comparison: Error - {e}")
         st.info("이전 체크 비교 데이터를 불러올 수 없습니다.")
 
 
-def _render_zone5_next_checkup(store_id: str):
-    """ZONE 5: 다음 체크 안내"""
+def _render_zone_f_history(store_id: str, completed_sessions: List[Dict]):
+    """ZONE F: 체크 히스토리"""
+    st.markdown("### 📊 체크 히스토리")
+    
+    if len(completed_sessions) == 0:
+        st.info("완료된 체크가 없습니다.")
+        return
+    
+    # 회차 카드 리스트
+    st.markdown("#### 📋 체크 회차 리스트")
+    for idx, session in enumerate(completed_sessions, 1):
+        _render_session_card(session, idx)
+    
+    st.divider()
+    
+    # 축별 변화 추이
+    if len(completed_sessions) >= 2:
+        _render_axis_trend(completed_sessions)
+
+
+def _render_session_card(session: Dict, rank: int):
+    """체크 회차 카드 렌더링"""
+    session_id = session["id"]
+    completed_at = session.get("completed_at")
+    overall_score = session.get("overall_score", 0)
+    overall_grade = session.get("overall_grade", "E")
+    main_bottleneck = session.get("main_bottleneck")
+    
+    # 날짜 포맷팅
+    if completed_at:
+        try:
+            dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+            kst = ZoneInfo("Asia/Seoul")
+            dt_kst = dt.astimezone(kst)
+            date_str = dt_kst.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            date_str = completed_at[:10]
+    else:
+        date_str = "날짜 미확인"
+    
+    # 판독 데이터 로드
+    health_diag = get_health_diagnosis(session_id)
+    primary_pattern = health_diag.get("primary_pattern", {}) if health_diag else {}
+    pattern_title = primary_pattern.get("title", "안정형")
+    
+    risk_axes = health_diag.get("risk_axes", []) if health_diag else []
+    top_risk = risk_axes[0] if risk_axes else None
+    
+    # 카드 렌더링
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        st.markdown(f"**{rank}. {date_str}**")
+        st.markdown(f"패턴: {pattern_title}")
+        if top_risk:
+            risk_axis = top_risk.get("axis", "")
+            risk_reason = top_risk.get("reason", "")
+            axis_name = CATEGORY_LABELS.get(risk_axis, risk_axis)
+            st.caption(f"주요 위험: {axis_name} - {risk_reason}")
+        elif main_bottleneck:
+            bottleneck_name = CATEGORY_LABELS.get(main_bottleneck, main_bottleneck)
+            st.caption(f"병목: {bottleneck_name}")
+    
+    with col2:
+        st.metric("종합 점수", f"{overall_score:.1f}점", f"등급: {overall_grade}")
+    
+    with col3:
+        if st.button("결과 보기", key=f"history_{session_id}_view", use_container_width=True):
+            st.session_state["_health_check_session_id"] = session_id
+            st.rerun()
+    
+    st.divider()
+
+
+def _render_axis_trend(sessions: List[Dict]):
+    """축별 변화 추이 (표 + 라인 차트)"""
+    st.markdown("#### 📈 축별 변화 추이")
+    
+    try:
+        # 각 세션의 축별 점수 수집
+        axis_data = {}  # {axis: [score1, score2, ...]}
+        axis_order = ["Q", "S", "C", "P1", "P2", "P3", "M", "H", "F"]
+        session_dates = []
+        
+        for session in sessions:
+            session_id = session["id"]
+            results = get_health_results(session_id)
+            
+            # 날짜 수집
+            completed_at = session.get("completed_at")
+            if completed_at:
+                try:
+                    dt = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+                    kst = ZoneInfo("Asia/Seoul")
+                    dt_kst = dt.astimezone(kst)
+                    date_str = dt_kst.strftime("%Y-%m-%d")
+                except Exception:
+                    date_str = completed_at[:10]
+            else:
+                date_str = "날짜 미확인"
+            session_dates.append(date_str)
+            
+            if results:
+                for r in results:
+                    axis = r.get("category")
+                    score_avg = r.get("score_avg")
+                    if axis and score_avg is not None:
+                        score_10 = float(score_avg) / 10.0
+                        if axis not in axis_data:
+                            axis_data[axis] = []
+                        axis_data[axis].append(score_10)
+        
+        if not axis_data:
+            st.info("축별 점수 데이터가 없습니다.")
+            return
+        
+        # 탭: 표 | 차트
+        tab1, tab2 = st.tabs(["표", "차트"])
+        
+        with tab1:
+            # 표 생성
+            table_data = []
+            for axis in axis_order:
+                if axis in axis_data:
+                    scores = axis_data[axis]
+                    axis_name = CATEGORY_LABELS.get(axis, axis)
+                    
+                    # 최신 3개 회차만 표시
+                    recent_scores = scores[:3]
+                    if len(recent_scores) < 3:
+                        recent_scores = recent_scores + [None] * (3 - len(recent_scores))
+                    
+                    row = {"축": axis_name}
+                    for idx, score in enumerate(recent_scores[:3], 1):
+                        if score is not None:
+                            row[f"회차 {idx}"] = f"{score:.1f}"
+                        else:
+                            row[f"회차 {idx}"] = "-"
+                    
+                    # 변화 방향
+                    if len(scores) >= 2:
+                        latest = scores[0]
+                        previous = scores[1]
+                        diff = latest - previous
+                        if abs(diff) > 0.1:
+                            direction = "↑" if diff > 0 else "↓"
+                            row["변화"] = f"{direction} {abs(diff):.1f}"
+                        else:
+                            row["변화"] = "→"
+                    else:
+                        row["변화"] = "-"
+                    
+                    table_data.append(row)
+            
+            if table_data:
+                df = pd.DataFrame(table_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("축별 변화 데이터가 없습니다.")
+        
+        with tab2:
+            # 라인 차트 생성
+            chart_data = {}
+            for axis in axis_order:
+                if axis in axis_data:
+                    axis_name = CATEGORY_LABELS.get(axis, axis)
+                    scores = axis_data[axis][:10]  # 최신 10개만
+                    # 날짜와 매칭 (역순이므로 뒤집기)
+                    dates = list(reversed(session_dates[:len(scores)]))
+                    chart_data[axis_name] = dict(zip(dates, scores))
+            
+            if chart_data:
+                df_chart = pd.DataFrame(chart_data)
+                st.line_chart(df_chart, use_container_width=True)
+            else:
+                st.info("차트 데이터가 없습니다.")
+    
+    except Exception as e:
+        logger.warning(f"_render_axis_trend: Error - {e}")
+        st.info("축별 변화 추이를 생성할 수 없습니다.")
+
+
+def _render_zone_g_next_checkup(store_id: str):
+    """ZONE G: 다음 체크 & CTA"""
     st.markdown("### 📅 다음 체크")
     
     st.info("""
@@ -427,12 +775,6 @@ def _render_zone5_next_checkup(store_id: str):
     정기적인 매장 체크리스트를 통해 운영 전반의 위험 신호를 조기에 발견하고 개선할 수 있습니다.
     """)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("매장 체크리스트 다시하기", type="primary", use_container_width=True):
-            st.session_state["current_page"] = "건강검진 실시"
-            st.rerun()
-    with col2:
-        if st.button("체크 히스토리 보기", use_container_width=True):
-            st.session_state["current_page"] = "검진 히스토리"
-            st.rerun()
+    if st.button("매장 체크리스트 다시하기", type="primary", use_container_width=True):
+        st.session_state["current_page"] = "건강검진 실시"
+        st.rerun()
