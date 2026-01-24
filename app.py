@@ -567,17 +567,21 @@ menu = {
 }
 
 def render_expanded_sidebar(menu):
-    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마 완전판 - 적용 보증)"""
-    # CSS 주입 (세션에서 1회만, 버전 포함 플래그) - v2 강제
-    if "ps__premium_sidebar_css_v2" not in st.session_state:
-        st.session_state["ps__premium_sidebar_css_v2"] = True
-        
-        # CSS 문자열 생성
-        css_content = """
+    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마 완전판)"""
+    # CSS 주입: 매 rerun마다 실행 (플래그 제거, 항상 주입 보장)
+    # [data-testid="stSidebar"] 스코프 덕분에 전역 오염 없음
+    
+    # CSS 문자열 생성
+    css_content = """
         <style>
         /* 프리미엄 블랙 테마 완전판 CSS v2 - [data-testid="stSidebar"] 스코프 */
         /* ⚠️ [data-testid="stSidebar"]는 스코프 한정자로만 사용 (위치/크기/토글 CSS 금지) */
         /* 모든 선택자는 [data-testid="stSidebar"]로 시작하여 메인 콘텐츠 영향 0 보장 */
+        
+        /* CSS 존재 확인 PROBE (눈에 안 띄는, 개발 완료 후 제거) */
+        [data-testid="stSidebar"] {
+            border-left: 0px solid transparent;
+        }
         
         /* ========== prefers-reduced-motion 대응 ========== */
         @media (prefers-reduced-motion: reduce) {
@@ -979,9 +983,9 @@ def render_expanded_sidebar(menu):
         }
         </style>
         """
-        
-        # CSS 주입: st.markdown 사용
-        st.markdown(css_content, unsafe_allow_html=True)
+    
+    # CSS 주입: 매 rerun마다 실행 (플래그 없이)
+    st.markdown(css_content, unsafe_allow_html=True)
     
     # 매장 선택
     user_stores = get_user_stores()
