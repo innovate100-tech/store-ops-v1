@@ -135,10 +135,14 @@ def _get_ingredient_categories(store_id, ingredient_df):
             
             if result.data:
                 for row in result.data:
-                    if row.get('category'):
-                        categories[row['name']] = row['category']
+                    ingredient_name = row.get('name')
+                    category_value = row.get('category')
+                    # category가 None이 아니고 빈 문자열이 아니면 저장
+                    if ingredient_name and category_value and category_value.strip():
+                        categories[ingredient_name] = category_value.strip()
         except Exception as e:
             logger.warning(f"재료 분류 조회 실패: {e}")
+            logger.exception(e)  # 상세 에러 로그
     
     return categories
 
@@ -147,50 +151,62 @@ def _set_ingredient_category(store_id, ingredient_name, category):
     """재료 분류 저장 (DB)"""
     supabase = get_supabase_client()
     if not supabase:
+        logger.error("Supabase 클라이언트를 가져올 수 없습니다.")
         return False
     
     try:
         # 재료 ID 찾기
         result = supabase.table("ingredients")\
-            .select("id")\
+            .select("id,category")\
             .eq("store_id", store_id)\
             .eq("name", ingredient_name)\
             .execute()
         
-        if result.data:
-            ingredient_id = result.data[0]['id']
-            # 빈 문자열이면 NULL로 설정 (분류 제거)
-            update_value = category if category and category.strip() else None
-            supabase.table("ingredients")\
-                .update({"category": update_value})\
-                .eq("id", ingredient_id)\
-                .execute()
-            
-            # 캐시 무효화 (재료 데이터 갱신 필요)
+        if not result.data or len(result.data) == 0:
+            logger.error(f"재료를 찾을 수 없습니다: {ingredient_name} (store_id: {store_id})")
+            return False
+        
+        ingredient_id = result.data[0]['id']
+        # 빈 문자열이면 NULL로 설정 (분류 제거)
+        update_value = category if category and category.strip() else None
+        
+        # 업데이트 실행
+        update_result = supabase.table("ingredients")\
+            .update({"category": update_value})\
+            .eq("id", ingredient_id)\
+            .execute()
+        
+        # 업데이트 확인
+        if update_result.data:
+            logger.info(f"재료 분류 저장 성공: {ingredient_name} -> {update_value} (id: {ingredient_id})")
+        else:
+            logger.warning(f"재료 분류 업데이트 결과가 없습니다: {ingredient_name}")
+        
+        # 캐시 무효화 (재료 데이터 갱신 필요)
+        try:
+            from src.storage_supabase import soft_invalidate, clear_session_cache
+            # 소프트 무효화
+            soft_invalidate(
+                reason=f"재료 분류 수정: {ingredient_name}",
+                targets=["ingredients"],
+                session_keys=['ss_ingredient_master_df']
+            )
+            # 세션 캐시 직접 클리어 (즉시 반영)
+            clear_session_cache('ss_ingredient_master_df')
+            # load_csv 캐시도 무효화
             try:
-                from src.storage_supabase import soft_invalidate, clear_session_cache
-                # 소프트 무효화
-                soft_invalidate(
-                    reason=f"재료 분류 수정: {ingredient_name}",
-                    targets=["ingredients"],
-                    session_keys=['ss_ingredient_master_df']
-                )
-                # 세션 캐시 직접 클리어 (즉시 반영)
-                clear_session_cache('ss_ingredient_master_df')
-                # load_csv 캐시도 무효화
-                try:
-                    from src.storage_supabase import load_csv
-                    load_csv.clear()
-                except Exception as e:
-                    logger.warning(f"load_csv 캐시 클리어 실패: {e}")
+                from src.storage_supabase import load_csv
+                load_csv.clear()
             except Exception as e:
-                logger.warning(f"캐시 무효화 실패: {e}")
-            
-            return True
+                logger.warning(f"load_csv 캐시 클리어 실패: {e}")
+        except Exception as e:
+            logger.warning(f"캐시 무효화 실패: {e}")
+        
+        return True
     except Exception as e:
-        logger.warning(f"재료 분류 저장 실패: {e}")
-    
-    return False
+        logger.error(f"재료 분류 저장 실패: {ingredient_name}, 오류: {e}")
+        logger.exception(e)  # 상세 에러 로그
+        return False
 
 
 def _set_ingredient_status_and_notes(store_id, ingredient_name, status=None, notes=None):
@@ -748,9 +764,13 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                         if new_category is not None:
                                             # 빈 문자열이면 분류 제거, 아니면 저장
                                             category_to_save = new_category.strip() if new_category.strip() else None
+                                            # 재료명이 변경되었을 수 있으므로 new_name 사용
                                             category_success = _set_ingredient_category(store_id, new_name.strip(), category_to_save)
                                             if not category_success:
-                                                logger.warning(f"재료 분류 저장 실패: {new_name}")
+                                                logger.error(f"재료 분류 저장 실패: {new_name.strip()}, category: {category_to_save}")
+                                                ui_flash_error(f"재료 분류 저장에 실패했습니다: {new_name.strip()}")
+                                            else:
+                                                logger.info(f"재료 분류 저장 성공: {new_name.strip()} -> {category_to_save}")
                                         
                                         # 재료 상태 저장 (수정 시에는 상태 변경 없음 - 필요시 추가)
                                         # 현재는 수정 모달에 상태 필드가 없으므로 생략
