@@ -547,6 +547,27 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
     # 목록 표시
     st.markdown("### 재료 목록")
     
+    # 컬럼 헤더 표시
+    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7, header_col8 = st.columns([3, 2, 2, 2, 2, 2, 2, 3])
+    with header_col1:
+        st.markdown("**재료명**")
+    with header_col2:
+        st.markdown("**재료 분류**")
+    with header_col3:
+        st.markdown("**단위**")
+    with header_col4:
+        st.markdown("**단가**")
+    with header_col5:
+        st.markdown("**발주단위/변환비율**")
+    with header_col6:
+        st.markdown("**레시피 사용**")
+    with header_col7:
+        st.markdown("**사용량/발주**")
+    with header_col8:
+        st.markdown("**관리**")
+    
+    st.markdown("---")
+    
     for idx, row in ingredient_df.iterrows():
         ingredient_name = row['재료명']
         unit = row.get('단위', '—')
