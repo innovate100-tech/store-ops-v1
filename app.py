@@ -1296,9 +1296,13 @@ def render_custom_sidebar(menu):
     if "sidebar_collapsed" not in st.session_state:
         st.session_state.sidebar_collapsed = False
     
+    # current_page 초기화
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "홈"
+    
     collapsed = st.session_state.sidebar_collapsed
     sidebar_width = "4rem" if collapsed else "15rem"
-    current_page = st.session_state.get("current_page", "홈")
+    current_page = st.session_state.current_page
     
     # 커스텀 사이드바 CSS (전역에 한 번만 추가)
     if "custom_sidebar_css_injected" not in st.session_state:
@@ -1505,6 +1509,9 @@ def render_custom_sidebar(menu):
 render_custom_sidebar(menu)
 
 # Page Routing
+# current_page는 render_custom_sidebar에서 초기화됨
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "홈"
 page = st.session_state.current_page
 
 if st.session_state.get("_show_supabase_diagnosis", False):
