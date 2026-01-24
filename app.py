@@ -122,15 +122,35 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
     
-    /* 상단 여백 강제 축소 및 헤더 숨김 */
+    /* 상단 여백 강제 축소 및 헤더 최소화 (햄버거 메뉴는 유지) */
     .main .block-container {
         padding-top: 0rem !important;
         padding-bottom: 2rem !important;
     }
     header[data-testid="stHeader"] {
-        height: 0px !important;
-        visibility: hidden !important;
+        height: 3.5rem !important;
+        min-height: 3.5rem !important;
+        padding: 0.5rem 1rem !important;
+    }
+    
+    /* 헤더 내용 숨기기 (햄버거 메뉴 버튼은 유지) */
+    header[data-testid="stHeader"] > div:first-child {
         display: none !important;
+    }
+    
+    /* 햄버거 메뉴 버튼만 보이도록 */
+    button[kind="header"] {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* 사이드바 토글 버튼 강제 표시 */
+    [data-testid="stHeader"] button[aria-label*="sidebar"],
+    [data-testid="stHeader"] button[aria-label*="메뉴"],
+    [data-testid="stHeader"] button[aria-label*="Menu"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     /* 제목 위 불필요한 간격 제거 */
@@ -171,11 +191,12 @@ st.markdown("""
     }
     [data-testid="stIconMaterial"]::before { content: '😊'; font-size: 18px; color: #ffffff; }
     
-    /* 사이드바 항상 표시 보장 */
+    /* 사이드바 항상 표시 보장 및 접기 방지 */
     [data-testid="stSidebar"] {
         display: block !important;
         visibility: visible !important;
         width: 21rem !important;
+        transform: translateX(0) !important;
     }
     
     /* 사이드바 컨테이너 보장 */
@@ -183,7 +204,77 @@ st.markdown("""
         display: block !important;
         visibility: visible !important;
     }
+    
+    /* 사이드바가 접힌 상태로 보이지 않도록 */
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        display: block !important;
+        visibility: visible !important;
+        transform: translateX(0) !important;
+    }
+    
+    /* 메인 콘텐츠 영역 조정 (사이드바가 열려있을 때) */
+    .main .block-container {
+        margin-left: 0 !important;
+    }
+    
+    /* 사이드바가 열려있을 때 메인 영역 조정 */
+    [data-testid="stSidebar"][aria-expanded="true"] ~ * .main,
+    [data-testid="stSidebar"]:not([aria-expanded="false"]) ~ * .main {
+        margin-left: 0 !important;
+    }
 </style>
+""", unsafe_allow_html=True)
+
+# 사이드바 강제 열기 JavaScript
+st.markdown("""
+<script>
+(function() {
+    function forceSidebarOpen() {
+        // 사이드바 요소 찾기
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            // 사이드바를 항상 열린 상태로 설정
+            sidebar.setAttribute('aria-expanded', 'true');
+            sidebar.style.display = 'block';
+            sidebar.style.visibility = 'visible';
+            sidebar.style.transform = 'translateX(0)';
+            sidebar.style.width = '21rem';
+        }
+        
+        // 햄버거 메뉴 버튼 찾기 및 표시
+        const menuButtons = document.querySelectorAll('button[kind="header"]');
+        menuButtons.forEach(btn => {
+            if (btn.getAttribute('aria-label') && 
+                (btn.getAttribute('aria-label').includes('sidebar') || 
+                 btn.getAttribute('aria-label').includes('메뉴') ||
+                 btn.getAttribute('aria-label').includes('Menu'))) {
+                btn.style.display = 'block';
+                btn.style.visibility = 'visible';
+                btn.style.opacity = '1';
+            }
+        });
+    }
+    
+    // 페이지 로드 시 실행
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', forceSidebarOpen);
+    } else {
+        forceSidebarOpen();
+    }
+    
+    // 주기적으로 확인하여 사이드바가 접히면 다시 열기
+    setInterval(forceSidebarOpen, 500);
+    
+    // DOM 변경 감지하여 사이드바 상태 유지
+    const observer = new MutationObserver(forceSidebarOpen);
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'aria-expanded', 'class']
+    });
+})();
+</script>
 """, unsafe_allow_html=True)
 
 if st.session_state.get("theme", "light") == "dark":
