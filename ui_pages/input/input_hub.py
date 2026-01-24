@@ -1,6 +1,6 @@
 """
 입력 허브 페이지
-입력 관련 모든 페이지로의 네비게이션 허브 (2단계 고도화 버전 - UI 개선안)
+입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - 가이드 및 역할 설명 강화)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -54,16 +54,16 @@ def _get_today_recommendations(store_id: str) -> list:
         except Exception: pass
 
         if not has_close:
-            msg = "📝 오늘 입력을 시작하세요" if not has_any else "📝 오늘 마감을 완료하세요"
-            recommendations.append({"status": "pending", "message": msg, "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "미입력"})
+            msg = "📝 오늘 마감 필요" if not has_any else "📝 오늘 마감 미완료"
+            recommendations.append({"status": "pending", "message": msg, "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "데이터 없음"})
         else:
             recommendations.append({"status": "completed", "message": "✅ 오늘 마감 완료", "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"})
         
         checklist_count = _count_completed_checklists_last_7_days(store_id)
-        recommendations.append({"status": "completed" if checklist_count > 0 else "pending", "message": f"🩺 QSC 점검 ({checklist_count}회)", "button_label": "🩺 QSC 입력", "page_key": "건강검진 실시", "priority": 4, "summary": "이번 주"})
+        recommendations.append({"status": "completed" if checklist_count > 0 else "pending", "message": f"🩺 QSC ({checklist_count}회)", "button_label": "🩺 QSC 입력", "page_key": "건강검진 실시", "priority": 4, "summary": "최근 7일"})
             
         is_done = _is_current_month_settlement_done(store_id)
-        recommendations.append({"status": "completed" if is_done else "pending", "message": "📅 월간 정산", "button_label": "📅 정산 입력", "page_key": "실제정산", "priority": 5, "summary": "이번 달"})
+        recommendations.append({"status": "completed" if is_done else "pending", "message": "📅 월간 정산", "button_label": "📅 정산 입력", "page_key": "실제정산", "priority": 5, "summary": f"{current_month_kst()}월"})
         
         return recommendations
     except Exception: return []
@@ -103,7 +103,6 @@ def _get_asset_readiness(store_id: str) -> dict:
     except Exception: return {}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
-    # 어두운 배경 카드 (관제 보드용)
     bg = "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
     border = "rgba(148,163,184,0.3)"
     if status == "completed": border = "rgba(74, 222, 128, 0.5)"
@@ -118,7 +117,6 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
-    # 사용자 요청: 눈부심 방지를 위해 블랙 배경 적용
     warning_html = f'<div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning}</div>' if warning else ''
     card_style = """
         padding: 1rem; 
@@ -133,7 +131,6 @@ def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
     """
     title_style = "font-size: 0.8rem; color: #9ca3af; font-weight: 500;"
     value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff;"
-    
     html_content = f"""<div style="{card_style}"><div style="font-size: 1.8rem;">{icon}</div><div style="flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div>{warning_html}</div></div>"""
     st.markdown(html_content, unsafe_allow_html=True)
 
@@ -144,10 +141,23 @@ def render_input_hub_v2():
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
 
+    # [1] 철학적 가이드 - 입력의 가치 전달
+    st.markdown(f"""
+    <div style="padding: 1.5rem; background-color: #f1f5f9; border-radius: 12px; border-left: 5px solid #64748b; margin-bottom: 2rem;">
+        <h4 style="margin-top: 0; color: #1e293b; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4>
+        <p style="margin-bottom: 0; color: #475569; font-size: 0.95rem; line-height: 1.6;">
+            입력은 단순한 기록이 아니라, 사장님의 매장을 숫자로 바꾸는 <b>'설계도'</b>를 그리는 과정입니다.<br>
+            정밀하게 입력된 기초 데이터는 <b>수익 분석, 원가 진단, 오늘의 전략</b>을 만드는 유일한 기반이 됩니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     recs = _get_today_recommendations(store_id)
     assets = _get_asset_readiness(store_id)
     
+    # [2] 관제 보드
     st.markdown("### 📊 입력 관제 보드")
+    st.caption("매장의 핵심 운영 데이터 입력 상태를 실시간으로 확인합니다.")
     c1, c2, c3 = st.columns(3)
     r1 = next((r for r in recs if r["priority"] == 1), {"status": "pending", "summary": "확인 불가"})
     r4 = next((r for r in recs if r["priority"] == 4), {"status": "pending", "summary": "확인 불가"})
@@ -158,17 +168,22 @@ def render_input_hub_v2():
     with c3: _hub_status_card("이번 달 정산", "✅ 완료" if r5["status"]=="completed" else "⏸️ 대기", r5["summary"], "completed" if r5["status"]=="completed" else "pending")
 
     st.markdown("---")
+
+    # [3] 자산 구축 현황
     st.markdown("### 🏗️ 가게 자산 구축 현황")
-    st.caption("시스템 운영을 위한 기초 데이터 완성도입니다.")
+    st.caption("가게 분석을 위한 '데이터 뼈대'의 완성도입니다. 품질 경고(⚠️)를 보완해 주세요.")
     a1, a2, a3, a4 = st.columns(4)
     with a1: _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", f"가격 미입력 {assets.get('missing_price', 0)}개" if assets.get('missing_price', 0) > 0 else "")
     with a2: _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", f"단가 미입력 {assets.get('missing_cost', 0)}개" if assets.get('missing_cost', 0) > 0 else "")
-    with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳", "레시피 보완 필요" if assets.get('recipe_rate', 0) < 50 else "")
-    with a4: _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯", "목표를 설정하세요" if not assets.get('has_target') else "")
+    with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳", "수익 분석을 위해 보완 필요" if assets.get('recipe_rate', 0) < 50 else "")
+    with a4: _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯", "분석 기준이 없습니다" if not assets.get('has_target') else "")
 
     st.markdown("---")
-    st.markdown("### ⚡ 루틴 & 정기 작업")
-    st.caption("매일 또는 정기적으로 수행하는 핵심 작업")
+
+    # [4] 워크플로우별 버튼 배치
+    # STEP 1: 루틴
+    st.markdown("#### ⚡ STEP 1. 매일 운영 기록 (루틴)")
+    st.caption("매일 발생하는 영업 실적을 기록하여 흐름을 파악합니다.")
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("📝 일일 마감 입력", use_container_width=True, type="primary", key="btn_daily"):
@@ -181,8 +196,10 @@ def render_input_hub_v2():
             st.session_state.current_page = "실제정산"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🎯 목표 및 기준 설정 (Standards)")
-    st.caption("가게 운영의 나침반이 되는 기준을 설정합니다.")
+
+    # STEP 2: 목표
+    st.markdown("#### 🎯 STEP 2. 목표 및 기준 설정 (Standards)")
+    st.caption("운영 결과와 비교할 기준점(목표)을 설정합니다. (매월 1회 권장)")
     s1, s2 = st.columns(2)
     with s1:
         btn_type = "primary" if not assets.get('has_target') else "secondary"
@@ -193,8 +210,10 @@ def render_input_hub_v2():
             st.session_state.current_page = "목표 비용구조"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 🛠️ 가게 기초 정의 (뼈대 만들기)")
-    st.caption("가게가 무엇으로 이루어져 있는지 정의하는 곳입니다.")
+
+    # STEP 3: 기초 정의
+    st.markdown("#### 🛠️ STEP 3. 가게 기초 정의 (뼈대 만들기)")
+    st.caption("메뉴, 재료, 레시피 등 가게의 변하지 않는 기초 정보를 관리합니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         if st.button("📘 메뉴 관리", use_container_width=True, key="btn_menu"):
@@ -210,8 +229,11 @@ def render_input_hub_v2():
             st.session_state.current_page = "재고 입력"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### ⚙️ 데이터 보정 및 도구")
+
+    # STEP 4: 데이터 보정
+    st.markdown("#### ⚙️ STEP 4. 데이터 보정 및 도구")
     with st.expander("과거 데이터 수정이나 일괄 보정 도구 열기"):
+        st.caption("누락된 과거 데이터를 한꺼번에 채우거나 잘못된 정보를 수정할 때 사용합니다.")
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
