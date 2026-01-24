@@ -152,13 +152,30 @@ def render_input_hub_v3():
     if assets.get('recipe_rate', 0) >= 80: score += 25
     if assets.get('has_target'): score += 25
 
-    # [1] 통합 가이드 카드 (들여쓰기 에러 해결 버전)
+    # [1] 통합 가이드 카드 (애니메이션 완벽 복구 버전)
     status_color = "#10B981" if score == 100 else "#3B82F6"
     status_msg = "PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."
     
+    # 페이지 전용 애니메이션 정의 재주입
+    st.markdown("""
+    <style>
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer-bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @keyframes wave-move { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    @keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }
+    
+    .guide-card-animated { animation: fadeInUp 0.8s ease-out forwards; }
+    .shimmer-overlay { 
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+        background: linear-gradient(-45deg, rgba(59, 130, 246, 0.05), rgba(30, 41, 59, 0), rgba(96, 165, 250, 0.05));
+        background-size: 400% 400%; animation: shimmer-bg 10s ease infinite;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     guide_html = f"""
-<div class="animate-in" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
-    <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%); animation: shimmer 10s infinite linear;"></div>
+<div class="guide-card-animated" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
+    <div class="shimmer-overlay"></div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: relative;">
         <div>
             <h4 style="margin: 0 0 0.6rem 0; color: #F8FAFC; font-size: 1.2rem; font-weight: 700;">💡 데이터 자산 가이드</h4>
@@ -174,11 +191,11 @@ def render_input_hub_v3():
     </div>
     <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 12px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
         <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave 2s infinite linear;"></div>
+            <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave-move 2s infinite linear;"></div>
         </div>
     </div>
     <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
-        <div style="width: 8px; height: 8px; border-radius: 50%; background: {status_color}; animation: pulse 2s infinite;"></div>
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: {status_color}; animation: pulse-ring 2s infinite;"></div>
         <p style="margin: 0; color: {status_color}; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em;">{status_msg}</p>
     </div>
 </div>"""
