@@ -348,7 +348,7 @@ def _render_zone_c(cost_df: pd.DataFrame, daily_sales_df: pd.DataFrame):
         sales_by_segment = cost_df_with_sales.groupby('원가율구간')['매출'].sum()
         if not sales_by_segment.empty:
             st.markdown("**원가율 구간별 매출 분포**")
-                    st.bar_chart(sales_by_segment)
+            st.bar_chart(sales_by_segment)
 
 
 def _render_zone_d(cost_df: pd.DataFrame, daily_sales_df: pd.DataFrame):
