@@ -229,14 +229,13 @@ def _set_ingredient_category(store_id, ingredient_name, category):
                 targets=["ingredients"],
                 session_keys=['ss_ingredient_master_df']
             )
-            # 세션 캐시 직접 클리어 (즉시 반영)
-            clear_session_cache('ss_ingredient_master_df')
-            # load_csv 캐시도 무효화
-            try:
-                from src.storage_supabase import load_csv
-                load_csv.clear()
-            except Exception as e:
-                logger.warning(f"load_csv 캐시 클리어 실패: {e}")
+                # 세션 캐시 직접 클리어 (즉시 반영)
+                clear_session_cache('ss_ingredient_master_df')
+                # load_csv 캐시도 무효화 (상단에서 이미 import했으므로 그대로 사용)
+                try:
+                    load_csv.clear()
+                except Exception as e:
+                    logger.warning(f"load_csv 캐시 클리어 실패: {e}")
         except Exception as e:
             logger.warning(f"캐시 무효화 실패: {e}")
         
@@ -832,9 +831,8 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                             )
                                             # 세션 캐시 직접 클리어
                                             clear_session_cache('ss_ingredient_master_df')
-                                            # load_csv 캐시도 무효화
+                                            # load_csv 캐시도 무효화 (상단에서 이미 import했으므로 그대로 사용)
                                             try:
-                                                from src.storage_supabase import load_csv
                                                 load_csv.clear()
                                             except Exception as e:
                                                 logger.warning(f"load_csv 캐시 클리어 실패: {e}")
