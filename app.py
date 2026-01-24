@@ -567,70 +567,37 @@ menu = {
 }
 
 def render_expanded_sidebar(menu):
-    """펼친 상태 사이드바 렌더링 (프리미엄 블랙 테마 완전판)"""
-    # CSS 주입: 매 rerun마다 실행 (플래그 제거, 항상 주입 보장)
+    """펼친 상태 사이드바 렌더링 (울트라 시크 v3)"""
+    # CSS 주입: 안정성 최우선 (매 rerun마다 실행, DOM 체크로 중복 방지)
     # [data-testid="stSidebar"] 스코프 덕분에 전역 오염 없음
     
-    # CSS 문자열 생성
-    css_content = """
-        <style>
-        /* 프리미엄 블랙 테마 완전판 CSS v2 - [data-testid="stSidebar"] 스코프 */
-        /* ⚠️ [data-testid="stSidebar"]는 스코프 한정자로만 사용 (위치/크기/토글 CSS 금지) */
-        /* 모든 선택자는 [data-testid="stSidebar"]로 시작하여 메인 콘텐츠 영향 0 보장 */
+    # CSS 주입: 매 rerun마다 실행 (안정성 최우선)
+    # 플래그는 버전 관리용, 실제로는 매번 주입 (브라우저가 중복 처리)
+    if "ps__sidebar_ultra_css_v3" not in st.session_state:
+        st.session_state["ps__sidebar_ultra_css_v3"] = True
+    
+    # CSS 주입 (매번 실행)
+        css_content = """
+        <style id="ps-ultra-sleek-css">
+        /* =========================
+           ULTRA SLEEK SIDEBAR v3
+           scope: sidebar only
+           ========================= */
         
-        /* CSS 존재 확인 PROBE (눈에 안 띄는, 개발 완료 후 제거) */
-        [data-testid="stSidebar"] {
-            border-left: 0px solid transparent;
-        }
-        
-        /* ========== prefers-reduced-motion 대응 ========== */
-        @media (prefers-reduced-motion: reduce) {
-            [data-testid="stSidebar"] * {
-                animation: none !important;
-                transition: none !important;
-            }
-        }
-        
-        /* ========== CSS Keyframes 애니메이션 ========== */
-        
-        /* 펄스 글로우 애니메이션 (활성 버튼용) */
-        @keyframes premium-glow-pulse {
+        @keyframes ultra-neon-pulse {
             0%, 100% {
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3),
-                            0 0 0 0 rgba(59, 130, 246, 0.4);
+                box-shadow: 0 6px 18px rgba(59, 130, 246, 0.25),
+                            0 0 0 0 rgba(59, 130, 246, 0.25),
+                            0 0 24px rgba(59, 130, 246, 0.10);
             }
             50% {
-                box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4),
-                            0 0 0 4px rgba(59, 130, 246, 0.1);
+                box-shadow: 0 10px 30px rgba(59, 130, 246, 0.35),
+                            0 0 0 4px rgba(59, 130, 246, 0.12),
+                            0 0 36px rgba(59, 130, 246, 0.18);
             }
         }
         
-        /* 미묘한 펄스 효과 (카테고리 제목용) - translateY만 사용 */
-        @keyframes premium-fade-in {
-            from {
-                opacity: 0;
-                transform: translateY(-4px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* 리플 효과 애니메이션 (클릭용) - scale만 사용 */
-        @keyframes premium-ripple {
-            0% {
-                transform: scale(0);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-        
-        /* 그라데이션 텍스트 애니메이션 (카테고리 제목용) */
-        @keyframes premium-gradient-text {
+        @keyframes ultra-gradient-shift {
             0%, 100% {
                 background-position: 0% 50%;
             }
@@ -639,353 +606,269 @@ def render_expanded_sidebar(menu):
             }
         }
         
-        /* ========== 백드롭 블러 효과 ========== */
+        @media (prefers-reduced-motion: reduce) {
+            [data-testid="stSidebar"] * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
         
-        /* 사이드바 배경에 미묘한 블러 효과 (내부 콘텐츠만) */
-        [data-testid="stSidebar"] > div {
+        /* ---------- CATEGORY TITLE (with PROBE dot) ---------- */
+        [data-testid="stSidebar"] .ultra-category {
+            margin: 22px 0 10px;
+            padding: 0 10px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
             position: relative;
-        }
-        
-        /* 백드롭 블러 오버레이 */
-        [data-testid="stSidebar"] > div::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            pointer-events: none;
-            z-index: -1;
-            border-radius: 0;
-        }
-        
-        /* 사이드바 내부 콘텐츠는 블러 위에 표시 */
-        [data-testid="stSidebar"] > div > * {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* ========== 카테고리 제목 (그라데이션 텍스트) ========== */
-        
-        [data-testid="stSidebar"] .premium-category-title {
-            background: linear-gradient(135deg, 
-                #94A3B8 0%, 
-                #60A5FA 50%, 
-                #94A3B8 100%);
-            background-size: 200% 200%;
+            background: linear-gradient(135deg, #94A3B8 0%, #60A5FA 35%, #3B82F6 50%, #60A5FA 65%, #94A3B8 100%);
+            background-size: 260% 260%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-top: 1.5rem;
-            margin-bottom: 0.75rem;
-            padding: 0 0.5rem;
-            position: relative;
-            animation: premium-fade-in 0.6s ease-out,
-                       premium-gradient-text 3s ease infinite;
-            /* 그라데이션이 안 먹는 브라우저를 위한 fallback */
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.18);
+            animation: ultra-gradient-shift 4.5s ease infinite;
+            /* Fallback */
             color: #94A3B8;
         }
         
-        /* 그라데이션을 지원하지 않는 브라우저용 fallback */
         @supports not (-webkit-background-clip: text) {
-            [data-testid="stSidebar"] .premium-category-title {
+            [data-testid="stSidebar"] .ultra-category {
                 -webkit-text-fill-color: #94A3B8;
                 color: #94A3B8;
             }
         }
         
-        /* 카테고리 제목 하단 미묘한 라인 */
-        [data-testid="stSidebar"] .premium-category-title::after {
-            content: '';
+        /* PROBE #1: dot */
+        [data-testid="stSidebar"] .ultra-category::before {
+            content: "•";
             position: absolute;
-            bottom: -0.5rem;
-            left: 0.5rem;
-            width: 2rem;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                rgba(59, 130, 246, 0.5) 0%, 
-                transparent 100%);
+            left: -2px;
+            top: 0;
+            color: rgba(96, 165, 250, 0.85);
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
         }
         
-        /* ========== 고급 버튼 스타일 (선택자 폴백 포함) ========== */
+        [data-testid="stSidebar"] .ultra-category::after {
+            content: "";
+            position: absolute;
+            left: 10px;
+            bottom: -10px;
+            width: 48px;
+            height: 2px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), rgba(96, 165, 250, 0.55), transparent);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+        }
         
-        /* 공통 버튼: 고급 그라데이션 배경 */
+        /* ---------- BUTTON BASE (3-step fallback) ---------- */
         [data-testid="stSidebar"] .stButton > button,
         [data-testid="stSidebar"] button[kind],
         [data-testid="stSidebar"] button {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                rgba(255, 255, 255, 0.02) 100%);
-            color: #E2E8F0;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 0.875rem 1rem;
-            font-weight: 500;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 14px !important;
+            min-height: 56px !important;
+            padding: 14px 16px !important;
+            font-size: 0.90rem !important;
+            font-weight: 550 !important;
+            line-height: 1.42 !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            display: flex !important;
+            align-items: center !important;
+            text-align: left !important;
+            color: #E2E8F0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.012) 100%),
+                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 55%) !important;
+            box-shadow:
+                0 2px 5px rgba(0, 0, 0, 0.18),
+                0 10px 22px rgba(0, 0, 0, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+            position: relative !important;
+            overflow: hidden !important;
+            transition: background 0.32s ease, border-color 0.32s ease, box-shadow 0.32s ease, transform 0.18s ease !important;
             margin-bottom: 0.5rem;
-            text-align: left;
-            font-size: 0.875rem;
-            position: relative;
-            overflow: hidden;
         }
         
-        /* 버튼 내부 그라데이션 오버레이 (호버 효과용 - 스윕) */
+        /* PROBE #2: left accent bar */
         [data-testid="stSidebar"] .stButton > button::before,
         [data-testid="stSidebar"] button[kind]::before,
         [data-testid="stSidebar"] button::before {
-            content: '';
+            content: "";
             position: absolute;
+            left: 0;
             top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(255, 255, 255, 0.1) 50%, 
-                transparent 100%);
-            transition: left 0.5s ease, opacity 0.3s ease;
+            bottom: 0;
+            width: 2px;
+            background: rgba(59, 130, 246, 0.35);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.20);
+            opacity: 1;
             z-index: 1;
-            pointer-events: none;
         }
         
-        /* 리플 효과용 오버레이 (클릭 시) */
+        /* hover sweep overlay via ::after */
         [data-testid="stSidebar"] .stButton > button::after,
         [data-testid="stSidebar"] button[kind]::after,
         [data-testid="stSidebar"] button::after {
-            content: '';
+            content: "";
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.25);
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: -120%;
+            width: 120%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.10) 35%, rgba(96, 165, 250, 0.18) 50%, rgba(255, 255, 255, 0.10) 65%, transparent 100%);
+            opacity: 0;
+            transition: left 0.62s ease, opacity 0.25s ease;
             pointer-events: none;
             z-index: 2;
         }
         
-        /* 호버 시: 그라데이션 배경 변화 + 슬라이드 효과 (폴백: 배경만 변화) */
+        /* HOVER */
         [data-testid="stSidebar"] .stButton > button:hover,
         [data-testid="stSidebar"] button[kind]:hover,
         [data-testid="stSidebar"] button:hover {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.1) 0%, 
-                rgba(255, 255, 255, 0.05) 100%);
-            border-color: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3),
-                        0 0 0 1px rgba(255, 255, 255, 0.1);
-            /* transform 정책: scale만 허용, rotate 금지 */
-            transform: scale(1.01);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.025) 100%),
+                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 55%) !important;
+            border-color: rgba(255, 255, 255, 0.28) !important;
+            box-shadow:
+                0 6px 14px rgba(0, 0, 0, 0.24),
+                0 18px 34px rgba(0, 0, 0, 0.22),
+                0 0 0 1px rgba(255, 255, 255, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+            transform: scale(1.01) !important;
         }
         
-        /* 호버 시 스윕 효과 (폴백: opacity 변화만 있어도 보이게) */
         [data-testid="stSidebar"] .stButton > button:hover::before,
         [data-testid="stSidebar"] button[kind]:hover::before,
         [data-testid="stSidebar"] button:hover::before {
-            left: 100%;
+            background: rgba(59, 130, 246, 0.62);
+            box-shadow: 0 0 14px rgba(59, 130, 246, 0.28);
+        }
+        
+        [data-testid="stSidebar"] .stButton > button:hover::after,
+        [data-testid="stSidebar"] button[kind]:hover::after,
+        [data-testid="stSidebar"] button:hover::after {
+            left: 120%;
             opacity: 1;
         }
         
-        /* 클릭 시 리플 효과 (active 상태 - 폴백: 배경 하이라이트) */
+        /* ACTIVE CLICK FEEDBACK (ripple may fail, so ensure highlight) */
         [data-testid="stSidebar"] .stButton > button:active,
         [data-testid="stSidebar"] button[kind]:active,
         [data-testid="stSidebar"] button:active {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.15) 0%, 
-                rgba(255, 255, 255, 0.08) 100%);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.10) 55%, rgba(255, 255, 255, 0.05) 100%),
+                radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.16) 0%, transparent 55%) !important;
         }
         
-        [data-testid="stSidebar"] .stButton > button:active::after,
-        [data-testid="stSidebar"] button[kind]:active::after,
-        [data-testid="stSidebar"] button:active::after {
-            width: 300px;
-            height: 300px;
-            animation: premium-ripple 0.6s ease-out;
-        }
-        
-        /* 활성 버튼: 고급 블루 그라데이션 + 펄스 애니메이션 (선택자 폴백) */
+        /* PRIMARY (selected) */
         [data-testid="stSidebar"] .stButton > button[kind="primary"],
         [data-testid="stSidebar"] button[kind="primary"] {
-            background: linear-gradient(135deg, 
-                #3B82F6 0%, 
-                #2563EB 50%, 
-                #1D4ED8 100%);
-            background-size: 200% 200%;
-            border-color: #60A5FA;
-            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4),
-                        0 0 0 1px rgba(96, 165, 250, 0.3);
-            color: #FFFFFF;
-            animation: premium-glow-pulse 3s ease-in-out infinite;
-            position: relative;
+            color: #fff !important;
+            border-color: rgba(96, 165, 250, 0.72) !important;
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 30%, #1D4ED8 60%, #1E40AF 100%) !important;
+            background-size: 220% 220% !important;
+            box-shadow:
+                0 10px 26px rgba(59, 130, 246, 0.32),
+                0 18px 44px rgba(59, 130, 246, 0.22),
+                0 0 0 1px rgba(96, 165, 250, 0.35),
+                0 0 46px rgba(59, 130, 246, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+            animation: ultra-neon-pulse 3.6s ease-in-out infinite, ultra-gradient-shift 4.2s ease infinite !important;
         }
         
-        /* 활성 버튼 내부 미묘한 빛 효과 */
         [data-testid="stSidebar"] .stButton > button[kind="primary"]::before,
         [data-testid="stSidebar"] button[kind="primary"]::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50%;
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.2) 0%, 
-                transparent 100%);
-            border-radius: 12px 12px 0 0;
-            pointer-events: none;
-            z-index: 1;
+            width: 3px;
+            background: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
         }
         
-        /* 활성 버튼의 리플 효과는 더 밝게 */
-        [data-testid="stSidebar"] .stButton > button[kind="primary"]:active::after,
-        [data-testid="stSidebar"] button[kind="primary"]:active::after {
-            background: rgba(255, 255, 255, 0.4);
-        }
-        
-        /* ========== Expander 고급 스타일 (선택자 폴백) ========== */
-        
+        /* EXPANDER / SELECTBOX : keep minimal, consistent */
         [data-testid="stSidebar"] .stExpander header,
-        [data-testid="stSidebar"] .stExpander summary,
-        [data-testid="stSidebar"] .stExpander label {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.03) 0%, 
-                rgba(255, 255, 255, 0.01) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            color: #E2E8F0;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        
-        /* Expander backdrop-filter (브라우저 지원 확인) */
-        @supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
-            [data-testid="stSidebar"] .stExpander header,
-            [data-testid="stSidebar"] .stExpander summary,
-            [data-testid="stSidebar"] .stExpander label {
-                backdrop-filter: blur(4px);
-                -webkit-backdrop-filter: blur(4px);
-            }
+        [data-testid="stSidebar"] .stExpander summary {
+            border-radius: 14px !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)) !important;
+            color: #E2E8F0 !important;
+            transition: all 0.32s ease !important;
         }
         
         [data-testid="stSidebar"] .stExpander header:hover,
         [data-testid="stSidebar"] .stExpander summary:hover {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                rgba(255, 255, 255, 0.02) 100%);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)) !important;
+            border-color: rgba(255, 255, 255, 0.22) !important;
         }
         
-        /* Expander 내부 버튼 (선택자 폴백) */
+        /* Expander 내부 버튼도 동일한 높이 통일 */
         [data-testid="stSidebar"] .stExpander .stButton > button,
         [data-testid="stSidebar"] .stExpander button {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.03) 0%, 
-                rgba(255, 255, 255, 0.01) 100%);
-            border-radius: 10px;
-            padding: 0.75rem 1rem;
+            min-height: 56px !important;
+            display: flex !important;
+            align-items: center !important;
+            line-height: 1.42 !important;
+            white-space: normal !important;
+            word-break: break-word !important;
         }
-        
-        [data-testid="stSidebar"] .stExpander .stButton > button:hover,
-        [data-testid="stSidebar"] .stExpander button:hover {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.06) 0%, 
-                rgba(255, 255, 255, 0.03) 100%);
-        }
-        
-        /* ========== Selectbox 고급 스타일 (선택자 폴백) ========== */
         
         [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
         [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
         [data-testid="stSidebar"] .stSelectbox select {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                rgba(255, 255, 255, 0.02) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            color: #E2E8F0;
-            transition: all 0.3s ease;
-        }
-        
-        /* Selectbox backdrop-filter (브라우저 지원 확인) */
-        @supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
-            [data-testid="stSidebar"] .stSelectbox div[role="combobox"],
-            [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"],
-            [data-testid="stSidebar"] .stSelectbox select {
-                backdrop-filter: blur(4px);
-                -webkit-backdrop-filter: blur(4px);
-            }
+            border-radius: 14px !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)) !important;
+            color: #E2E8F0 !important;
+            transition: all 0.32s ease !important;
         }
         
         [data-testid="stSidebar"] .stSelectbox div[role="combobox"]:hover,
         [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"]:hover,
         [data-testid="stSidebar"] .stSelectbox select:hover {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.08) 0%, 
-                rgba(255, 255, 255, 0.04) 100%);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
+            border-color: rgba(255, 255, 255, 0.22) !important;
         }
         
         [data-testid="stSidebar"] .stSelectbox label {
-            color: #E2E8F0;
-            font-weight: 500;
+            color: #E2E8F0 !important;
+            font-weight: 500 !important;
         }
         
-        /* ========== 시스템 버튼 고급 스타일 ========== */
-        
-        [data-testid="stSidebar"] .premium-system-section {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        /* SYSTEM SECTION */
+        [data-testid="stSidebar"] .ultra-system {
+            margin-top: 26px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
             position: relative;
         }
         
-        /* 시스템 섹션 상단 그라데이션 라인 */
-        [data-testid="stSidebar"] .premium-system-section::before {
-            content: '';
+        [data-testid="stSidebar"] .ultra-system::before {
+            content: "";
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(59, 130, 246, 0.3) 50%, 
-                transparent 100%);
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.35), rgba(96, 165, 250, 0.55), rgba(59, 130, 246, 0.35), transparent);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.22);
         }
         
-        [data-testid="stSidebar"] .premium-system-section .stButton > button,
-        [data-testid="stSidebar"] .premium-system-section button {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.04) 0%, 
-                rgba(255, 255, 255, 0.02) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            transition: all 0.3s ease;
-        }
-        
-        [data-testid="stSidebar"] .premium-system-section .stButton > button:hover,
-        [data-testid="stSidebar"] .premium-system-section button:hover {
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.08) 0%, 
-                rgba(255, 255, 255, 0.04) 100%);
-            border-color: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        /* 시스템 버튼도 동일한 높이 통일 */
+        [data-testid="stSidebar"] .ultra-system .stButton > button,
+        [data-testid="stSidebar"] .ultra-system button {
+            min-height: 56px !important;
+            display: flex !important;
+            align-items: center !important;
+            line-height: 1.42 !important;
+            white-space: normal !important;
+            word-break: break-word !important;
         }
         </style>
         """
-    
-    # CSS 주입: 매 rerun마다 실행 (플래그 없이)
-    st.markdown(css_content, unsafe_allow_html=True)
+        # CSS 주입: 매 rerun마다 실행
+        st.markdown(css_content, unsafe_allow_html=True)
     
     # 매장 선택
     user_stores = get_user_stores()
@@ -1003,9 +886,9 @@ def render_expanded_sidebar(menu):
         st.session_state.current_page = "홈"
     
     for cat, data in menu.items():
-        # 카테고리 제목 (HTML div로 변경)
+        # 카테고리 제목 (ultra-category 클래스)
         st.markdown(
-            f'<div class="premium-category-title">{cat}</div>',
+            f'<div class="ultra-category">{cat}</div>',
             unsafe_allow_html=True
         )
         if isinstance(data, list):
@@ -1029,8 +912,8 @@ def render_expanded_sidebar(menu):
                         st.session_state.current_page = key
                         st.rerun()
     
-    # 시스템 버튼 (wrapper 추가)
-    st.markdown('<div class="premium-system-section">', unsafe_allow_html=True)
+    # 시스템 버튼 (ultra-system wrapper)
+    st.markdown('<div class="ultra-system">', unsafe_allow_html=True)
     if st.button("🚪 로그아웃"): 
         logout()
         st.rerun()
