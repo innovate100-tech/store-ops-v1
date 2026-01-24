@@ -24,12 +24,12 @@ from src.health_check.questions_bank import CATEGORY_LABELS, QUESTIONS, CATEGORI
 logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
-bootstrap(page_title="체크결과")
+bootstrap(page_title="QSC 결과분석")
 
 
 def render_health_check_result():
     """체크결과 통합 페이지 렌더링"""
-    render_page_header("체크결과", "📋")
+    render_page_header("QSC 결과분석", "📋")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -254,8 +254,51 @@ def _render_no_session_view(store_id: str):
         st.rerun()
 
 
-def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
-    """ZONE 0: 헤더 요약"""
+def _render_zone_a_session_selector(store_id: str, completed_sessions: List[Dict]) -> Tuple[Optional[Dict], Optional[str]]:
+    """ZONE A: 회차 선택 + 헤더"""
+    # 회차 선택 옵션 생성
+    options = _build_session_select_options(completed_sessions)
+    if not options:
+        return None, None
+    
+    # 현재 선택된 세션 ID
+    current_session_id = st.session_state.get("_health_check_session_id")
+    if not current_session_id or not any(opt[0] == current_session_id for opt in options):
+        current_session_id = options[0][0]  # 기본값: 최신
+    
+    # 회차 선택 UI
+    option_labels = [opt[1] for opt in options]
+    option_ids = [opt[0] for opt in options]
+    current_idx = option_ids.index(current_session_id) if current_session_id in option_ids else 0
+    
+    def on_session_change():
+        """회차 선택 변경 시 호출"""
+        selected_idx = st.session_state.session_selector
+        if selected_idx < len(option_ids):
+            st.session_state["_health_check_session_id"] = option_ids[selected_idx]
+    
+    selected_idx = st.selectbox(
+        "어떤 체크를 볼까요?",
+        options=range(len(option_labels)),
+        format_func=lambda i: option_labels[i],
+        index=current_idx,
+        key="session_selector",
+        on_change=on_session_change
+    )
+    
+    # 선택된 세션 ID 찾기
+    selected_session_id = option_ids[selected_idx]
+    
+    # 세션 ID 업데이트 (on_change가 호출되지 않을 경우를 대비)
+    if selected_session_id != current_session_id:
+        st.session_state["_health_check_session_id"] = selected_session_id
+    
+    # 세션 로드
+    session = get_health_session(selected_session_id)
+    if not session:
+        return None, None
+    
+    # 헤더 표시
     completed_at = session.get("completed_at")
     if completed_at:
         try:
@@ -268,6 +311,7 @@ def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
     else:
         date_str = "날짜 미확인"
     
+    health_diag = get_health_diagnosis(selected_session_id)
     primary_pattern = health_diag.get("primary_pattern", {}) if health_diag else {}
     pattern_title = primary_pattern.get("title", "안정형")
     pattern_description = primary_pattern.get("description", "")
@@ -277,7 +321,7 @@ def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
     
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.markdown(f"### 최근 체크: {date_str}")
+        st.markdown(f"### 체크: {date_str}")
         st.markdown(f"**{pattern_title}** 패턴")
     with col2:
         overall_score = session.get("overall_score", 0)
@@ -289,6 +333,8 @@ def _render_zone0_header(session: Dict, health_diag: Optional[Dict]):
         st.caption(pattern_description)
     
     st.divider()
+    
+    return session, selected_session_id
 
 
 def _render_zone_b_scores_summary(results: List[Dict], store_id: str, session_id: str):
