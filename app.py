@@ -232,15 +232,9 @@ st.markdown("""
         min-width: 21rem !important;
     }
     
-    /* Streamlit 앱 뷰 컨테이너 조정 */
-    [data-testid="stAppViewContainer"] {
-        margin-left: 21rem !important;
-    }
-    
-    /* 메인 콘텐츠 영역 조정 */
-    .main .block-container {
-        margin-left: 0 !important;
-    }
+    /* Streamlit이 자동으로 메인 콘텐츠를 조정하도록 함 - 추가 margin 제거 */
+    /* Streamlit이 사이드바가 열려있을 때 자동으로 메인 콘텐츠 영역을 조정하므로 
+       추가 margin을 주지 않음 */
     
     /* 사이드바 오버레이 제거 */
     .css-1d391kg[aria-expanded="false"]::before,
