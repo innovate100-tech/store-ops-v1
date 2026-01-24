@@ -182,8 +182,8 @@ elif page == "오늘의 전략 실행":
     from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()
 elif page == "입력 허브":
-    from ui_pages.input.input_hub import render_input_hub_v2
-    render_input_hub_v2()
+    from ui_pages.input.input_hub import render_input_hub_v3
+    render_input_hub_v3()
 elif page == "분석 허브":
     from ui_pages.analysis.analysis_hub import render_analysis_hub
     render_analysis_hub()

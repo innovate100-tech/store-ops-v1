@@ -118,8 +118,9 @@ def _hub_asset_card(title: str, value: str, icon: str):
     )
     st.markdown(html_content, unsafe_allow_html=True)
 
-def render_input_hub_v2():
+def render_input_hub_v3():
     """입력 허브 페이지 렌더링"""
+    st.info("🔄 V4.0 지능형 워크플로우가 적용되었습니다.")
     render_page_header("✍ 입력 허브", "✍")
     store_id = get_current_store_id()
     if not store_id:
