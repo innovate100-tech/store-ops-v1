@@ -2401,6 +2401,11 @@ elif page == "메뉴 등록":
     from ui_pages.menu_management import render_menu_management
     render_menu_management()
 
+# 재료 구조 설계실 페이지 (설계/분석 전용)
+elif page == "재료 등록":
+    from ui_pages.ingredient_management import render_ingredient_management
+    render_ingredient_management()
+
 # 메뉴 수익 구조 설계실 페이지
 elif page == "메뉴 수익 구조 설계실":
     from ui_pages.menu_profit_design_lab import render_menu_profit_design_lab
