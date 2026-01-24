@@ -187,14 +187,14 @@ def build_base_strategies(context: Dict) -> List[Dict]:
     while len(strategies) < 6:
         strategies.append({
             "type": StrategyType.OPERATIONS.value,
-            "title": "가게 설계 센터에서 시작",
+            "title": "가게 전략 센터에서 시작",
             "priority_score": 50,
             "success_prob": 0.50,
             "impact_estimate": {"won": 0, "direction": "up"},
             "reasons": ["데이터 부족", "설계부터 시작"],
             "cta": {
-                "label": "가게 설계 센터",
-                "page_key": "가게 설계 센터",
+                "label": "가게 전략 센터",
+                "page_key": "가게 전략 센터",
                 "params": {}
             }
         })

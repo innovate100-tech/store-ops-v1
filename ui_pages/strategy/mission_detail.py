@@ -368,8 +368,8 @@ def _render_next_intervention(store_id: str, mission: dict):
             st.session_state["current_page"] = next_cta_page
             st.rerun()
         
-        if st.button("관련 설계실 이동", key="goto_design", use_container_width=True):
-            st.session_state["current_page"] = "가게 설계 센터"
+        if st.button("관련 전략 센터 이동", key="goto_design", use_container_width=True):
+            st.session_state["current_page"] = "가게 전략 센터"
             st.rerun()
     except Exception as e:
         if is_dev_mode():

@@ -1543,11 +1543,9 @@ with st.sidebar:
         ("QSC 결과분석", "체크결과"),
         ],
         "🧠 설계": [
-            ("설계 허브", "설계 허브"),  # 항상 노출 (입력 허브와 동일 패턴)
+            ("가게 전략 센터", "가게 전략 센터"),  # 통합 허브 (기존 설계 허브 + 설계 센터 + 전략 보드)
         ],
         "🧠 설계 (세부설계선택)": [
-            ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
-            ("전략 보드", "전략 보드"),  # 이번 달 전략 + 실행 로드맵
             ("메뉴 포트폴리오 설계", "메뉴 등록"),  # 라벨 변경, page key 유지
             ("메뉴 수익 설계", "메뉴 수익 구조 설계실"),  # 라벨 변경, page key 유지
             ("재료 구조 설계", "재료 등록"),  # 라벨 변경, page key 유지
@@ -1801,10 +1799,10 @@ if page == "홈":
     from ui_pages.home import render_home
     render_home()  # Phase 9: _render_home_body(store_id) 통합 구조 (모드 구분 제거됨)
 
-# 전략 보드 페이지
-elif page == "전략 보드":
-    from ui_pages.strategy.strategy_board import render_strategy_board
-    render_strategy_board()
+# 오늘의 전략 실행 (미션 상세)
+elif page == "오늘의 전략 실행" or page == "미션 상세":
+    from ui_pages.strategy.mission_detail import render_mission_detail
+    render_mission_detail()
 
 # Supabase 연결 진단 (메인 콘텐츠 영역 상단에 표시)
 if st.session_state.get("_show_supabase_diagnosis", False):
@@ -1844,11 +1842,6 @@ elif page == "매출 등록":
 elif page == "분석총평":
     from ui_pages.analysis.analysis_summary import render_analysis_summary
     render_analysis_summary()
-
-# 오늘의 전략 실행 (미션 상세)
-elif page == "오늘의 전략 실행" or page == "미션 상세":
-    from ui_pages.strategy.mission_detail import render_mission_detail
-    render_mission_detail()
 
 # 매출 관리 페이지 (분석 전용, 리디자인)
 elif page == "매출 관리":
@@ -2456,15 +2449,10 @@ elif page == "원가 파악":
     from ui_pages.cost_overview import render_cost_overview
     render_cost_overview()
 
-# 가게 설계 센터 (통합 진단실)
-# 설계 허브 페이지
-elif page == "설계 허브":
+# 설계 페이지 라우팅
+elif page == "가게 전략 센터":
     from ui_pages.design_lab.design_hub import render_design_hub
     render_design_hub()
-
-elif page == "가게 설계 센터":
-    from ui_pages.design_lab.design_center import render_design_center
-    render_design_center()
 
 # 메뉴 포트폴리오 설계실 페이지 (설계/분석 전용)
 elif page == "메뉴 등록":

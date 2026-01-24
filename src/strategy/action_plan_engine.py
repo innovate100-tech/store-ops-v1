@@ -290,13 +290,13 @@ def _get_empty_plan() -> Dict:
         "difficulty": "중간",
         "steps": [
             {
-                "text": "가게 설계 센터에서 시작",
+                "text": "가게 전략 센터에서 시작",
                 "eta_min": 30,
                 "done_when": "설계 데이터 입력 완료"
             }
         ],
         "watchouts": ["데이터 부족 시 설계부터 시작"],
         "required_pages": [
-            {"label": "가게 설계 센터", "page_key": "가게 설계 센터"}
+            {"label": "가게 전략 센터", "page_key": "가게 전략 센터"}
         ]
     }

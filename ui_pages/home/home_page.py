@@ -439,8 +439,8 @@ def _render_home_body(store_id: str) -> None:
         logger.error(f"ZONE 0 호출 오류: {e}", exc_info=True)
         # 에러 발생 시 기본 메시지 표시
         st.info("운영 지시를 불러오는 중입니다...")
-        if st.button("가게 설계 센터", key="zone0_error_fallback"):
-            st.session_state["current_page"] = "가게 설계 센터"
+        if st.button("가게 전략 센터", key="zone0_error_fallback"):
+            st.session_state["current_page"] = "가게 전략 센터"
             st.rerun()
     
     # ZONE 1: 이번 달 가게 전략 요약

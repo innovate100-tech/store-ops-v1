@@ -141,7 +141,7 @@ def render_revenue_structure_design_lab():
                     st.rerun()
                 except Exception as e:
                     st.error(f"기준 구조 불러오기 실패: {e}")
-            st.caption("매출·비용 분석 데이터에서 현재 월 구조를 자동 수집합니다. 설계 허브에서 먼저 불러올 수도 있습니다.")
+            st.caption("매출·비용 분석 데이터에서 현재 월 구조를 자동 수집합니다. 가게 전략 센터에서 먼저 불러올 수도 있습니다.")
         else:
             sales_b = baseline.get("sales", {})
             cost_b = baseline.get("cost", {})

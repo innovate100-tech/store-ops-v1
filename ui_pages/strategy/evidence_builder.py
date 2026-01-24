@@ -197,8 +197,8 @@ def _build_design_evidence(
             "summary": "가게 설계 데이터 확인 필요",
             "detail": "메뉴/재료/레시피 설계 상태를 확인하세요.",
             "cta": {
-                "label": "가게 설계 센터로",
-                "route": "가게 설계 센터"
+                "label": "가게 전략 센터로",
+                "route": "가게 전략 센터"
             }
         }
     

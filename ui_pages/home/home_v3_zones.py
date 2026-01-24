@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> None:
     """ZONE 0: 오늘의 운영 지시 (최상단, 가장 중요)"""
     # 기본값 초기화 (에러 발생 시에도 표시되도록)
-    action_title = "가게 설계 센터부터 시작"
-    action_cta = {"label": "가게 설계 센터", "page": "가게 설계 센터", "params": {}}
+    action_title = "가게 전략 센터부터 시작"
+    action_cta = {"label": "가게 전략 센터", "page": "가게 전략 센터", "params": {}}
     evidence_line = "데이터 수집 중"
     today_action = None
     
@@ -46,23 +46,23 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
         
         # 오늘의 1순위 행동 결정
         # 1순위: 로드맵 1순위
-        if roadmap and len(roadmap) > 0:
-            today_action = roadmap[0]
-            action_title = today_action.get("task", "가게 설계 센터부터 시작")
-            action_cta = today_action.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}})
-        # 2순위: 전략 카드 1순위
-        elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
-            first_card = cards_result["cards"][0]
-            impact = first_card.get("impact", {})
-            action_plan = first_card.get("action_plan", {})
-            
-            today_action = {
-                "task": first_card.get("title", "가게 설계 센터부터 시작"),
-                "why": first_card.get("why", ""),
-                "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 설계 센터", "params": {}}),
-                "impact": impact,
-                "action_plan": action_plan
-            }
+    if roadmap and len(roadmap) > 0:
+        today_action = roadmap[0]
+        action_title = today_action.get("task", "가게 전략 센터부터 시작")
+        action_cta = today_action.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}})
+    # 2순위: 전략 카드 1순위
+    elif cards_result.get("cards") and len(cards_result["cards"]) > 0:
+        first_card = cards_result["cards"][0]
+        impact = first_card.get("impact", {})
+        action_plan = first_card.get("action_plan", {})
+        
+        today_action = {
+            "task": first_card.get("title", "가게 전략 센터부터 시작"),
+            "why": first_card.get("why", ""),
+            "cta": first_card.get("cta", {"label": "지금 실행하기", "page": "가게 전략 센터", "params": {}}),
+            "impact": impact,
+            "action_plan": action_plan
+        }
             action_title = today_action["task"]
             action_cta = today_action["cta"]
         
@@ -106,7 +106,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
         
         # action_title이 비어있으면 기본값 사용
         if not action_title or action_title.strip() == "":
-            action_title = "가게 설계 센터부터 시작"
+            action_title = "가게 전략 센터부터 시작"
         
     except Exception as e:
         # 에러 발생 시 Fallback (에러 메시지도 표시)
@@ -119,7 +119,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     # 메인 카드 표시 (항상 표시되도록 try 블록 밖으로 이동)
     # action_title과 evidence_line이 확실히 설정되었는지 확인
     if not action_title or action_title.strip() == "":
-        action_title = "가게 설계 센터부터 시작"
+        action_title = "가게 전략 센터부터 시작"
     if not evidence_line or evidence_line.strip() == "":
         evidence_line = "데이터 수집 중"
     
@@ -152,7 +152,7 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
     
     # 메인 버튼 (항상 표시되도록)
     cta_label = action_cta.get("label", "지금 실행하기")
-    cta_page = action_cta.get("page", "가게 설계 센터")
+    cta_page = action_cta.get("page", "가게 전략 센터")
     
     col_main, col_sub = st.columns([2, 1])
     with col_main:
@@ -164,8 +164,8 @@ def _render_zone0_today_instruction(store_id: str, year: int, month: int) -> Non
                     st.session_state[f"_strategy_param_{key}"] = value
             st.rerun()
     with col_sub:
-        if st.button("📊 이번 달 전략 보기", key="zone0_to_strategy_board", use_container_width=True):
-            st.session_state["current_page"] = "전략 보드"
+        if st.button("📊 전략 센터 전체 보기", key="zone0_to_strategy_board", use_container_width=True):
+            st.session_state["current_page"] = "가게 전략 센터"
             st.rerun()
     
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
@@ -260,7 +260,7 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
             
             데이터가 부족하거나 전략 생성 중 오류가 발생했습니다.
             - 마감 데이터를 입력하세요
-            - 가게 설계 센터에서 기본 설정을 완료하세요
+            - 가게 전략 센터에서 기본 설정을 완료하세요
             - 건강검진을 실시하세요
             """)
             
@@ -270,8 +270,8 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
                     st.session_state["current_page"] = "점장 마감"
                     st.rerun()
             with col_fallback2:
-                if st.button("🔥 가게 설계 센터", use_container_width=True, key="zone1_fallback_design"):
-                    st.session_state["current_page"] = "가게 설계 센터"
+                if st.button("🔥 가게 전략 센터", use_container_width=True, key="zone1_fallback_design"):
+                    st.session_state["current_page"] = "가게 전략 센터"
                     st.rerun()
             with col_fallback3:
                 if st.button("🩺 건강검진 실시", use_container_width=True, key="zone1_fallback_health"):
@@ -281,12 +281,12 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
         # 버튼
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("전략 보드 전체 보기", use_container_width=True, key="zone1_to_strategy_board"):
-                st.session_state["current_page"] = "전략 보드"
+            if st.button("전략 센터 전체 보기", use_container_width=True, key="zone1_to_strategy_board"):
+                st.session_state["current_page"] = "가게 전략 센터"
                 st.rerun()
         with col_btn2:
-            if st.button("가게 설계 센터", use_container_width=True, key="zone1_to_design_center"):
-                st.session_state["current_page"] = "가게 설계 센터"
+            if st.button("가게 전략 센터", use_container_width=True, key="zone1_to_design_center"):
+                st.session_state["current_page"] = "가게 전략 센터"
                 st.rerun()
         
     
@@ -309,18 +309,18 @@ def _render_zone1_strategy_summary(store_id: str, year: int, month: int) -> None
         
         다음을 확인해주세요:
         - 마감 데이터 입력
-        - 가게 설계 센터 기본 설정
+        - 가게 전략 센터 기본 설정
         - 건강검진 실시
         """)
         
         col_fallback1, col_fallback2 = st.columns(2)
         with col_fallback1:
-            if st.button("가게 설계 센터로 이동", use_container_width=True, key="zone1_error_fallback_design"):
-                st.session_state["current_page"] = "가게 설계 센터"
+            if st.button("가게 전략 센터로 이동", use_container_width=True, key="zone1_error_fallback_design"):
+                st.session_state["current_page"] = "가게 전략 센터"
                 st.rerun()
         with col_fallback2:
-            if st.button("전략 보드로 이동", use_container_width=True, key="zone1_error_fallback_strategy"):
-                st.session_state["current_page"] = "전략 보드"
+            if st.button("전략 센터로 이동", use_container_width=True, key="zone1_error_fallback_strategy"):
+                st.session_state["current_page"] = "가게 전략 센터"
                 st.rerun()
     
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
@@ -352,8 +352,8 @@ def _render_zone2_quick_actions(store_id: str) -> None:
             <div style="font-size: 0.85rem; color: #0c5460; line-height: 1.4;">4개 설계실 통합 진단 및 전략 실행.</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("가게 설계 센터", type="primary", use_container_width=True, key="zone2_design_center"):
-            st.session_state["current_page"] = "가게 설계 센터"
+        if st.button("가게 전략 센터", type="primary", use_container_width=True, key="zone2_design_center"):
+            st.session_state["current_page"] = "가게 전략 센터"
             st.rerun()
     
     with col3:
@@ -515,8 +515,8 @@ def _render_zone5_design_snapshot(store_id: str, year: int, month: int) -> None:
             st.metric("수익 구조", f"{rev_score}점", delta=None)
             st.caption(status_emoji)
         
-        if st.button("가게 설계 센터로", use_container_width=True, key="zone5_to_design_center"):
-            st.session_state["current_page"] = "가게 설계 센터"
+        if st.button("가게 전략 센터로", use_container_width=True, key="zone5_to_design_center"):
+            st.session_state["current_page"] = "가게 전략 센터"
             st.rerun()
     
     except Exception:

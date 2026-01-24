@@ -576,7 +576,7 @@ def _build_fallback_card(store_id: Optional[str]) -> Dict:
         ],
         "cta": {
             "label": "설계부터 채우기",
-            "page": "가게 설계 센터",
+            "page": "가게 전략 센터",
             "params": {}
         }
     }
