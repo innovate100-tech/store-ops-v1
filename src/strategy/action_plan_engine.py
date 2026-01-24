@@ -239,7 +239,7 @@ def _build_acquisition_plan(context: Dict) -> Dict:
             "ROI 측정 가능한 활동 우선"
         ],
         "required_pages": [
-            {"label": "매출 하락 원인 찾기", "page_key": "매출 하락 원인 찾기"},
+            {"label": "분석총평", "page_key": "분석총평"},
             {"label": "매출 분석", "page_key": "매출 관리"}
         ]
     }

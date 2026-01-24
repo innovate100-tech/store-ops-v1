@@ -108,12 +108,12 @@ def build_strategy_cards(
                 candidate_cards.append(("portfolio", card))
                 debug["rules_fired"].append("포트폴리오 재배치 카드")
         
-        # 카드 5: 매출 하락 원인 찾기 (Sales Recovery)
+        # 카드 5: 분석총평 (Sales Recovery → 복합 총평)
         if _should_show_sales_recovery_card(scores, state_payload, debug):
             card = _build_sales_recovery_card(store_id, scores, state_payload)
             if card:
                 candidate_cards.append(("sales_recovery", card))
-                debug["rules_fired"].append("매출 하락 원인 찾기 카드")
+                debug["rules_fired"].append("분석총평 카드")
         
         # 4. 우선순위 정렬 및 중복 제거
         selected_cards = _select_top3_cards(candidate_cards, debug)
@@ -271,7 +271,7 @@ def _should_show_portfolio_card(design_insights: Dict, design_state: Dict, debug
 
 
 def _should_show_sales_recovery_card(scores: Dict, state_payload: Dict, debug: Dict) -> bool:
-    """매출 하락 원인 찾기 카드 조건"""
+    """분석총평 카드 조건 (매출 하락 시)"""
     sales_score = scores.get("sales", 50)
     
     # sales_score <= 45
@@ -520,7 +520,7 @@ def _build_portfolio_card(store_id: str, design_insights: Dict, design_state: Di
 
 
 def _build_sales_recovery_card(store_id: str, scores: Dict, state_payload: Dict) -> Optional[Dict]:
-    """매출 하락 원인 찾기 카드"""
+    """분석총평 카드 (매출 하락 시 → 복합 총평)"""
     sales_score = scores.get("sales", 50)
     
     # 하락 신호 찾기
@@ -534,31 +534,31 @@ def _build_sales_recovery_card(store_id: str, scores: Dict, state_payload: Dict)
     if sales_signal:
         value = sales_signal.get("value", "")
         return {
-            "title": "매출 하락 원인 찾기",
-            "goal": "매출이 하락 중입니다. 원인을 빠르게 파악합니다.",
+            "title": "분석총평",
+            "goal": "매출이 하락 중입니다. 세부 분석을 복합해 총평으로 확인합니다.",
             "why": f"매출 점수 {sales_score:.0f}점, {sales_signal.get('note', '')}",
             "evidence": [
                 f"매출 점수 {sales_score:.0f}점",
                 value
             ],
             "cta": {
-                "label": "원인 1분 진단",
-                "page": "매출 하락 원인 찾기",
+                "label": "분석총평 보기",
+                "page": "분석총평",
                 "params": {}
             }
         }
     else:
         return {
-            "title": "매출 하락 원인 찾기",
-            "goal": "매출이 하락 중입니다. 원인을 빠르게 파악합니다.",
+            "title": "분석총평",
+            "goal": "매출이 하락 중입니다. 세부 분석을 복합해 총평으로 확인합니다.",
             "why": f"매출 점수 {sales_score:.0f}점",
             "evidence": [
                 f"매출 점수 {sales_score:.0f}점",
                 "하락 신호 확인"
             ],
             "cta": {
-                "label": "원인 1분 진단",
-                "page": "매출 하락 원인 찾기",
+                "label": "분석총평 보기",
+                "page": "분석총평",
                 "params": {}
             }
         }
@@ -971,12 +971,12 @@ def _build_strategy_cards_v1_fallback(
                 candidate_cards.append(("portfolio", card))
                 debug["rules_fired"].append("포트폴리오 재배치 카드")
         
-        # 카드 5: 매출 하락 원인 찾기 (Sales Recovery)
+        # 카드 5: 분석총평 (Sales Recovery → 복합 총평)
         if _should_show_sales_recovery_card(scores, state_payload, debug):
             card = _build_sales_recovery_card(store_id, scores, state_payload)
             if card:
                 candidate_cards.append(("sales_recovery", card))
-                debug["rules_fired"].append("매출 하락 원인 찾기 카드")
+                debug["rules_fired"].append("분석총평 카드")
         
         # 4. 우선순위 정렬 및 중복 제거
         selected_cards = _select_top3_cards(candidate_cards, debug)

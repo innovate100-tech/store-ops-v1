@@ -461,12 +461,12 @@ def build_strategy_card(cause: Dict, signals: Dict, store_id: str) -> Dict:
     
     else:
         # 기본 전략
-        strategy["title"] = "매출 하락 원인 찾기"
+        strategy["title"] = "분석총평"
         strategy["reason_bullets"] = [
-            "매출 하락 원인을 자세히 분석하세요.",
+            "세부 분석을 복합해 총평으로 확인하세요.",
         ]
-        strategy["cta_label"] = "원인 찾기 시작"
-        strategy["cta_page"] = "매출 하락 원인 찾기"
+        strategy["cta_label"] = "분석총평 보기"
+        strategy["cta_page"] = "분석총평"
         strategy["cta_context"] = {}
     
     return strategy
@@ -520,7 +520,7 @@ def get_checklist_template(cause_type: str) -> List[dict]:
     }
     
     return templates.get(cause_type, [
-        {"task_order": 1, "task_title": "매출 하락 원인 분석"},
+        {"task_order": 1, "task_title": "분석총평 확인"},
         {"task_order": 2, "task_title": "개선 방안 1개 정리"},
     ])
 
@@ -561,13 +561,13 @@ def pick_primary_strategy(store_id: str, ref_date: Optional[date] = None, window
     if not causes:
         # 원인 없음 → 기본 전략
         return {
-            "title": "매출 하락 원인 찾기",
+            "title": "분석총평",
             "reason_bullets": [
                 "현재 특별한 하락 신호가 감지되지 않았습니다.",
-                "정기적으로 원인 분석을 진행하세요.",
+                "정기적으로 분석총평을 확인하세요.",
             ],
-            "cta_label": "원인 찾기 시작",
-            "cta_page": "매출 하락 원인 찾기",
+            "cta_label": "분석총평 보기",
+            "cta_page": "분석총평",
             "cta_context": {},
             "alternatives": [],
         }

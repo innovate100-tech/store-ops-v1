@@ -335,13 +335,13 @@ def _render_zone2_quick_actions(store_id: str) -> None:
     with col1:
         st.markdown("""
         <div style="padding: 1.5rem; background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%); border-radius: 12px; border-left: 4px solid #dc3545; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">🔍</div>
-            <div style="font-weight: 600; color: #721c24; margin-bottom: 0.5rem; font-size: 1rem;">매출 하락 원인 찾기</div>
-            <div style="font-size: 0.85rem; color: #856404; line-height: 1.4;">3분 안에 원인을 좁히고, 고칠 곳으로 바로 이동합니다.</div>
+            <div style="font-size: 1.2rem; margin-bottom: 0.5rem;">📋</div>
+            <div style="font-weight: 600; color: #721c24; margin-bottom: 0.5rem; font-size: 1rem;">분석총평</div>
+            <div style="font-size: 0.85rem; color: #856404; line-height: 1.4;">세부 분석을 복합해 최종 자료와 해석을 한눈에 확인합니다.</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("원클릭 진입", type="primary", use_container_width=True, key="zone2_sales_drop"):
-            st.session_state["current_page"] = "매출 하락 원인 찾기"
+        if st.button("분석총평 보기", type="primary", use_container_width=True, key="zone2_analysis_summary"):
+            st.session_state["current_page"] = "분석총평"
             st.rerun()
     
     with col2:

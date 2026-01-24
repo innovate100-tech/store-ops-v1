@@ -38,8 +38,8 @@ STRATEGY_CTA_MAP = {
         "params": {}
     },
     StrategyType.ACQUISITION: {
-        "label": "매출 하락 원인 찾기",
-        "page_key": "매출 하락 원인 찾기",
+        "label": "분석총평",
+        "page_key": "분석총평",
         "params": {}
     },
     StrategyType.OPERATIONS: {
@@ -152,7 +152,7 @@ def build_base_strategies(context: Dict) -> List[Dict]:
     if visitors_trend == "down" or overall_score < 50:
         strategies.append({
             "type": StrategyType.ACQUISITION.value,
-            "title": "매출 하락 원인 찾기",
+            "title": "분석총평",
             "priority_score": 100,
             "success_prob": 0.60,
             "impact_estimate": {"won": 0, "direction": "up"},

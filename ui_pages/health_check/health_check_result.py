@@ -466,7 +466,7 @@ def _render_zone_c_top3_risks(health_diag: Optional[Dict]):
                         "P1": "수익 구조 설계실",
                         "F": "수익 구조 설계실",
                         "Q": "메뉴 포트폴리오 설계실",
-                        "M": "매출 하락 원인 찾기"
+                        "M": "분석총평"
                     }
                     route = route_map.get(axis, "가게 설계 센터")
                     st.session_state["current_page"] = route
@@ -550,9 +550,9 @@ def _build_health_actions(health_diag: Dict) -> List[Dict]:
     if "M" in high_risk_axes or pattern_code == "GROWTH_BLOCKED":
         actions.append({
             "code": "SALES_DROP_INVESTIGATION",
-            "title": "매출 하락 원인 찾기",
+            "title": "분석총평",
             "reason": "마케팅 축이 낮아 유입 구조가 부재합니다.",
-            "route": "매출 하락 원인 찾기"
+            "route": "분석총평"
         })
     
     return actions

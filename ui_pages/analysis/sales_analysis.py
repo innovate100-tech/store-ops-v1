@@ -652,8 +652,8 @@ def render_sales_analysis():
     # 상단 CTA + 새로고침
     col_cta, col_ref, _ = st.columns([2, 1, 3])
     with col_cta:
-        if st.button("📉 매출 하락 원인 찾기", type="primary", use_container_width=True, key="sales_analysis_drop"):
-            st.session_state["current_page"] = "매출 하락 원인 찾기"
+        if st.button("📋 분석총평", type="primary", use_container_width=True, key="sales_analysis_summary"):
+            st.session_state["current_page"] = "분석총평"
             st.rerun()
     with col_ref:
         if st.button("🔄 매출 새로고침", key="sales_analysis_refresh", use_container_width=True):

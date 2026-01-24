@@ -1076,10 +1076,10 @@ def _render_zone1_status_board(store_id: str, year: int, month: int, kpis: dict,
             st.session_state["current_page"] = "판매량 등록"
             st.rerun()
     
-    # 매출 하락 원인 찾기 버튼 (상시 노출)
+    # 분석총평 버튼 (상시 노출)
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-    if st.button("📉 매출 하락 원인 찾기", type="primary", use_container_width=True, key="zone1_btn_sales_drop"):
-        st.session_state["current_page"] = "매출 하락 원인 찾기"
+    if st.button("📋 분석총평", type="primary", use_container_width=True, key="zone1_btn_analysis_summary"):
+        st.session_state["current_page"] = "분석총평"
         st.rerun()
     
     # 루틴 배지 추가 (ZONE 1 아래)

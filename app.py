@@ -1540,9 +1540,9 @@ with st.sidebar:
             ("원가 분석", "원가 파악"),
             ("재고 분석", "재고 분석"),
             ("재료 사용량", "재료 사용량 집계"),
-            ("판매·메뉴 분석", "판매 관리"),
-            ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),
-            ("QSC 결과분석", "체크결과"),
+        ("판매·메뉴 분석", "판매 관리"),
+        ("분석총평", "분석총평"),
+        ("QSC 결과분석", "체크결과"),
         ],
         "🧠 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
@@ -1818,10 +1818,10 @@ elif page == "매출 등록":
     from ui_pages.sales_entry import render_sales_entry
     render_sales_entry()
 
-# 매출 하락 원인 찾기 페이지 (원클릭 플로우)
-elif page == "매출 하락 원인 찾기":
-    from ui_pages.analysis.sales_drop_investigation import render_sales_drop_investigation
-    render_sales_drop_investigation()
+# 분석총평 페이지 (세부 분석 복합·고도화)
+elif page == "분석총평":
+    from ui_pages.analysis.analysis_summary import render_analysis_summary
+    render_analysis_summary()
 
 # 오늘의 전략 실행 (미션 상세)
 elif page == "오늘의 전략 실행" or page == "미션 상세":

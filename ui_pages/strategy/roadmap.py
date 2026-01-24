@@ -94,8 +94,8 @@ def _estimate_task_time(card: Dict) -> str:
     if "포트폴리오" in cta_page or "메뉴 등록" in cta_page:
         return "30m"
     
-    # 매출 하락 원인 찾기
-    if "매출 하락" in cta_page or "원인 찾기" in title:
+    # 분석총평
+    if "분석총평" in cta_page or "분석총평" in (title or ""):
         return "10m"
     
     # 데이터 채우기 / 설계 센터
@@ -135,11 +135,11 @@ def _get_default_roadmap() -> List[Dict]:
         },
         {
             "rank": 3,
-            "task": "매출 하락 원인 찾기",
+            "task": "분석총평",
             "estimate": "10m",
             "cta": {
-                "label": "원인 찾기",
-                "page": "매출 하락 원인 찾기",
+                "label": "분석총평 보기",
+                "page": "분석총평",
                 "params": {}
             }
         }

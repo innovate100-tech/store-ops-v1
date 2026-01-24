@@ -107,8 +107,8 @@ def _build_numbers_evidence(
                         "summary": f"최근 14일 매출 {decline_pct:.0f}% 하락",
                         "detail": f"최근 7일 평균 매출이 이전 7일 대비 {decline_pct:.0f}% 하락했습니다. 원인 분석이 필요합니다.",
                         "cta": {
-                            "label": "매출 하락 원인 찾기",
-                            "route": "매출 하락 원인 찾기"
+                            "label": "분석총평",
+                            "route": "분석총평"
                         }
                     }
         
