@@ -159,10 +159,24 @@ def _set_ingredient_category(store_id, ingredient_name, category):
         
         if result.data:
             ingredient_id = result.data[0]['id']
+            # 빈 문자열이면 NULL로 설정 (분류 제거)
+            update_value = category if category and category.strip() else None
             supabase.table("ingredients")\
-                .update({"category": category})\
+                .update({"category": update_value})\
                 .eq("id", ingredient_id)\
                 .execute()
+            
+            # 캐시 무효화 (재료 데이터 갱신 필요)
+            try:
+                from src.storage_supabase import soft_invalidate
+                soft_invalidate(
+                    reason=f"재료 분류 수정: {ingredient_name}",
+                    targets=["ingredients"],
+                    session_keys=['ss_ingredient_master_df']
+                )
+            except Exception as e:
+                logger.warning(f"캐시 무효화 실패: {e}")
+            
             return True
     except Exception as e:
         logger.warning(f"재료 분류 저장 실패: {e}")
@@ -635,8 +649,13 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                                 key=f"ingredient_input_edit_order_unit_{ingredient_name}")
                     new_conversion = st.number_input("변환비율", min_value=0.1, value=float(conversion_rate) if conversion_rate and conversion_rate > 0 else 1.0, 
                                                     step=0.1, format="%.2f", key=f"ingredient_input_edit_conversion_{ingredient_name}")
-                    new_category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES,
-                                               index=INGREDIENT_CATEGORIES.index(category) + 1 if category in INGREDIENT_CATEGORIES else 0,
+                    # 재료 분류 선택 (빈 문자열 = 분류 제거)
+                    category_options = [""] + INGREDIENT_CATEGORIES
+                    category_index = 0
+                    if category and category in INGREDIENT_CATEGORIES:
+                        category_index = INGREDIENT_CATEGORIES.index(category) + 1
+                    new_category = st.selectbox("재료 분류", options=category_options,
+                                               index=category_index,
                                                key=f"ingredient_input_edit_category_{ingredient_name}")
                     
                     col_save, col_cancel = st.columns(2)
@@ -695,14 +714,27 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                                 logger.error(f"발주 정보 수정 실패: {e}")
                                                 ui_flash_error(f"발주 정보 수정 중 오류가 발생했습니다: {str(e)}")
                                         
-                                        # 재료 분류 저장
-                                        if new_category and new_category.strip():
-                                            category_success = _set_ingredient_category(store_id, new_name.strip(), new_category.strip())
+                                        # 재료 분류 저장 (빈 문자열도 처리 - 분류 제거)
+                                        if new_category is not None:
+                                            # 빈 문자열이면 분류 제거, 아니면 저장
+                                            category_to_save = new_category.strip() if new_category.strip() else None
+                                            category_success = _set_ingredient_category(store_id, new_name.strip(), category_to_save)
                                             if not category_success:
                                                 logger.warning(f"재료 분류 저장 실패: {new_name}")
                                         
                                         # 재료 상태 저장 (수정 시에는 상태 변경 없음 - 필요시 추가)
                                         # 현재는 수정 모달에 상태 필드가 없으므로 생략
+                                        
+                                        # 캐시 무효화 (데이터 갱신)
+                                        try:
+                                            from src.storage_supabase import soft_invalidate
+                                            soft_invalidate(
+                                                reason=f"재료 수정: {ingredient_name} -> {new_name.strip()}",
+                                                targets=["ingredients"],
+                                                session_keys=['ss_ingredient_master_df']
+                                            )
+                                        except Exception as e:
+                                            logger.warning(f"캐시 무효화 실패: {e}")
                                         
                                         ui_flash_success(f"재료 '{new_name.strip()}'이(가) 수정되었습니다.")
                                         st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
