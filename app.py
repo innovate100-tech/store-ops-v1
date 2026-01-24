@@ -1310,230 +1310,7 @@ def render_custom_sidebar(menu):
     sidebar_width = "4rem" if collapsed else "15rem"
     current_page = st.session_state.current_page
     
-    # 커스텀 사이드바 CSS (전역에 한 번만 추가)
-    if "custom_sidebar_css_injected" not in st.session_state:
-        st.session_state.custom_sidebar_css_injected = True
-        st.markdown("""
-        <style>
-        /* Streamlit 기본 사이드바 스타일링 */
-        [data-testid="stSidebar"] {
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            height: 100vh !important;
-            width: 15rem !important;
-            max-width: 15rem !important;
-            min-width: 15rem !important;
-            background: var(--surface-bg, #1E293B) !important;
-            border-right: 1px solid rgba(232, 238, 247, 0.12) !important;
-            z-index: 999 !important;
-            transition: width 0.3s ease, max-width 0.3s ease, min-width 0.3s ease !important;
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-            padding: 1rem 0.5rem !important;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
-            box-sizing: border-box !important;
-        }
-        
-        /* 접힌 상태일 때 */
-        [data-testid="stSidebar"]:has(#custom-sidebar-container.collapsed),
-        body:has(#custom-sidebar-container.collapsed) [data-testid="stSidebar"] {
-            width: 4rem !important;
-            max-width: 4rem !important;
-            min-width: 4rem !important;
-        }
-        
-        /* 커스텀 사이드바 컨테이너 - Streamlit 사이드바 내부에 배치 */
-        #custom-sidebar-container {
-            position: relative !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 100% !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        
-        /* 사이드바 내부 콘텐츠 */
-        #custom-sidebar-container .custom-sidebar-content {
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-        
-        /* 사이드바 내부 Streamlit 위젯들이 보이도록 */
-        #custom-sidebar-container .stButton,
-        #custom-sidebar-container .stSelectbox,
-        #custom-sidebar-container .stMarkdown {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        #custom-sidebar-container.collapsed {
-            width: 4rem !important;
-            max-width: 4rem !important;
-            min-width: 4rem !important;
-        }
-        
-        #custom-sidebar-container.expanded {
-            width: 15rem !important;
-            max-width: 15rem !important;
-            min-width: 15rem !important;
-        }
-        
-        /* 사이드바 내부 모든 요소의 width 제한 */
-        #custom-sidebar-container * {
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        
-        /* 커스텀 사이드바 내부 버튼 스타일 - width 제한 */
-        #custom-sidebar-container .stButton {
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        
-        #custom-sidebar-container .stButton > button {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin-bottom: 0.25rem !important;
-            text-align: left !important;
-            justify-content: flex-start !important;
-            box-sizing: border-box !important;
-        }
-        
-        #custom-sidebar-container.collapsed .stButton {
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        #custom-sidebar-container.collapsed .stButton > button {
-            justify-content: center !important;
-            padding: 0.75rem 0.5rem !important;
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        /* 접힌 상태에서 텍스트 숨김 */
-        #custom-sidebar-container.collapsed .stButton > button span:not(:first-child) {
-            display: none !important;
-        }
-        
-        /* selectbox도 width 제한 */
-        #custom-sidebar-container .stSelectbox {
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        
-        #custom-sidebar-container .stSelectbox > div {
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        
-        /* 카테고리 제목 */
-        .custom-sidebar-category {
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            font-size: 0.75rem;
-            color: var(--text-muted, #94A3B8);
-            text-transform: uppercase;
-            padding: 0 0.5rem;
-        }
-        
-        #custom-sidebar-container.collapsed .custom-sidebar-category {
-            display: none;
-        }
-        
-        /* Streamlit 앱 전체 레이아웃 완전히 오버라이드 */
-        [data-testid="stAppViewContainer"] {
-            position: relative !important;
-            margin-left: 15rem !important;
-            width: calc(100vw - 15rem) !important;
-            max-width: calc(100vw - 15rem) !important;
-            min-width: calc(100vw - 15rem) !important;
-            transition: margin-left 0.3s ease, width 0.3s ease !important;
-            box-sizing: border-box !important;
-            left: 0 !important;
-            right: auto !important;
-            display: block !important;
-            flex: none !important;
-        }
-        
-        /* Streamlit의 기본 flexbox 레이아웃 무시 */
-        [data-testid="stAppViewContainer"] > div {
-            display: block !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin-left: 0 !important;
-        }
-        
-        /* 접힌 상태일 때 */
-        body:has(#custom-sidebar-container.collapsed) [data-testid="stAppViewContainer"],
-        html:has(#custom-sidebar-container.collapsed) [data-testid="stAppViewContainer"] {
-            margin-left: 4rem !important;
-            width: calc(100vw - 4rem) !important;
-            max-width: calc(100vw - 4rem) !important;
-            min-width: calc(100vw - 4rem) !important;
-        }
-        
-        /* 메인 콘텐츠 영역 - 사이드바 옆에 배치 */
-        .main {
-            position: relative !important;
-            margin-left: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            padding-left: 0 !important;
-            left: 0 !important;
-            right: auto !important;
-            display: block !important;
-            flex: none !important;
-        }
-        
-        .main .block-container {
-            margin-left: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-        }
-        
-        /* body와 html도 조정 */
-        body {
-            margin-left: 0 !important;
-            overflow-x: hidden !important;
-            position: relative !important;
-        }
-        
-        html {
-            margin-left: 0 !important;
-            overflow-x: hidden !important;
-        }
-        
-        /* Streamlit의 기본 레이아웃 컨테이너들 강제 조정 */
-        #root > div {
-            margin-left: 15rem !important;
-            width: calc(100vw - 15rem) !important;
-            max-width: calc(100vw - 15rem) !important;
-        }
-        
-        body:has(#custom-sidebar-container.collapsed) #root > div {
-            margin-left: 4rem !important;
-            width: calc(100vw - 4rem) !important;
-            max-width: calc(100vw - 4rem) !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    
-    # 사이드바를 Streamlit의 기본 사이드바 안에 렌더링 (CSS로 위치 조정)
+    # 사이드바를 Streamlit의 기본 사이드바 안에 렌더링
     with st.sidebar:
         # 사이드바 컨테이너 div 시작
         sidebar_class = "collapsed" if collapsed else "expanded"
@@ -1541,6 +1318,11 @@ def render_custom_sidebar(menu):
         
         # 토글 버튼 (Streamlit 버튼 사용)
         toggle_label = "▶" if collapsed else "◀ 접기"
+        if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
+            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+            st.rerun()
+        
+        # 사이드바 메뉴 렌더링
         if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
             st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
             st.rerun()
@@ -1621,6 +1403,229 @@ def render_custom_sidebar(menu):
 # current_page 초기화 (사이드바 렌더링 전에 먼저 초기화)
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
+
+# 커스텀 사이드바 CSS (전역에 한 번만 추가 - 사이드바 밖에서)
+if "custom_sidebar_css_injected" not in st.session_state:
+    st.session_state.custom_sidebar_css_injected = True
+    st.markdown("""
+    <style>
+    /* Streamlit 기본 사이드바 스타일링 */
+    [data-testid="stSidebar"] {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        height: 100vh !important;
+        width: 15rem !important;
+        max-width: 15rem !important;
+        min-width: 15rem !important;
+        background: var(--surface-bg, #1E293B) !important;
+        border-right: 1px solid rgba(232, 238, 247, 0.12) !important;
+        z-index: 999 !important;
+        transition: width 0.3s ease, max-width 0.3s ease, min-width 0.3s ease !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 1rem 0.5rem !important;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* 접힌 상태일 때 */
+    [data-testid="stSidebar"]:has(#custom-sidebar-container.collapsed),
+    body:has(#custom-sidebar-container.collapsed) [data-testid="stSidebar"] {
+        width: 4rem !important;
+        max-width: 4rem !important;
+        min-width: 4rem !important;
+    }
+    
+    /* 커스텀 사이드바 컨테이너 - Streamlit 사이드바 내부에 배치 */
+    #custom-sidebar-container {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* 사이드바 내부 콘텐츠 */
+    #custom-sidebar-container .custom-sidebar-content {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* 사이드바 내부 Streamlit 위젯들이 보이도록 */
+    #custom-sidebar-container .stButton,
+    #custom-sidebar-container .stSelectbox,
+    #custom-sidebar-container .stMarkdown {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    #custom-sidebar-container.collapsed {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    #custom-sidebar-container.expanded {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    /* 사이드바 내부 모든 요소의 width 제한 */
+    #custom-sidebar-container * {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* 커스텀 사이드바 내부 버튼 스타일 - width 제한 */
+    #custom-sidebar-container .stButton {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    #custom-sidebar-container .stButton > button {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 0.25rem !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        box-sizing: border-box !important;
+    }
+    
+    #custom-sidebar-container.collapsed .stButton {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    #custom-sidebar-container.collapsed .stButton > button {
+        justify-content: center !important;
+        padding: 0.75rem 0.5rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* 접힌 상태에서 텍스트 숨김 */
+    #custom-sidebar-container.collapsed .stButton > button span:not(:first-child) {
+        display: none !important;
+    }
+    
+    /* selectbox도 width 제한 */
+    #custom-sidebar-container .stSelectbox {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    #custom-sidebar-container .stSelectbox > div {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    /* 카테고리 제목 */
+    .custom-sidebar-category {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        font-size: 0.75rem;
+        color: var(--text-muted, #94A3B8);
+        text-transform: uppercase;
+        padding: 0 0.5rem;
+    }
+    
+    #custom-sidebar-container.collapsed .custom-sidebar-category {
+        display: none;
+    }
+    
+    /* Streamlit 앱 전체 레이아웃 완전히 오버라이드 */
+    [data-testid="stAppViewContainer"] {
+        position: relative !important;
+        margin-left: 15rem !important;
+        width: calc(100vw - 15rem) !important;
+        max-width: calc(100vw - 15rem) !important;
+        min-width: calc(100vw - 15rem) !important;
+        transition: margin-left 0.3s ease, width 0.3s ease !important;
+        box-sizing: border-box !important;
+        left: 0 !important;
+        right: auto !important;
+        display: block !important;
+        flex: none !important;
+    }
+    
+    /* Streamlit의 기본 flexbox 레이아웃 무시 */
+    [data-testid="stAppViewContainer"] > div {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-left: 0 !important;
+    }
+    
+    /* 접힌 상태일 때 */
+    body:has(#custom-sidebar-container.collapsed) [data-testid="stAppViewContainer"],
+    html:has(#custom-sidebar-container.collapsed) [data-testid="stAppViewContainer"] {
+        margin-left: 4rem !important;
+        width: calc(100vw - 4rem) !important;
+        max-width: calc(100vw - 4rem) !important;
+        min-width: calc(100vw - 4rem) !important;
+    }
+    
+    /* 메인 콘텐츠 영역 - 사이드바 옆에 배치 */
+    .main {
+        position: relative !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        display: block !important;
+        flex: none !important;
+    }
+    
+    .main .block-container {
+        margin-left: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* body와 html도 조정 */
+    body {
+        margin-left: 0 !important;
+        overflow-x: hidden !important;
+        position: relative !important;
+    }
+    
+    html {
+        margin-left: 0 !important;
+        overflow-x: hidden !important;
+    }
+    
+    /* Streamlit의 기본 레이아웃 컨테이너들 강제 조정 */
+    #root > div {
+        margin-left: 15rem !important;
+        width: calc(100vw - 15rem) !important;
+        max-width: calc(100vw - 15rem) !important;
+    }
+    
+    body:has(#custom-sidebar-container.collapsed) #root > div {
+        margin-left: 4rem !important;
+        width: calc(100vw - 4rem) !important;
+        max-width: calc(100vw - 4rem) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # 커스텀 사이드바 렌더링 (Streamlit 기본 사이드바 대신)
 try:
