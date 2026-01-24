@@ -8,6 +8,18 @@ import numpy as np
 import sys
 import os
 
+# CSS 주입용 (st.html 또는 components.html)
+try:
+    from streamlit import html as st_html
+    USE_ST_HTML = True
+except (ImportError, AttributeError):
+    try:
+        import streamlit.components.v1 as components
+        USE_ST_HTML = False
+    except ImportError:
+        USE_ST_HTML = None
+        components = None
+
 # Essential UI and Logic Imports
 
 from src.bootstrap import bootstrap
@@ -571,14 +583,16 @@ def render_expanded_sidebar(menu):
     # CSS 주입 (세션에서 1회만, 버전 포함 플래그) - v2 강제
     if "ps__premium_sidebar_css_v2" not in st.session_state:
         st.session_state["ps__premium_sidebar_css_v2"] = True
-        st.markdown("""
+        
+        # CSS 문자열 생성
+        css_content = """
         <style>
         /* 프리미엄 블랙 테마 완전판 CSS v2 - .ps-sidebar-scope 하위만 */
         /* 적용 보증: PROBE 요소 포함, 선택자 폴백, transform 정책 준수 */
         
         /* ========== 전역 PROBE: CSS 주입 확인용 (빨간 outline) ========== */
         .ps-sidebar-scope {
-            outline: 3px solid red !important;
+            outline: 6px solid red !important;
         }
         
         /* ========== prefers-reduced-motion 대응 ========== */
@@ -980,7 +994,16 @@ def render_expanded_sidebar(menu):
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
         }
         </style>
-        """, unsafe_allow_html=True)
+        """
+        
+        # CSS 주입 방식: st.html 우선, 없으면 components.html
+        if USE_ST_HTML:
+            st_html(css_content, height=0)
+        elif USE_ST_HTML is False and components is not None:
+            components.html(css_content, height=0)
+        else:
+            # 최후 수단: st.markdown (원래 방식)
+            st.markdown(css_content, unsafe_allow_html=True)
     
     # 스코프 래퍼 시작
     st.markdown('<div class="ps-sidebar-scope">', unsafe_allow_html=True)
