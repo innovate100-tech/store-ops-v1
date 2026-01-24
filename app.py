@@ -88,6 +88,37 @@ st.markdown("""
         --text-muted: #94A3B8;
     }
 
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    @keyframes pulse-glow {
+        0% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); }
+        50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+        100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.2); }
+    }
+
+    @keyframes wave {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .animate-in {
+        animation: fadeInUp 0.6s ease-out forwards;
+        opacity: 0;
+    }
+
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
     
@@ -122,7 +153,7 @@ st.markdown("""
     .stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
         border: none !important;
-        box-shadow: 0 0 15px var(--accent-glow) !important;
+        animation: pulse-glow 3s infinite !important;
     }
 
     /* 글래스모피즘 효과 카드 */

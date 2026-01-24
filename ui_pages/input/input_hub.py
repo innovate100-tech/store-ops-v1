@@ -97,7 +97,7 @@ def _get_asset_readiness(store_id: str) -> dict:
         }
     except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False}
 
-def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
+def _hub_status_card(title: str, value: str, sub: str, status: str = "pending", delay_class: str = ""):
     bg = "rgba(30, 41, 59, 0.5)"
     border = "rgba(148, 163, 184, 0.1)"
     glow = ""
@@ -112,19 +112,19 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
         text_color = "#94A3B8"
 
     st.markdown(f"""
-    <div style="padding: 1.5rem; background: {bg}; border-radius: 16px; border: 1px solid {border}; {glow} backdrop-filter: blur(10px); min-height: 150px; transition: all 0.3s ease;">
+    <div class="animate-in {delay_class}" style="padding: 1.5rem; background: {bg}; border-radius: 16px; border: 1px solid {border}; {glow} backdrop-filter: blur(10px); min-height: 150px; transition: all 0.3s ease; position: relative; overflow: hidden;">
         <div style="font-size: 0.8rem; font-weight: 600; color: #94A3B8; margin-bottom: 1rem; letter-spacing: 0.05em;">{title.upper()}</div>
         <div style="font-size: 1.5rem; font-weight: 700; color: {text_color}; margin-bottom: 0.5rem;">{value}</div>
         <div style="font-size: 0.85rem; color: #64748B; line-height: 1.4;">{sub}</div>
     </div>
     """, unsafe_allow_html=True)
 
-def _hub_asset_card(title: str, value: str, icon: str):
+def _hub_asset_card(title: str, value: str, icon: str, delay_class: str = ""):
     card_style = "padding: 1.2rem; background: rgba(30, 41, 59, 0.4); border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; gap: 1rem; min-height: 100px; transition: transform 0.2s ease;"
     title_style = "font-size: 0.75rem; color: #94A3B8; font-weight: 500; margin-bottom: 0.3rem; letter-spacing: 0.02em;"
     value_style = "font-size: 1.2rem; font-weight: 700; color: #F8FAFC; line-height: 1.2;"
     html_content = f"""
-    <div style="{card_style}">
+    <div class="animate-in {delay_class}" style="{card_style}">
         <div style="font-size: 2rem; background: rgba(59, 130, 246, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">{icon}</div>
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <div style="{title_style}">{title}</div>
@@ -135,7 +135,7 @@ def _hub_asset_card(title: str, value: str, icon: str):
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v3():
-    """입력 허브 페이지 렌더링 (Stage 5: 디자인 고도화 버전)"""
+    """입력 허브 페이지 렌더링 (Stage 6: 동적 경험 고도화 버전)"""
     render_page_header("✍ 입력 허브", "✍")
     store_id = get_current_store_id()
     if not store_id:
@@ -152,10 +152,13 @@ def render_input_hub_v3():
     if assets.get('recipe_rate', 0) >= 80: score += 25
     if assets.get('has_target'): score += 25
 
-    # [1] 통합 가이드 카드 (디자이너 터치 적용)
+    # [1] 통합 가이드 카드 (동적 애니메이션 적용)
     st.markdown(f"""
-    <div style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div class="animate-in" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
+        <!-- 배경 일렁임 효과 -->
+        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%); animation: shimmer 10s infinite linear;"></div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; position: relative;">
             <div>
                 <h4 style="margin: 0 0 0.6rem 0; color: #F8FAFC; font-size: 1.2rem; font-weight: 700;">💡 데이터 자산 가이드</h4>
                 <p style="margin: 0; color: #94A3B8; font-size: 0.95rem; line-height: 1.6;">
@@ -165,62 +168,75 @@ def render_input_hub_v3():
             </div>
             <div style="text-align: right;">
                 <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600;">MATURITY LEVEL</div>
-                <div style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">{score}<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
+                <div id="maturity-score" style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">0<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
             </div>
         </div>
-        <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 10px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);"></div>
+        
+        <script>
+        var scoreElement = document.getElementById('maturity-score');
+        var targetScore = {score};
+        var currentScore = 0;
+        var interval = setInterval(function() {{
+            if (currentScore >= targetScore) {{
+                clearInterval(interval);
+            }} else {{
+                currentScore++;
+                scoreElement.innerHTML = currentScore + '<span style="font-size: 1rem; margin-left: 2px;">%</span>';
+            }}
+        }}, 20);
+        </script>
+        
+        <!-- 물결 애니메이션이 포함된 프로그레스 바 -->
+        <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 12px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
+            <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden;">
+                <!-- 리퀴드 웨이브 효과 -->
+                <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave 2s infinite linear;"></div>
+            </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+        
+        <div style="display: flex; align-items: center; gap: 0.5rem; position: relative;">
             <div style="width: 8px; height: 8px; border-radius: 50%; background: { '#10B981' if score == 100 else '#3B82F6' }; animation: pulse 2s infinite;"></div>
             <p style="margin: 0; color: { '#10B981' if score == 100 else '#3B82F6' }; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em;">
                 {f"PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."}
             </p>
         </div>
     </div>
-    <style>
-    @keyframes pulse {{
-        0% {{ transform: scale(0.95); opacity: 0.7; }}
-        50% {{ transform: scale(1.1); opacity: 1; }}
-        100% {{ transform: scale(0.95); opacity: 0.7; }}
-    }}
-    </style>
     """, unsafe_allow_html=True)
 
-    # [2] 관제 보드
+    # [2] 관제 보드 (시퀀셜 등장 적용)
     st.markdown("### 📊 실시간 입력 현황")
     c1, c2, c3 = st.columns(3)
     r1 = next((r for r in recs if r["priority"] == 1), {"status": "pending", "summary": "확인 불가"})
     r4 = next((r for r in recs if r["priority"] == 4), {"status": "pending", "summary": "확인 불가"})
     r5 = next((r for r in recs if r["priority"] == 5), {"status": "pending", "summary": "확인 불가"})
     
-    with c1: _hub_status_card("오늘의 마감", "✅ 완료" if r1["status"]=="completed" else "⚠️ 미완료", r1["summary"], "completed" if r1["status"]=="completed" else "warning")
-    with c2: _hub_status_card("정기 QSC 점검", "✅ 완료" if r4["status"]=="completed" else "⏳ 권장", r4["summary"], "completed" if r4["status"]=="completed" else "pending")
-    with c3: _hub_status_card("이번 달 정산", "✅ 완료" if r5["status"]=="completed" else "⏸️ 대기", r5["summary"], "completed" if r5["status"]=="completed" else "pending")
+    with c1: _hub_status_card("오늘의 마감", "✅ 완료" if r1["status"]=="completed" else "⚠️ 미완료", r1["summary"], "completed" if r1["status"]=="completed" else "warning", "delay-1")
+    with c2: _hub_status_card("정기 QSC 점검", "✅ 완료" if r4["status"]=="completed" else "⏳ 권장", r4["summary"], "completed" if r4["status"]=="completed" else "pending", "delay-2")
+    with c3: _hub_status_card("이번 달 정산", "✅ 완료" if r5["status"]=="completed" else "⏸️ 대기", r5["summary"], "completed" if r5["status"]=="completed" else "pending", "delay-3")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # [3] 자산 구축 현황
+    # [3] 자산 구축 현황 (시퀀셜 등장 적용)
     st.markdown("### 🏗️ 가게 데이터 기초 체력")
     st.caption("매장의 '디지털 자산'입니다. 누락된 항목을 채워 분석 정밀도를 높이세요.")
     a1, a2, a3, a4 = st.columns(4)
     with a1: 
-        _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘")
-        if assets.get('missing_price', 0) > 0: st.markdown(f"<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_price')}개 가격 누락</p>", unsafe_allow_html=True)
-        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
+        _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", "delay-1")
+        if assets.get('missing_price', 0) > 0: st.markdown(f"<p class='animate-in delay-2' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_price')}개 가격 누락</p>", unsafe_allow_html=True)
+        else: st.markdown("<p class='animate-in delay-2' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
     with a2: 
-        _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺")
-        if assets.get('missing_cost', 0) > 0: st.markdown(f"<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_cost')}개 단가 누락</p>", unsafe_allow_html=True)
-        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
+        _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", "delay-2")
+        if assets.get('missing_cost', 0) > 0: st.markdown(f"<p class='animate-in delay-3' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_cost')}개 단가 누락</p>", unsafe_allow_html=True)
+        else: st.markdown("<p class='animate-in delay-3' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
     with a3: 
-        _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳")
-        if assets.get('recipe_rate', 0) < 80: st.markdown("<p style='color: #94A3B8; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>⏳ 80% 달성 권장</p>", unsafe_allow_html=True)
-        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 정밀 분석 가능</p>", unsafe_allow_html=True)
+        _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳", "delay-3")
+        if assets.get('recipe_rate', 0) < 80: st.markdown("<p class='animate-in delay-4' style='color: #94A3B8; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>⏳ 80% 달성 권장</p>", unsafe_allow_html=True)
+        else: st.markdown("<p class='animate-in delay-4' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 정밀 분석 가능</p>", unsafe_allow_html=True)
     with a4: 
         goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 미설정"
-        _hub_asset_card("이번 달 목표", goal_status, "🎯")
-        if not assets.get('has_target'): st.markdown("<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ 목표 설정 필요</p>", unsafe_allow_html=True)
-        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 분석 중</p>", unsafe_allow_html=True)
+        _hub_asset_card("이번 달 목표", goal_status, "🎯", "delay-4")
+        if not assets.get('has_target'): st.markdown("<p class='animate-in delay-4' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ 목표 설정 필요</p>", unsafe_allow_html=True)
+        else: st.markdown("<p class='animate-in delay-4' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 분석 중</p>", unsafe_allow_html=True)
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
