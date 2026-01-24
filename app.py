@@ -116,20 +116,68 @@ with st.sidebar:
     
     menu = {
         "🏠 홈": [("홈", "홈")],
-        "✍ 입력": [("입력 허브", "입력 허브")],
-        "📊 분석": [("분석 허브", "분석 허브")],
-        "🧠 설계": [("가게 전략 센터", "가게 전략 센터")],
-        "🛠 운영": [("직원 연락망", "직원 연락망"), ("게시판", "게시판")]
+        "🧠 설계": {
+            "main": [("가게 전략 센터", "가게 전략 센터")],
+            "sub": [
+                ("메뉴 포트폴리오 설계", "메뉴 등록"),
+                ("메뉴 수익 설계", "메뉴 수익 구조 설계실"),
+                ("재료 구조 설계", "재료 등록"),
+                ("수익 구조 설계", "수익 구조 설계실"),
+                ("레시피 설계", "레시피 등록"),
+                ("비용 구조 설계", "목표 비용구조"),
+                ("매출 구조 설계", "목표 매출구조")
+            ]
+        },
+        "📊 분석": {
+            "main": [("분석 허브", "분석 허브")],
+            "sub": [
+                ("매출 분석", "매출 관리"),
+                ("판매·메뉴 분석", "판매 관리"),
+                ("원가 분석", "비용 분석"),
+                ("체크 결과 요약", "검진 결과 요약"),
+                ("체크 히스토리", "검진 히스토리"),
+                ("매출 하락 원인 찾기", "매출 하락 원인 찾기")
+            ]
+        },
+        "✍ 입력": {
+            "main": [("입력 허브", "입력 허브")],
+            "sub": [
+                ("오늘 입력", "일일 입력(통합)"),
+                ("점장 마감", "점장 마감"),
+                ("매출 보정 입력", "매출 등록"),
+                ("판매량 보정 입력", "판매량 등록"),
+                ("월간 정산 입력", "실제정산"),
+                ("매장 체크리스트 실시", "건강검진 실시")
+            ]
+        },
+        "🛠 운영": [
+            ("직원 연락망", "직원 연락망"),
+            ("협력사 연락망", "협력사 연락망"),
+            ("게시판", "게시판")
+        ]
     }
     
     if "current_page" not in st.session_state: st.session_state.current_page = "홈"
     
-    for cat, items in menu.items():
+    for cat, data in menu.items():
         st.markdown(f"**{cat}**")
-        for label, key in items:
-            if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                st.session_state.current_page = key
-                st.rerun()
+        if isinstance(data, list):
+            for label, key in data:
+                if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+                    st.session_state.current_page = key
+                    st.rerun()
+        else:
+            # Main items
+            for label, key in data["main"]:
+                if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+                    st.session_state.current_page = key
+                    st.rerun()
+            # Sub items in expander
+            with st.expander("상세 선택", expanded=False):
+                for label, key in data["sub"]:
+                    if st.button(label, key=f"btn_sub_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+                        st.session_state.current_page = key
+                        st.rerun()
 
     if st.button("🚪 로그아웃"): logout(); st.rerun()
     if st.button("🔄 캐시 클리어"): load_csv.clear(); st.rerun()
@@ -169,6 +217,45 @@ elif page == "실제정산":
     render_settlement_actual()
 elif page == "판매 관리":
     render_sales_analysis()
+elif page == "판매량 등록":
+    from ui_pages.sales_volume_entry import render_sales_volume_entry
+    render_sales_volume_entry()
+elif page == "건강검진 실시":
+    from ui_pages.health_check.health_check_page import render_health_check_page
+    render_health_check_page()
+elif page == "검진 결과 요약":
+    from ui_pages.health_check.health_check_result import render_health_check_result
+    render_health_check_result()
+elif page == "검진 히스토리":
+    from ui_pages.health_check.health_check_history import render_health_check_history
+    render_health_check_history()
+elif page == "매출 하락 원인 찾기":
+    from ui_pages.diagnostics.sales_drop_oneclick import render_sales_drop_oneclick
+    render_sales_drop_oneclick()
+elif page == "메뉴 수익 구조 설계실":
+    from ui_pages.menu_profit_design_lab import render_menu_profit_design_lab
+    render_menu_profit_design_lab()
+elif page == "수익 구조 설계실":
+    from ui_pages.revenue_structure_design_lab import render_revenue_structure_design_lab
+    render_revenue_structure_design_lab()
+elif page == "레시피 등록":
+    from ui_pages.recipe_management import render_recipe_management
+    render_recipe_management()
+elif page == "목표 비용구조":
+    from ui_pages.target_cost_structure import render_target_cost_structure
+    render_target_cost_structure()
+elif page == "목표 매출구조":
+    from ui_pages.target_sales_structure import render_target_sales_structure
+    render_target_sales_structure()
+elif page == "직원 연락망":
+    from ui_pages.staff_contacts import render_staff_contacts
+    render_staff_contacts()
+elif page == "협력사 연락망":
+    from ui_pages.vendor_contacts import render_vendor_contacts
+    render_vendor_contacts()
+elif page == "주간 리포트":
+    from ui_pages.weekly_report import render_weekly_report
+    render_weekly_report()
 elif page == "재료 사용량 집계":
     from ui_pages.ingredient_usage_summary import render_ingredient_usage_summary
     render_ingredient_usage_summary()
