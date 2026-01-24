@@ -214,7 +214,7 @@ def render_input_hub_v2():
     a1, a2, a3, a4 = st.columns(4)
     with a1: _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", f"가격 미입력 {assets.get('missing_price', 0)}개" if assets.get('missing_price', 0) > 0 else "")
     with a2: _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", f"단가 미입력 {assets.get('missing_cost', 0)}개" if assets.get('missing_cost', 0) > 0 else "")
-    with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳", "수익 분석을 위해 보완 필요" if assets.get('recipe_rate', 0) < 50 else "")
+    with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳", "수익 분석을 위해 보완 필요" if assets.get('recipe_rate', 0) < 50 else "")
     with a4: _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯", "분석 기준이 없습니다" if not assets.get('has_target') else "")
 
     st.markdown("---")
