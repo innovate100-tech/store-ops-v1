@@ -1829,10 +1829,10 @@ elif page == "오늘의 전략 실행" or page == "미션 상세":
     from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()
 
-# 매출 관리 페이지 (분석 전용)
+# 매출 관리 페이지 (분석 전용, 리디자인)
 elif page == "매출 관리":
-    from ui_pages.sales_management import render_sales_management
-    render_sales_management()
+    from ui_pages.analysis.sales_analysis import render_sales_analysis
+    render_sales_analysis()
 
 # 메뉴 입력 페이지 (입력 전용)
 elif page == "메뉴 입력":
