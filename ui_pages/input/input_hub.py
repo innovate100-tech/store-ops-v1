@@ -168,28 +168,14 @@ def render_input_hub_v3():
             </div>
             <div style="text-align: right;">
                 <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600;">MATURITY LEVEL</div>
-                <div id="maturity-score" style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">0<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
+                <div style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">{score}<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
             </div>
         </div>
-        
-        <script>
-        var scoreElement = document.getElementById('maturity-score');
-        var targetScore = {score};
-        var currentScore = 0;
-        var interval = setInterval(function() {{
-            if (currentScore >= targetScore) {{
-                clearInterval(interval);
-            }} else {{
-                currentScore++;
-                scoreElement.innerHTML = currentScore + '<span style="font-size: 1rem; margin-left: 2px;">%</span>';
-            }}
-        }}, 20);
-        </script>
         
         <!-- 물결 애니메이션이 포함된 프로그레스 바 -->
         <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 12px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); position: relative;">
             <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); position: relative; overflow: hidden;">
-                <!-- 리퀴드 웨이브 효과 -->
+                <!-- 리퀴드 웨이브 효과 (CSS 전용) -->
                 <div style="position: absolute; top: 0; left: 0; width: 200%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); animation: wave 2s infinite linear;"></div>
             </div>
         </div>
