@@ -4,6 +4,7 @@
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import pandas as pd
 from src.ui_helpers import render_page_header, render_section_header, render_section_divider, safe_get_value
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import (
@@ -84,17 +85,50 @@ def render_cost_analysis():
         total_cost = fixed + var_amount
         profit = target_sales - total_cost
         profit_rate = (profit / target_sales * 100) if target_sales else 0
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); 
+                        border-radius: 12px; border: 1px solid rgba(148,163,184,0.3); color: #e5e7eb;">
+                <div style="font-size: 0.9rem; margin-bottom: 0.8rem; opacity: 0.9;">목표 매출</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #ffffff;">{int(target_sales):,}원</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div style="padding: 1.2rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); 
+                        border-radius: 12px; border: 1px solid rgba(148,163,184,0.3); color: #e5e7eb;">
+                <div style="font-size: 0.9rem; margin-bottom: 0.8rem; opacity: 0.9;">예상 순이익</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: {'#4ade80' if profit > 0 else '#f87171'};">{int(profit):,}원</div>
+                <div style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">{profit_rate:.1f}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown("**비용 구조**")
         st.markdown(f"""
         | 항목 | 금액 | 비고 |
         |------|------|------|
-        | 목표 매출 | {int(target_sales):,}원 | |
-        | 고정비 | {int(fixed):,}원 | |
-        | 변동비 ({(variable_ratio or 0):.1f}%) | {int(var_amount):,}원 | |
+        | 고정비 | {int(fixed):,}원 | 임차료·인건비·공과금 |
+        | 변동비 ({(variable_ratio or 0):.1f}%) | {int(var_amount):,}원 | 재료비·부가세&카드수수료 |
         | **총 비용** | **{int(total_cost):,}원** | |
-        | **예상 순이익** | **{int(profit):,}원** | **{profit_rate:.1f}%** |
         """)
+        
+        # 비용 구조 파이 차트 (간단 버전)
+        if total_cost > 0:
+            fixed_pct = (fixed / total_cost * 100) if total_cost > 0 else 0
+            var_pct = (var_amount / total_cost * 100) if total_cost > 0 else 0
+            chart_data = pd.DataFrame({
+                "구분": ["고정비", "변동비"],
+                "비율": [fixed_pct, var_pct]
+            })
+            st.bar_chart(chart_data.set_index("구분")["비율"], height=200)
     else:
         st.info("목표 매출을 설정하고, 고정비·변동비를 입력하면 시뮬레이션 결과가 표시됩니다. → 목표 비용 구조 입력")
+        if st.button("🧾 목표 비용 구조 입력으로 이동", key="cost_analysis_go_target_btn"):
+            st.session_state["current_page"] = "목표 비용구조"
+            st.rerun()
 
     render_section_divider()
 
@@ -117,5 +151,34 @@ def render_cost_analysis():
             total = float(expense_df["amount"].sum())
             st.caption(f"**비용 합계**: {int(total):,}원")
 
+    render_section_divider()
+    
+    # ZONE D: 매출 수준별 시뮬레이션
+    render_section_header("매출 수준별 비용·영업이익 시뮬레이션", "📈")
+    if fixed or variable_ratio:
+        sim_sales = st.number_input(
+            "시뮬레이션 매출 (원)",
+            min_value=0,
+            value=int(target_sales) if target_sales > 0 else int(breakeven) if breakeven > 0 else 10000000,
+            step=1000000,
+            key="cost_analysis_sim_sales",
+            help="다양한 매출 수준에서 비용과 이익을 확인하세요"
+        )
+        if sim_sales > 0:
+            sim_var = sim_sales * (variable_ratio / 100) if variable_ratio else 0
+            sim_total = fixed + sim_var
+            sim_profit = sim_sales - sim_total
+            sim_rate = (sim_profit / sim_sales * 100) if sim_sales > 0 else 0
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("총 비용", f"{int(sim_total):,}원")
+            with col2:
+                st.metric("영업이익", f"{int(sim_profit):,}원", delta=f"{sim_rate:.1f}%")
+            with col3:
+                st.metric("손익분기 대비", f"{((sim_sales / breakeven) * 100):.0f}%" if breakeven and breakeven > 0 else "—")
+    else:
+        st.caption("고정비·변동비를 입력하면 시뮬레이션이 가능합니다.")
+    
     st.markdown("---")
     st.caption("💡 상세 비용 입력·수정은 **목표 비용 구조 입력** 페이지에서 하세요.")

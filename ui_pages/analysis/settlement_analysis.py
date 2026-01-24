@@ -4,6 +4,7 @@
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import pandas as pd
 from src.ui_helpers import render_page_header, render_section_header, render_section_divider, safe_get_value
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import (
@@ -12,6 +13,7 @@ from src.storage_supabase import (
     get_fixed_costs,
     get_variable_cost_ratio,
     load_csv,
+    load_expense_structure,
 )
 from src.auth import get_current_store_id
 
@@ -93,8 +95,8 @@ def render_settlement_analysis():
 
     render_section_divider()
 
-    # ZONE B: 월간 성적표 요약
-    render_section_header("월간 성적표 요약", "📋")
+    # ZONE B: 월간 성적표 상세
+    render_section_header("월간 성적표 상세", "📋")
     if not items:
         st.info("이번 달 실제정산이 아직 입력되지 않았습니다. **실제정산** 페이지에서 비용을 입력한 뒤 분석 결과가 채워집니다.")
         if st.button("🧾 실제정산 입력으로 이동", key="settlement_analysis_go_input"):
@@ -102,11 +104,73 @@ def render_settlement_analysis():
             st.rerun()
     else:
         st.caption(f"입력된 비용 항목 **{len(items)}**개 기준으로 집계되었습니다.")
-        st.markdown("| 구분 | 내용 |")
-        st.markdown("|------|------|")
-        st.markdown(f"| 실제 매출 | {int(actual_sales):,}원 |")
-        st.markdown(f"| 실제 비용 합계 | {int(actual_costs):,}원 |")
-        st.markdown(f"| 순이익 | {int(profit):,}원 |" if profit is not None else "| 순이익 | — |")
+        
+        # 카테고리별 비용 분석
+        expense_df = load_expense_structure(selected_year, selected_month, store_id)
+        if not expense_df.empty and "category" in expense_df.columns and "amount" in expense_df.columns:
+            st.markdown("**카테고리별 비용**")
+            cat_totals = {}
+            for cat in ["임차료", "인건비", "재료비", "공과금", "부가세&카드수수료"]:
+                sub = expense_df[expense_df["category"] == cat]
+                cat_totals[cat] = float(sub["amount"].sum()) if not sub.empty else 0.0
+            
+            cat_df = pd.DataFrame({
+                "카테고리": list(cat_totals.keys()),
+                "금액": list(cat_totals.values())
+            })
+            cat_df = cat_df[cat_df["금액"] > 0]
+            if not cat_df.empty:
+                st.bar_chart(cat_df.set_index("카테고리")["금액"], height=250)
+                st.dataframe(cat_df, use_container_width=True, hide_index=True)
+        
+        # 수익성 분석
+        if actual_sales > 0:
+            cost_rate = (actual_costs / actual_sales * 100) if actual_sales > 0 else 0
+            profit_rate = (profit / actual_sales * 100) if profit is not None and actual_sales > 0 else 0
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("비용률", f"{cost_rate:.1f}%")
+            with col2:
+                st.metric("이익률", f"{profit_rate:.1f}%")
+            with col3:
+                st.metric("매출 대비 비용", f"{int(actual_costs):,}원" if actual_costs else "—")
+
+    render_section_divider()
+    
+    # ZONE C: 월별 트렌드 (최근 3개월)
+    render_section_header("월별 트렌드 (최근 3개월)", "📈")
+    try:
+        months_data = []
+        for i in range(3):
+            check_year = selected_year
+            check_month = selected_month - i
+            if check_month <= 0:
+                check_month += 12
+                check_year -= 1
+            
+            m_sales = 0.0
+            try:
+                m_sales = load_monthly_sales_total(store_id, check_year, check_month) or 0.0
+            except Exception:
+                pass
+            
+            m_items = load_actual_settlement_items(store_id, check_year, check_month) or []
+            m_costs = sum(float(it.get("amount") or 0) for it in m_items)
+            m_profit = m_sales - m_costs
+            
+            months_data.append({
+                "월": f"{check_year}-{check_month:02d}",
+                "매출": m_sales,
+                "비용": m_costs,
+                "순이익": m_profit
+            })
+        
+        trend_df = pd.DataFrame(months_data)
+        if not trend_df.empty:
+            st.line_chart(trend_df.set_index("월")[["매출", "비용", "순이익"]], height=300)
+    except Exception:
+        st.caption("트렌드 데이터를 불러올 수 없습니다.")
 
     st.markdown("---")
     st.caption("💡 비용 입력·수정은 **실제정산** 페이지에서 하세요. PDF 성적표는 실제정산 페이지에서 다운로드할 수 있습니다.")

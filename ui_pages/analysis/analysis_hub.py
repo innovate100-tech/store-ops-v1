@@ -53,14 +53,26 @@ def _safe_actual_costs(store_id, year, month):
         return 0.0
 
 
-def _hub_card(title: str, value: str, sub: str, page_key: str, help_text: str = ""):
-    st.markdown(f"**{title}**")
-    if help_text:
-        st.caption(help_text)
-    st.write(value if value else "—")
-    if sub:
-        st.caption(sub)
-    if st.button("자세히 보기", key=f"hub_go_{page_key}", use_container_width=True):
+def _hub_card(title: str, value: str, sub: str, page_key: str, help_text: str = "", icon: str = "📊"):
+    """분석 허브 카드 렌더링 (시각적으로 보기 좋게)"""
+    sub_html = f'<div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.8rem;">{sub}</div>' if sub else ''
+    help_html = f'<div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.5rem;">{help_text}</div>' if help_text else ''
+    st.markdown(f"""
+    <div style="padding: 1.2rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); 
+                border-radius: 12px; border: 1px solid rgba(148,163,184,0.3); 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem;">
+            <span style="font-size: 1.5rem;">{icon}</span>
+            <h3 style="margin: 0; font-size: 1rem; font-weight: 600; color: #e5e7eb;">{title}</h3>
+        </div>
+        <div style="font-size: 1.3rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">
+            {value if value else "—"}
+        </div>
+        {sub_html}
+        {help_html}
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("자세히 보기", key=f"hub_go_{page_key}", use_container_width=True, type="primary"):
         st.session_state["current_page"] = page_key
         st.rerun()
 
@@ -129,46 +141,38 @@ def render_analysis_hub():
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        with st.container():
-            sales_val = f"{int(monthly_sales):,}원" if monthly_sales else "—"
-            ratio = f"목표 {((monthly_sales / target_sales) * 100):.0f}%" if target_sales and target_sales > 0 else ""
-            _hub_card("매출", sales_val, ratio, "매출 관리", "이번 달 누적 매출")
+        sales_val = f"{int(monthly_sales):,}원" if monthly_sales else "—"
+        ratio = f"목표 {((monthly_sales / target_sales) * 100):.0f}%" if target_sales and target_sales > 0 else ""
+        _hub_card("매출", sales_val, ratio, "매출 관리", "이번 달 누적 매출", "💰")
     with c2:
-        with st.container():
-            be_val = f"{int(breakeven):,}원" if breakeven else "—"
-            sub = f"매출 {((monthly_sales / breakeven) * 100):.0f}%" if breakeven and breakeven > 0 and monthly_sales else ""
-            _hub_card("비용·손익", be_val, sub, "비용 분석", "손익분기 매출")
+        be_val = f"{int(breakeven):,}원" if breakeven else "—"
+        sub = f"매출 {((monthly_sales / breakeven) * 100):.0f}%" if breakeven and breakeven > 0 and monthly_sales else ""
+        _hub_card("비용·손익", be_val, sub, "비용 분석", "손익분기 매출", "💳")
     with c3:
-        with st.container():
-            profit = monthly_sales - actual_costs if (monthly_sales or actual_costs) else None
-            pv = f"{int(profit):,}원" if profit is not None else "—"
-            _hub_card("실제정산", pv, "", "실제정산 분석", "순이익(실제 매출−비용)")
+        profit = monthly_sales - actual_costs if (monthly_sales or actual_costs) else None
+        pv = f"{int(profit):,}원" if profit is not None else "—"
+        _hub_card("실제정산", pv, "", "실제정산 분석", "순이익(실제 매출−비용)", "🧾")
 
     d1, d2, d3 = st.columns(3)
     with d1:
-        with st.container():
-            if not cost_df.empty and "원가율" in cost_df.columns:
-                high = len(cost_df[cost_df["원가율"] >= 35])
-                avg = cost_df["원가율"].mean()
-                val = f"고원가 {high}개 / 평균 {avg:.1f}%"
-            else:
-                val = "—"
-            _hub_card("원가", val, "", "원가 파악", "고원가율 메뉴·평균 원가율")
+        if not cost_df.empty and "원가율" in cost_df.columns:
+            high = len(cost_df[cost_df["원가율"] >= 35])
+            avg = cost_df["원가율"].mean()
+            val = f"고원가 {high}개<br>평균 {avg:.1f}%"
+        else:
+            val = "—"
+        _hub_card("원가", val, "", "원가 파악", "고원가율 메뉴·평균 원가율", "💵")
     with d2:
-        with st.container():
-            val = f"품절 위험 {danger_count}개" if inv_df is not None and not inv_df.empty else "—"
-            _hub_card("재고", val, "", "재고 분석", "안전재고 대비 부족")
+        val = f"품절 위험<br>{danger_count}개" if inv_df is not None and not inv_df.empty and danger_count > 0 else ("재고 안정" if inv_df is not None and not inv_df.empty else "—")
+        _hub_card("재고", val, "", "재고 분석", "안전재고 대비 부족", "📦")
     with d3:
-        with st.container():
-            if not usage_df.empty and "재료명" in usage_df.columns and "총사용량" in usage_df.columns:
-                agg = usage_df.groupby("재료명")["총사용량"].sum().nlargest(5)
-                top = agg.index.tolist()
-                val = ", ".join(top[:3]) if top else "—"
-                if val and len(val) > 24:
-                    val = val[:24] + "…"
-            else:
-                val = "—"
-            _hub_card("재료 사용", val or "—", "", "재료 사용량 집계", "TOP 사용 재료")
+        if not usage_df.empty and "재료명" in usage_df.columns and "총사용량" in usage_df.columns:
+            agg = usage_df.groupby("재료명")["총사용량"].sum().nlargest(5)
+            top = agg.index.tolist()
+            val = "<br>".join([f"• {t}" for t in top[:3]]) if top else "—"
+        else:
+            val = "—"
+        _hub_card("재료 사용", val or "—", "", "재료 사용량 집계", "TOP 사용 재료", "🧺")
 
     st.markdown("---")
 
