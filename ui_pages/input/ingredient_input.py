@@ -249,7 +249,7 @@ def _render_single_input(store_id):
         order_unit = st.selectbox("발주 단위", options=[""] + UNIT_OPTIONS, key="ingredient_input_single_order_unit",
                                   help="발주 시 사용할 단위 (비워두면 기본 단위와 동일)")
     with col5:
-        conversion_rate = st.number_input("변환 비율 (1 발주단위 = ? 기본단위)", min_value=0.0, value=1.0, 
+        conversion_rate = st.number_input("변환 비율 (1 발주단위 = ? 기본단위)", min_value=0.1, value=1.0, 
                                          step=0.1, format="%.2f", key="ingredient_input_single_conversion_rate",
                                          help="예: 버터 1개 = 500g이면 500 입력")
     
@@ -264,30 +264,45 @@ def _render_single_input(store_id):
     col_save, col_reset = st.columns([1, 1])
     with col_save:
         if st.button("💾 저장", type="primary", key="ingredient_input_single_save", use_container_width=True):
-            if not ingredient_name or not ingredient_name.strip():
+            # 입력값 검증
+            ingredient_name_clean = ingredient_name.strip() if ingredient_name else ""
+            if not ingredient_name_clean:
                 ui_flash_error("재료명을 입력해주세요.")
             elif unit_price <= 0:
                 ui_flash_error("단가를 입력해주세요.")
+            elif conversion_rate <= 0:
+                ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
             else:
                 try:
+                    # 변환비율 검증
+                    conversion_rate_float = float(conversion_rate) if conversion_rate else 1.0
+                    if conversion_rate_float <= 0:
+                        ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
+                        return
+                    
                     # 재료 저장
                     success, msg = save_ingredient(
-                        ingredient_name.strip(),
+                        ingredient_name_clean,
                         unit,
                         float(unit_price),
-                        order_unit if order_unit else None,
-                        float(conversion_rate) if conversion_rate else 1.0
+                        order_unit.strip() if order_unit and order_unit.strip() else None,
+                        conversion_rate_float
                     )
                     if not success:
                         ui_flash_error(msg)
                     else:
                         # 재료 분류 저장
-                        if category:
-                            _set_ingredient_category(store_id, ingredient_name.strip(), category)
+                        if category and category.strip():
+                            category_success = _set_ingredient_category(store_id, ingredient_name_clean, category.strip())
+                            if not category_success:
+                                logger.warning(f"재료 분류 저장 실패: {ingredient_name_clean}")
                         
-                        ui_flash_success(f"재료 '{ingredient_name.strip()}'이(가) 저장되었습니다.")
+                        ui_flash_success(f"재료 '{ingredient_name_clean}'이(가) 저장되었습니다.")
                         st.rerun()
+                except ValueError as e:
+                    ui_flash_error(f"입력값 형식 오류: {str(e)}")
                 except Exception as e:
+                    logger.error(f"재료 저장 중 예외 발생: {e}")
                     ui_flash_error(f"저장 실패: {str(e)}")
     
     with col_reset:
@@ -327,7 +342,7 @@ def _render_batch_input(store_id):
             with col4:
                 order_unit = st.selectbox(f"발주단위 {i+1}", options=[""] + UNIT_OPTIONS, key=f"ingredient_input_batch_order_unit_{i}")
             with col5:
-                conversion_rate = st.number_input(f"변환비율 {i+1}", min_value=0.0, value=1.0, step=0.1, 
+                conversion_rate = st.number_input(f"변환비율 {i+1}", min_value=0.1, value=1.0, step=0.1, 
                                                 format="%.2f", key=f"ingredient_input_batch_conversion_{i}")
             
             col6, col7 = st.columns(2)
@@ -340,16 +355,21 @@ def _render_batch_input(store_id):
                                       index=INGREDIENT_STATUSES.index(batch_status) if batch_status in INGREDIENT_STATUSES else 0,
                                       key=f"ingredient_input_batch_status_{i}")
             
-            if ingredient_name and ingredient_name.strip() and unit_price > 0:
-                ingredient_data.append({
-                    'name': ingredient_name.strip(),
-                    'unit': unit,
-                    'price': float(unit_price),
-                    'order_unit': order_unit if order_unit else None,
-                    'conversion_rate': float(conversion_rate) if conversion_rate else 1.0,
-                    'category': category if category else None,
-                    'status': status
-                })
+            # 입력값 검증 및 데이터 수집
+            ingredient_name_clean = ingredient_name.strip() if ingredient_name else ""
+            if ingredient_name_clean and unit_price > 0:
+                try:
+                    ingredient_data.append({
+                        'name': ingredient_name_clean,
+                        'unit': unit,
+                        'price': float(unit_price),
+                        'order_unit': order_unit.strip() if order_unit and order_unit.strip() else None,
+                        'conversion_rate': float(conversion_rate) if conversion_rate and conversion_rate > 0 else 1.0,
+                        'category': category.strip() if category and category.strip() else None,
+                        'status': status
+                    })
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"재료 데이터 변환 실패 ({ingredient_name_clean}): {e}")
     
     if st.button("💾 일괄 저장", type="primary", key="ingredient_input_batch_save", use_container_width=True):
         if not ingredient_data:
@@ -357,16 +377,45 @@ def _render_batch_input(store_id):
         else:
             try:
                 saved_count = 0
+                failed_items = []
+                
                 for ing in ingredient_data:
-                    success, msg = save_ingredient(ing['name'], ing['unit'], ing['price'], 
-                                                  ing['order_unit'], ing['conversion_rate'])
-                    if success:
-                        if ing['category']:
-                            _set_ingredient_category(store_id, ing['name'], ing['category'])
-                        saved_count += 1
-                ui_flash_success(f"{saved_count}개 재료가 저장되었습니다.")
-                st.rerun()
+                    try:
+                        success, msg = save_ingredient(
+                            ing['name'], 
+                            ing['unit'], 
+                            ing['price'], 
+                            ing['order_unit'], 
+                            ing['conversion_rate']
+                        )
+                        if success:
+                            # 재료 분류 저장
+                            if ing.get('category') and ing['category'].strip():
+                                category_success = _set_ingredient_category(store_id, ing['name'], ing['category'].strip())
+                                if not category_success:
+                                    logger.warning(f"재료 분류 저장 실패: {ing['name']}")
+                            saved_count += 1
+                        else:
+                            failed_items.append(f"{ing['name']}: {msg}")
+                    except Exception as e:
+                        logger.error(f"재료 저장 중 예외 발생 ({ing['name']}): {e}")
+                        failed_items.append(f"{ing['name']}: {str(e)}")
+                
+                # 결과 메시지 표시
+                if saved_count > 0:
+                    if failed_items:
+                        ui_flash_success(f"{saved_count}개 재료가 저장되었습니다. ({len(failed_items)}개 실패)")
+                        for failed in failed_items:
+                            st.warning(failed)
+                    else:
+                        ui_flash_success(f"{saved_count}개 재료가 모두 저장되었습니다.")
+                    st.rerun()
+                else:
+                    ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재료 모두 저장 실패.")
+                    for failed in failed_items:
+                        st.error(failed)
             except Exception as e:
+                logger.error(f"일괄 저장 중 예외 발생: {e}")
                 ui_flash_error(f"저장 실패: {str(e)}")
 
 
@@ -527,7 +576,7 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                     new_order_unit = st.selectbox("발주단위", options=[""] + UNIT_OPTIONS,
                                                 index=UNIT_OPTIONS.index(order_unit) + 1 if order_unit in UNIT_OPTIONS else 0,
                                                 key=f"ingredient_input_edit_order_unit_{ingredient_name}")
-                    new_conversion = st.number_input("변환비율", min_value=0.0, value=float(conversion_rate), 
+                    new_conversion = st.number_input("변환비율", min_value=0.1, value=float(conversion_rate) if conversion_rate and conversion_rate > 0 else 1.0, 
                                                     step=0.1, format="%.2f", key=f"ingredient_input_edit_conversion_{ingredient_name}")
                     new_category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES,
                                                index=INGREDIENT_CATEGORIES.index(category) + 1 if category in INGREDIENT_CATEGORIES else 0,
@@ -536,45 +585,73 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                     col_save, col_cancel = st.columns(2)
                     with col_save:
                         if st.button("💾 저장", key=f"ingredient_input_save_edit_{ingredient_name}"):
-                            try:
-                                # 재료 기본 정보 수정
-                                success, msg = update_ingredient(ingredient_name, new_name, new_unit, new_price)
-                                if success:
-                                    # 발주단위와 변환비율 수정 (DB 직접 업데이트)
-                                    if new_order_unit or new_conversion != conversion_rate:
+                            if not new_name or not new_name.strip():
+                                ui_flash_error("재료명을 입력해주세요.")
+                            elif new_price <= 0:
+                                ui_flash_error("단가를 입력해주세요.")
+                            elif new_conversion <= 0:
+                                ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
+                            else:
+                                try:
+                                    # 재료 기본 정보 수정
+                                    success, msg = update_ingredient(ingredient_name, new_name.strip(), new_unit, new_price)
+                                    if success:
+                                        # 발주단위와 변환비율 수정 (DB 직접 업데이트)
                                         supabase = get_supabase_client()
                                         if supabase:
                                             try:
+                                                # update_ingredient 성공 후 new_name으로 재료 찾기
                                                 result = supabase.table("ingredients")\
                                                     .select("id")\
                                                     .eq("store_id", store_id)\
-                                                    .eq("name", new_name)\
+                                                    .eq("name", new_name.strip())\
                                                     .execute()
-                                                if result.data:
+                                                
+                                                if result.data and len(result.data) > 0:
+                                                    ingredient_id = result.data[0]['id']
                                                     update_data = {}
-                                                    if new_order_unit:
-                                                        update_data["order_unit"] = new_order_unit
-                                                    if new_conversion != conversion_rate:
-                                                        update_data["conversion_rate"] = float(new_conversion)
+                                                    
+                                                    # 발주단위 처리 (빈 문자열이면 None, 아니면 값 설정)
+                                                    if new_order_unit and new_order_unit.strip():
+                                                        update_data["order_unit"] = new_order_unit.strip()
+                                                    elif new_order_unit == "":
+                                                        # 빈 문자열이면 기본 단위로 설정
+                                                        update_data["order_unit"] = new_unit
+                                                    
+                                                    # 변환비율 처리
+                                                    try:
+                                                        new_conversion_float = float(new_conversion)
+                                                        current_conversion_float = float(conversion_rate) if conversion_rate else 1.0
+                                                        if abs(new_conversion_float - current_conversion_float) > 0.001:  # 부동소수점 비교
+                                                            update_data["conversion_rate"] = new_conversion_float
+                                                    except (ValueError, TypeError) as e:
+                                                        logger.warning(f"변환비율 변환 실패: {new_conversion}, 오류: {e}")
+                                                    
+                                                    # 업데이트 데이터가 있으면 실행
                                                     if update_data:
                                                         supabase.table("ingredients")\
                                                             .update(update_data)\
-                                                            .eq("id", result.data[0]['id'])\
+                                                            .eq("id", ingredient_id)\
                                                             .execute()
+                                                        logger.info(f"발주 정보 수정 완료: {new_name}")
                                             except Exception as e:
-                                                logger.warning(f"발주 정보 수정 실패: {e}")
-                                    
-                                    # 재료 분류 저장
-                                    if new_category:
-                                        _set_ingredient_category(store_id, new_name, new_category)
-                                    
-                                    ui_flash_success(f"재료 '{new_name}'이(가) 수정되었습니다.")
-                                    st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
-                                    st.rerun()
-                                else:
-                                    ui_flash_error(msg)
-                            except Exception as e:
-                                ui_flash_error(f"수정 실패: {str(e)}")
+                                                logger.error(f"발주 정보 수정 실패: {e}")
+                                                ui_flash_error(f"발주 정보 수정 중 오류가 발생했습니다: {str(e)}")
+                                        
+                                        # 재료 분류 저장
+                                        if new_category and new_category.strip():
+                                            category_success = _set_ingredient_category(store_id, new_name.strip(), new_category.strip())
+                                            if not category_success:
+                                                logger.warning(f"재료 분류 저장 실패: {new_name}")
+                                        
+                                        ui_flash_success(f"재료 '{new_name.strip()}'이(가) 수정되었습니다.")
+                                        st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
+                                        st.rerun()
+                                    else:
+                                        ui_flash_error(msg)
+                                except Exception as e:
+                                    logger.error(f"재료 수정 중 예외 발생: {e}")
+                                    ui_flash_error(f"수정 실패: {str(e)}")
                     with col_cancel:
                         if st.button("취소", key=f"ingredient_input_cancel_edit_{ingredient_name}"):
                             st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
@@ -583,20 +660,43 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
             # 삭제 확인
             if st.session_state.get(f"ingredient_input_delete_{ingredient_name}", False):
                 st.warning(f"'{ingredient_name}' 재료를 삭제하시겠습니까?")
-                if in_recipe:
-                    st.error("⚠️ 이 재료는 레시피에서 사용 중입니다. 레시피를 먼저 삭제해주세요.")
+                
+                # 레시피 사용 여부 사전 확인 (더 정확한 메시지 표시)
+                try:
+                    success, msg, refs = delete_ingredient(ingredient_name, check_references=True)
+                    if not success and refs:
+                        # 참조가 있는 경우 상세 정보 표시
+                        ref_info = []
+                        if refs.get('레시피'):
+                            ref_info.append(f"레시피 {refs['레시피']}개")
+                        if refs.get('재고정보'):
+                            ref_info.append("재고정보")
+                        if ref_info:
+                            st.error(f"⚠️ 이 재료는 다음에서 사용 중입니다: {', '.join(ref_info)}")
+                except Exception as e:
+                    logger.warning(f"삭제 전 참조 확인 실패: {e}")
+                
                 col_del, col_cancel = st.columns(2)
                 with col_del:
                     if st.button("🗑️ 삭제", key=f"ingredient_input_confirm_delete_{ingredient_name}", type="primary"):
                         try:
-                            success, msg, refs = delete_ingredient(ingredient_name)
+                            success, msg, refs = delete_ingredient(ingredient_name, check_references=True)
                             if success:
                                 ui_flash_success(f"재료 '{ingredient_name}'이(가) 삭제되었습니다.")
                                 st.session_state[f"ingredient_input_delete_{ingredient_name}"] = False
                                 st.rerun()
                             else:
                                 ui_flash_error(msg)
+                                if refs:
+                                    ref_info = []
+                                    if refs.get('레시피'):
+                                        ref_info.append(f"레시피 {refs['레시피']}개")
+                                    if refs.get('재고정보'):
+                                        ref_info.append("재고정보")
+                                    if ref_info:
+                                        st.error(f"사용 중인 항목: {', '.join(ref_info)}")
                         except Exception as e:
+                            logger.error(f"재료 삭제 중 예외 발생: {e}")
                             ui_flash_error(f"삭제 실패: {str(e)}")
                 with col_cancel:
                     if st.button("취소", key=f"ingredient_input_cancel_delete_{ingredient_name}"):
