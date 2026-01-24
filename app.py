@@ -171,31 +171,42 @@ st.markdown("""
         vertical-align: middle !important;
     }
     
-    /* 2. Expander 내부 아이콘 위치 조정 (겹침 방지) */
+    /* ============================================
+       Expander 화살표를 제목 앞으로 이동
+       ============================================ */
+    
+    /* 2. Expander 버튼을 Flexbox로 설정하여 순서 제어 가능하게 */
+    [data-testid="stExpander"] > div > div,
+    [data-testid="stExpander"] button,
+    [data-testid="stExpander"] > div > div > button {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        position: relative !important;
+        overflow: visible !important;
+        /* 오른쪽 padding 제거 (더 이상 필요 없음) */
+        padding-right: 1rem !important;
+    }
+    
+    /* 3. Expander 내부 아이콘을 제목 앞으로 이동 (order 사용) */
     [data-testid="stExpander"] [data-testid="stIconMaterial"],
     [data-testid="stExpander"] button [data-testid="stIconMaterial"],
     [data-testid="stExpander"] > div > div [data-testid="stIconMaterial"],
     [data-testid="stExpander"] > div > div > button [data-testid="stIconMaterial"] {
-        position: absolute !important;
-        right: 0.75rem !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
+        /* absolute positioning 제거 */
+        position: static !important;
+        /* order로 앞으로 이동 */
+        order: -1 !important;
+        /* 아이콘과 텍스트 사이 간격 */
+        margin-right: 0.5rem !important;
+        margin-left: 0 !important;
         width: auto !important;
         min-width: 24px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 10 !important;
-        pointer-events: none !important;
+        /* vertical-align 대신 flexbox align-items 사용 */
+        vertical-align: middle !important;
+        z-index: auto !important;
+        pointer-events: auto !important;
         overflow: visible !important;
-    }
-    
-    /* 3. Expander 버튼/헤더에 padding 추가하여 아이콘 공간 확보 */
-    [data-testid="stExpander"] > div > div,
-    [data-testid="stExpander"] button,
-    [data-testid="stExpander"] > div > div > button {
-        position: relative !important;
-        overflow: visible !important;
-        padding-right: 2.5rem !important;
     }
     
     /* ============================================
@@ -378,7 +389,7 @@ st.markdown("""
         document.head.insertBefore(link, document.head.firstChild);
     }
     
-    // 본질적 해결: Material Icons 폰트 강제 적용 및 Expander 내부 버튼 스타일 수정
+    // 본질적 해결: Material Icons 폰트 강제 적용 및 Expander 화살표 위치 변경
     function fixMaterialIcons() {
         // 1. 모든 stIconMaterial 요소에 Material Icons 폰트 강제 적용
         document.querySelectorAll('[data-testid="stIconMaterial"]').forEach(el => {
@@ -395,33 +406,90 @@ st.markdown("""
             el.style.setProperty('-webkit-font-feature-settings', "'liga'", 'important');
             el.style.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
             
-            // 핵심: overflow를 visible로 하여 텍스트가 잘리지 않도록
+            // overflow를 visible로 하여 텍스트가 잘리지 않도록
             el.style.setProperty('overflow', 'visible', 'important');
             el.style.setProperty('width', 'auto', 'important');
             el.style.setProperty('min-width', '24px', 'important');
             el.style.setProperty('max-width', 'none', 'important');
             el.style.setProperty('flex-shrink', '0', 'important');
             el.style.setProperty('vertical-align', 'middle', 'important');
-            
-            // Expander 내부인 경우 위치 조정
-            const expander = el.closest('[data-testid="stExpander"]');
-            if (expander) {
-                el.style.setProperty('position', 'absolute', 'important');
-                el.style.setProperty('right', '0.75rem', 'important');
-                el.style.setProperty('top', '50%', 'important');
-                el.style.setProperty('transform', 'translateY(-50%)', 'important');
-                el.style.setProperty('z-index', '10', 'important');
-                el.style.setProperty('pointer-events', 'none', 'important');
-            }
         });
         
-        // 2. Expander 버튼/헤더에 padding 추가하여 아이콘 공간 확보
-        document.querySelectorAll('[data-testid="stExpander"] > div > div, [data-testid="stExpander"] button, [data-testid="stExpander"] > div > div > button').forEach(el => {
-            if (el.querySelector('[data-testid="stIconMaterial"]')) {
-                el.style.setProperty('padding-right', '2.5rem', 'important');
-                el.style.setProperty('position', 'relative', 'important');
-                el.style.setProperty('overflow', 'visible', 'important');
+        // 2. Expander 화살표를 제목 앞으로 이동 (하이브리드 접근)
+        document.querySelectorAll('[data-testid="stExpander"]').forEach(expander => {
+            // 여러 가능한 버튼 선택자 시도
+            let button = expander.querySelector('button');
+            if (!button) button = expander.querySelector('div[role="button"]');
+            if (!button) button = expander.querySelector('> div > div');
+            if (!button) {
+                // 더 넓은 범위로 찾기
+                const divs = expander.querySelectorAll('div');
+                for (let div of divs) {
+                    if (div.querySelector('[data-testid="stIconMaterial"]')) {
+                        button = div;
+                        break;
+                    }
+                }
             }
+            if (!button) return;
+            
+            const icon = button.querySelector('[data-testid="stIconMaterial"]');
+            if (!icon) return;
+            
+            // 이미 처리된 expander인지 확인 (중복 처리 방지)
+            if (expander.hasAttribute('data-icon-reordered')) return;
+            expander.setAttribute('data-icon-reordered', 'true');
+            
+            // 방법 1: Flexbox Order 사용 (CSS 우선)
+            const buttonStyle = window.getComputedStyle(button);
+            if (buttonStyle.display !== 'flex' && buttonStyle.display !== 'inline-flex') {
+                button.style.setProperty('display', 'flex', 'important');
+                button.style.setProperty('flex-direction', 'row', 'important');
+                button.style.setProperty('align-items', 'center', 'important');
+            }
+            
+            // 아이콘 order 설정
+            icon.style.setProperty('order', '-1', 'important');
+            icon.style.setProperty('margin-right', '0.5rem', 'important');
+            icon.style.setProperty('margin-left', '0', 'important');
+            icon.style.setProperty('position', 'static', 'important');
+            
+            // 방법 2: DOM 순서 변경 (백업, CSS order가 작동하지 않는 경우)
+            setTimeout(() => {
+                const children = Array.from(button.childNodes);
+                const iconIndex = children.indexOf(icon);
+                
+                // 텍스트 노드나 다른 요소 찾기
+                let firstTextOrElement = null;
+                for (let child of children) {
+                    if (child === icon) continue;
+                    if (child.nodeType === Node.TEXT_NODE && child.textContent.trim()) {
+                        firstTextOrElement = child;
+                        break;
+                    } else if (child.nodeType === Node.ELEMENT_NODE && child !== icon) {
+                        // 제목을 담고 있는 요소 찾기
+                        if (!child.querySelector('[data-testid="stIconMaterial"]')) {
+                            firstTextOrElement = child;
+                            break;
+                        }
+                    }
+                }
+                
+                // 아이콘이 첫 번째 요소가 아니고, 다른 요소가 있는 경우
+                if (iconIndex > 0 && firstTextOrElement) {
+                    const firstIndex = children.indexOf(firstTextOrElement);
+                    if (firstIndex < iconIndex) {
+                        // DOM 순서 변경: 아이콘을 첫 번째 요소 앞으로
+                        button.insertBefore(icon, firstTextOrElement);
+                    }
+                } else if (iconIndex > 0 && children.length > 1) {
+                    // 텍스트 노드를 찾지 못한 경우, 첫 번째 요소 앞으로 이동
+                    const firstChild = children.find(child => child !== icon);
+                    if (firstChild) {
+                        button.insertBefore(icon, firstChild);
+                    }
+                }
+            }, 10);
         });
         
         // 3. Expander 내부 버튼 테두리 명시적 적용
@@ -458,7 +526,13 @@ st.markdown("""
     
     // DOMContentLoaded
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', fixMaterialIcons);
+        document.addEventListener('DOMContentLoaded', function() {
+            fixMaterialIcons();
+            // DOM이 완전히 로드된 후 다시 한 번 확인
+            setTimeout(fixMaterialIcons, 100);
+        });
+    } else {
+        setTimeout(fixMaterialIcons, 100);
     }
     
     // load 이벤트
@@ -468,23 +542,38 @@ st.markdown("""
         setTimeout(fixMaterialIcons, 500);
     });
     
-    // MutationObserver - 매우 빠르게
-    const observer = new MutationObserver(function() {
-        setTimeout(fixMaterialIcons, 5);
+    // MutationObserver - 새로 추가된 expander 감지
+    const observer = new MutationObserver(function(mutations) {
+        let hasNewExpander = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.getAttribute && node.getAttribute('data-testid') === 'stExpander') {
+                            hasNewExpander = true;
+                        } else if (node.querySelector && node.querySelector('[data-testid="stExpander"]')) {
+                            hasNewExpander = true;
+                        }
+                    }
+                });
+            }
+        });
+        if (hasNewExpander) {
+            setTimeout(fixMaterialIcons, 10);
+        }
     });
     
     if (document.body) {
         observer.observe(document.body, {
             childList: true,
             subtree: true,
-            characterData: true,
-            attributes: true,
-            attributeFilter: ['data-testid', 'class']
+            characterData: false,
+            attributes: false
         });
     }
     
-    // 주기적 확인
-    setInterval(fixMaterialIcons, 200);
+    // 주기적 확인 (덜 자주, 성능 고려)
+    setInterval(fixMaterialIcons, 1000);
 })();
 </script>
 """, unsafe_allow_html=True)
