@@ -170,6 +170,42 @@ def _set_ingredient_category(store_id, ingredient_name, category):
     return False
 
 
+def _set_ingredient_status_and_notes(store_id, ingredient_name, status=None, notes=None):
+    """재료 상태 및 메모 저장 (DB)"""
+    supabase = get_supabase_client()
+    if not supabase:
+        return False
+    
+    try:
+        # 재료 ID 찾기
+        result = supabase.table("ingredients")\
+            .select("id")\
+            .eq("store_id", store_id)\
+            .eq("name", ingredient_name)\
+            .execute()
+        
+        if result.data:
+            ingredient_id = result.data[0]['id']
+            update_data = {}
+            
+            if status is not None:
+                update_data["status"] = status
+            if notes is not None:
+                update_data["notes"] = notes.strip() if notes and notes.strip() else None
+            
+            if update_data:
+                supabase.table("ingredients")\
+                    .update(update_data)\
+                    .eq("id", ingredient_id)\
+                    .execute()
+                return True
+    except Exception as e:
+        logger.warning(f"재료 상태/메모 저장 실패: {e}")
+        # DB에 컬럼이 없을 수 있으므로 경고만 하고 계속 진행
+    
+    return False
+
+
 def _render_zone_a_dashboard(ingredient_df, categories, ingredient_in_recipe, needs_order):
     """ZONE A: 대시보드 & 현황 요약"""
     render_section_header("📊 재료 현황 대시보드", "📊")
@@ -297,6 +333,13 @@ def _render_single_input(store_id):
                             if not category_success:
                                 logger.warning(f"재료 분류 저장 실패: {ingredient_name_clean}")
                         
+                        # 재료 상태 및 메모 저장
+                        status_value = status if status else "사용중"
+                        notes_value = notes.strip() if notes and notes.strip() else None
+                        status_success = _set_ingredient_status_and_notes(store_id, ingredient_name_clean, status_value, notes_value)
+                        if not status_success:
+                            logger.warning(f"재료 상태/메모 저장 실패: {ingredient_name_clean}")
+                        
                         ui_flash_success(f"재료 '{ingredient_name_clean}'이(가) 저장되었습니다.")
                         st.rerun()
                 except ValueError as e:
@@ -394,6 +437,13 @@ def _render_batch_input(store_id):
                                 category_success = _set_ingredient_category(store_id, ing['name'], ing['category'].strip())
                                 if not category_success:
                                     logger.warning(f"재료 분류 저장 실패: {ing['name']}")
+                            
+                            # 재료 상태 저장
+                            status_value = ing.get('status', '사용중')
+                            status_success = _set_ingredient_status_and_notes(store_id, ing['name'], status_value, None)
+                            if not status_success:
+                                logger.warning(f"재료 상태 저장 실패: {ing['name']}")
+                            
                             saved_count += 1
                         else:
                             failed_items.append(f"{ing['name']}: {msg}")
@@ -650,6 +700,9 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
                                             category_success = _set_ingredient_category(store_id, new_name.strip(), new_category.strip())
                                             if not category_success:
                                                 logger.warning(f"재료 분류 저장 실패: {new_name}")
+                                        
+                                        # 재료 상태 저장 (수정 시에는 상태 변경 없음 - 필요시 추가)
+                                        # 현재는 수정 모달에 상태 필드가 없으므로 생략
                                         
                                         ui_flash_success(f"재료 '{new_name.strip()}'이(가) 수정되었습니다.")
                                         st.session_state[f"ingredient_input_edit_{ingredient_name}"] = False
