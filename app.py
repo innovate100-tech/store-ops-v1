@@ -1418,7 +1418,7 @@ def render_custom_sidebar(menu):
             display: none;
         }
         
-        /* Streamlit 앱 전체 레이아웃 조정 - 사이드바 옆에 메인 콘텐츠 배치 */
+        /* Streamlit 앱 전체 레이아웃 완전히 오버라이드 */
         [data-testid="stAppViewContainer"] {
             position: relative !important;
             margin-left: 15rem !important;
@@ -1429,6 +1429,16 @@ def render_custom_sidebar(menu):
             box-sizing: border-box !important;
             left: 0 !important;
             right: auto !important;
+            display: block !important;
+            flex: none !important;
+        }
+        
+        /* Streamlit의 기본 flexbox 레이아웃 무시 */
+        [data-testid="stAppViewContainer"] > div {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
         }
         
         /* 접힌 상태일 때 */
@@ -1449,6 +1459,8 @@ def render_custom_sidebar(menu):
             padding-left: 0 !important;
             left: 0 !important;
             right: auto !important;
+            display: block !important;
+            flex: none !important;
         }
         
         .main .block-container {
@@ -1463,11 +1475,25 @@ def render_custom_sidebar(menu):
         body {
             margin-left: 0 !important;
             overflow-x: hidden !important;
+            position: relative !important;
         }
         
         html {
             margin-left: 0 !important;
             overflow-x: hidden !important;
+        }
+        
+        /* Streamlit의 기본 레이아웃 컨테이너들 강제 조정 */
+        #root > div {
+            margin-left: 15rem !important;
+            width: calc(100vw - 15rem) !important;
+            max-width: calc(100vw - 15rem) !important;
+        }
+        
+        body:has(#custom-sidebar-container.collapsed) #root > div {
+            margin-left: 4rem !important;
+            width: calc(100vw - 4rem) !important;
+            max-width: calc(100vw - 4rem) !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -1578,6 +1604,15 @@ def render_custom_sidebar(menu):
             const sidebarWidthPx = targetWidthPx;
             const mainContentWidth = viewportWidth - sidebarWidthPx;
             
+            // #root > div 조정 (최상위 레이아웃)
+            const rootDivs = document.querySelectorAll('#root > div');
+            rootDivs.forEach(function(el) {{
+                el.style.setProperty('margin-left', targetWidth, 'important');
+                el.style.setProperty('width', mainContentWidth + 'px', 'important');
+                el.style.setProperty('max-width', mainContentWidth + 'px', 'important');
+                el.style.setProperty('min-width', mainContentWidth + 'px', 'important');
+            }});
+            
             // stAppViewContainer 조정 (가장 중요) - 사이드바 옆에 배치
             const appContainer = document.querySelector('[data-testid="stAppViewContainer"]');
             if (appContainer) {{
@@ -1589,7 +1624,22 @@ def render_custom_sidebar(menu):
                 appContainer.style.setProperty('left', '0', 'important');
                 appContainer.style.setProperty('right', 'auto', 'important');
                 appContainer.style.setProperty('float', 'none', 'important');
+                appContainer.style.setProperty('display', 'block', 'important');
+                appContainer.style.setProperty('flex', 'none', 'important');
             }}
+            
+            // stAppViewContainer의 직접 자식 요소들 조정
+            const appContainerChildren = document.querySelectorAll('[data-testid="stAppViewContainer"] > div');
+            appContainerChildren.forEach(function(el) {{
+                // 사이드바 컨테이너가 아닌 경우만 조정
+                if (el.id !== 'custom-sidebar-container' && !el.querySelector('#custom-sidebar-container')) {{
+                    el.style.setProperty('margin-left', '0', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('max-width', '100%', 'important');
+                    el.style.setProperty('float', 'none', 'important');
+                    el.style.setProperty('display', 'block', 'important');
+                }}
+            }});
             
             // .main 요소 직접 조정
             const mainElements = document.querySelectorAll('.main');
@@ -1601,6 +1651,8 @@ def render_custom_sidebar(menu):
                 el.style.setProperty('left', '0', 'important');
                 el.style.setProperty('right', 'auto', 'important');
                 el.style.setProperty('float', 'none', 'important');
+                el.style.setProperty('display', 'block', 'important');
+                el.style.setProperty('flex', 'none', 'important');
             }});
             
             // .block-container 조정
@@ -1611,21 +1663,10 @@ def render_custom_sidebar(menu):
                 el.style.setProperty('width', '100%', 'important');
             }});
             
-            // stAppViewContainer의 직접 자식 요소들 조정
-            const appContainerChildren = document.querySelectorAll('[data-testid="stAppViewContainer"] > div');
-            appContainerChildren.forEach(function(el) {{
-                // 사이드바 컨테이너가 아닌 경우만 조정
-                if (el.id !== 'custom-sidebar-container' && !el.querySelector('#custom-sidebar-container')) {{
-                    el.style.setProperty('margin-left', '0', 'important');
-                    el.style.setProperty('width', '100%', 'important');
-                    el.style.setProperty('max-width', '100%', 'important');
-                    el.style.setProperty('float', 'none', 'important');
-                }}
-            }});
-            
             // body와 html도 조정
             document.body.style.setProperty('margin-left', '0', 'important');
             document.body.style.setProperty('overflow-x', 'hidden', 'important');
+            document.body.style.setProperty('position', 'relative', 'important');
             document.documentElement.style.setProperty('margin-left', '0', 'important');
             document.documentElement.style.setProperty('overflow-x', 'hidden', 'important');
         }}
