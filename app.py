@@ -1531,14 +1531,19 @@ with st.sidebar:
             ("일괄 메뉴별 판매량 등록", "판매량 등록"),  # 라벨 변경: 판매량 등록(과거/수정) → 일괄 메뉴별 판매량 등록
         ],
         "📊 분석": [
-            ("체크 결과 요약", "검진 결과 요약"),  # 라벨 변경, page key 유지
-            ("체크 히스토리", "검진 히스토리"),  # 라벨 변경, page key 유지
-            ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),  # 원클릭 플로우
-            ("매출 분석", "매출 관리"),  # page key 유지
-            ("판매·메뉴 분석", "판매 관리"),  # page key 유지
-            # ("방문·객단가 분석", "방문 객단가 분석"),  # TODO: 향후 추가 예정
-            ("원가 분석", "원가 파악"),  # page key 유지
-            ("재고 분석", "재고 분석"),  # 신규 추가
+            ("분석 허브", "분석 허브"),  # 항상 노출 (입력 허브와 동일 패턴)
+        ],
+        "📊 분석 (세부분석)": [
+            ("매출 분석", "매출 관리"),
+            ("비용 분석", "비용 분석"),
+            ("실제정산 분석", "실제정산 분석"),
+            ("원가 분석", "원가 파악"),
+            ("재고 분석", "재고 분석"),
+            ("재료 사용량", "재료 사용량 집계"),
+            ("판매·메뉴 분석", "판매 관리"),
+            ("매출 하락 원인 찾기", "매출 하락 원인 찾기"),
+            ("검진 결과 요약", "검진 결과 요약"),
+            ("검진 히스토리", "검진 히스토리"),
         ],
         "🧠 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
@@ -1596,7 +1601,7 @@ with st.sidebar:
         if not items:
             continue
         
-        # 입력 카테고리는 특별 처리: 입력 허브 항상 노출 + expander로 빠른 입력
+        # 입력 카테고리는 특별 처리: 입력 허브 항상 노출 + expander로 세부입력선택
         if category_name == "✍ 입력":
             st.sidebar.markdown(f"""
             <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
@@ -1605,13 +1610,9 @@ with st.sidebar:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            # 입력 허브는 항상 노출
             _render_menu_buttons(items, st.sidebar)
-            
-            # 빠른 입력은 expander로
             quick_input_items = menu_categories.get("✍ 입력 (빠른 입력)", [])
             if quick_input_items:
-                # Expander 가운데 정렬을 위한 CSS 추가
                 st.sidebar.markdown("""
                 <style>
                     div[data-testid="stSidebar"] details summary {
@@ -1621,12 +1622,35 @@ with st.sidebar:
                 </style>
                 """, unsafe_allow_html=True)
                 with st.sidebar.expander("세부입력선택", expanded=False):
-                    # expander 안에서는 st를 직접 사용해야 expander 내부에 렌더링됨
                     for idx, (label, key) in enumerate(quick_input_items):
                         is_selected = selected_page_key == key
                         btn = st.button(
                             label,
                             key=f"quick_input_btn_{label}_{idx}",
+                            use_container_width=True,
+                            type="primary" if is_selected else "secondary",
+                        )
+                        if btn:
+                            st.session_state.current_page = key
+                            st.rerun()
+        # 분석 카테고리는 특별 처리: 분석 허브 항상 노출 + expander로 세부분석선택
+        elif category_name == "📊 분석":
+            st.sidebar.markdown(f"""
+            <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding-left: 0.5rem;">
+                    {category_name}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            _render_menu_buttons(items, st.sidebar)
+            analysis_sub_items = menu_categories.get("📊 분석 (세부분석)", [])
+            if analysis_sub_items:
+                with st.sidebar.expander("세부분석선택", expanded=False):
+                    for idx, (label, key) in enumerate(analysis_sub_items):
+                        is_selected = selected_page_key == key
+                        btn = st.button(
+                            label,
+                            key=f"analysis_sub_btn_{label}_{idx}",
                             use_container_width=True,
                             type="primary" if is_selected else "secondary",
                         )
@@ -1774,6 +1798,11 @@ if st.session_state.get("_show_supabase_diagnosis", False):
 elif page == "입력 허브":
     from ui_pages.input.input_hub import render_input_hub
     render_input_hub()
+
+# 분석 허브 페이지
+elif page == "분석 허브":
+    from ui_pages.analysis.analysis_hub import render_analysis_hub
+    render_analysis_hub()
 
 # 일일 입력 통합 페이지
 elif page == "일일 입력(통합)":
@@ -2455,6 +2484,16 @@ elif page == "재료 사용량 집계":
 elif page == "재고 분석":
     from ui_pages.analysis.inventory_analysis import render_inventory_analysis
     render_inventory_analysis()
+
+# 비용 분석 페이지 (목표 비용구조 기반)
+elif page == "비용 분석":
+    from ui_pages.analysis.cost_analysis import render_cost_analysis
+    render_cost_analysis()
+
+# 실제정산 분석 페이지 (목표 vs 실제, 월간 성적표)
+elif page == "실제정산 분석":
+    from ui_pages.analysis.settlement_analysis import render_settlement_analysis
+    render_settlement_analysis()
 
 # 발주 관리 페이지 - 제거됨 (재고 분석 페이지로 대체)
 # elif page == "발주 관리":
