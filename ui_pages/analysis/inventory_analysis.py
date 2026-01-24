@@ -1,6 +1,17 @@
 """
-재고 분석 페이지 (고도화)
+재고 분석 페이지 (고도화) - v2.0
 안전재고 vs 현재고 차이, 재고 회전율·가치, 예측·시뮬레이션, 내보내기 강화
+
+변경사항:
+- ZONE A: 총 재고가치, 평균 회전율, 품절위험/과다재고 수 추가
+- ZONE B: 안전재고 vs 현재고 차이 분석 (신규)
+- ZONE C: 재고 회전율·가치 분석 (신규)
+- ZONE D: 재고 예측 강화 (신규)
+- ZONE E: 안전재고 시뮬레이션 (신규)
+- ZONE F: 사용량 트렌드 (신규)
+- ZONE G: 목표 vs 실제 회전율 (신규)
+- ZONE H: 재고 최적화 액션 (신규)
+- ZONE J: 내보내기 강화 (신규)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -266,8 +277,10 @@ def _calculate_status(current, safety):
 
 
 def render_inventory_analysis():
-    """재고 분석 페이지 렌더링"""
-    render_page_header("📊 재고 분석", "📊")
+    """재고 분석 페이지 렌더링 (고도화 v2.0)"""
+    render_page_header("📊 재고 분석 (고도화)", "📊")
+    
+    st.info("✨ **재고 분석 페이지가 고도화되었습니다!** 안전재고 vs 현재고 차이, 재고 회전율·가치, 예측·시뮬레이션, 내보내기 강화 기능이 추가되었습니다.")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -411,7 +424,11 @@ def render_inventory_analysis():
 
 def _render_zone_a_dashboard(ingredient_df, inventory_df, order_recommendation, value_df, turnover_df, gap_df):
     """ZONE A: 핵심 지표 (총 재고가치, 평균 회전율, 품절위험/과다재고 수 등)"""
-    render_section_header("📊 재고 현황 대시보드", "📊")
+    render_section_header("📊 재고 현황 대시보드 (고도화)", "📊")
+    
+    if inventory_df.empty:
+        st.warning("재고 정보가 없습니다. 재고를 입력해 주세요.")
+        return
     
     order_needed_count = len(order_recommendation) if not order_recommendation.empty else 0
     urgent_count = 0
@@ -419,19 +436,18 @@ def _render_zone_a_dashboard(ingredient_df, inventory_df, order_recommendation, 
     normal_count = 0
     excess_count = 0
     
-    if not inventory_df.empty:
-        for _, row in inventory_df.iterrows():
-            current = _safe_float(row.get("현재고", 0))
-            safety = _safe_float(row.get("안전재고", 0))
-            if safety > 0:
-                if current < safety * 0.5:
-                    urgent_count += 1
-                elif current < safety:
-                    warning_count += 1
-                else:
-                    normal_count += 1
-                if current > safety * 2:
-                    excess_count += 1
+    for _, row in inventory_df.iterrows():
+        current = _safe_float(row.get("현재고", 0))
+        safety = _safe_float(row.get("안전재고", 0))
+        if safety > 0:
+            if current < safety * 0.5:
+                urgent_count += 1
+            elif current < safety:
+                warning_count += 1
+            else:
+                normal_count += 1
+            if current > safety * 2:
+                excess_count += 1
     
     total_value = 0.0
     if value_df is not None and not value_df.empty and "재고가치" in value_df.columns:
@@ -445,6 +461,7 @@ def _render_zone_a_dashboard(ingredient_df, inventory_df, order_recommendation, 
     if not order_recommendation.empty and "예상금액" in order_recommendation.columns:
         total_expected_cost = order_recommendation["예상금액"].sum()
     
+    st.markdown("### 핵심 지표")
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
         st.metric("발주 필요", f"{order_needed_count}개", delta=f"-{order_needed_count}" if order_needed_count > 0 else None)
@@ -466,7 +483,7 @@ def _render_zone_a_dashboard(ingredient_df, inventory_df, order_recommendation, 
     with c8:
         st.metric("과다재고 재료", f"{excess_count}개")
     
-    st.markdown("#### 예상 발주 비용")
+    st.markdown("### 예상 발주 비용")
     st.metric("총 예상 발주 비용", f"{int(total_expected_cost):,}원" if total_expected_cost else "0원")
     
     alerts = []
