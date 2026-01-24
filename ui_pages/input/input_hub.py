@@ -1,6 +1,6 @@
 """
 입력 허브 페이지
-입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - UI/UX 보정안)
+입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - 판단 기준 및 문구 고도화)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -105,11 +105,17 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     st.markdown(f'<div style="padding: 1.2rem; background: {bg}; border-radius: 12px; border: 1px solid {border}; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 1rem; min-height: 140px;"><div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.8rem;">{title}</div><div style="font-size: 1.3rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">{value}</div><div style="font-size: 0.8rem; color: #64748b;">{sub}</div></div>', unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str):
-    # 경고 문구를 제거하고 디자인을 간결하게 통일 (높이 고정)
     card_style = "padding: 1rem; background-color: #111827; border-radius: 10px; border: 1px solid #374151; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem; min-height: 90px;"
     title_style = "font-size: 0.75rem; color: #9ca3af; font-weight: 500; margin-bottom: 0.2rem;"
     value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff; line-height: 1;"
-    html_content = f'<div style="{card_style}"><div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div><div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div></div></div>'
+    html_content = (
+        f'<div style="{card_style}">'
+        f'<div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div>'
+        f'<div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">'
+        f'<div style="{title_style}">{title}</div>'
+        f'<div style="{value_style}">{value}</div>'
+        f'</div></div>'
+    )
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v2():
@@ -139,29 +145,32 @@ def render_input_hub_v2():
 
     st.markdown("---")
 
-    # [3] 자산 구축 현황 (개선: 타일 하단 문구 배치)
+    # [3] 자산 구축 현황 (개선: 판단 기준 고도화)
     st.markdown("### 🏗️ 가게 자산 구축 현황")
-    st.caption("가게 분석을 위한 '데이터 뼈대'의 완성도입니다. 품질 가이드에 따라 데이터를 관리해 주세요.")
+    st.caption("분석 엔진 작동을 위한 데이터 완성도입니다. 품질 가이드에 따라 관리해 주세요.")
     a1, a2, a3, a4 = st.columns(4)
     
     with a1: 
         _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘")
-        if assets.get('missing_price', 0) > 0: st.caption(f"⚠️ 가격 미입력 {assets.get('missing_price')}개")
-        else: st.caption("✅ 모든 가격 등록 완료")
+        if assets.get('missing_price', 0) > 0: st.caption(f"⚠️ {assets.get('missing_price')}개 가격 누락 (수익분석 불가)")
+        else: st.caption("✅ 모든 판매가 등록 완료")
         
     with a2: 
         _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺")
-        if assets.get('missing_cost', 0) > 0: st.caption(f"⚠️ 단가 미입력 {assets.get('missing_cost', 0)}개")
-        else: st.caption("✅ 모든 단가 등록 완료")
+        if assets.get('missing_cost', 0) > 0: st.caption(f"⚠️ {assets.get('missing_cost')}개 단가 누락 (원가계산 불가)")
+        else: st.caption("✅ 모든 구매 단가 등록 완료")
         
     with a3: 
         _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳")
-        if assets.get('recipe_rate', 0) < 50: st.caption("⚠️ 수익 분석 위해 보완 필요")
-        else: st.caption("✅ 정밀 분석 가능 상태")
+        # 레시피 완성도 기준: 80%
+        if assets.get('recipe_rate', 0) < 80: st.caption("⚠️ 분석 정밀도 낮음 (80% 권장)")
+        else: st.caption("✅ 정밀 원가 분석 가능")
         
     with a4: 
-        _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯")
-        if not assets.get('has_target'): st.caption("⚠️ 분석 기준이 없습니다")
+        # 제목 및 내용 변경: 이번 달 목표 설정 / 설정 완료/미완료
+        goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 설정 미완료"
+        _hub_asset_card("이번 달 목표 설정", goal_status, "🎯")
+        if not assets.get('has_target'): st.caption("⚠️ 목표를 설정해야 전략이 생성됩니다")
         else: st.caption("✅ 목표 대비 실적 분석 중")
 
     st.markdown("---")
@@ -194,7 +203,7 @@ def render_input_hub_v2():
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### 🛠️ STEP 3. 가게 기초 정의 (뼈대 만들기)")
-    st.caption("메뉴, 재료, 레시피 등 가게의 변하지 않는 기초 정보를 관리합니다.")
+    st.caption("가게의 변하지 않는 기초 정보(메뉴/재료/레시피)를 관리합니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         if st.button("📘 메뉴 관리", use_container_width=True, key="btn_menu"):
@@ -212,7 +221,7 @@ def render_input_hub_v2():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### ⚙️ STEP 4. 데이터 보정 및 도구")
     with st.expander("과거 데이터 수정이나 일괄 보정 도구 열기"):
-        st.caption("누락된 과거 데이터를 한꺼번에 채우거나 잘못된 정보를 수정할 때 사용합니다.")
+        st.caption("누락된 과거 데이터를 채우거나 잘못된 정보를 일괄 수정합니다.")
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
