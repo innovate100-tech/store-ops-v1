@@ -76,13 +76,25 @@ from src.ui_helpers import render_page_header, render_section_divider
 # Theme and CSS
 st.markdown("""
 <style>
+    /* 디자인 고도화: 컬러 시스템 및 애니메이션 */
+    :root {
+        --base-bg: #0F172A;
+        --surface-bg: #1E293B;
+        --accent-blue: #3B82F6;
+        --accent-glow: rgba(59, 130, 246, 0.5);
+        --success-emerald: #10B981;
+        --warning-amber: #F59E0B;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+    }
+
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
     
     /* 상단 여백 강제 축소 및 헤더 숨김 */
     .main .block-container {
         padding-top: 0rem !important;
-        padding-bottom: 1rem !important;
+        padding-bottom: 2rem !important;
     }
     header[data-testid="stHeader"] {
         height: 0px !important;
@@ -93,6 +105,32 @@ st.markdown("""
     /* 제목 위 불필요한 간격 제거 */
     #root > div:nth-child(1) > div > div > div > div > section > div {
         padding-top: 0rem !important;
+    }
+
+    /* 버튼 마이크로 인터랙션 */
+    button[kind="primary"], button[kind="secondary"] {
+        transition: all 0.2s ease-in-out !important;
+        border-radius: 8px !important;
+    }
+    button:hover {
+        transform: scale(1.02) !important;
+        filter: brightness(1.1) !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+
+    /* 강조 버튼 애니메이션 (Glow) */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        border: none !important;
+        box-shadow: 0 0 15px var(--accent-glow) !important;
+    }
+
+    /* 글래스모피즘 효과 카드 */
+    .glass-card {
+        background: rgba(30, 41, 59, 0.7) !important;
+        backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 12px !important;
     }
     
     [data-testid="stIconMaterial"] {

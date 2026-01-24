@@ -98,21 +98,44 @@ def _get_asset_readiness(store_id: str) -> dict:
     except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
-    bg = "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
-    border = "rgba(148,163,184,0.3)"
-    if status == "completed": border = "rgba(74, 222, 128, 0.5)"
-    elif status == "warning": border = "rgba(251, 191, 36, 0.5)"
-    st.markdown(f'<div style="padding: 1.2rem; background: {bg}; border-radius: 12px; border: 1px solid {border}; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 1rem; min-height: 140px;"><div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.8rem;">{title}</div><div style="font-size: 1.3rem; font-weight: 700; color: #ffffff; margin-bottom: 0.5rem;">{value}</div><div style="font-size: 0.8rem; color: #64748b;">{sub}</div></div>', unsafe_allow_html=True)
+    bg = "rgba(30, 41, 59, 0.5)"
+    border = "rgba(148, 163, 184, 0.1)"
+    glow = ""
+    if status == "completed": 
+        border = "rgba(16, 185, 129, 0.3)"
+        text_color = "#10B981"
+    elif status == "warning": 
+        border = "rgba(245, 158, 11, 0.4)"
+        text_color = "#F59E0B"
+        glow = "box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);"
+    else:
+        text_color = "#94A3B8"
+
+    st.markdown(f"""
+    <div style="padding: 1.5rem; background: {bg}; border-radius: 16px; border: 1px solid {border}; {glow} backdrop-filter: blur(10px); min-height: 150px; transition: all 0.3s ease;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: #94A3B8; margin-bottom: 1rem; letter-spacing: 0.05em;">{title.upper()}</div>
+        <div style="font-size: 1.5rem; font-weight: 700; color: {text_color}; margin-bottom: 0.5rem;">{value}</div>
+        <div style="font-size: 0.85rem; color: #64748B; line-height: 1.4;">{sub}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str):
-    card_style = "padding: 1rem; background-color: #111827; border-radius: 10px; border: 1px solid #374151; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem; min-height: 90px;"
-    title_style = "font-size: 0.75rem; color: #9ca3af; font-weight: 500; margin-bottom: 0.2rem;"
-    value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff; line-height: 1;"
-    html_content = f'<div style="{card_style}"><div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div><div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;"><div style="{title_style}">{title}</div><div style="{value_style}">{value}</div></div></div>'
+    card_style = "padding: 1.2rem; background: rgba(30, 41, 59, 0.4); border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; gap: 1rem; min-height: 100px; transition: transform 0.2s ease;"
+    title_style = "font-size: 0.75rem; color: #94A3B8; font-weight: 500; margin-bottom: 0.3rem; letter-spacing: 0.02em;"
+    value_style = "font-size: 1.2rem; font-weight: 700; color: #F8FAFC; line-height: 1.2;"
+    html_content = f"""
+    <div style="{card_style}">
+        <div style="font-size: 2rem; background: rgba(59, 130, 246, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">{icon}</div>
+        <div style="display: flex; flex-direction: column; justify-content: center;">
+            <div style="{title_style}">{title}</div>
+            <div style="{value_style}">{value}</div>
+        </div>
+    </div>
+    """
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v3():
-    """입력 허브 페이지 렌더링"""
+    """입력 허브 페이지 렌더링 (Stage 5: 디자인 고도화 버전)"""
     render_page_header("✍ 입력 허브", "✍")
     store_id = get_current_store_id()
     if not store_id:
@@ -129,30 +152,39 @@ def render_input_hub_v3():
     if assets.get('recipe_rate', 0) >= 80: score += 25
     if assets.get('has_target'): score += 25
 
-    # [1] 통합 가이드 카드 (철학적 가이드 + 디지털 성숙도 게이지)
-    # 겹침 방지를 위해 margin-top 제거 및 여백 표준화
+    # [1] 통합 가이드 카드 (디자이너 터치 적용)
     st.markdown(f"""
-    <div style="padding: 1.5rem; background-color: #111827; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem;">
+    <div style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <div>
-                <h4 style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4>
-                <p style="margin: 0; color: #9ca3af; font-size: 0.9rem; line-height: 1.5;">
-                    입력은 매장을 숫자로 바꾸는 <b style="color: white;">'설계도'</b>를 그리는 과정입니다.<br>
-                    기초 데이터가 탄탄할수록 <b style="color: white;">정밀 수익 분석과 지능형 전략</b> 기능이 강력해집니다.
+                <h4 style="margin: 0 0 0.6rem 0; color: #F8FAFC; font-size: 1.2rem; font-weight: 700;">💡 데이터 자산 가이드</h4>
+                <p style="margin: 0; color: #94A3B8; font-size: 0.95rem; line-height: 1.6;">
+                    정교한 분석의 시작은 정확한 데이터 입력입니다.<br>
+                    <span style="color: #3B82F6; font-weight: 600;">데이터 성숙도</span>를 높여 매장 운영의 통찰력을 확보하세요.
                 </p>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.2rem;">데이터 성숙도</div>
-                <div style="color: #3b82f6; font-weight: 700; font-size: 1.4rem;">{score}%</div>
+                <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600;">MATURITY LEVEL</div>
+                <div style="color: #3B82F6; font-weight: 800; font-size: 2rem; line-height: 1;">{score}<span style="font-size: 1rem; margin-left: 2px;">%</span></div>
             </div>
         </div>
-        <div style="background-color: #374151; border-radius: 10px; height: 8px; margin-bottom: 1rem; overflow: hidden;">
-            <div style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); width: {score}%; height: 100%; transition: width 0.5s ease-in-out;"></div>
+        <div style="background-color: rgba(255,255,255,0.05); border-radius: 20px; height: 10px; margin-bottom: 1.2rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; height: 100%; border-radius: 20px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);"></div>
         </div>
-        <p style="margin: 0; color: #60a5fa; font-size: 0.85rem; font-weight: 500;">
-            {f"✨ 모든 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 누락된 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."}
-        </p>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: { '#10B981' if score == 100 else '#3B82F6' }; animation: pulse 2s infinite;"></div>
+            <p style="margin: 0; color: { '#10B981' if score == 100 else '#3B82F6' }; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.02em;">
+                {f"PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."}
+            </p>
+        </div>
     </div>
+    <style>
+    @keyframes pulse {{
+        0% {{ transform: scale(0.95); opacity: 0.7; }}
+        50% {{ transform: scale(1.1); opacity: 1; }}
+        100% {{ transform: scale(0.95); opacity: 0.7; }}
+    }}
+    </style>
     """, unsafe_allow_html=True)
 
     # [2] 관제 보드
@@ -166,34 +198,35 @@ def render_input_hub_v3():
     with c2: _hub_status_card("정기 QSC 점검", "✅ 완료" if r4["status"]=="completed" else "⏳ 권장", r4["summary"], "completed" if r4["status"]=="completed" else "pending")
     with c3: _hub_status_card("이번 달 정산", "✅ 완료" if r5["status"]=="completed" else "⏸️ 대기", r5["summary"], "completed" if r5["status"]=="completed" else "pending")
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # [3] 자산 구축 현황
     st.markdown("### 🏗️ 가게 데이터 기초 체력")
+    st.caption("매장의 '디지털 자산'입니다. 누락된 항목을 채워 분석 정밀도를 높이세요.")
     a1, a2, a3, a4 = st.columns(4)
     with a1: 
         _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘")
-        if assets.get('missing_price', 0) > 0: st.caption(f"⚠️ {assets.get('missing_price')}개 가격 누락")
-        else: st.caption("✅ 모든 판매가 등록 완료")
+        if assets.get('missing_price', 0) > 0: st.markdown(f"<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_price')}개 가격 누락</p>", unsafe_allow_html=True)
+        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
     with a2: 
         _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺")
-        if assets.get('missing_cost', 0) > 0: st.caption(f"⚠️ {assets.get('missing_cost')}개 단가 누락")
-        else: st.caption("✅ 구매 단가 등록 완료")
+        if assets.get('missing_cost', 0) > 0: st.markdown(f"<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_cost')}개 단가 누락</p>", unsafe_allow_html=True)
+        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
     with a3: 
         _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳")
-        if assets.get('recipe_rate', 0) < 80: st.caption("⚠️ 원가 분석 정밀도 낮음")
-        else: st.caption("✅ 정밀 분석 가능")
+        if assets.get('recipe_rate', 0) < 80: st.markdown("<p style='color: #94A3B8; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>⏳ 80% 달성 권장</p>", unsafe_allow_html=True)
+        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 정밀 분석 가능</p>", unsafe_allow_html=True)
     with a4: 
-        goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 설정 미완료"
-        _hub_asset_card("이번 달 목표 설정", goal_status, "🎯")
-        if not assets.get('has_target'): st.caption("⚠️ 분석 기준이 없습니다")
-        else: st.caption("✅ 목표 대비 실적 분석 중")
+        goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 미설정"
+        _hub_asset_card("이번 달 목표", goal_status, "🎯")
+        if not assets.get('has_target'): st.markdown("<p style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ 목표 설정 필요</p>", unsafe_allow_html=True)
+        else: st.markdown("<p style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 분석 중</p>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
     # [4] 사용 주기별 워크플로우
     st.markdown("#### ⚡ 매일 · 매주 · 매월 루틴")
-    st.caption("정기적으로 기록해야 하는 핵심 영업 데이터입니다.")
+    st.caption("정기적으로 기록해야 하는 핵심 데이터입니다.")
     col1, col2, col3 = st.columns(3)
     with col1:
         btn_type = "primary" if r1["status"] != "completed" else "secondary"
@@ -208,7 +241,7 @@ def render_input_hub_v3():
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### 🎯 목표 및 분석 기준")
-    st.caption("비교 기준을 설정합니다. 데이터 누락 시 해당 버튼이 강조됩니다.")
+    st.caption("비교 기준을 설정합니다. 누락 시 파란색으로 강조됩니다.")
     s1, s2 = st.columns(2)
     with s1:
         btn_type = "primary" if not assets.get('has_target') else "secondary"
@@ -221,29 +254,28 @@ def render_input_hub_v3():
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("#### 🛠️ 가게 정의 (기초 뼈대)")
-    st.caption("메뉴나 재료가 변경될 때 수정합니다. 누락 데이터 발견 시 버튼이 강조됩니다.")
+    st.caption("메뉴나 재료 변경 시 수정합니다. 누락 발견 시 파란색으로 강조됩니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         btn_type = "primary" if assets.get('missing_price', 0) > 0 else "secondary"
-        label = "📘 메뉴 관리" + (f" ({assets.get('missing_price')}개 보완)" if assets.get('missing_price', 0) > 0 else "")
+        label = "📘 메뉴 관리" + (f" ({assets.get('missing_price')}건)" if assets.get('missing_price', 0) > 0 else "")
         if st.button(label, use_container_width=True, type=btn_type, key="btn_menu"):
             st.session_state.current_page = "메뉴 입력"; st.rerun()
     with b2:
         btn_type = "primary" if assets.get('missing_cost', 0) > 0 else "secondary"
-        label = "🧺 재료 관리" + (f" ({assets.get('missing_cost')}개 보완)" if assets.get('missing_cost', 0) > 0 else "")
+        label = "🧺 재료 관리" + (f" ({assets.get('missing_cost')}건)" if assets.get('missing_cost', 0) > 0 else "")
         if st.button(label, use_container_width=True, type=btn_type, key="btn_ing"):
             st.session_state.current_page = "재료 입력"; st.rerun()
     with b3:
         btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "secondary"
         if st.button("🍳 레시피 관리", use_container_width=True, type=btn_type, key="btn_recipe"):
-            st.session_state.current_page = "레시피 입력"; st.rerun()
+            st.session_state.current_page = "레시피 등록"; st.rerun()
     with b4:
         if st.button("📦 재고 관리", use_container_width=True, key="btn_inv"):
             st.session_state.current_page = "재고 입력"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### ⚙️ 데이터 보정 도구")
-    with st.expander("과거 데이터 일괄 수정"):
+    with st.expander("⚙️ 데이터 보정 도구 (과거 일괄 수정)"):
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
@@ -253,4 +285,4 @@ def render_input_hub_v3():
                 st.session_state.current_page = "판매량 등록"; st.rerun()
 
     st.markdown("---")
-    st.info("💡 **Tip**: 파란색으로 강조된 버튼은 현재 데이터 보완이 시급한 항목입니다.")
+    st.info("💡 **Tip**: 파란색 글로우(Glow)가 적용된 버튼은 현재 데이터 보완이 가장 필요한 항목입니다.")
