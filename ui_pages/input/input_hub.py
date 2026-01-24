@@ -150,23 +150,44 @@ def _get_today_recommendations(store_id: str) -> list:
 def _get_asset_readiness(store_id: str) -> dict:
     if not store_id: return {}
     try:
+        # 1. 메뉴 마스터 및 품질 체크
         menu_df = load_csv("menu_master.csv", store_id=store_id)
         menu_count = len(menu_df) if not menu_df.empty else 0
+        missing_price_count = 0
+        if not menu_df.empty and "판매가" in menu_df.columns:
+            missing_price_count = menu_df["판매가"].isna().sum() + (menu_df["판매가"] == 0).sum()
+        
+        # 2. 재료 마스터 및 품질 체크
         ing_df = load_csv("ingredient_master.csv", store_id=store_id)
         ing_count = len(ing_df) if not ing_df.empty else 0
+        missing_cost_count = 0
+        if not ing_df.empty and "단가" in ing_df.columns:
+            missing_cost_count = ing_df["단가"].isna().sum() + (ing_df["단가"] == 0).sum()
+        
+        # 3. 레시피 완성도
         recipe_df = load_csv("recipes.csv", store_id=store_id)
         recipe_ready_count = 0
         if not menu_df.empty and not recipe_df.empty:
             menus_with_recipes = recipe_df["메뉴명"].unique()
             recipe_ready_count = len([m for m in menu_df["메뉴명"] if m in menus_with_recipes])
         recipe_rate = (recipe_ready_count / menu_count * 100) if menu_count > 0 else 0
+        
+        # 4. 목표 설정 여부
         targets_df = load_csv("targets.csv", store_id=store_id)
         has_target = False
         if not targets_df.empty:
             target_row = targets_df[(targets_df["연도"] == current_year_kst()) & (targets_df["월"] == current_month_kst())]
             if not target_row.empty and target_row.iloc[0].get("목표매출", 0) > 0:
                 has_target = True
-        return {"menu_count": menu_count, "ing_count": ing_count, "recipe_rate": recipe_rate, "has_target": has_target}
+                
+        return {
+            "menu_count": menu_count, 
+            "missing_price_count": int(missing_price_count),
+            "ing_count": ing_count, 
+            "missing_cost_count": int(missing_cost_count),
+            "recipe_rate": recipe_rate, 
+            "has_target": has_target
+        }
     except Exception: return {"menu_count": 0, "ing_count": 0, "recipe_rate": 0, "has_target": False}
 
 
@@ -185,7 +206,8 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 
-def _hub_asset_card(title: str, value: str, icon: str):
+def _hub_asset_card(title: str, value: str, icon: str, warning_text: str = ""):
+    warning_html = f'<div style="font-size: 0.75rem; color: #ef4444; font-weight: 600; margin-top: 0.2rem;">⚠️ {warning_text}</div>' if warning_text else ''
     st.markdown(f"""
     <div style="padding: 1rem; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; 
                 box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 0.8rem; display: flex; align-items: center; gap: 1rem;">
@@ -193,6 +215,7 @@ def _hub_asset_card(title: str, value: str, icon: str):
         <div style="flex-grow: 1;">
             <div style="font-size: 0.75rem; color: #64748b;">{title}</div>
             <div style="font-size: 1rem; font-weight: 700; color: #1e293b;">{value}</div>
+            {warning_html}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -225,15 +248,29 @@ def render_input_hub():
         else: _hub_status_card("이번 달 정산", "⏸️ 대기", "정산 주기에 진행하세요", "pending")
 
     st.markdown("---")
+    
+    # 2. 자산 구축 현황 (품질 체크 반영)
     st.markdown("### 🏗️ 가게 자산 구축 현황")
+    st.caption("시스템 운영을 위한 기초 데이터 완성도입니다.")
     a1, a2, a3, a4 = st.columns(4)
-    with a1: _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘")
-    with a2: _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺")
-    with a3: _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳")
-    with a4: _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯")
+    with a1: 
+        m_warn = f"가격 미입력 {assets['missing_price_count']}개" if assets.get('missing_price_count', 0) > 0 else ""
+        _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", m_warn)
+    with a2: 
+        i_warn = f"단가 미입력 {assets['missing_cost_count']}개" if assets.get('missing_cost_count', 0) > 0 else ""
+        _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", i_warn)
+    with a3: 
+        r_warn = "레시피가 부족합니다" if assets.get('recipe_rate', 0) < 50 else ""
+        _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🧑‍🍳", r_warn)
+    with a4: 
+        t_warn = "이번 달 목표를 설정하세요" if not assets.get('has_target') else ""
+        _hub_asset_card("이번 달 목표", "✅ 설정" if assets.get('has_target') else "⚠️ 미설정", "🎯", t_warn)
 
     st.markdown("---")
+    
+    # 3-1. 루틴 & 정기 작업
     st.markdown("### ⚡ 루틴 & 정기 작업")
+    st.caption("매일 또는 정기적으로 수행하는 핵심 작업")
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("📝 일일 마감 입력", use_container_width=True, type="primary", key="btn_daily"):
@@ -246,7 +283,25 @@ def render_input_hub():
             st.session_state.current_page = "실제정산"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3-2. 목표 및 기준 설정 (표준화 - 전진 배치)
+    st.markdown("### 🎯 목표 및 기준 설정 (Standards)")
+    st.caption("가게 운영의 나침반이 되는 기준을 설정합니다.")
+    s1, s2 = st.columns(2)
+    with s1:
+        # 목표 미설정 시 버튼 강조
+        btn_type = "primary" if not assets.get('has_target') else "secondary"
+        if st.button("🎯 이번 달 매출 목표 구조 설정", use_container_width=True, type=btn_type, key="btn_target_sales"):
+            st.session_state.current_page = "목표 매출구조"; st.rerun()
+    with s2:
+        if st.button("🧾 이번 달 비용 목표 구조 설정", use_container_width=True, key="btn_target_cost"):
+            st.session_state.current_page = "목표 비용구조"; st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3-3. 가게 기초 정의
     st.markdown("### 🛠️ 가게 기초 정의 (뼈대 만들기)")
+    st.caption("가게가 무엇으로 이루어져 있는지 정의하는 곳입니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         if st.button("📘 메뉴 관리", use_container_width=True, key="btn_menu"):
@@ -262,21 +317,20 @@ def render_input_hub():
             st.session_state.current_page = "재고 입력"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### ⚙️ 기준 설정 & 데이터 보정")
-    with st.expander("상세 설정 및 보정 도구 열기"):
+
+    # 3-4. 데이터 보정
+    st.markdown("### ⚙️ 데이터 보정 및 도구")
+    with st.expander("과거 데이터 수정이나 일괄 보정 도구 열기"):
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("**목표 설정**")
-            if st.button("🎯 매출 목표 구조", use_container_width=True, key="btn_target_sales"):
-                st.session_state.current_page = "목표 매출구조"; st.rerun()
-            if st.button("🧾 비용 목표 구조", use_container_width=True, key="btn_target_cost"):
-                st.session_state.current_page = "목표 비용구조"; st.rerun()
-        with c2:
-            st.markdown("**데이터 일괄 보정**")
             if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
                 st.session_state.current_page = "매출 등록"; st.rerun()
+        with c2:
             if st.button("📦 판매량 일괄 등록", use_container_width=True, key="btn_bulk_qty"):
                 st.session_state.current_page = "판매량 등록"; st.rerun()
+
+    st.markdown("---")
+    st.info("💡 **Tip**: 정확한 분석은 정확한 입력에서 시작됩니다. 품질 경고(⚠️)가 있는 데이터를 먼저 보완해 보세요.")
 
     st.markdown("---")
     st.info("💡 **Tip**: 입력은 가게의 현실을 만드는 일입니다. 분석은 해석, 설계는 실험입니다.")
