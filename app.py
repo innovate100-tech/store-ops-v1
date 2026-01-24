@@ -332,12 +332,12 @@ st.markdown("""
     }
     
     /* 사이드바 항상 표시 보장 및 접기 방지 - 모든 가능한 선택자 사용 */
-    section[data-testid="stSidebar"],
-    [data-testid="stSidebar"],
-    div[data-testid="stSidebar"],
-    .css-1d391kg,
-    .css-1lcbmhc,
-    [class*="stSidebar"] {
+    section[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    [data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    div[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    .css-1d391kg:not(.sidebar-collapsed),
+    .css-1lcbmhc:not(.sidebar-collapsed),
+    [class*="stSidebar"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]) {
         display: block !important;
         visibility: visible !important;
         width: 15rem !important;  /* 기존 21rem → 15rem으로 축소 */
@@ -350,11 +350,11 @@ st.markdown("""
         transition: width 0.3s ease !important;
     }
     
-    /* 사이드바가 접힌 상태로 보이지 않도록 - 모든 상태에서 강제 표시 */
-    [data-testid="stSidebar"][aria-expanded="false"],
-    [data-testid="stSidebar"][aria-expanded="true"],
-    section[data-testid="stSidebar"][aria-expanded="false"],
-    section[data-testid="stSidebar"][aria-expanded="true"] {
+    /* 사이드바가 접힌 상태로 보이지 않도록 - 모든 상태에서 강제 표시 (펼친 상태) */
+    [data-testid="stSidebar"][aria-expanded="false"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    [data-testid="stSidebar"][aria-expanded="true"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    section[data-testid="stSidebar"][aria-expanded="false"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]),
+    section[data-testid="stSidebar"][aria-expanded="true"]:not(.sidebar-collapsed):not([data-collapsed="true"]):not([data-sidebar-collapsed="true"]) {
         display: block !important;
         visibility: visible !important;
         transform: translateX(0) !important;
@@ -362,34 +362,67 @@ st.markdown("""
         min-width: 15rem !important;
     }
     
-    /* 접힌 상태 사이드바 스타일 */
+    /* 접힌 상태 사이드바 스타일 - 최고 우선순위 */
     [data-testid="stSidebar"].sidebar-collapsed,
-    [data-testid="stSidebar"][data-collapsed="true"] {
+    [data-testid="stSidebar"][data-collapsed="true"],
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"],
+    section[data-testid="stSidebar"].sidebar-collapsed,
+    section[data-testid="stSidebar"][data-collapsed="true"],
+    section[data-testid="stSidebar"][data-sidebar-collapsed="true"],
+    div[data-testid="stSidebar"].sidebar-collapsed,
+    div[data-testid="stSidebar"][data-collapsed="true"],
+    div[data-testid="stSidebar"][data-sidebar-collapsed="true"] {
+        display: block !important;
+        visibility: visible !important;
         width: 4rem !important;
         min-width: 4rem !important;
         max-width: 4rem !important;
+        transform: translateX(0) !important;
+        position: relative !important;
+        opacity: 1 !important;
+        z-index: 999 !important;
+        transition: width 0.3s ease !important;
     }
     
-    /* 접힌 상태에서 텍스트 숨김 */
+    /* 접힌 상태에서 텍스트 숨김 - 강화 버전 */
     [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
     [data-testid="stSidebar"][data-collapsed="true"] .stMarkdown:not(.keep-visible),
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stMarkdown:not(.keep-visible),
     [data-testid="stSidebar"].sidebar-collapsed .stSelectbox,
-    [data-testid="stSidebar"][data-collapsed="true"] .stSelectbox {
+    [data-testid="stSidebar"][data-collapsed="true"] .stSelectbox,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stSelectbox,
+    [data-testid="stSidebar"].sidebar-collapsed .stExpander,
+    [data-testid="stSidebar"][data-collapsed="true"] .stExpander,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stExpander {
         display: none !important;
+        visibility: hidden !important;
     }
     
-    /* 접힌 상태에서 버튼 중앙 정렬 및 아이콘만 표시 */
+    /* 접힌 상태에서 버튼 중앙 정렬 및 텍스트 숨김 */
     [data-testid="stSidebar"].sidebar-collapsed .stButton > button,
-    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button {
+    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button {
         justify-content: center !important;
         padding: 0.5rem !important;
         min-width: auto !important;
+        width: 100% !important;
     }
     
-    /* 접힌 상태에서 expander 숨김 */
+    /* 접힌 상태에서 버튼 내부 텍스트 숨김 (아이콘만 표시) - 단, 토글 버튼은 제외 */
+    [data-testid="stSidebar"].sidebar-collapsed .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span,
+    [data-testid="stSidebar"][data-collapsed="true"] .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span,
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] .stButton > button:not([data-baseweb="button"]):not(:has-text("◀")):not(:has-text("▶")) > span {
+        font-size: 1.5rem !important;  /* 아이콘 크기 유지 */
+    }
+    
+    /* 접힌 상태에서 expander 완전히 숨김 */
     [data-testid="stSidebar"].sidebar-collapsed [data-testid="stExpander"],
-    [data-testid="stSidebar"][data-collapsed="true"] [data-testid="stExpander"] {
+    [data-testid="stSidebar"][data-collapsed="true"] [data-testid="stExpander"],
+    [data-testid="stSidebar"][data-sidebar-collapsed="true"] [data-testid="stExpander"] {
         display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
     }
     
     /* Streamlit이 자동으로 메인 콘텐츠를 조정하도록 함 - 추가 margin 제거 */
@@ -643,10 +676,22 @@ st.markdown("""
                 if (sidebar) {
                     // 사이드바를 항상 열린 상태로 강제 설정
                     sidebar.setAttribute('aria-expanded', 'true');
-                    // 접힌 상태 확인 (data attribute 또는 클래스로)
-                    const isCollapsed = sidebar.classList.contains('sidebar-collapsed') || 
+                    // 접힌 상태 확인 (data attribute 우선, 그 다음 클래스)
+                    const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
+                    const isCollapsed = collapsedAttr === 'true' || 
+                                       sidebar.classList.contains('sidebar-collapsed') || 
                                        sidebar.getAttribute('data-collapsed') === 'true';
                     const sidebarWidth = isCollapsed ? '4rem' : '15rem';
+                    
+                    // 접힌 상태면 클래스 추가, 아니면 제거
+                    if (isCollapsed) {
+                        sidebar.classList.add('sidebar-collapsed');
+                        sidebar.setAttribute('data-collapsed', 'true');
+                    } else {
+                        sidebar.classList.remove('sidebar-collapsed');
+                        sidebar.setAttribute('data-collapsed', 'false');
+                    }
+                    
                     sidebar.style.cssText = `
                         display: block !important;
                         visibility: visible !important;
@@ -803,36 +848,64 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-# 사이드바 접기/펼치기 상태 관리 JavaScript
+# 사이드바 접기/펼치기 상태 관리 JavaScript - 강화 버전
 sidebar_collapsed_js = "true" if st.session_state.get("sidebar_collapsed", False) else "false"
 st.markdown(f"""
 <script>
 (function() {{
     'use strict';
     
+    let lastState = {sidebar_collapsed_js};
+    let updateInterval = null;
+    
     function updateSidebarState() {{
         try {{
             const sidebar = document.querySelector('[data-testid="stSidebar"]');
             if (!sidebar) return;
             
-            // session_state 값 확인 (data attribute로 전달)
+            // session_state 값 확인 (data attribute 우선)
             const collapsedAttr = sidebar.getAttribute('data-sidebar-collapsed');
             const isCollapsed = collapsedAttr === 'true' || {sidebar_collapsed_js};
+            
+            // 상태가 변경되었는지 확인
+            if (lastState !== isCollapsed) {{
+                lastState = isCollapsed;
+            }}
             
             if (isCollapsed) {{
                 sidebar.classList.add('sidebar-collapsed');
                 sidebar.setAttribute('data-collapsed', 'true');
                 sidebar.setAttribute('data-sidebar-collapsed', 'true');
-                sidebar.style.setProperty('width', '4rem', 'important');
-                sidebar.style.setProperty('min-width', '4rem', 'important');
-                sidebar.style.setProperty('max-width', '4rem', 'important');
+                // 인라인 스타일로 강제 적용 (최고 우선순위)
+                sidebar.style.cssText = `
+                    display: block !important;
+                    visibility: visible !important;
+                    transform: translateX(0) !important;
+                    width: 4rem !important;
+                    min-width: 4rem !important;
+                    max-width: 4rem !important;
+                    position: relative !important;
+                    opacity: 1 !important;
+                    z-index: 999 !important;
+                    transition: width 0.3s ease !important;
+                `;
             }} else {{
                 sidebar.classList.remove('sidebar-collapsed');
                 sidebar.setAttribute('data-collapsed', 'false');
                 sidebar.setAttribute('data-sidebar-collapsed', 'false');
-                sidebar.style.setProperty('width', '15rem', 'important');
-                sidebar.style.setProperty('min-width', '15rem', 'important');
-                sidebar.style.setProperty('max-width', '15rem', 'important');
+                // 인라인 스타일로 강제 적용 (최고 우선순위)
+                sidebar.style.cssText = `
+                    display: block !important;
+                    visibility: visible !important;
+                    transform: translateX(0) !important;
+                    width: 15rem !important;
+                    min-width: 15rem !important;
+                    max-width: 15rem !important;
+                    position: relative !important;
+                    opacity: 1 !important;
+                    z-index: 999 !important;
+                    transition: width 0.3s ease !important;
+                `;
             }}
         }} catch(e) {{
             console.warn('사이드바 상태 업데이트 실패:', e);
@@ -844,13 +917,19 @@ st.markdown(f"""
     
     // DOM 로드 후 실행
     if (document.readyState === 'loading') {{
-        document.addEventListener('DOMContentLoaded', updateSidebarState);
+        document.addEventListener('DOMContentLoaded', function() {{
+            updateSidebarState();
+            setTimeout(updateSidebarState, 100);
+            setTimeout(updateSidebarState, 300);
+        }});
     }} else {{
         setTimeout(updateSidebarState, 100);
+        setTimeout(updateSidebarState, 300);
     }}
     
-    // 주기적으로 확인 (상태 변경 감지)
-    setInterval(updateSidebarState, 300);
+    // 주기적으로 확인 (상태 변경 감지) - 더 자주 체크
+    if (updateInterval) clearInterval(updateInterval);
+    updateInterval = setInterval(updateSidebarState, 200);
     
     // MutationObserver로 사이드바 변경 감지
     const observer = new MutationObserver(function(mutations) {{
@@ -858,7 +937,12 @@ st.markdown(f"""
         mutations.forEach(function(mutation) {{
             if (mutation.type === 'attributes' && 
                 (mutation.attributeName === 'data-sidebar-collapsed' || 
-                 mutation.attributeName === 'class')) {{
+                 mutation.attributeName === 'data-collapsed' ||
+                 mutation.attributeName === 'class' ||
+                 mutation.attributeName === 'style')) {{
+                shouldUpdate = true;
+            }}
+            if (mutation.type === 'childList') {{
                 shouldUpdate = true;
             }}
         }});
@@ -871,9 +955,23 @@ st.markdown(f"""
     if (sidebar) {{
         observer.observe(sidebar, {{
             attributes: true,
-            attributeFilter: ['data-sidebar-collapsed', 'class', 'data-collapsed']
+            childList: true,
+            subtree: false,
+            attributeFilter: ['data-sidebar-collapsed', 'data-collapsed', 'class', 'style']
         }});
     }}
+    
+    // window load 이벤트
+    window.addEventListener('load', function() {{
+        setTimeout(updateSidebarState, 100);
+        setTimeout(updateSidebarState, 500);
+    }}, {{ passive: true }});
+    
+    // 페이지 언로드 시 정리
+    window.addEventListener('beforeunload', function() {{
+        if (updateInterval) clearInterval(updateInterval);
+        observer.disconnect();
+    }}, {{ passive: true }});
 }})();
 </script>
 """, unsafe_allow_html=True)
@@ -897,7 +995,8 @@ def _render_collapsed_sidebar(menu):
         "🛠 운영": "🛠"
     }
     
-    st.markdown("<br>", unsafe_allow_html=True)
+    # 접힌 상태에서 텍스트 숨김을 위한 마커 추가
+    st.markdown('<div class="sidebar-collapsed-marker"></div>', unsafe_allow_html=True)
     
     # 카테고리별 아이콘 버튼
     for cat, data in menu.items():
@@ -921,13 +1020,23 @@ def _render_collapsed_sidebar(menu):
         st.rerun()
 
 with st.sidebar:
-    # 사이드바 상태를 data attribute로 설정 (JavaScript에서 읽기 위해)
+    # 사이드바 상태를 data attribute로 설정 (JavaScript에서 읽기 위해) - 즉시 실행
+    collapsed_state = "true" if st.session_state.sidebar_collapsed else "false"
     st.markdown(f"""
+    <div data-sidebar-state="{collapsed_state}" style="display:none;"></div>
     <script>
     (function() {{
+        const stateDiv = document.querySelector('[data-sidebar-state]');
+        const collapsed = stateDiv ? stateDiv.getAttribute('data-sidebar-state') === 'true' : false;
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
         if (sidebar) {{
-            sidebar.setAttribute('data-sidebar-collapsed', '{str(st.session_state.sidebar_collapsed).lower()}');
+            sidebar.setAttribute('data-sidebar-collapsed', collapsed ? 'true' : 'false');
+            sidebar.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
+            if (collapsed) {{
+                sidebar.classList.add('sidebar-collapsed');
+            }} else {{
+                sidebar.classList.remove('sidebar-collapsed');
+            }}
         }}
     }})();
     </script>
