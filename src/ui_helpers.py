@@ -14,8 +14,9 @@ def render_page_header(title, icon="📋"):
     테마에 따라 텍스트 색상이 자동 조절되도록 수정.
     """
     # 최상단 밀착 배치를 위해 상단 margin 제거, 미세 패딩(1rem)만 추가
+    # 제목과 다음 콘텐츠(가이드 카드) 사이의 간격을 위해 margin-bottom을 1.5rem으로 확대
     st.markdown(f"""
-    <div style="margin-top: 0rem; margin-bottom: 0.5rem; padding-top: 1rem;">
+    <div style="margin-top: 0rem; margin-bottom: 1.5rem; padding-top: 1rem;">
         <h2 style="color: var(--ps-text, #101417); border-bottom: 3px solid #667eea; padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
             {icon} {title}
         </h2>
