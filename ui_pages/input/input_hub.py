@@ -1,6 +1,6 @@
 """
 입력 허브 페이지
-입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - 가이드 및 역할 설명 강화)
+입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - 버그 수정 및 최적화)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -37,29 +37,35 @@ def _get_today_recommendations(store_id: str) -> list:
     if not store_id: return []
     try:
         today = today_kst()
+        # DB에서 직접 실시간 상태 조회 (캐시 우회)
         status = get_day_record_status(store_id, today)
         has_close = status.get("has_close", False)
         has_any = status.get("has_sales", False) or status.get("has_visitors", False) or has_close
         
-        # 일일 매출/방문자 요약
-        sales_val = 0
-        visitors_val = 0
-        try:
-            df = load_csv("daily_close", store_id=store_id)
-            if not df.empty:
-                today_str = today.isoformat()
-                row = df[df["date"] == today_str]
-                if not row.empty:
-                    sales_val = row.iloc[0].get("total_sales", 0)
-                    visitors_val = row.iloc[0].get("visitors", 0)
-        except Exception: pass
-
+        # summary용 데이터 (None 안전 처리)
+        sales_val = status.get("best_total_sales") or 0
+        visitors_val = status.get("visitors_best") or 0
+        
         # P1: 일일 마감
         if not has_close:
             msg = "📝 오늘 마감 필요" if not has_any else "📝 오늘 마감 미완료"
-            recommendations.append({"status": "pending", "message": msg, "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "데이터 없음"})
+            recommendations.append({
+                "status": "pending", 
+                "message": msg, 
+                "button_label": "📝 일일 마감", 
+                "page_key": "일일 입력(통합)", 
+                "priority": 1, 
+                "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명" if has_any else "데이터 없음"
+            })
         else:
-            recommendations.append({"status": "completed", "message": "✅ 오늘 마감 완료", "button_label": "📝 일일 마감", "page_key": "일일 입력(통합)", "priority": 1, "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"})
+            recommendations.append({
+                "status": "completed", 
+                "message": "✅ 오늘 마감 완료", 
+                "button_label": "📝 일일 마감", 
+                "page_key": "일일 입력(통합)", 
+                "priority": 1, 
+                "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"
+            })
         
         # P4: QSC (로직 보강: 가장 최근 기록 조회)
         checklist_count = _count_completed_checklists_last_7_days(store_id)
@@ -80,45 +86,60 @@ def _get_today_recommendations(store_id: str) -> list:
             "summary": f"최근: {last_date_str}"
         })
             
+        # P5: 정산
         is_done = _is_current_month_settlement_done(store_id)
-        recommendations.append({"status": "completed" if is_done else "pending", "message": "📅 월간 정산", "button_label": "📅 정산 입력", "page_key": "실제정산", "priority": 5, "summary": f"{current_month_kst()}월"})
+        recommendations.append({
+            "status": "completed" if is_done else "pending", 
+            "message": "📅 월간 정산", 
+            "button_label": "📅 정산 입력", 
+            "page_key": "실제정산", 
+            "priority": 5, 
+            "summary": f"{current_month_kst()}월"
+        })
         
         return recommendations
-    except Exception: return []
+    except Exception as e:
+        # 에러 발생 시 로그를 남기고 빈 리스트 대신 최소한의 데이터 반환
+        return [{
+            "status": "pending", "message": "데이터 로드 오류", "button_label": "-", "page_key": "홈", "priority": 1, "summary": "확인 필요"
+        }]
 
 def _get_asset_readiness(store_id: str) -> dict:
     if not store_id: return {}
     try:
+        # 메뉴 품질 체크
         menu_df = load_csv("menu_master.csv", store_id=store_id)
         menu_count = len(menu_df) if not menu_df.empty else 0
         missing_price = 0
         if not menu_df.empty and "판매가" in menu_df.columns:
             missing_price = menu_df["판매가"].isna().sum() + (menu_df["판매가"] == 0).sum()
         
+        # 재료 품질 체크
         ing_df = load_csv("ingredient_master.csv", store_id=store_id)
         ing_count = len(ing_df) if not ing_df.empty else 0
         missing_cost = 0
         if not ing_df.empty and "단가" in ing_df.columns:
             missing_cost = ing_df["단가"].isna().sum() + (ing_df["단가"] == 0).sum()
         
+        # 레시피 및 목표
         recipe_df = load_csv("recipes.csv", store_id=store_id)
         recipe_ready = 0
         if not menu_df.empty and not recipe_df.empty:
-            recipe_ready = len([m for m in menu_df["메뉴명"] if m in recipe_df["메뉴명"].unique()])
+            recipe_ready = len([m for m in menu_df["메뉴명"].unique() if m in recipe_df["메뉴명"].unique()])
         recipe_rate = (recipe_ready / menu_count * 100) if menu_count > 0 else 0
         
         targets_df = load_csv("targets.csv", store_id=store_id)
         has_target = False
         if not targets_df.empty:
             target_row = targets_df[(targets_df["연도"] == current_year_kst()) & (targets_df["월"] == current_month_kst())]
-            has_target = not target_row.empty and target_row.iloc[0].get("목표매출", 0) > 0
+            has_target = not target_row.empty and (target_row.iloc[0].get("목표매출", 0) or 0) > 0
                 
         return {
             "menu_count": menu_count, "missing_price": int(missing_price),
             "ing_count": ing_count, "missing_cost": int(missing_cost),
             "recipe_rate": recipe_rate, "has_target": has_target
         }
-    except Exception: return {}
+    except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     bg = "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
