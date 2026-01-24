@@ -79,13 +79,19 @@ def render_target_sales_structure():
     def render_main_content():
         """Main Card 내용: 목표 매출 구조 입력 UI"""
         # ========== ZONE A: 기간 선택 ==========
+        # 세션 상태에서 연/월 가져오기
+        current_year = current_year_kst()
+        current_month = current_month_kst()
+        initial_year = st.session_state.get("expense_year", current_year)
+        initial_month = st.session_state.get("expense_month", current_month)
+        
         col1, col2 = st.columns(2)
         with col1:
             selected_year = st.number_input(
                 "연도",
                 min_value=2020,
                 max_value=2100,
-                value=selected_year,
+                value=int(initial_year),
                 key="target_sales_structure_year"
             )
         with col2:
@@ -93,7 +99,7 @@ def render_target_sales_structure():
                 "월",
                 min_value=1,
                 max_value=12,
-                value=selected_month,
+                value=int(initial_month),
                 key="target_sales_structure_month"
             )
         
