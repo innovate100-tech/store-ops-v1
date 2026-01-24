@@ -124,13 +124,15 @@ st.markdown("""
     
     /* 본질적 해결: Material Icons를 최우선으로, 텍스트 요소에만 Noto Sans KR 적용 */
     
-    /* 1단계: Material Icons 폰트 강제 적용 (최우선, !important 사용) */
+    /* 1단계: Material Icons 폰트 강제 적용 및 레이아웃 제어 (본질적 해결) */
+    /* Streamlit의 실제 아이콘 요소 타겟팅 */
+    [data-testid="stIconMaterial"],
+    [data-testid*="Icon"],
+    [data-testid*="icon"],
     [class*="material-icons"],
     [class*="MaterialIcons"],
     [class*="material"],
     [class*="Material"],
-    [data-testid*="Icon"],
-    [data-testid*="icon"],
     .material-icons,
     .MaterialIcons,
     [data-testid="stExpander"] button,
@@ -138,7 +140,10 @@ st.markdown("""
     [data-testid="stHeader"] button,
     button [class*="material"],
     span[class*="material"],
-    i[class*="material"] {
+    i[class*="material"],
+    /* Streamlit Emotion CSS 클래스도 포함 */
+    .st-emotion-cache-12bp31y,
+    [class*="st-emotion-cache"] [data-testid="stIconMaterial"] {
         font-family: 'Material Icons' !important;
         font-weight: normal !important;
         font-style: normal !important;
@@ -152,6 +157,46 @@ st.markdown("""
         direction: ltr !important;
         -webkit-font-feature-settings: 'liga' !important;
         -webkit-font-smoothing: antialiased !important;
+        /* 겹침 방지: 위치와 크기 제어 */
+        position: relative !important;
+        width: 24px !important;
+        height: 24px !important;
+        overflow: hidden !important;
+        text-overflow: clip !important;
+        flex-shrink: 0 !important;
+        vertical-align: middle !important;
+    }
+    
+    /* Expander 내부 아이콘 요소 겹침 방지 */
+    [data-testid="stExpander"] [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] button [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] > div > div [data-testid="stIconMaterial"] {
+        position: absolute !important;
+        right: 0.5rem !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 24px !important;
+        height: 24px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 1 !important;
+        pointer-events: none !important;
+    }
+    
+    /* Expander 버튼 내부 레이아웃 조정 */
+    [data-testid="stExpander"] > div > div,
+    [data-testid="stExpander"] button {
+        position: relative !important;
+        overflow: visible !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* 아이콘 텍스트가 다른 요소와 겹치지 않도록 */
+    [data-testid="stIconMaterial"] {
+        max-width: 24px !important;
+        min-width: 24px !important;
+        text-indent: 0 !important;
+        text-align: center !important;
     }
     
     /* 2단계: 텍스트 요소에만 Noto Sans KR 적용 (Material Icons보다 낮은 우선순위) */
@@ -287,7 +332,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Material Icons 폰트 강제 적용 JavaScript - 최종 해결책
+# Material Icons 폰트 강제 적용 JavaScript - 정확한 타겟팅
 st.markdown("""
 <script>
 (function() {
@@ -303,133 +348,126 @@ st.markdown("""
         document.head.insertBefore(link, document.head.firstChild);
     }
     
-    // 아이콘 텍스트를 Material Icons 코드로 변환
-    function convertToIcon(element) {
-        if (!element) return false;
-        
-        const text = element.textContent.trim();
-        let iconCode = null;
-        
-        if (text === 'keyboard arrow right') {
-            iconCode = 'keyboard_arrow_right';
-        } else if (text === 'key') {
-            iconCode = 'menu';
-        } else if (text.includes('arrow') && text.length < 50) {
-            iconCode = 'keyboard_arrow_right';
-        }
-        
-        if (iconCode) {
-            element.style.setProperty('font-family', "'Material Icons'", 'important');
-            element.style.setProperty('font-weight', 'normal', 'important');
-            element.style.setProperty('font-style', 'normal', 'important');
-            element.style.setProperty('font-size', '24px', 'important');
-            element.style.setProperty('line-height', '1', 'important');
-            element.style.setProperty('letter-spacing', 'normal', 'important');
-            element.style.setProperty('text-transform', 'none', 'important');
-            element.style.setProperty('display', 'inline-block', 'important');
-            element.style.setProperty('white-space', 'nowrap', 'important');
-            element.style.setProperty('-webkit-font-feature-settings', "'liga'", 'important');
-            element.style.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
-            element.textContent = iconCode;
-            return true;
-        }
-        return false;
-    }
-    
-    // 모든 요소에서 아이콘 텍스트 찾기 및 변환
-    function fixAllIcons() {
-        // 1. 모든 버튼 확인
-        document.querySelectorAll('button').forEach(btn => {
-            const text = btn.textContent.trim();
-            if (text === 'key' || text === 'keyboard arrow right' || (text.includes('arrow') && text.length < 50)) {
-                convertToIcon(btn);
-            }
-        });
-        
-        // 2. 모든 div, span 확인
-        document.querySelectorAll('div, span').forEach(el => {
-            const text = el.textContent.trim();
-            if ((text === 'key' || text === 'keyboard arrow right' || (text.includes('arrow') && text.length < 50)) 
-                && el.children.length === 0) {
-                convertToIcon(el);
-            }
-        });
-        
-        // 3. 모든 텍스트 노드 확인
-        const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-        
-        let node;
-        while (node = walker.nextNode()) {
-            const text = node.textContent.trim();
-            const parent = node.parentElement;
+    // Streamlit의 stIconMaterial 요소에 Material Icons 폰트 강제 적용 및 겹침 방지
+    function fixMaterialIcons() {
+        // data-testid="stIconMaterial" 요소 직접 타겟팅
+        document.querySelectorAll('[data-testid="stIconMaterial"]').forEach(el => {
+            // Material Icons 폰트 적용
+            el.style.setProperty('font-family', "'Material Icons'", 'important');
+            el.style.setProperty('font-weight', 'normal', 'important');
+            el.style.setProperty('font-style', 'normal', 'important');
+            el.style.setProperty('font-size', '24px', 'important');
+            el.style.setProperty('line-height', '1', 'important');
+            el.style.setProperty('letter-spacing', 'normal', 'important');
+            el.style.setProperty('text-transform', 'none', 'important');
+            el.style.setProperty('display', 'inline-block', 'important');
+            el.style.setProperty('white-space', 'nowrap', 'important');
+            el.style.setProperty('-webkit-font-feature-settings', "'liga'", 'important');
+            el.style.setProperty('-webkit-font-smoothing', 'antialiased', 'important');
             
-            if (parent && (text === 'key' || text === 'keyboard arrow right' || 
-                (text.includes('arrow') && text.length < 50))) {
-                convertToIcon(parent);
+            // 겹침 방지: 크기와 위치 제어
+            el.style.setProperty('width', '24px', 'important');
+            el.style.setProperty('height', '24px', 'important');
+            el.style.setProperty('max-width', '24px', 'important');
+            el.style.setProperty('min-width', '24px', 'important');
+            el.style.setProperty('overflow', 'hidden', 'important');
+            el.style.setProperty('text-overflow', 'clip', 'important');
+            el.style.setProperty('flex-shrink', '0', 'important');
+            el.style.setProperty('vertical-align', 'middle', 'important');
+            
+            // Expander 내부인 경우 위치 조정
+            const expander = el.closest('[data-testid="stExpander"]');
+            if (expander) {
+                el.style.setProperty('position', 'absolute', 'important');
+                el.style.setProperty('right', '0.5rem', 'important');
+                el.style.setProperty('top', '50%', 'important');
+                el.style.setProperty('transform', 'translateY(-50%)', 'important');
+                el.style.setProperty('z-index', '1', 'important');
+                el.style.setProperty('pointer-events', 'none', 'important');
             }
-        }
+        });
         
-        // 4. Streamlit 특정 요소들
-        const selectors = [
-            '[data-testid="stExpander"] button',
-            '[data-testid="stExpander"] > div',
-            '[data-testid="stExpander"] > div > div',
-            '[data-testid="stExpander"] > div > div > button',
-            '[data-testid="stHeader"] button',
-            'header button',
-            'button[kind="header"]',
-            '[data-testid*="Icon"]',
-            '[data-testid*="icon"]'
-        ];
+        // Expander 버튼에 padding 추가하여 아이콘 공간 확보
+        document.querySelectorAll('[data-testid="stExpander"] > div > div, [data-testid="stExpander"] button').forEach(el => {
+            if (el.querySelector('[data-testid="stIconMaterial"]')) {
+                el.style.setProperty('padding-right', '2rem', 'important');
+                el.style.setProperty('position', 'relative', 'important');
+                el.style.setProperty('overflow', 'visible', 'important');
+            }
+        });
         
-        selectors.forEach(selector => {
-            try {
-                document.querySelectorAll(selector).forEach(el => {
-                    const text = el.textContent.trim();
-                    if (text === 'key' || text === 'keyboard arrow right' || 
-                        (text.includes('arrow') && text.length < 50)) {
-                        convertToIcon(el);
-                    }
-                });
-            } catch(e) {}
+        // 다른 아이콘 요소들도 확인
+        document.querySelectorAll('[data-testid*="Icon"], [data-testid*="icon"]').forEach(el => {
+            const text = el.textContent.trim();
+            // 이미 Material Icons 코드 형식이면 폰트만 적용
+            if (text.includes('_') || text === 'key' || text === 'keyboard arrow right' || 
+                text.includes('arrow') || text.includes('menu')) {
+                el.style.setProperty('font-family', "'Material Icons'", 'important');
+                el.style.setProperty('font-weight', 'normal', 'important');
+                el.style.setProperty('font-style', 'normal', 'important');
+                el.style.setProperty('font-size', '24px', 'important');
+                el.style.setProperty('line-height', '1', 'important');
+                el.style.setProperty('width', '24px', 'important');
+                el.style.setProperty('height', '24px', 'important');
+                el.style.setProperty('overflow', 'hidden', 'important');
+            }
+        });
+        
+        // 텍스트가 아이콘 이름인 경우 변환
+        const iconTextMap = {
+            'key': 'menu',
+            'keyboard arrow right': 'keyboard_arrow_right',
+            'keyboard arrow down': 'keyboard_arrow_down',
+            'keyboard_double_arrow_right': 'keyboard_double_arrow_right'
+        };
+        
+        document.querySelectorAll('button, span, div').forEach(el => {
+            const text = el.textContent.trim();
+            if (iconTextMap[text]) {
+                el.style.setProperty('font-family', "'Material Icons'", 'important');
+                el.style.setProperty('font-weight', 'normal', 'important');
+                el.style.setProperty('font-style', 'normal', 'important');
+                el.style.setProperty('font-size', '24px', 'important');
+                el.style.setProperty('width', '24px', 'important');
+                el.style.setProperty('height', '24px', 'important');
+                el.style.setProperty('overflow', 'hidden', 'important');
+                el.textContent = iconTextMap[text];
+            }
         });
     }
     
     // 즉시 실행
-    fixAllIcons();
+    fixMaterialIcons();
     
     // DOMContentLoaded
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', fixAllIcons);
+        document.addEventListener('DOMContentLoaded', fixMaterialIcons);
     }
     
     // load 이벤트
     window.addEventListener('load', function() {
-        setTimeout(fixAllIcons, 50);
-        setTimeout(fixAllIcons, 200);
-        setTimeout(fixAllIcons, 500);
+        setTimeout(fixMaterialIcons, 50);
+        setTimeout(fixMaterialIcons, 200);
+        setTimeout(fixMaterialIcons, 500);
     });
     
     // MutationObserver - 매우 빠르게
     const observer = new MutationObserver(function() {
-        setTimeout(fixAllIcons, 5);
+        setTimeout(fixMaterialIcons, 5);
     });
     
     if (document.body) {
         observer.observe(document.body, {
             childList: true,
             subtree: true,
-            characterData: true
+            characterData: true,
+            attributes: true,
+            attributeFilter: ['data-testid', 'class']
         });
     }
     
-    // 주기적 확인 - 매우 자주
-    setInterval(fixAllIcons, 200);
+    // 주기적 확인
+    setInterval(fixMaterialIcons, 200);
 })();
 </script>
 """, unsafe_allow_html=True)
