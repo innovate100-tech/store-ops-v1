@@ -331,11 +331,6 @@ def render_sales_analysis():
     
     st.info("✨ **판매 메뉴 분석 페이지가 고도화되었습니다!** 메뉴별 판매 트렌드, 포트폴리오 분석, 상관관계, 수명주기, 가격 시뮬레이션, 계절성 분석 기능이 추가되었습니다.")
     
-    # 매출 하락 원인 찾기 버튼 (상단 CTA)
-    if st.button("📉 매출 하락 원인 찾기", type="primary", use_container_width=True, key="sales_analysis_btn_sales_drop"):
-        st.session_state["current_page"] = "매출 하락 원인 찾기"
-        st.rerun()
-    
     st.markdown("---")
     
     # store_id 확인
