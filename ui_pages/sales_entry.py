@@ -165,167 +165,171 @@ def render_sales_entry():
             render_section_divider()
             
             if input_mode == "단일 입력":
-            # 단일 입력 폼
-            date, store, card_sales, cash_sales, total_sales = render_sales_input()
-            
-            # 날짜 선택 시 상태바 표시
-            store_id = get_current_store_id()
-            status = None
-            if store_id and date:
-                try:
-                    status = get_day_record_status(store_id, date)
-                except Exception:
-                    pass
-            
-            # 상태바 표시
-            if status:
-                has_close = status["has_close"]
-                has_sales = status["has_sales"]
-                has_visitors = status["has_visitors"]
+                # 단일 입력 폼
+                date, store, card_sales, cash_sales, total_sales = render_sales_input()
                 
-                if has_close:
-                    # ① 마감 완료(공식)
-                    st.markdown("""
-                    <div style="padding: 1.2rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
-                                border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="font-size: 1.5rem; margin-right: 0.5rem;">✅</span>
-                            <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">마감 완료(공식)</h3>
-                        </div>
-                        <div style="font-size: 0.95rem; line-height: 1.6; color: #f0fdf4; margin-top: 0.5rem;">
-                            이 화면에서는 매출과 네이버 방문자만 빠르게 수정합니다.<br>
-                            판매량/메모는 점장마감에서 수정하세요.
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                elif has_sales or has_visitors:
-                    # ② 임시 기록(미마감)
-                    st.markdown("""
-                    <div style="padding: 1.2rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
-                                border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="font-size: 1.5rem; margin-right: 0.5rem;">⚠️</span>
-                            <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">임시 기록(미마감)</h3>
-                        </div>
-                        <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb; margin-top: 0.5rem;">
-                            통계에는 반영되지만, 마감률/스트릭에는 반영되지 않습니다.
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                # 날짜 선택 시 상태바 표시
+                store_id = get_current_store_id()
+                status = None
+                if store_id and date:
+                    try:
+                        status = get_day_record_status(store_id, date)
+                    except Exception:
+                        pass
+                
+                # 상태바 표시
+                if status:
+                    has_close = status["has_close"]
+                    has_sales = status["has_sales"]
+                    has_visitors = status["has_visitors"]
                     
-                    # CTA: 지금 마감으로 승격하기
-                    if st.button("📋 지금 마감으로 승격하기", type="secondary", use_container_width=True, key="promote_to_close"):
-                        st.session_state["current_page"] = "점장 마감"
-                        st.session_state["manager_close_date"] = date
-                        st.rerun()
-                else:
-                    # ③ 아직 기록 없음
-                    st.markdown("""
-                    <div style="padding: 1.2rem; background: #f0f2f6; border-left: 4px solid #667eea; 
-                                border-radius: 12px; margin-bottom: 1.5rem;">
-                        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                            <span style="font-size: 1.5rem; margin-right: 0.5rem;">📝</span>
-                            <h3 style="color: #1f4788; margin: 0; font-size: 1.1rem; font-weight: 600;">아직 기록 없음</h3>
+                    if has_close:
+                        # ① 마감 완료(공식)
+                        st.markdown("""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                                    border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.5rem; margin-right: 0.5rem;">✅</span>
+                                <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">마감 완료(공식)</h3>
+                            </div>
+                            <div style="font-size: 0.95rem; line-height: 1.6; color: #f0fdf4; margin-top: 0.5rem;">
+                                이 화면에서는 매출과 네이버 방문자만 빠르게 수정합니다.<br>
+                                판매량/메모는 점장마감에서 수정하세요.
+                            </div>
                         </div>
-                        <div style="font-size: 0.95rem; line-height: 1.6; color: #495057; margin-top: 0.5rem;">
-                            매출과 네이버 방문자를 입력하세요.
+                        """, unsafe_allow_html=True)
+                    elif has_sales or has_visitors:
+                        # ② 임시 기록(미마감)
+                        st.markdown("""
+                        <div style="padding: 1.2rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
+                                    border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.5rem; margin-right: 0.5rem;">⚠️</span>
+                                <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">임시 기록(미마감)</h3>
+                            </div>
+                            <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb; margin-top: 0.5rem;">
+                                통계에는 반영되지만, 마감률/스트릭에는 반영되지 않습니다.
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            # 네이버 방문자 입력 (매출과 함께 저장 가능)
-            st.markdown("---")
-            st.write("**👥 네이버 방문자 (선택사항)**")
-            visitors_input = st.number_input(
-                "네이버 방문자 수",
-                min_value=0,
-                value=status["visitors_best"] if status and status["visitors_best"] is not None else 0,
-                step=1,
-                key="sales_entry_visitors"
-            )
-            
-            col1, col2 = st.columns([1, 4])
-            with col1:
-                # 저장 버튼 텍스트 분기
-                if status and status["has_close"]:
-                    button_label = "💾 매출·네이버 방문자 수정(공식 반영)"
-                elif status and (status["has_sales"] or status["has_visitors"]):
-                    button_label = "💾 임시 저장"
-                else:
-                    button_label = "💾 저장"
-                
-                if st.button(button_label, type="primary", use_container_width=True):
-                    if not store or store.strip() == "":
-                        st.error("매장명을 입력해주세요.")
-                    elif total_sales <= 0:
-                        st.error("매출은 0보다 큰 값이어야 합니다.")
+                        """, unsafe_allow_html=True)
+                        
+                        # CTA: 지금 마감으로 승격하기
+                        if st.button("📋 지금 마감으로 승격하기", type="secondary", use_container_width=True, key="promote_to_close"):
+                            st.session_state["current_page"] = "점장 마감"
+                            st.session_state["manager_close_date"] = date
+                            st.rerun()
                     else:
-                        # DB 연결 및 store_id 확인
-                        from src.auth import get_supabase_client, get_current_store_id
-                        from src.storage_supabase import _check_supabase_for_dev_mode
-                        
-                        # 1. Supabase 클라이언트 확인
-                        supabase = _check_supabase_for_dev_mode()
-                        if not supabase:
-                            st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
-                            st.session_state["sales_entry_message_type"] = "error"
-                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
-                            return
-                        
-                        # 2. Store ID 확인
-                        store_id = get_current_store_id()
-                        if not store_id:
-                            st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
-                            st.session_state["sales_entry_message_type"] = "error"
-                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
-                            return
-                        
-                        # 3. save_sales_entry로 통합 저장
-                        try:
-                            visitors_value = visitors_input if visitors_input > 0 else None
-                            result = save_sales_entry(
-                                date=date,
-                                store_name=store,
-                                card_sales=card_sales,
-                                cash_sales=cash_sales,
-                                total_sales=total_sales,
-                                visitors=visitors_value
-                            )
+                        # ③ 아직 기록 없음
+                        st.markdown("""
+                        <div style="padding: 1.2rem; background: #f0f2f6; border-left: 4px solid #667eea; 
+                                    border-radius: 12px; margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-size: 1.5rem; margin-right: 0.5rem;">📝</span>
+                                <h3 style="color: #1f4788; margin: 0; font-size: 1.1rem; font-weight: 600;">아직 기록 없음</h3>
+                            </div>
+                            <div style="font-size: 0.95rem; line-height: 1.6; color: #495057; margin-top: 0.5rem;">
+                                매출과 네이버 방문자를 입력하세요.
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # 네이버 방문자 입력 (매출과 함께 저장 가능)
+                st.markdown("---")
+                st.write("**👥 네이버 방문자 (선택사항)**")
+                visitors_input = st.number_input(
+                    "네이버 방문자 수",
+                    min_value=0,
+                    value=status["visitors_best"] if status and status["visitors_best"] is not None else 0,
+                    step=1,
+                    key="sales_entry_visitors"
+                )
+                
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    # 저장 버튼 텍스트 분기
+                    if status and status["has_close"]:
+                        button_label = "💾 매출·네이버 방문자 수정(공식 반영)"
+                    elif status and (status["has_sales"] or status["has_visitors"]):
+                        button_label = "💾 임시 저장"
+                    else:
+                        button_label = "💾 저장"
+                    
+                    if st.button(button_label, type="primary", use_container_width=True):
+                        if not store or store.strip() == "":
+                            st.error("매장명을 입력해주세요.")
+                        elif total_sales <= 0:
+                            st.error("매출은 0보다 큰 값이어야 합니다.")
+                        else:
+                            # DB 연결 및 store_id 확인
+                            from src.auth import get_supabase_client, get_current_store_id
+                            from src.storage_supabase import _check_supabase_for_dev_mode
                             
-                            if result["success"]:
-                                # 메시지 구성
-                                if result["synced_to_close"]:
-                                    message = f"""✅ {result["message"]}<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
-                                    if visitors_value is not None:
-                                        message += f"<br>👥 네이버 방문자: <strong>{visitors_value:,}명</strong>"
-                                else:
-                                    message = f"""✅ {result["message"]}<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
-                                    if visitors_value is not None:
-                                        message += f"<br>👥 네이버 방문자: <strong>{visitors_value:,}명</strong>"
-                                
-                                st.session_state["sales_entry_success_message"] = message
-                                st.session_state["sales_entry_message_type"] = "success"
-                                # Phase 0 STEP 4: 저장 성공 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
-                            else:
-                                st.session_state["sales_entry_success_message"] = f"❌ 저장 실패: {result.get('message', '알 수 없는 오류')}"
+                            # 1. Supabase 클라이언트 확인
+                            supabase = _check_supabase_for_dev_mode()
+                            if not supabase:
+                                st.session_state["sales_entry_success_message"] = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 클라이언트를 초기화할 수 없습니다.<br>• 개발 모드가 활성화되어 있거나 연결 설정을 확인해주세요."
                                 st.session_state["sales_entry_message_type"] = "error"
-                                # Phase 0 STEP 4: 저장 실패 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
-                        except Exception as e:
-                            # 예외 발생 시 상세한 에러 메시지
-                            error_msg = str(e)
-                            logger.error(f"Sales entry save error: {error_msg}", exc_info=True)
+                                # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
+                                return
                             
-                            # 사용자 친화적인 에러 메시지 구성
-                            if "No store_id found" in error_msg:
-                                user_msg = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
-                            elif "Supabase not available" in error_msg or "Supabase" in error_msg:
-                                user_msg = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 연결 설정을 확인해주세요.<br>• 네트워크 연결을 확인해주세요."
-                            else:
-                                user_msg = f"❌ 매출 저장 실패: {error_msg}<br><br>• 문제가 지속되면 관리자에게 문의해주세요."
+                            # 2. Store ID 확인
+                            store_id = get_current_store_id()
+                            if not store_id:
+                                st.session_state["sales_entry_success_message"] = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
+                                st.session_state["sales_entry_message_type"] = "error"
+                                # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
+                                return
                             
-                            st.session_state["sales_entry_success_message"] = user_msg
-                            st.session_state["sales_entry_message_type"] = "error"
-                            # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
+                            # 3. save_sales_entry로 통합 저장
+                            try:
+                                visitors_value = visitors_input if visitors_input > 0 else None
+                                result = save_sales_entry(
+                                    date=date,
+                                    store_name=store,
+                                    card_sales=card_sales,
+                                    cash_sales=cash_sales,
+                                    total_sales=total_sales,
+                                    visitors=visitors_value
+                                )
+                                
+                                if result["success"]:
+                                    # 메시지 구성
+                                    if result["synced_to_close"]:
+                                        message = f"""✅ {result["message"]}<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                        if visitors_value is not None:
+                                            message += f"<br>👥 네이버 방문자: <strong>{visitors_value:,}명</strong>"
+                                    else:
+                                        message = f"""✅ {result["message"]}<br><br>📅 날짜: {date}<br>🏪 매장: {store}<br>💰 총매출: <strong>{total_sales:,}원</strong>"""
+                                        if visitors_value is not None:
+                                            message += f"<br>👥 네이버 방문자: <strong>{visitors_value:,}명</strong>"
+                                    
+                                    st.session_state["sales_entry_success_message"] = message
+                                    st.session_state["sales_entry_message_type"] = "success"
+                                    # Phase 0 STEP 4: 저장 성공 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
+                                else:
+                                    st.session_state["sales_entry_success_message"] = f"❌ 저장 실패: {result.get('message', '알 수 없는 오류')}"
+                                    st.session_state["sales_entry_message_type"] = "error"
+                                    # Phase 0 STEP 4: 저장 실패 시 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
+                            except Exception as e:
+                                # 예외 발생 시 상세한 에러 메시지
+                                error_msg = str(e)
+                                logger.error(f"Sales entry save error: {error_msg}", exc_info=True)
+                                
+                                # 사용자 친화적인 에러 메시지 구성
+                                if "No store_id found" in error_msg:
+                                    user_msg = "❌ 매장 정보를 찾을 수 없습니다.<br><br>• 로그인 상태를 확인해주세요.<br>• 매장 정보가 올바르게 설정되어 있는지 확인해주세요."
+                                elif "Supabase not available" in error_msg or "Supabase" in error_msg:
+                                    user_msg = "❌ 데이터베이스 연결에 실패했습니다.<br><br>• Supabase 연결 설정을 확인해주세요.<br>• 네트워크 연결을 확인해주세요."
+                                else:
+                                    user_msg = f"❌ 매출 저장 실패: {error_msg}<br><br>• 문제가 지속되면 관리자에게 문의해주세요."
+                                
+                                st.session_state["sales_entry_success_message"] = user_msg
+                                st.session_state["sales_entry_message_type"] = "error"
+                                # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
+            
+            else:
+                # 일괄 입력 폼
+                sales_data = render_sales_batch_input()
                 
                 if sales_data:
                     render_section_divider()
