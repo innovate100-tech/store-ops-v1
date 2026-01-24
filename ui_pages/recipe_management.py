@@ -4,7 +4,8 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
-from src.ui_helpers import render_page_header, render_section_divider, render_section_header, safe_get_value
+from src.ui_helpers import render_section_divider, render_section_header, safe_get_value
+from src.ui.layouts.input_layouts import render_console_layout
 from src.storage_supabase import load_csv, save_recipe, update_menu_cooking_method, delete_recipe
 from src.analytics import calculate_menu_cost
 
@@ -13,9 +14,7 @@ bootstrap(page_title="Recipe Management")
 
 
 def render_recipe_management():
-    """레시피 입력 페이지 렌더링 (입력 전용)"""
-    render_page_header("🧑‍🍳 레시피 입력", "🧑‍🍳")
-    
+    """레시피 입력 페이지 렌더링 (입력 전용, CONSOLE형 레이아웃 적용)"""
     # 메뉴 및 재료 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
@@ -23,17 +22,22 @@ def render_recipe_management():
     menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
     ingredient_list = ingredient_df['재료명'].tolist() if not ingredient_df.empty else []
     
-    render_section_divider()
+    def render_dashboard_content():
+        """Top Dashboard: 메뉴/재료 현황"""
+        st.metric("등록 메뉴", f"{len(menu_list)}개")
+        st.metric("등록 재료", f"{len(ingredient_list)}개")
     
-    # 일괄 입력 전용 폼
-    st.subheader("📝 레시피 일괄 등록")
-    st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다. (최대 30개 재료)")
-    
-    if not menu_list:
-        st.warning("먼저 메뉴를 등록해주세요.")
-    elif not ingredient_list:
-        st.warning("먼저 재료를 등록해주세요.")
-    else:
+    def render_work_area_content():
+        """Work Area: 레시피 입력"""
+        # 일괄 입력 전용 폼
+        st.subheader("📝 레시피 일괄 등록")
+        st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다. (최대 30개 재료)")
+        
+        if not menu_list:
+            st.warning("먼저 메뉴를 등록해주세요.")
+        elif not ingredient_list:
+            st.warning("먼저 재료를 등록해주세요.")
+        else:
         # 메뉴 선택
         selected_menu = st.selectbox(
             "메뉴 선택",
@@ -341,11 +345,11 @@ def render_recipe_management():
                             logging.getLogger(__name__).warning(f"캐시 클리어 실패 (레시피 저장): {e}")
                         st.success(success_msg)
                         st.balloons()
-    
-    render_section_divider()
-    
-    # 레시피 검색 및 수정 (등록된 레시피 헤더 제거, 메뉴별 편집 UI만 제공)
-    recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
+        
+        render_section_divider()
+        
+        # 레시피 검색 및 수정 (등록된 레시피 헤더 제거, 메뉴별 편집 UI만 제공)
+        recipe_df = load_csv('recipes.csv', default_columns=['메뉴명', '재료명', '사용량'])
     
     if not recipe_df.empty:
         # 레시피가 있는 메뉴 목록 추출
@@ -584,46 +588,58 @@ def render_recipe_management():
                             st.markdown("<hr style='margin: 0.2rem 0; border-color: rgba(255,255,255,0.05);'>", unsafe_allow_html=True)
         else:
             st.info("등록된 레시피가 없습니다.")
-    else:
-        st.info("등록된 레시피가 없습니다.")
+        else:
+            st.info("등록된 레시피가 없습니다.")
+        
+        # 레시피 현황 표시
+        render_section_divider()
+        st.markdown("### 📋 레시피 현황")
+        
+        total_menus = len(menu_list)
+        
+        # 레시피가 있는 메뉴 개수 계산
+        if not recipe_df.empty:
+            menus_with_recipes_count = len(recipe_df['메뉴명'].unique())
+            menus_with_recipes_set = set(recipe_df['메뉴명'].unique())
+        else:
+            menus_with_recipes_count = 0
+            menus_with_recipes_set = set()
+        
+        menus_without_recipes_count = total_menus - menus_with_recipes_count
+        recipe_rate = (menus_with_recipes_count / total_menus * 100) if total_menus > 0 else 0
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("전체 메뉴", f"{total_menus}개")
+        with col2:
+            st.metric("레시피 등록", f"{menus_with_recipes_count}개", delta=f"{recipe_rate:.0f}%")
+        with col3:
+            st.metric("레시피 없음", f"{menus_without_recipes_count}개", delta=f"-{menus_without_recipes_count/total_menus*100:.0f}%" if total_menus > 0 else None)
+        
+        if menus_without_recipes_count > 0:
+            st.info(f"💡 레시피가 없는 메뉴가 {menus_without_recipes_count}개 있습니다. 레시피를 등록하면 원가 계산이 가능합니다.")
+            if st.button("📝 레시피 없는 메뉴 보기", key="show_menus_without_recipe"):
+                # 레시피가 없는 메뉴 목록 표시
+                menus_without_recipes_list = [m for m in menu_list if m not in menus_with_recipes_set]
+                
+                if menus_without_recipes_list:
+                    st.markdown("**레시피가 없는 메뉴:**")
+                    for menu_name in menus_without_recipes_list:
+                        st.write(f"- {menu_name}")
+                else:
+                    st.success("모든 메뉴에 레시피가 등록되어 있습니다!")
     
-    # 레시피 현황 표시
-    render_section_divider()
-    st.markdown("### 📋 레시피 현황")
-    
-    total_menus = len(menu_list)
-    
-    # 레시피가 있는 메뉴 개수 계산
-    if not recipe_df.empty:
-        menus_with_recipes_count = len(recipe_df['메뉴명'].unique())
-        menus_with_recipes_set = set(recipe_df['메뉴명'].unique())
-    else:
-        menus_with_recipes_count = 0
-        menus_with_recipes_set = set()
-    
-    menus_without_recipes_count = total_menus - menus_with_recipes_count
-    recipe_rate = (menus_with_recipes_count / total_menus * 100) if total_menus > 0 else 0
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("전체 메뉴", f"{total_menus}개")
-    with col2:
-        st.metric("레시피 등록", f"{menus_with_recipes_count}개", delta=f"{recipe_rate:.0f}%")
-    with col3:
-        st.metric("레시피 없음", f"{menus_without_recipes_count}개", delta=f"-{menus_without_recipes_count/total_menus*100:.0f}%" if total_menus > 0 else None)
-    
-    if menus_without_recipes_count > 0:
-        st.info(f"💡 레시피가 없는 메뉴가 {menus_without_recipes_count}개 있습니다. 레시피를 등록하면 원가 계산이 가능합니다.")
-        if st.button("📝 레시피 없는 메뉴 보기", key="show_menus_without_recipe"):
-            # 레시피가 없는 메뉴 목록 표시
-            menus_without_recipes_list = [m for m in menu_list if m not in menus_with_recipes_set]
-            
-            if menus_without_recipes_list:
-                st.markdown("**레시피가 없는 메뉴:**")
-                for menu_name in menus_without_recipes_list:
-                    st.write(f"- {menu_name}")
-            else:
-                st.success("모든 메뉴에 레시피가 등록되어 있습니다!")
+    # CONSOLE형 레이아웃 적용
+    render_console_layout(
+        title="레시피 입력",
+        icon="🧑‍🍳",
+        dashboard_content=render_dashboard_content,
+        work_area_content=render_work_area_content,
+        filter_content=None,
+        list_content=None,  # List는 Work Area 내부에 포함
+        cta_label=None,
+        cta_action=None
+    )
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때

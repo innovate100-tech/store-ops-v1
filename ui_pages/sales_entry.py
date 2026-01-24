@@ -1,15 +1,17 @@
 """
 매출 등록 페이지
+FORM형 레이아웃 적용
 """
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import logging
-from src.ui_helpers import render_page_header, render_section_divider, handle_data_error
+from src.ui_helpers import render_section_divider, handle_data_error
 from src.storage_supabase import save_sales, save_visitor, save_sales_entry, get_day_record_status
 from src.ui import render_sales_input, render_sales_batch_input, render_visitor_input, render_visitor_batch_input
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
+from src.ui.layouts.input_layouts import render_form_layout
 
 logger = logging.getLogger(__name__)
 
@@ -24,44 +26,34 @@ if not check_login():
 
 
 def render_sales_entry():
-    """매출 등록 페이지 렌더링"""
-    render_page_header("매출/방문자 입력", "💰")
+    """매출 등록 페이지 렌더링 (FORM형 레이아웃 적용)"""
     
-    # STEP 3: 보정/이관 성격 안내
-    st.markdown("""
-    <div style="padding: 1.2rem; background: #fff3cd; border-left: 4px solid #ffc107; 
-                border-radius: 8px; margin-bottom: 1.5rem;">
-        <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem;">🛠 보정 도구</div>
-        <div style="color: #856404; font-size: 0.95rem; line-height: 1.6;">
-            일반적인 매출 입력은 점장마감을 사용하세요. 이 화면은 과거 매출 입력 및 보정용입니다.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # DB 연결 상태 확인 및 표시 (디버그 모드)
-    from src.auth import is_dev_mode, get_supabase_client, get_current_store_id
-    from src.storage_supabase import _check_supabase_for_dev_mode
-    
-    if is_dev_mode():
-        with st.expander("🔍 DB 연결 상태 (개발 모드)", expanded=False):
-            supabase = _check_supabase_for_dev_mode()
-            store_id = get_current_store_id()
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if supabase:
-                    st.success("✅ Supabase 클라이언트: 연결됨")
-                else:
-                    st.error("❌ Supabase 클라이언트: 연결 실패")
-            
-            with col2:
-                if store_id:
-                    st.success(f"✅ Store ID: {store_id[:8]}...")
-                else:
-                    st.error("❌ Store ID: 없음")
-    
-    # 저장 후 메시지 표시 (세션 상태에서) - 통합된 세련된 디자인
-    if "sales_entry_success_message" in st.session_state:
+    def render_main_content():
+        """Main Card 내용: 매출/방문자 입력 UI"""
+        # DB 연결 상태 확인 및 표시 (디버그 모드)
+        from src.auth import is_dev_mode, get_supabase_client, get_current_store_id
+        from src.storage_supabase import _check_supabase_for_dev_mode
+        
+        if is_dev_mode():
+            with st.expander("🔍 DB 연결 상태 (개발 모드)", expanded=False):
+                supabase = _check_supabase_for_dev_mode()
+                store_id = get_current_store_id()
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if supabase:
+                        st.success("✅ Supabase 클라이언트: 연결됨")
+                    else:
+                        st.error("❌ Supabase 클라이언트: 연결 실패")
+                
+                with col2:
+                    if store_id:
+                        st.success(f"✅ Store ID: {store_id[:8]}...")
+                    else:
+                        st.error("❌ Store ID: 없음")
+        
+        # 저장 후 메시지 표시 (세션 상태에서) - 통합된 세련된 디자인
+        if "sales_entry_success_message" in st.session_state:
         msg = st.session_state["sales_entry_success_message"]
         msg_type = st.session_state.get("sales_entry_message_type", "success")
         
@@ -148,20 +140,20 @@ def render_sales_entry():
                     del st.session_state["sales_entry_message_type"]
                 # Phase 0 STEP 3: 플래그 삭제만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
         
+            render_section_divider()
+        
+        # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
+        category = st.radio(
+            "카테고리",
+            ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
+            horizontal=True,
+            key="sales_entry_sales_category"
+        )
+        
         render_section_divider()
-    
-    # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
-    category = st.radio(
-        "카테고리",
-        ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
-        horizontal=True,
-        key="sales_entry_sales_category"
-    )
-    
-    render_section_divider()
-    
-    # ========== 매출 입력 섹션 ==========
-    if category == "💰 매출":
+        
+        # ========== 매출 입력 섹션 ==========
+        if category == "💰 매출":
         # 입력 모드 선택 (단일 / 일괄)
         input_mode = st.radio(
             "입력 모드",
@@ -459,9 +451,9 @@ def render_sales_entry():
                             # Phase 0 STEP 4: 에러 메시지는 session_state 변경만으로 표시되므로 rerun 불필요
                         elif not real_errors and not warnings:
                             st.info("💡 저장할 데이터가 없습니다.")
-    
-    # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
-    else:
+        
+        # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
+        else:
         # 입력 모드 선택 (단일 / 일괄)
         input_mode = st.radio(
             "입력 모드",
@@ -535,6 +527,22 @@ def render_sales_entry():
                             st.success(f"✅ {success_count}일의 네이버 스마트플레이스 방문자수가 저장되었습니다!")
                             st.balloons()
                             # Phase 0 STEP 4: 일괄 저장 완료 후 session_state 변경만으로 메시지가 표시되므로 rerun 불필요
+    
+    # FORM형 레이아웃 적용
+    render_form_layout(
+        title="매출/방문자 입력",
+        icon="💰",
+        status_badge=None,
+        guide_kind="G2",
+        guide_conclusion=None,  # 기본값 사용
+        guide_bullets=None,  # 기본값 사용
+        guide_next_action=None,  # 기본값 사용
+        summary_items=None,  # Summary Strip 사용 안 함 (여러 날짜 입력 가능)
+        mini_progress_items=None,  # Mini Progress Panel 사용 안 함
+        action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
+        action_secondary=None,
+        main_content=render_main_content
+    )
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때

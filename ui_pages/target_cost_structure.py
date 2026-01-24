@@ -5,7 +5,8 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import time
-from src.ui_helpers import render_page_header, render_section_header, render_section_divider, safe_get_value
+from src.ui_helpers import render_section_header, render_section_divider, safe_get_value
+from src.ui.layouts.input_layouts import render_form_layout
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import load_csv, load_expense_structure, save_expense_item, update_expense_item, delete_expense_item, copy_expense_structure_from_previous_month, save_targets, get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales, load_monthly_sales_total
 from src.utils.crud_guard import run_write
@@ -24,11 +25,9 @@ import logging
 
 
 def render_target_cost_structure():
-    """목표 비용구조 페이지 렌더링 (목표 비용 구조 입력)"""
+    """목표 비용구조 페이지 렌더링 (목표 비용 구조 입력, FORM형 레이아웃 적용)"""
     # 성능 측정 시작
     t0 = time.perf_counter()
-    
-    render_page_header("비용 목표 입력", "💳")
     
     # 기존 기능만 유지 (공통 프레임 제거)
     store_id = get_current_store_id()
@@ -39,8 +38,58 @@ def render_target_cost_structure():
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # 기존 입력 기능만 렌더링
-    _render_revenue_design_tools(current_year, current_month, store_id)
+    # SummaryStrip용 값 계산 (기존 로직 사용)
+    selected_year = st.session_state.get("expense_year", current_year)
+    selected_month = st.session_state.get("expense_month", current_month)
+    expense_df = load_expense_structure(selected_year, selected_month, store_id)
+    fixed_costs = get_fixed_costs(store_id, selected_year, selected_month) if store_id else 0.0
+    variable_cost_ratio = get_variable_cost_ratio(store_id, selected_year, selected_month) if store_id else 0.0
+    breakeven_sales = calculate_break_even_sales(store_id, selected_year, selected_month) if store_id else 0.0
+    
+    # SummaryStrip 항목 구성 (기존 값 사용)
+    summary_items = [
+        {
+            "label": "목표 기간",
+            "value": f"{selected_year}년 {selected_month}월",
+            "badge": None
+        },
+        {
+            "label": "고정비",
+            "value": f"{int(fixed_costs):,}원" if fixed_costs > 0 else "미입력",
+            "badge": "success" if fixed_costs > 0 else "warning"
+        },
+        {
+            "label": "변동비율",
+            "value": f"{variable_cost_ratio * 100:.1f}%" if variable_cost_ratio > 0 else "미입력",
+            "badge": "success" if variable_cost_ratio > 0 else "warning"
+        },
+        {
+            "label": "손익분기점",
+            "value": f"{int(breakeven_sales):,}원" if breakeven_sales > 0 else "미계산",
+            "badge": None
+        }
+    ]
+    
+    def render_main_content():
+        """Main Card 내용: 목표 비용 구조 입력 UI"""
+        # 기존 입력 기능만 렌더링
+        _render_revenue_design_tools(current_year, current_month, store_id)
+    
+    # FORM형 레이아웃 적용
+    render_form_layout(
+        title="비용 목표 입력",
+        icon="💳",
+        status_badge=None,
+        guide_kind="G3",
+        guide_conclusion=None,  # 기본값 사용
+        guide_bullets=None,  # 기본값 사용
+        guide_next_action=None,  # 기본값 사용
+        summary_items=summary_items,
+        mini_progress_items=None,  # Mini Progress Panel 사용 안 함
+        action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
+        action_secondary=None,
+        main_content=render_main_content
+    )
 
 
 def _render_revenue_design_tools(year: int, month: int, store_id: str):

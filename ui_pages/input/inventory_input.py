@@ -7,7 +7,8 @@ import streamlit as st
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from src.ui_helpers import render_page_header, ui_flash_success, ui_flash_error, render_section_header
+from src.ui_helpers import ui_flash_success, ui_flash_error, render_section_header
+from src.ui.layouts.input_layouts import render_console_layout
 from src.storage_supabase import load_csv, save_inventory, soft_invalidate, clear_session_cache
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_ingredient_usage, calculate_order_recommendation
@@ -61,9 +62,7 @@ def _calculate_status(current, safety):
 
 
 def render_inventory_input_page():
-    """재고 입력 페이지 렌더링 (대량 입력 중심)"""
-    render_page_header("📦 재고 입력", "📦")
-    
+    """재고 입력 페이지 렌더링 (대량 입력 중심, CONSOLE형 레이아웃 적용)"""
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -117,31 +116,36 @@ def render_inventory_input_page():
         except Exception as e:
             logger.warning(f"발주 추천 계산 실패: {e}")
     
-    # ============================================
-    # ZONE A: 대시보드 & 빠른 액션
-    # ============================================
-    _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order)
+    def render_dashboard_content():
+        """Top Dashboard: ZONE A"""
+        _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order)
     
-    st.markdown("---")
+    def render_work_area_content():
+        """Work Area: Filter + ZONE B"""
+        # 필터 & 검색
+        filtered_ingredient_df = _render_filters(ingredient_df, inventory_map, categories)
+        st.markdown("---")
+        # ZONE B: 대량 입력 테이블
+        _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, ingredient_df, inventory_map, categories)
+        # ZONE C도 여기서 처리 (filtered_ingredient_df 접근을 위해)
+        st.markdown("---")
+        _render_zone_c_save_validation(store_id, filtered_ingredient_df, ingredient_df, inventory_map)
     
-    # ============================================
-    # 필터 & 검색
-    # ============================================
-    filtered_ingredient_df = _render_filters(ingredient_df, inventory_map, categories)
+    def render_list_content():
+        """List/Editor: 사용 안 함 (Work Area에 포함)"""
+        pass
     
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE B: 대량 입력 테이블
-    # ============================================
-    _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, ingredient_df, inventory_map, categories)
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE C: 저장 & 검증
-    # ============================================
-    _render_zone_c_save_validation(store_id, filtered_ingredient_df, ingredient_df, inventory_map)
+    # CONSOLE형 레이아웃 적용
+    render_console_layout(
+        title="재고 입력",
+        icon="📦",
+        dashboard_content=render_dashboard_content,
+        work_area_content=render_work_area_content,
+        filter_content=None,  # Filter는 Work Area 내부에서 처리
+        list_content=render_list_content,
+        cta_label=None,
+        cta_action=None
+    )
 
 
 def _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order):

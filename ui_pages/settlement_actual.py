@@ -10,7 +10,8 @@ from src.utils.time_utils import current_year_kst, current_month_kst
 
 # Phase G: 로깅 설정
 logger = logging.getLogger(__name__)
-from src.ui_helpers import render_page_header, render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
+from src.ui_helpers import render_section_divider, safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
+from src.ui.layouts.input_layouts import render_form_layout
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -1484,19 +1485,13 @@ def _render_settlement_history(store_id: str):
 
 
 def render_settlement_actual():
-    """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드)"""
+    """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드, FORM형 레이아웃 적용)"""
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
         st.caption("✅ Settlement Phase H ACTIVE")
         
         # 인증 및 store_id 확인 (Phase B)
         user_id, store_id = require_auth_and_store()
-        
-        # 페이지 제목
-        render_page_header("월간 정산 입력", "📅")
-        
-        # PHASE 7-4: PDF 성적표 다운로드 버튼 (임시로 여기 배치, 나중에 year/month 확인 후 이동 가능)
-        # 일단 여기서는 year/month를 아직 모르므로, _render_header_section 이후에 추가
         
         # Phase H: 히스토리에서 이동한 경우 우선 처리
         # 플래그가 있으면 해당 연/월을 사용하고, 위젯 키를 강제로 변경하기 위한 플래그 설정
@@ -1518,86 +1513,121 @@ def render_settlement_actual():
             else:
                 initial_month = current_month_kst()
         
-        # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly는 내부에서 확인)
-        # _render_header_section 내부에서 month_status를 확인하므로 여기서는 readonly를 False로 전달
-        year, month, expense_items, total_sales, totals, readonly = _render_header_section(
-            store_id, initial_year, initial_month, readonly=False
-        )
+        def render_main_content():
+            """Main Card 내용: 실제정산 입력 UI"""
+            # 상단 영역 (연/월 선택, KPI 카드, 템플릿 리셋 버튼, Phase F: readonly는 내부에서 확인)
+            # _render_header_section 내부에서 month_status를 확인하므로 여기서는 readonly를 False로 전달
+            year, month, expense_items, total_sales, totals, readonly = _render_header_section(
+                store_id, initial_year, initial_month, readonly=False
+            )
         
-        # PHASE 7-4: PDF 성적표 다운로드 버튼
-        try:
-            from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
+            # PHASE 7-4: PDF 성적표 다운로드 버튼
+            try:
+                from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
+                
+                col1, col2 = st.columns([3, 1])
+                with col2:
+                    if st.button("📄 이번 달 성적표 PDF 받기", key="pdf_scorecard_download", use_container_width=True, type="primary"):
+                        # 생성 가능 여부 확인
+                        can_generate, reason = can_generate_scorecard(store_id, year, month)
+                        if not can_generate:
+                            st.warning(reason)
+                        else:
+                            # PDF 생성
+                            with st.spinner("PDF 생성 중..."):
+                                try:
+                                    pdf_bytes = build_scorecard_pdf_bytes(store_id, year, month)
+                                    filename = f"성적표_{year}년{month:02d}월.pdf"
+                                    st.download_button(
+                                        label="📥 PDF 다운로드",
+                                        data=pdf_bytes,
+                                        file_name=filename,
+                                        mime="application/pdf",
+                                        key="pdf_download_button",
+                                        use_container_width=True
+                                    )
+                                except Exception as e:
+                                    logger.error(f"PDF generation error: {e}")
+                                    st.error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
+            except ImportError as e:
+                # PDF 모듈이 없으면 버튼 숨김
+                pass
+            except Exception as e:
+                logger.error(f"PDF button error: {e}")
+                # 에러가 나도 페이지는 계속 렌더링
             
-            col1, col2 = st.columns([3, 1])
-            with col2:
-                if st.button("📄 이번 달 성적표 PDF 받기", key="pdf_scorecard_download", use_container_width=True, type="primary"):
-                    # 생성 가능 여부 확인
-                    can_generate, reason = can_generate_scorecard(store_id, year, month)
-                    if not can_generate:
-                        st.warning(reason)
-                    else:
-                        # PDF 생성
-                        with st.spinner("PDF 생성 중..."):
-                            try:
-                                pdf_bytes = build_scorecard_pdf_bytes(store_id, year, month)
-                                filename = f"성적표_{year}년{month:02d}월.pdf"
-                                st.download_button(
-                                    label="📥 PDF 다운로드",
-                                    data=pdf_bytes,
-                                    file_name=filename,
-                                    mime="application/pdf",
-                                    key="pdf_download_button",
-                                    use_container_width=True
-                                )
-                            except Exception as e:
-                                logger.error(f"PDF generation error: {e}")
-                                st.error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
-        except ImportError as e:
-            # PDF 모듈이 없으면 버튼 숨김
-            pass
-        except Exception as e:
-            logger.error(f"PDF button error: {e}")
-            # 에러가 나도 페이지는 계속 렌더링
-        
-        render_section_divider()
-        
-        # 구조 리포트 섹션 (STEP 10-2) - 비용 입력 전에 배치
-        _render_structure_report_section(store_id, year, month)
-        
-        render_section_divider()
-        
-        # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
-        _render_expense_section(store_id, year, month, total_sales, readonly)
-        
-        # 분석 영역 (Phase E: 성적표) - lazy loading (expander)
-        # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
-        if 'settlement_analysis_expanded' not in st.session_state:
-            st.session_state['settlement_analysis_expanded'] = False
-        
-        with st.expander("📊 이번 달 성적표 (목표 대비)", expanded=st.session_state['settlement_analysis_expanded']):
-            if st.session_state['settlement_analysis_expanded']:
-                _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
-            else:
-                st.info("💡 펼치면 이번 달 성적표를 확인할 수 있습니다.")
-                if st.button("📊 성적표 보기", key="settlement_expand_analysis", use_container_width=True):
-                    # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+            render_section_divider()
+            
+            # 구조 리포트 섹션 (STEP 10-2) - 비용 입력 전에 배치
+            _render_structure_report_section(store_id, year, month)
+            
+            render_section_divider()
+            
+            # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
+            _render_expense_section(store_id, year, month, total_sales, readonly)
+            
+            # 분석 영역 (Phase E: 성적표) - lazy loading (expander)
+            # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
+            if 'settlement_analysis_expanded' not in st.session_state:
+                st.session_state['settlement_analysis_expanded'] = False
+            
+            with st.expander("📊 이번 달 성적표 (목표 대비)", expanded=st.session_state['settlement_analysis_expanded']):
+                if st.session_state['settlement_analysis_expanded']:
                     _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
-                    st.session_state['settlement_analysis_expanded'] = True
-        
-        # Phase H: 월별 히스토리 섹션 - lazy loading (expander)
-        # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
-        if 'settlement_history_expanded' not in st.session_state:
-            st.session_state['settlement_history_expanded'] = False
-        
-        with st.expander("📊 월별 성적 히스토리", expanded=st.session_state['settlement_history_expanded']):
-            if st.session_state['settlement_history_expanded']:
-                _render_settlement_history(store_id)
-            else:
-                st.info("💡 펼치면 최근 월별 성적 히스토리를 확인할 수 있습니다.")
-                if st.button("📅 히스토리 보기", key="settlement_expand_history", use_container_width=True):
-                    # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                else:
+                    st.info("💡 펼치면 이번 달 성적표를 확인할 수 있습니다.")
+                    if st.button("📊 성적표 보기", key="settlement_expand_analysis", use_container_width=True):
+                        # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                        _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
+                        st.session_state['settlement_analysis_expanded'] = True
+            
+            # Phase H: 월별 히스토리 섹션 - lazy loading (expander)
+            # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
+            if 'settlement_history_expanded' not in st.session_state:
+                st.session_state['settlement_history_expanded'] = False
+            
+            with st.expander("📊 월별 성적 히스토리", expanded=st.session_state['settlement_history_expanded']):
+                if st.session_state['settlement_history_expanded']:
                     _render_settlement_history(store_id)
-                    st.session_state['settlement_history_expanded'] = True
+                else:
+                    st.info("💡 펼치면 최근 월별 성적 히스토리를 확인할 수 있습니다.")
+                    if st.button("📅 히스토리 보기", key="settlement_expand_history", use_container_width=True):
+                        # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
+                        _render_settlement_history(store_id)
+                        st.session_state['settlement_history_expanded'] = True
+            
+            # SummaryStrip용 값 반환 (클로저로 접근)
+            return year, month, total_sales, totals
+        
+        # SummaryStrip용 값 가져오기 (임시 렌더링)
+        # 실제로는 _render_header_section에서 반환되는 값 사용
+        temp_year = st.session_state.get("settlement_year", current_year_kst())
+        temp_month = st.session_state.get("settlement_month", current_month_kst())
+        
+        # SummaryStrip 항목 구성 (기존 값 사용)
+        summary_items = [
+            {
+                "label": "정산 기간",
+                "value": f"{temp_year}년 {temp_month}월",
+                "badge": None
+            }
+        ]
+        
+        # FORM형 레이아웃 적용
+        render_form_layout(
+            title="월간 정산 입력",
+            icon="📅",
+            status_badge=None,
+            guide_kind="G3",
+            guide_conclusion=None,  # 기본값 사용
+            guide_bullets=None,  # 기본값 사용
+            guide_next_action=None,  # 기본값 사용
+            summary_items=summary_items,
+            mini_progress_items=None,  # Mini Progress Panel 사용 안 함
+            action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
+            action_secondary=None,
+            main_content=render_main_content
+        )
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시

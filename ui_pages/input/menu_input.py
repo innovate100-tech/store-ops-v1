@@ -6,7 +6,8 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import logging
-from src.ui_helpers import render_page_header, ui_flash_success, ui_flash_error, render_section_header
+from src.ui_helpers import ui_flash_success, ui_flash_error, render_section_header
+from src.ui.layouts.input_layouts import render_console_layout
 from src.storage_supabase import load_csv, save_menu, update_menu, update_menu_category, delete_menu
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_menu_cost
@@ -29,9 +30,7 @@ ROLE_TAGS = ["미끼", "볼륨", "마진"]
 
 
 def render_menu_input_page():
-    """판매 메뉴 입력 페이지 렌더링 (5-Zone 구조)"""
-    render_page_header("메뉴 입력", "📘")
-    
+    """판매 메뉴 입력 페이지 렌더링 (5-Zone 구조, CONSOLE형 레이아웃 적용)"""
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -59,37 +58,40 @@ def render_menu_input_page():
     if not recipe_df.empty:
         menu_has_recipe = {menu: True for menu in recipe_df['메뉴명'].unique()}
     
-    # ============================================
-    # ZONE A: 대시보드 & 현황 요약
-    # ============================================
-    _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe)
+    def render_dashboard_content():
+        """Top Dashboard: ZONE A"""
+        _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe)
     
+    def render_work_area_content():
+        """Work Area: ZONE B"""
+        _render_zone_b_input(store_id)
+    
+    def render_list_content():
+        """List/Editor: ZONE C (Filter) + ZONE D (List)"""
+        # ZONE C: 필터 & 검색
+        filtered_menu_df = _render_zone_c_filters(menu_df, categories, roles, menu_has_recipe)
+        st.markdown("---")
+        # ZONE D: 메뉴 목록 & 관리
+        _render_zone_d_menu_list(filtered_menu_df, categories, roles, menu_has_recipe, menu_cost_df, store_id)
+    
+    def render_cta_action():
+        """Bottom CTA: ZONE E"""
+        _render_zone_e_management(menu_df, categories, roles, store_id)
+    
+    # CONSOLE형 레이아웃 적용
+    render_console_layout(
+        title="메뉴 입력",
+        icon="📘",
+        dashboard_content=render_dashboard_content,
+        work_area_content=render_work_area_content,
+        filter_content=None,  # Filter는 List 내부에서 처리
+        list_content=render_list_content,
+        cta_label=None,  # CTA는 별도 섹션으로 처리
+        cta_action=None
+    )
+    
+    # ZONE E는 레이아웃 외부에 배치 (기존 구조 유지)
     st.markdown("---")
-    
-    # ============================================
-    # ZONE B: 메뉴 입력 (단일/일괄)
-    # ============================================
-    _render_zone_b_input(store_id)
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE C: 필터 & 검색
-    # ============================================
-    filtered_menu_df = _render_zone_c_filters(menu_df, categories, roles, menu_has_recipe)
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE D: 메뉴 목록 & 관리
-    # ============================================
-    _render_zone_d_menu_list(filtered_menu_df, categories, roles, menu_has_recipe, menu_cost_df, store_id)
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE E: 메뉴분류 & 해시태그 관리
-    # ============================================
     _render_zone_e_management(menu_df, categories, roles, store_id)
 
 
