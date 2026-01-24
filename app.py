@@ -327,64 +327,20 @@ st.markdown("""
         border-radius: 12px !important;
     }
     
-    /* CSS 변수 정의 */
-    :root {
-        --sidebar-width: 15rem;
-        --sidebar-width-px: 240px;
-    }
-    
-    /* 사이드바 기본 폭 - 모든 가능한 선택자 (최고 우선순위) */
-    [data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
-    section[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
-    div[data-testid="stSidebar"]:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
-    .css-1d391kg:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]),
-    .css-1lcbmhc:not(.sidebar-collapsed):not([data-sidebar-collapsed="true"]) {
-        width: 15rem !important;
-        min-width: 15rem !important;
-        max-width: 15rem !important;
-        flex-basis: 15rem !important;
-        flex: 0 0 15rem !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
-        transition: width 0.3s ease, flex-basis 0.3s ease !important;
-    }
-    
-    /* 접힌 상태 - 모든 가능한 선택자 (최고 우선순위) */
-    [data-testid="stSidebar"].sidebar-collapsed,
-    [data-testid="stSidebar"][data-sidebar-collapsed="true"],
-    section[data-testid="stSidebar"].sidebar-collapsed,
-    section[data-testid="stSidebar"][data-sidebar-collapsed="true"],
-    div[data-testid="stSidebar"].sidebar-collapsed,
-    div[data-testid="stSidebar"][data-sidebar-collapsed="true"],
-    .css-1d391kg.sidebar-collapsed,
-    .css-1d391kg[data-sidebar-collapsed="true"],
-    .css-1lcbmhc.sidebar-collapsed,
-    .css-1lcbmhc[data-sidebar-collapsed="true"] {
-        width: 4rem !important;
-        min-width: 4rem !important;
-        max-width: 4rem !important;
-        flex-basis: 4rem !important;
-        flex: 0 0 4rem !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
-    }
-    
-    /* 메인 콘텐츠 영역 조정 - JavaScript에서 동적으로 처리 */
-    
-    /* 접힌 상태에서 텍스트 숨김 */
-    [data-testid="stSidebar"].sidebar-collapsed .stMarkdown:not(.keep-visible),
-    [data-testid="stSidebar"].sidebar-collapsed .stSelectbox,
-    [data-testid="stSidebar"].sidebar-collapsed .stExpander {
+    /* Streamlit 기본 사이드바 완전히 숨기기 (커스텀 사이드바 사용) */
+    [data-testid="stSidebar"],
+    section[data-testid="stSidebar"],
+    div[data-testid="stSidebar"],
+    .css-1d391kg,
+    .css-1lcbmhc {
         display: none !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
     }
     
-    /* 접힌 상태에서 버튼 중앙 정렬 */
-    [data-testid="stSidebar"].sidebar-collapsed .stButton > button {
-        justify-content: center !important;
-        padding: 0.5rem !important;
-    }
-    
-    /* Streamlit 네이티브 토글 버튼 완전히 숨김 및 비활성화 (최우선) */
+    /* Streamlit 네이티브 토글 버튼 완전히 숨김 */
     button[aria-label*="sidebar"],
     button[aria-label*="메뉴"],
     button[aria-label*="Menu"],
@@ -419,7 +375,7 @@ st.markdown("""
         visibility: hidden !important;
     }
     
-    /* 사이드바가 항상 표시되도록 강제 */
+    /* 메인 콘텐츠 영역은 커스텀 사이드바 JavaScript에서 조정 */
     [data-testid="stSidebar"],
     section[data-testid="stSidebar"],
     div[data-testid="stSidebar"] {
@@ -1334,39 +1290,219 @@ def render_collapsed_sidebar(menu):
         load_csv.clear()
         st.rerun()
 
-def render_sidebar():
-    """사이드바 메인 렌더링 함수"""
-    with st.sidebar:
-        # 사이드바 상태를 data attribute로 설정
-        collapsed_state = "true" if st.session_state.sidebar_collapsed else "false"
-        st.markdown(f"""
-        <div data-sidebar-state="{collapsed_state}" style="display:none;"></div>
-        <script>
-        (function() {{
-            const stateDiv = document.querySelector('[data-sidebar-state]');
-            const collapsed = stateDiv ? stateDiv.getAttribute('data-sidebar-state') === 'true' : false;
-            const sidebar = document.querySelector('[data-testid="stSidebar"]');
-            if (sidebar) {{
-                sidebar.setAttribute('data-sidebar-collapsed', collapsed ? 'true' : 'false');
-            }}
-        }})();
-        </script>
+def render_custom_sidebar(menu):
+    """커스텀 사이드바 렌더링 함수 (Streamlit 기본 사이드바 대신)"""
+    # 사이드바 상태 초기화
+    if "sidebar_collapsed" not in st.session_state:
+        st.session_state.sidebar_collapsed = False
+    
+    collapsed = st.session_state.sidebar_collapsed
+    sidebar_width = "4rem" if collapsed else "15rem"
+    current_page = st.session_state.get("current_page", "홈")
+    
+    # 커스텀 사이드바 CSS (전역에 한 번만 추가)
+    if "custom_sidebar_css_injected" not in st.session_state:
+        st.session_state.custom_sidebar_css_injected = True
+        st.markdown("""
+        <style>
+        /* Streamlit 기본 사이드바 완전히 숨기기 */
+        [data-testid="stSidebar"],
+        section[data-testid="stSidebar"],
+        div[data-testid="stSidebar"] {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+        }
+        
+        /* 커스텀 사이드바 컨테이너 */
+        #custom-sidebar-container {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            background: var(--surface-bg, #1E293B);
+            border-right: 1px solid rgba(232, 238, 247, 0.12);
+            z-index: 999;
+            transition: width 0.3s ease;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem 0.5rem;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #custom-sidebar-container.collapsed {
+            width: 4rem;
+        }
+        
+        #custom-sidebar-container.expanded {
+            width: 15rem;
+        }
+        
+        /* 커스텀 사이드바 내부 버튼 스타일 */
+        #custom-sidebar-container .stButton > button {
+            width: 100% !important;
+            margin-bottom: 0.25rem !important;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        
+        #custom-sidebar-container.collapsed .stButton > button {
+            justify-content: center !important;
+            padding: 0.75rem 0.5rem !important;
+        }
+        
+        /* 카테고리 제목 */
+        .custom-sidebar-category {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: var(--text-muted, #94A3B8);
+            text-transform: uppercase;
+            padding: 0 0.5rem;
+        }
+        
+        #custom-sidebar-container.collapsed .custom-sidebar-category {
+            display: none;
+        }
+        
+        /* 메인 콘텐츠 영역 margin-left 조정 */
+        .main .block-container,
+        [data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"]),
+        [data-testid="stAppViewContainer"] {
+            transition: margin-left 0.3s ease !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
+    
+    # 사이드바 컨테이너 시작
+    sidebar_class = "collapsed" if collapsed else "expanded"
+    st.markdown(f'<div id="custom-sidebar-container" class="{sidebar_class}">', unsafe_allow_html=True)
+    
+    # 토글 버튼 (Streamlit 버튼 사용)
+    toggle_label = "▶" if collapsed else "◀ 접기"
+    if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
+        st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+        st.rerun()
+    
+    # 사이드바 메뉴 렌더링
+    for cat, data in menu.items():
+        # 카테고리 제목
+        if not collapsed:
+            st.markdown(f'<div class="custom-sidebar-category">{cat}</div>', unsafe_allow_html=True)
         
-        # 토글 버튼
-        toggle_icon = "◀ 접기" if not st.session_state.sidebar_collapsed else "▶ 펼치기"
-        if st.button(toggle_icon, key="sidebar_toggle", use_container_width=True):
-            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
-            st.rerun()
-        
-        # 접힌 상태 처리
-        if st.session_state.sidebar_collapsed:
-            render_collapsed_sidebar(menu)
+        # 메뉴 항목
+        if isinstance(data, list):
+            # 단순 리스트
+            for label, key in data:
+                icon = "🏠" if "홈" in label else "🛠"
+                is_active = "primary" if current_page == key else "secondary"
+                if collapsed:
+                    if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
+                        st.session_state.current_page = key
+                        st.rerun()
+                else:
+                    if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
+                        st.session_state.current_page = key
+                        st.rerun()
         else:
-            render_expanded_sidebar(menu)
+            # 딕셔너리 (main/sub)
+            # Main 항목
+            for label, key in data["main"]:
+                icon = "🧠" if "설계" in cat else "📊" if "분석" in cat else "✍"
+                is_active = "primary" if current_page == key else "secondary"
+                if collapsed:
+                    if st.button(icon, key=f"nav_{key}", help=label, type=is_active):
+                        st.session_state.current_page = key
+                        st.rerun()
+                else:
+                    if st.button(f"{icon} {label}", key=f"nav_{key}", use_container_width=True, type=is_active):
+                        st.session_state.current_page = key
+                        st.rerun()
+            
+            # Sub 항목 (접힌 상태에서는 숨김)
+            if not collapsed:
+                for label, key in data["sub"]:
+                    is_active = "primary" if current_page == key else "secondary"
+                    if st.button(label, key=f"nav_{key}", use_container_width=True, type=is_active):
+                        st.session_state.current_page = key
+                        st.rerun()
+    
+    # 매장 선택
+    if not collapsed:
+        user_stores = get_user_stores()
+        if len(user_stores) > 1:
+            st.markdown('<div class="custom-sidebar-category">매장 선택</div>', unsafe_allow_html=True)
+            store_options = {f"{s['name']} ({s['role']})": s['id'] for s in user_stores}
+            curr_name = get_current_store_name()
+            selected_display = f"{curr_name} ({next((s['role'] for s in user_stores if s['name'] == curr_name), '')})"
+            selected = st.selectbox("", options=list(store_options.keys()), 
+                                  index=list(store_options.keys()).index(selected_display) if selected_display in store_options else 0,
+                                  key="custom_store_select", label_visibility="collapsed")
+            if selected != selected_display:
+                switch_store(store_options[selected])
+                st.rerun()
+    
+    # 로그아웃, 캐시 클리어
+    st.markdown('<div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid rgba(232, 238, 247, 0.12);">', unsafe_allow_html=True)
+    if not collapsed:
+        st.markdown('<div class="custom-sidebar-category">시스템</div>', unsafe_allow_html=True)
+    
+    if st.button("🚪 로그아웃", key="custom_logout", use_container_width=True):
+        logout()
+        st.rerun()
+    if st.button("🔄 캐시 클리어", key="custom_cache_clear", use_container_width=True):
+        load_csv.clear()
+        st.rerun()
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
+    
+    # 사이드바 컨테이너 종료
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화
+    st.markdown(f"""
+    <script>
+    (function() {{
+        const sidebar = document.getElementById('custom-sidebar-container');
+        const targetWidth = '{sidebar_width}';
+        
+        if (sidebar) {{
+            sidebar.style.width = targetWidth;
+        }}
+        
+        // 메인 콘텐츠 영역 margin-left 조정
+        function adjustMainContent() {{
+            const mainContent = document.querySelector('.main .block-container') || 
+                               document.querySelector('[data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"])');
+            if (mainContent) {{
+                mainContent.style.marginLeft = targetWidth;
+            }}
+            
+            // Streamlit 앱 컨테이너도 조정
+            const appContainer = document.querySelector('[data-testid="stAppViewContainer"]');
+            if (appContainer) {{
+                appContainer.style.marginLeft = targetWidth;
+            }}
+        }}
+        
+        // 즉시 실행
+        adjustMainContent();
+        
+        // DOM 변경 감지
+        const observer = new MutationObserver(adjustMainContent);
+        observer.observe(document.body, {{ childList: true, subtree: true }});
+        
+        // 주기적 확인 (안전장치)
+        setInterval(adjustMainContent, 100);
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
 
-# 사이드바 렌더링
-render_sidebar()
+# 커스텀 사이드바 렌더링 (Streamlit 기본 사이드바 대신)
+render_custom_sidebar(menu)
 
 # Page Routing
 page = st.session_state.current_page
