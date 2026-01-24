@@ -130,9 +130,9 @@ def render_input_hub_v3():
     if assets.get('has_target'): score += 25
 
     # [1] 통합 가이드 카드 (철학적 가이드 + 디지털 성숙도 게이지)
-    # margin-top: -1.5rem을 적용하여 제목 섹션과의 간격을 대폭 축소
+    # 겹침 방지를 위해 margin-top 제거 및 여백 표준화
     st.markdown(f"""
-    <div style="padding: 1.5rem; background-color: #111827; border-radius: 12px; border-left: 5px solid #3b82f6; margin-top: -1.5rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+    <div style="padding: 1.5rem; background-color: #111827; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem;">
             <div>
                 <h4 style="margin: 0 0 0.5rem 0; color: #ffffff; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4>

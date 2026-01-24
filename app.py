@@ -78,6 +78,17 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif !important; }
+    
+    /* 상단 여백 강제 축소 */
+    .main .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 1rem !important;
+    }
+    [data-testid="stHeader"] {
+        background: rgba(0,0,0,0);
+        height: 0px;
+    }
+    
     [data-testid="stIconMaterial"] {
         display: inline-flex; align-items: center; justify-content: center;
         width: 28px; height: 28px; border-radius: 999px; background-color: #667eea;
