@@ -1674,7 +1674,7 @@ with st.sidebar:
                 with st.sidebar.expander("세부설계선택", expanded=False):
                     for idx, (label, key) in enumerate(design_sub_items):
                         is_selected = selected_page_key == key
-                        btn = st.button(
+                        btn = st.sidebar.button(
                             label,
                             key=f"design_sub_btn_{label}_{idx}",
                             use_container_width=True,
