@@ -1322,26 +1322,33 @@ def render_custom_sidebar(menu):
         
         /* 커스텀 사이드바 컨테이너 */
         #custom-sidebar-container {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100vh;
-            background: var(--surface-bg, #1E293B);
-            border-right: 1px solid rgba(232, 238, 247, 0.12);
-            z-index: 999;
-            transition: width 0.3s ease;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 1rem 0.5rem;
-            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            height: 100vh !important;
+            width: 15rem !important;
+            max-width: 15rem !important;
+            min-width: 15rem !important;
+            background: var(--surface-bg, #1E293B) !important;
+            border-right: 1px solid rgba(232, 238, 247, 0.12) !important;
+            z-index: 999 !important;
+            transition: width 0.3s ease !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            padding: 1rem 0.5rem !important;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1) !important;
         }
         
         #custom-sidebar-container.collapsed {
-            width: 4rem;
+            width: 4rem !important;
+            max-width: 4rem !important;
+            min-width: 4rem !important;
         }
         
         #custom-sidebar-container.expanded {
-            width: 15rem;
+            width: 15rem !important;
+            max-width: 15rem !important;
+            min-width: 15rem !important;
         }
         
         /* 커스텀 사이드바 내부 버튼 스타일 */
@@ -1372,11 +1379,31 @@ def render_custom_sidebar(menu):
             display: none;
         }
         
-        /* 메인 콘텐츠 영역 margin-left 조정 */
+        /* 메인 콘텐츠 영역 margin-left 조정 - JavaScript에서 동적으로 설정 */
         .main .block-container,
         [data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"]),
         [data-testid="stAppViewContainer"] {
             transition: margin-left 0.3s ease !important;
+        }
+        
+        /* Streamlit 기본 레이아웃 강제 조정 */
+        [data-testid="stAppViewContainer"] {
+            display: flex !important;
+            flex-direction: row !important;
+        }
+        
+        /* 메인 콘텐츠가 사이드바 옆에 오도록 */
+        .main {
+            margin-left: 15rem !important;
+            transition: margin-left 0.3s ease !important;
+            width: calc(100% - 15rem) !important;
+        }
+        
+        /* 접힌 상태일 때 */
+        body:has(#custom-sidebar-container.collapsed) .main,
+        html:has(#custom-sidebar-container.collapsed) .main {
+            margin-left: 4rem !important;
+            width: calc(100% - 4rem) !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -1461,46 +1488,93 @@ def render_custom_sidebar(menu):
         load_csv.clear()
         st.rerun()
     
-    st.markdown('</div></div>', unsafe_allow_html=True)
-    
     # 사이드바 컨테이너 종료
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화
+    # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화 (강화 버전)
     st.markdown(f"""
     <script>
     (function() {{
-        const sidebar = document.getElementById('custom-sidebar-container');
         const targetWidth = '{sidebar_width}';
+        const targetWidthPx = {('64' if collapsed else '240')};
         
-        if (sidebar) {{
-            sidebar.style.width = targetWidth;
+        // 사이드바 폭 강제 설정
+        function setSidebarWidth() {{
+            const sidebar = document.getElementById('custom-sidebar-container');
+            if (sidebar) {{
+                sidebar.style.setProperty('width', targetWidth, 'important');
+                sidebar.style.setProperty('max-width', targetWidth, 'important');
+                sidebar.style.setProperty('min-width', targetWidth, 'important');
+            }}
         }}
         
-        // 메인 콘텐츠 영역 margin-left 조정
+        // 메인 콘텐츠 영역 margin-left 조정 (모든 가능한 요소)
         function adjustMainContent() {{
-            const mainContent = document.querySelector('.main .block-container') || 
-                               document.querySelector('[data-testid="stAppViewContainer"] > div:not([data-testid="stSidebar"])');
-            if (mainContent) {{
-                mainContent.style.marginLeft = targetWidth;
-            }}
+            // .main 요소 직접 조정
+            const mainElements = document.querySelectorAll('.main');
+            mainElements.forEach(function(el) {{
+                el.style.setProperty('margin-left', targetWidth, 'important');
+                el.style.setProperty('width', 'calc(100% - ' + targetWidth + ')', 'important');
+                el.style.setProperty('max-width', 'calc(100% - ' + targetWidth + ')', 'important');
+            }});
             
-            // Streamlit 앱 컨테이너도 조정
+            // .block-container 조정
+            const blockContainers = document.querySelectorAll('.main .block-container');
+            blockContainers.forEach(function(el) {{
+                el.style.setProperty('margin-left', '0', 'important');
+                el.style.setProperty('max-width', '100%', 'important');
+            }});
+            
+            // stAppViewContainer 조정
             const appContainer = document.querySelector('[data-testid="stAppViewContainer"]');
             if (appContainer) {{
-                appContainer.style.marginLeft = targetWidth;
+                appContainer.style.setProperty('margin-left', targetWidth, 'important');
+                appContainer.style.setProperty('width', 'calc(100% - ' + targetWidth + ')', 'important');
+                appContainer.style.setProperty('max-width', 'calc(100% - ' + targetWidth + ')', 'important');
             }}
+            
+            // stAppViewContainer의 직접 자식 요소들 조정
+            const appContainerChildren = document.querySelectorAll('[data-testid="stAppViewContainer"] > div');
+            appContainerChildren.forEach(function(el) {{
+                if (!el.querySelector('#custom-sidebar-container')) {{
+                    el.style.setProperty('margin-left', '0', 'important');
+                    el.style.setProperty('width', '100%', 'important');
+                }}
+            }});
         }}
         
-        // 즉시 실행
-        adjustMainContent();
+        // 모든 조정 함수 실행
+        function applyAllAdjustments() {{
+            setSidebarWidth();
+            adjustMainContent();
+        }}
+        
+        // 즉시 실행 (여러 번)
+        applyAllAdjustments();
+        setTimeout(applyAllAdjustments, 10);
+        setTimeout(applyAllAdjustments, 50);
+        setTimeout(applyAllAdjustments, 100);
+        setTimeout(applyAllAdjustments, 300);
         
         // DOM 변경 감지
-        const observer = new MutationObserver(adjustMainContent);
-        observer.observe(document.body, {{ childList: true, subtree: true }});
+        const observer = new MutationObserver(applyAllAdjustments);
+        if (document.body) {{
+            observer.observe(document.body, {{ 
+                childList: true, 
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            }});
+        }}
         
-        // 주기적 확인 (안전장치)
-        setInterval(adjustMainContent, 100);
+        // 주기적 확인 (매우 자주 - 안전장치)
+        setInterval(applyAllAdjustments, 50);
+        
+        // window load 이벤트
+        window.addEventListener('load', function() {{
+            setTimeout(applyAllAdjustments, 100);
+            setTimeout(applyAllAdjustments, 500);
+        }});
     }})();
     </script>
     """, unsafe_allow_html=True)
