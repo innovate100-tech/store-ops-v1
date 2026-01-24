@@ -11,13 +11,13 @@ from src.utils.time_utils import today_kst, current_year_kst, current_month_kst
 from datetime import timedelta
 import pandas as pd
 
-def _count_completed_checklists_last_7_days(store_id: str) -> int:
+def _count_completed_checklists_last_n_days(store_id: str, days: int = 14) -> int:
     if not store_id: return 0
     try:
         supabase = get_read_client()
         if not supabase: return 0
         today = today_kst()
-        cutoff_date = (today - timedelta(days=6)).isoformat()
+        cutoff_date = (today - timedelta(days=days-1)).isoformat()
         result = supabase.table("health_check_sessions").select("id", count="exact").eq(
             "store_id", store_id
         ).not_.is_("completed_at", "null").gte("completed_at", cutoff_date).execute()
@@ -67,8 +67,8 @@ def _get_today_recommendations(store_id: str) -> list:
                 "summary": f"{int(sales_val):,}원 / {int(visitors_val)}명"
             })
         
-        # P4: QSC (로직 보강: 가장 최근 기록 조회)
-        checklist_count = _count_completed_checklists_last_7_days(store_id)
+        # P4: QSC (기준 완화: 최근 14일)
+        checklist_count = _count_completed_checklists_last_n_days(store_id, days=14)
         last_date_str = "기록 없음"
         try:
             supabase = get_read_client()
@@ -79,7 +79,7 @@ def _get_today_recommendations(store_id: str) -> list:
 
         recommendations.append({
             "status": "completed" if checklist_count > 0 else "pending", 
-            "message": f"🩺 QSC ({checklist_count}회)" if checklist_count > 0 else "🩺 QSC 미실시", 
+            "message": f"🩺 QSC 완료 ({checklist_count}회)" if checklist_count > 0 else "🩺 QSC 점검 권장", 
             "button_label": "🩺 QSC 입력", 
             "page_key": "건강검진 실시", 
             "priority": 4, 
@@ -203,7 +203,7 @@ def render_input_hub_v2():
     r5 = next((r for r in recs if r["priority"] == 5), {"status": "pending", "summary": "확인 불가"})
     
     with c1: _hub_status_card("오늘의 마감", "✅ 완료" if r1["status"]=="completed" else "⚠️ 미완료", r1["summary"], "completed" if r1["status"]=="completed" else "warning")
-    with c2: _hub_status_card("이번 주 QSC", "✅ 완료" if r4["status"]=="completed" else "⏳ 미실시", r4["summary"], "completed" if r4["status"]=="completed" else "pending")
+    with c2: _hub_status_card("정기 QSC 점검", "✅ 완료" if r4["status"]=="completed" else "⏳ 권장", r4["summary"], "completed" if r4["status"]=="completed" else "pending")
     with c3: _hub_status_card("이번 달 정산", "✅ 완료" if r5["status"]=="completed" else "⏸️ 대기", r5["summary"], "completed" if r5["status"]=="completed" else "pending")
 
     st.markdown("---")
