@@ -999,24 +999,24 @@ with st.sidebar:
             st.markdown(f"🏪 **{curr_name}**")
         
         for cat, data in menu.items():
-        st.markdown(f"**{cat}**")
-        if isinstance(data, list):
-            for label, key in data:
-                if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                    st.session_state.current_page = key
-                    st.rerun()
-        else:
-            # Main items
-            for label, key in data["main"]:
-                if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
-                    st.session_state.current_page = key
-                    st.rerun()
-            # Sub items in expander
-            with st.expander("상세 선택", expanded=False):
-                for label, key in data["sub"]:
-                    if st.button(label, key=f"btn_sub_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+            st.markdown(f"**{cat}**")
+            if isinstance(data, list):
+                for label, key in data:
+                    if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
                         st.session_state.current_page = key
                         st.rerun()
+            else:
+                # Main items
+                for label, key in data["main"]:
+                    if st.button(label, key=f"btn_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+                        st.session_state.current_page = key
+                        st.rerun()
+                # Sub items in expander
+                with st.expander("상세 선택", expanded=False):
+                    for label, key in data["sub"]:
+                        if st.button(label, key=f"btn_sub_{key}", use_container_width=True, type="primary" if st.session_state.current_page == key else "secondary"):
+                            st.session_state.current_page = key
+                            st.rerun()
 
     if st.button("🚪 로그아웃"): logout(); st.rerun()
     if st.button("🔄 캐시 클리어"): load_csv.clear(); st.rerun()
