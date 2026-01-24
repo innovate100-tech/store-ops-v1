@@ -1,6 +1,6 @@
 """
 입력 허브 페이지
-입력 관련 모든 페이지로의 네비게이션 허브 (3단계 고도화 버전 - 판단 기준 및 문구 고도화)
+입력 관련 모든 페이지로의 네비게이션 허브 (4단계 고도화 버전 - 지능형 워크플로우)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -125,23 +125,36 @@ def render_input_hub_v2():
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
 
-    # [1] 철학적 가이드 - 입력의 가치 전달 (사용자 요청: 블랙 테마 적용)
+    # 데이터 로드
+    recs = _get_today_recommendations(store_id)
+    assets = _get_asset_readiness(store_id)
+
+    # [1] 디지털 성숙도 게이지 (Maturity Score)
+    # 계산: 메뉴가격(25) + 재료단가(25) + 레시피80%(25) + 목표설정(25)
+    score = 0
+    if assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0: score += 25
+    if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0: score += 25
+    if assets.get('recipe_rate', 0) >= 80: score += 25
+    if assets.get('has_target'): score += 25
+
+    # 최상단 가이드 및 성숙도 바
     st.markdown(f"""
     <div style="padding: 1.5rem; background-color: #111827; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-        <h4 style="margin-top: 0; color: #ffffff; font-size: 1.1rem;">💡 왜 입력이 중요한가요?</h4>
-        <p style="margin-bottom: 0; color: #9ca3af; font-size: 0.95rem; line-height: 1.6;">
-            입력은 단순한 기록이 아니라, 사장님의 매장을 숫자로 바꾸는 <b style="color: #ffffff;">'설계도'</b>를 그리는 과정입니다.<br>
-            정밀하게 입력된 기초 데이터는 <b style="color: #ffffff;">수익 분석, 원가 진단, 오늘의 전략</b>을 만드는 유일한 기반이 됩니다.
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h4 style="margin: 0; color: #ffffff; font-size: 1.1rem;">📊 매장 데이터 관리 상태</h4>
+            <span style="color: #3b82f6; font-weight: 700; font-size: 1.2rem;">{score}%</span>
+        </div>
+        <div style="background-color: #374151; border-radius: 10px; height: 10px; margin-bottom: 1.5rem; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); width: {score}%; height: 100%; transition: width 0.5s ease-in-out;"></div>
+        </div>
+        <p style="margin-bottom: 0; color: #9ca3af; font-size: 0.9rem; line-height: 1.6;">
+            {f"축하합니다! 이제 <b>정밀 분석 엔진</b>이 작동할 준비가 되었습니다." if score == 100 else "누락된 기초 데이터를 보완하면 <b>수익 분석 및 전략 리포트</b> 기능이 활성화됩니다."}
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    recs = _get_today_recommendations(store_id)
-    assets = _get_asset_readiness(store_id)
-    
     # [2] 관제 보드
-    st.markdown("### 📊 입력 관제 보드")
-    st.caption("매장의 핵심 운영 데이터 입력 상태를 실시간으로 확인합니다.")
+    st.markdown("### 📊 실시간 입력 현황")
     c1, c2, c3 = st.columns(3)
     r1 = next((r for r in recs if r["priority"] == 1), {"status": "pending", "summary": "확인 불가"})
     r4 = next((r for r in recs if r["priority"] == 4), {"status": "pending", "summary": "확인 불가"})
@@ -153,83 +166,99 @@ def render_input_hub_v2():
 
     st.markdown("---")
 
-    # [3] 자산 구축 현황 (개선: 판단 기준 고도화)
-    st.markdown("### 🏗️ 가게 자산 구축 현황")
-    st.caption("분석 엔진 작동을 위한 데이터 완성도입니다. 품질 가이드에 따라 관리해 주세요.")
+    # [3] 자산 구축 현황
+    st.markdown("### 🏗️ 가게 데이터 기초 체력")
     a1, a2, a3, a4 = st.columns(4)
     
     with a1: 
         _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘")
-        if assets.get('missing_price', 0) > 0: st.caption(f"⚠️ {assets.get('missing_price')}개 가격 누락 (수익분석 불가)")
-        else: st.caption("✅ 모든 판매가 등록 완료")
+        if assets.get('missing_price', 0) > 0: st.caption(f"⚠️ {assets.get('missing_price')}개 가격 누락")
+        else: st.caption("✅ 판매가 등록 완료")
         
     with a2: 
         _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺")
-        if assets.get('missing_cost', 0) > 0: st.caption(f"⚠️ {assets.get('missing_cost')}개 단가 누락 (원가계산 불가)")
-        else: st.caption("✅ 모든 구매 단가 등록 완료")
+        if assets.get('missing_cost', 0) > 0: st.caption(f"⚠️ {assets.get('missing_cost')}개 단가 누락")
+        else: st.caption("✅ 구매 단가 등록 완료")
         
     with a3: 
         _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳")
-        # 레시피 완성도 기준: 80%
-        if assets.get('recipe_rate', 0) < 80: st.caption("⚠️ 분석 정밀도 낮음 (80% 권장)")
-        else: st.caption("✅ 정밀 원가 분석 가능")
+        if assets.get('recipe_rate', 0) < 80: st.caption("⚠️ 원가 분석 정밀도 낮음")
+        else: st.caption("✅ 정밀 분석 가능")
         
     with a4: 
-        # 제목 및 내용 변경: 이번 달 목표 설정 / 설정 완료/미완료
         goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 설정 미완료"
         _hub_asset_card("이번 달 목표 설정", goal_status, "🎯")
-        if not assets.get('has_target'): st.caption("⚠️ 목표를 설정해야 전략이 생성됩니다")
+        if not assets.get('has_target'): st.caption("⚠️ 분석 기준이 없습니다")
         else: st.caption("✅ 목표 대비 실적 분석 중")
 
     st.markdown("---")
 
-    # [4] 워크플로우별 버튼 배치
-    st.markdown("#### ⚡ STEP 1. 매일 운영 기록 (루틴)")
-    st.caption("매일 발생하는 영업 실적을 기록하여 흐름을 파악합니다.")
+    # [4] 사용 주기별 워크플로우
+    
+    # 1. 매일/매주/매월 (운영)
+    st.markdown("#### ⚡ 매일 · 매주 · 매월 루틴")
+    st.caption("정기적으로 기록해야 하는 핵심 영업 데이터입니다.")
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("📝 일일 마감 입력", use_container_width=True, type="primary", key="btn_daily"):
+        # 오늘 마감 안 했으면 강조
+        btn_type = "primary" if r1["status"] != "completed" else "secondary"
+        if st.button("📝 오늘 마감 입력", use_container_width=True, type=btn_type, key="btn_daily"):
             st.session_state.current_page = "일일 입력(통합)"; st.rerun()
     with col2:
-        if st.button("🩺 QSC 점검", use_container_width=True, key="btn_qsc"):
+        if st.button("🩺 QSC 점검 (격주)", use_container_width=True, key="btn_qsc"):
             st.session_state.current_page = "건강검진 실시"; st.rerun()
     with col3:
         if st.button("📅 월간 실제 정산", use_container_width=True, key="btn_settle"):
             st.session_state.current_page = "실제정산"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### 🎯 STEP 2. 목표 및 기준 설정 (Standards)")
-    st.caption("운영 결과와 비교할 기준점(목표)을 설정합니다. (매월 1회 권장)")
+
+    # 2. 목표 및 기준 (매월 초)
+    st.markdown("#### 🎯 목표 및 분석 기준")
+    st.caption("비교 기준을 설정합니다. 데이터 누락 시 해당 버튼이 강조됩니다.")
     s1, s2 = st.columns(2)
     with s1:
+        # 목표 미설정 시 강조
         btn_type = "primary" if not assets.get('has_target') else "secondary"
-        if st.button("🎯 이번 달 매출 목표 구조 설정", use_container_width=True, type=btn_type, key="btn_target_sales"):
+        label = "🎯 매출 목표 설정" + (" (필수)" if not assets.get('has_target') else "")
+        if st.button(label, use_container_width=True, type=btn_type, key="btn_target_sales"):
             st.session_state.current_page = "목표 매출구조"; st.rerun()
     with s2:
-        if st.button("🧾 이번 달 비용 목표 구조 설정", use_container_width=True, key="btn_target_cost"):
+        if st.button("🧾 비용 목표 구조 설정", use_container_width=True, key="btn_target_cost"):
             st.session_state.current_page = "목표 비용구조"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### 🛠️ STEP 3. 가게 기초 정의 (뼈대 만들기)")
-    st.caption("가게의 변하지 않는 기초 정보(메뉴/재료/레시피)를 관리합니다.")
+
+    # 3. 가게 정의 (필요시)
+    st.markdown("#### 🛠️ 가게 정의 (기초 뼈대)")
+    st.caption("메뉴나 재료가 변경될 때 수정합니다. 누락 데이터 발견 시 버튼이 강조됩니다.")
     b1, b2, b3, b4 = st.columns(4)
     with b1:
-        if st.button("📘 메뉴 관리", use_container_width=True, key="btn_menu"):
+        # 가격 누락 시 강조
+        btn_type = "primary" if assets.get('missing_price', 0) > 0 else "secondary"
+        label = "📘 메뉴 관리" + (f" ({assets.get('missing_price')}개 보완)" if assets.get('missing_price', 0) > 0 else "")
+        if st.button(label, use_container_width=True, type=btn_type, key="btn_menu"):
             st.session_state.current_page = "메뉴 입력"; st.rerun()
     with b2:
-        if st.button("🧺 재료 관리", use_container_width=True, key="btn_ing"):
+        # 단가 누락 시 강조
+        btn_type = "primary" if assets.get('missing_cost', 0) > 0 else "secondary"
+        label = "🧺 재료 관리" + (f" ({assets.get('missing_cost')}개 보완)" if assets.get('missing_cost', 0) > 0 else "")
+        if st.button(label, use_container_width=True, type=btn_type, key="btn_ing"):
             st.session_state.current_page = "재료 입력"; st.rerun()
     with b3:
-        if st.button("🧑‍🍳 레시피 관리", use_container_width=True, key="btn_recipe"):
+        # 레시피 완성도 낮으면 강조
+        btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "secondary"
+        if st.button("🍳 레시피 관리", use_container_width=True, type=btn_type, key="btn_recipe"):
             st.session_state.current_page = "레시피 입력"; st.rerun()
     with b4:
         if st.button("📦 재고 관리", use_container_width=True, key="btn_inv"):
             st.session_state.current_page = "재고 입력"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("#### ⚙️ STEP 4. 데이터 보정 및 도구")
-    with st.expander("과거 데이터 수정이나 일괄 보정 도구 열기"):
-        st.caption("누락된 과거 데이터를 채우거나 잘못된 정보를 일괄 수정합니다.")
+
+    # 4. 데이터 보정
+    st.markdown("#### ⚙️ 데이터 보정 도구")
+    with st.expander("과거 데이터 일괄 수정"):
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🧮 매출/방문자 일괄 등록", use_container_width=True, key="btn_bulk_sales"):
@@ -239,4 +268,4 @@ def render_input_hub_v2():
                 st.session_state.current_page = "판매량 등록"; st.rerun()
 
     st.markdown("---")
-    st.info("💡 **Tip**: 정확한 분석은 정확한 입력에서 시작됩니다. 품질 가이드에 따라 데이터를 보완해 보세요.")
+    st.info("💡 **Tip**: 파란색으로 강조된 버튼은 현재 데이터 보완이 시급한 항목입니다.")
