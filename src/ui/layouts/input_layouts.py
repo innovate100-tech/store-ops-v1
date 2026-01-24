@@ -530,9 +530,11 @@ def render_form_layout(
     icon: str = "📝",
     status_badge: Optional[Dict[str, Any]] = None,
     guide_kind: Optional[str] = None,
+    guide_conclusion: Optional[str] = None,
     guide_bullets: Optional[List[str]] = None,
-    guide_warnings: Optional[List[str]] = None,
+    guide_next_action: Optional[str] = None,
     summary_items: Optional[List[Dict[str, Any]]] = None,
+    mini_progress_items: Optional[List[Dict[str, Any]]] = None,
     action_primary: Optional[Dict[str, Any]] = None,
     action_secondary: Optional[List[Dict[str, Any]]] = None,
     main_content: Optional[Callable] = None
@@ -545,9 +547,11 @@ def render_form_layout(
         icon: 페이지 아이콘
         status_badge: 상태 배지 {"text": "...", "type": "success|warning|info|neutral"}
         guide_kind: GuideBox 종류 ("G1"|"G2"|"G3")
-        guide_bullets: GuideBox 안내 항목 (None이면 기본값 사용)
-        guide_warnings: GuideBox 경고 메시지
-        summary_items: Summary Strip 항목 리스트
+        guide_conclusion: GuideBox 결론 1줄 (None이면 기본값 사용)
+        guide_bullets: GuideBox bullet 2개 (None이면 기본값 사용, 최대 2개)
+        guide_next_action: GuideBox 다음 행동 1줄 (None이면 기본값 사용)
+        summary_items: Summary Strip 항목 리스트 (요약+경고용)
+        mini_progress_items: Mini Progress Panel 항목 리스트 (4항목 완료 여부)
         action_primary: Primary 액션 {"label": "...", "key": "...", "action": ...}
         action_secondary: Secondary 액션 리스트
         main_content: Main Card 내용 렌더링 함수
