@@ -1538,6 +1538,7 @@ with st.sidebar:
             ("판매·메뉴 분석", "판매 관리"),  # page key 유지
             # ("방문·객단가 분석", "방문 객단가 분석"),  # TODO: 향후 추가 예정
             ("원가 분석", "원가 파악"),  # page key 유지
+            ("재고 분석", "재고 분석"),  # 신규 추가
         ],
         "🧠 설계": [
             ("가게 설계 센터", "가게 설계 센터"),  # 통합 진단실 (최상단)
@@ -2441,10 +2442,15 @@ elif page == "재료 사용량 집계":
     from ui_pages.ingredient_usage_summary import render_ingredient_usage_summary
     render_ingredient_usage_summary()
 
-# 발주 관리 페이지
-elif page == "발주 관리":
-    from ui_pages.order_management import render_order_management
-    render_order_management()
+# 재고 분석 페이지 (발주 관리 페이지 대체)
+elif page == "재고 분석":
+    from ui_pages.analysis.inventory_analysis import render_inventory_analysis
+    render_inventory_analysis()
+
+# 발주 관리 페이지 - 제거됨 (재고 분석 페이지로 대체)
+# elif page == "발주 관리":
+#     from ui_pages.order_management import render_order_management
+#     render_order_management()
 
 # 주간 리포트 페이지 - 제거됨 (앱에서 완전 제거)
 
