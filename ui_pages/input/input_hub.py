@@ -156,33 +156,21 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending"):
     """, unsafe_allow_html=True)
 
 def _hub_asset_card(title: str, value: str, icon: str, warning: str = ""):
-    # 개선안: 모든 카드의 높이를 고정(min-height)하고 내부 배치를 정돈하여 통일감 부여
+    # </div> 누출 방지를 위해 HTML 구조를 한 줄로 결합하여 렌더링
     warning_html = f'<div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-top: 0.3rem; line-height: 1.2;">⚠️ {warning}</div>' if warning else ''
-    card_style = """
-        padding: 1rem; 
-        background-color: #111827; 
-        border-radius: 10px; 
-        border: 1px solid #374151; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
-        margin-bottom: 0.8rem; 
-        display: flex; 
-        align-items: center; 
-        gap: 0.8rem;
-        min-height: 110px; /* 모든 카드의 최소 높이를 통일 */
-    """
+    card_style = "padding: 1rem; background-color: #111827; border-radius: 10px; border: 1px solid #374151; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.8rem; min-height: 110px;"
     title_style = "font-size: 0.75rem; color: #9ca3af; font-weight: 500; margin-bottom: 0.2rem;"
     value_style = "font-size: 1.1rem; font-weight: 700; color: #ffffff; line-height: 1;"
     
-    html_content = f"""
-    <div style="{card_style}">
-        <div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div>
-        <div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">
-            <div style="{title_style}">{title}</div>
-            <div style="{value_style}">{value}</div>
-            {warning_html}
-        </div>
-    </div>
-    """
+    html_content = (
+        f'<div style="{card_style}">'
+        f'<div style="font-size: 1.8rem; flex-shrink: 0;">{icon}</div>'
+        f'<div style="display: flex; flex-direction: column; justify-content: center; flex-grow: 1;">'
+        f'<div style="{title_style}">{title}</div>'
+        f'<div style="{value_style}">{value}</div>'
+        f'{warning_html}'
+        f'</div></div>'
+    )
     st.markdown(html_content, unsafe_allow_html=True)
 
 def render_input_hub_v2():
