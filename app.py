@@ -1340,6 +1340,25 @@ def render_custom_sidebar(menu):
             box-sizing: border-box !important;
         }
         
+        /* 사이드바 내부 콘텐츠 */
+        #custom-sidebar-container .custom-sidebar-content {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        /* 사이드바 내부 Streamlit 위젯들이 보이도록 */
+        #custom-sidebar-container .stButton,
+        #custom-sidebar-container .stSelectbox,
+        #custom-sidebar-container .stMarkdown {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
         #custom-sidebar-container.collapsed {
             width: 4rem !important;
             max-width: 4rem !important;
@@ -1498,15 +1517,19 @@ def render_custom_sidebar(menu):
         </style>
         """, unsafe_allow_html=True)
     
-    # 사이드바 컨테이너 시작
+    # 사이드바 컨테이너 시작 (Streamlit 위젯 밖에 배치)
     sidebar_class = "collapsed" if collapsed else "expanded"
-    st.markdown(f'<div id="custom-sidebar-container" class="{sidebar_class}">', unsafe_allow_html=True)
+    
+    # 사이드바 컨테이너 div 시작
+    st.markdown(f'<div id="custom-sidebar-container" class="{sidebar_class}"><div class="custom-sidebar-content">', unsafe_allow_html=True)
     
     # 토글 버튼 (Streamlit 버튼 사용)
     toggle_label = "▶" if collapsed else "◀ 접기"
-    if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
-        st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
-        st.rerun()
+    col1 = st.columns([1])
+    with col1[0]:
+        if st.button(toggle_label, key="custom_sidebar_toggle", use_container_width=True):
+            st.session_state.sidebar_collapsed = not st.session_state.sidebar_collapsed
+            st.rerun()
     
     # 사이드바 메뉴 렌더링
     for cat, data in menu.items():
@@ -1579,7 +1602,7 @@ def render_custom_sidebar(menu):
         st.rerun()
     
     # 사이드바 컨테이너 종료
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div></div>', unsafe_allow_html=True)
     
     # JavaScript로 사이드바 폭 및 메인 콘텐츠 margin-left 동기화 (강화 버전)
     st.markdown(f"""
@@ -1732,14 +1755,20 @@ def render_custom_sidebar(menu):
     </script>
     """, unsafe_allow_html=True)
 
-# 커스텀 사이드바 렌더링 (Streamlit 기본 사이드바 대신)
-render_custom_sidebar(menu)
-
-# Page Routing
-# current_page는 render_custom_sidebar에서 초기화됨
+# current_page 초기화 (사이드바 렌더링 전에 먼저 초기화)
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
-page = st.session_state.current_page
+
+# 커스텀 사이드바 렌더링 (Streamlit 기본 사이드바 대신)
+try:
+    render_custom_sidebar(menu)
+except Exception as e:
+    st.error(f"사이드바 렌더링 오류: {e}")
+    import traceback
+    st.code(traceback.format_exc())
+
+# Page Routing
+page = st.session_state.get("current_page", "홈")
 
 if st.session_state.get("_show_supabase_diagnosis", False):
     _diagnose_supabase_connection()
