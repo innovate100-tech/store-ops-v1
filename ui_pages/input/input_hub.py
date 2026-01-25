@@ -1054,7 +1054,7 @@ def render_input_hub_v3():
     }
     #ps-header-unified-grid {
         display: grid !important;
-        grid-template-columns: 1fr 1.5fr !important;
+        grid-template-columns: 1.3fr 1.5fr !important;
         gap: 2rem !important;
         padding: 2rem !important;
     }
@@ -1062,7 +1062,8 @@ def render_input_hub_v3():
         display: flex !important;
         flex-direction: column !important;
         gap: 0.5rem !important;
-        min-width: 0 !important;
+        min-width: 200px !important;
+        max-width: 100% !important;
     }
     #ps-header-icon {
         font-size: 2.2rem !important;
@@ -1073,9 +1074,14 @@ def render_input_hub_v3():
         font-weight: 800 !important;
         color: #F8FAFC !important;
         margin: 0 !important;
+        padding: 0 !important;
         white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        line-height: 1.2 !important;
+        word-break: keep-all !important;
+        display: block !important;
+        width: 100% !important;
     }
     #ps-header-subtitle {
         font-size: 0.9rem !important;
