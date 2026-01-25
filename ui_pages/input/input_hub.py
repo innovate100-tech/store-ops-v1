@@ -908,22 +908,22 @@ def render_input_hub_v3():
     st.markdown(guide_html, unsafe_allow_html=True)
 
     # ============================================================
-    # ZONE 1: System Snapshot (초압축 시스템 진단)
+    # ZONE 1: System Snapshot (초압축 시스템 진단) - 사장 언어 버전
     # ============================================================
-    # 할 일 목록이 아니라 시스템 상태판입니다.
-    # 현재 단계, 병목, 못하는 것, PRIMARY ACTION만 표시합니다.
-    st.markdown("### 🧠 시스템 진단 요약")
+    # 할 일 목록이 아니라 매장 운영 상태판입니다.
+    # 사장이 이해하기 쉬운 언어로 현재 상태, 막히는 것, 다음 행동만 표시합니다.
+    st.markdown("### 🧠 매장 운영 상태")
     st.markdown("<div style='margin-bottom: 0.3rem;'></div>", unsafe_allow_html=True)
     
-    # 시스템이 못하는 것 계산
+    # 시스템이 못하는 것 계산 (사장 언어)
     system_blocked = []
     if not has_daily_close:
-        system_blocked.append("매출 추이 분석")
+        system_blocked.append("매출 흐름 파악")
     if assets.get('recipe_rate', 0) < 80:
-        system_blocked.append("메뉴 수익성 분석")
-        system_blocked.append("전략 보드")
+        system_blocked.append("메뉴별 수익 확인")
+        system_blocked.append("전략 수립")
     elif not assets.get('has_target'):
-        system_blocked.append("전략 보드")
+        system_blocked.append("전략 수립")
     
     stage_level = system_stage.get("level", 1)
     stage_name = system_stage.get("name", "기록 단계")
@@ -931,62 +931,89 @@ def render_input_hub_v3():
     blocked_text_full = ", ".join(system_blocked) if system_blocked else "없음 (모든 기능 활성화)"
     primary = recommendation.get("primary")
     
-    # 잠김 기능 요약 (최대 3개만 노출, 나머지는 "+N")
+    # 사장 언어로 단계/병목 변환
+    stage_display = {
+        1: "기록 시작 단계",
+        2: "구조 정리 단계",
+        3: "수익 분석 단계",
+        4: "전략 운영 단계"
+    }.get(stage_level, f"단계 {stage_level}")
+    
+    # 병목 메시지를 사장 언어로 변환
+    bn_display = bn_msg
+    if "일일 마감" in bn_msg or "마감" in bn_msg:
+        bn_display = "오늘 매장 기록이 없습니다"
+    elif "레시피" in bn_msg:
+        bn_display = "레시피 정리가 부족합니다"
+    elif "메뉴" in bn_msg:
+        bn_display = "메뉴 정보가 부족합니다"
+    elif "재료" in bn_msg:
+        bn_display = "재료 정보가 부족합니다"
+    elif "목표" in bn_msg:
+        bn_display = "이번 달 목표가 없습니다"
+    
+    # 잠김 기능 요약 (사장 언어, 최대 3개만 노출)
     blocked_display = []
     if system_blocked:
         blocked_display = system_blocked[:3]
         if len(system_blocked) > 3:
-            blocked_display.append(f"+{len(system_blocked) - 3}")
+            blocked_display.append(f"외 {len(system_blocked) - 3}개")
         blocked_summary = " · ".join(blocked_display)
     else:
         blocked_summary = "없음"
     
-    # 1줄 요약 생성
-    summary_line = f"LEVEL {stage_level} · {bn_msg} → {blocked_summary}"
-    
-    # 기본 카드 (압축형 - 35~45% 높이 감소)
+    # 기본 카드 (압축형 - 사장 언어)
     snapshot_html = f"""
     <div class="animate-in delay-1" style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.6); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 0.8rem;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.6rem;">
             <div>
-                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">현재 단계</div>
-                <div style="font-size: 0.85rem; font-weight: 700; color: #3B82F6;">LEVEL {stage_level} · {stage_name}</div>
+                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">현재 상태</div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: #3B82F6;">{stage_display}</div>
             </div>
             <div>
-                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">병목</div>
-                <div style="font-size: 0.85rem; font-weight: 700; color: #F59E0B;">{bn_msg}</div>
+                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">지금 막히는 것</div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: #F59E0B;">{bn_display}</div>
             </div>
         </div>
         <div style="font-size: 0.75rem; color: #94A3B8; line-height: 1.3;">
-            잠김: {blocked_summary}
+            사용 불가: {blocked_summary}
         </div>
     </div>
     """
     st.markdown(snapshot_html, unsafe_allow_html=True)
     
-    # 상세 정보 expander
+    # 상세 정보 expander (사장 언어)
     with st.expander("자세히 보기", expanded=False):
-        st.markdown("**현재 시스템 단계**")
-        st.markdown(f"LEVEL {stage_level} — {stage_name}")
+        st.markdown("**현재 매장 운영 상태**")
+        st.markdown(f"{stage_display}")
         st.markdown("---")
         
-        st.markdown("**시스템 병목**")
-        st.markdown(f"{bn_msg}")
+        st.markdown("**지금 막히는 것**")
+        st.markdown(f"{bn_display}")
         st.markdown("---")
         
-        st.markdown("**지금 시스템이 못하는 것**")
+        st.markdown("**지금 사용할 수 없는 기능**")
         st.markdown(f"{blocked_text_full}")
         
         if primary:
             next_step_text = primary.get('description', '')
             if next_step_text:
                 st.markdown("---")
-                st.markdown("**다음 단계**")
+                st.markdown("**다음 행동**")
                 st.markdown(next_step_text)
     
-    # PRIMARY ACTION 버튼
+    # PRIMARY ACTION 버튼 (항상 보완 기준)
     if primary:
-        if st.button(primary.get('button_text', '이동'), use_container_width=True, type="primary", key="btn_primary_action"):
+        button_text = primary.get('button_text', '이동')
+        # 버튼 텍스트를 보완 기준으로 변경
+        if "입력" in button_text:
+            button_text = button_text.replace("입력", "보완")
+        elif "등록" in button_text:
+            button_text = button_text.replace("등록", "보완")
+        elif "설정" in button_text:
+            button_text = button_text.replace("설정", "보완")
+        
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_primary_action"):
             st.session_state.current_page = primary.get('page_key', '홈')
             st.rerun()
     
@@ -1023,29 +1050,30 @@ def render_input_hub_v3():
     # 매장의 구조를 정의하는 데이터 자산입니다.
     st.markdown('<h3 class="ps-layer-title">🧱 매장 구조 자산</h3>', unsafe_allow_html=True)
     
-    # 구조 자산 전체 요약 상태 계산
-    menu_ready = assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0
-    ing_ready = assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0
-    recipe_ready = assets.get('recipe_rate', 0) >= 80
+    # 구조 자산 전체 요약 상태 계산 (운영 가능 기준)
+    # '존재'가 아니라 '운영 가능' 기준으로 판단
+    menu_operable = assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0
+    ing_operable = assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0
+    recipe_operable = assets.get('recipe_rate', 0) >= 80
     
-    if menu_ready and ing_ready and recipe_ready:
-        struct_summary = "구조 자산: 기본 틀은 구축됨"
+    if menu_operable and ing_operable and recipe_operable:
+        struct_summary = "구조 자산: 정상 운영 중"
         struct_summary_color = "#10B981"
     elif (assets.get('menu_count', 0) > 0 or assets.get('ing_count', 0) > 0) and assets.get('recipe_rate', 0) > 0:
-        struct_summary = "구조 자산: 기본 틀은 있음 / 레시피 정리가 부족합니다"
+        struct_summary = "구조 자산: 부분 운영 가능 / 레시피 정리 필요"
         struct_summary_color = "#F59E0B"
     elif assets.get('menu_count', 0) > 0 or assets.get('ing_count', 0) > 0:
-        struct_summary = "구조 자산: 일부 있음 / 메뉴와 재료 보완이 필요합니다"
+        struct_summary = "구조 자산: 보완 필요 / 메뉴와 재료 정보 보완 필요"
         struct_summary_color = "#F59E0B"
     else:
-        struct_summary = "구조 자산: 거의 없음 / 메뉴와 재료부터 구축해야 합니다"
+        struct_summary = "구조 자산: 시작 필요 / 메뉴와 재료부터 시작하세요"
         struct_summary_color = "#64748B"
     
-    # 구조 자산 진행률 계산 (MATURITY LEVEL 연결)
+    # 구조 자산 진행률 계산 (운영 가능 기준, MATURITY LEVEL 연결)
     struct_score = 0
-    if menu_ready: struct_score += 33
-    if ing_ready: struct_score += 33
-    if recipe_ready: struct_score += 34
+    if menu_operable: struct_score += 33
+    if ing_operable: struct_score += 33
+    if recipe_operable: struct_score += 34
     
     st.markdown(f"""
     <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
@@ -1060,18 +1088,19 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (4개) - 의미 번역 포함
-    menu_status_text = "구축됨" if menu_ready else ("일부 있음" if assets.get('menu_count', 0) > 0 else "거의 없음")
-    ing_status_text = "구축됨" if ing_ready else ("일부 있음" if assets.get('ing_count', 0) > 0 else "거의 없음")
+    # 하위 항목 상태 스트립 (4개) - 운영 체감 언어
+    # '구축됨'이 아니라 '운영 가능' 기준
+    menu_status_text = "정상 운영" if menu_operable else ("보완 필요" if assets.get('menu_count', 0) > 0 else "시작 필요")
+    ing_status_text = "정상 운영" if ing_operable else ("보완 필요" if assets.get('ing_count', 0) > 0 else "시작 필요")
     
-    # 레시피 의미 번역
+    # 레시피 운영 체감 언어
     recipe_rate = assets.get('recipe_rate', 0)
     if recipe_rate >= 80:
-        recipe_status_text = "구축됨"
+        recipe_status_text = "정상 운영"
     elif recipe_rate > 0:
-        recipe_status_text = f"거의 없음 ({recipe_rate:.0f}%)"
+        recipe_status_text = f"보완 필요 ({recipe_rate:.0f}%)"
     else:
-        recipe_status_text = "비어 있음"
+        recipe_status_text = "시작 필요"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1098,12 +1127,12 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 콘솔 영역
+    # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     struct_btn_cols = st.columns(2)
     with struct_btn_cols[0]:
-        btn_type = "primary" if not (menu_ready and ing_ready and recipe_ready) else "secondary"
-        if st.button("🧱 구조 자산 보완하기", use_container_width=True, type=btn_type, key="btn_asset_struct"):
+        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
+        if st.button("🧱 구조 자산 보완하기", use_container_width=True, type="primary", key="btn_asset_struct"):
             # 가장 우선순위가 높은 항목으로 이동
             if assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0:
                 st.session_state.current_page = "메뉴 입력"
@@ -1115,14 +1144,10 @@ def render_input_hub_v3():
                 st.session_state.current_page = "메뉴 입력"
             st.rerun()
     with struct_btn_cols[1]:
-        if assets.get('recipe_rate', 0) < 80:
-            if st.button("🍳 레시피 정리 시작", use_container_width=True, type="primary", key="btn_asset_recipe"):
-                st.session_state.current_page = "레시피 등록"
-                st.rerun()
-        else:
-            if st.button("📦 재고 관리 시작", use_container_width=True, type="secondary", key="btn_asset_inv"):
-                st.session_state.current_page = "재고 입력"
-                st.rerun()
+        # 레시피가 완성되어도 항상 보완 가능하도록 버튼 노출
+        if st.button("🍳 레시피 정리하기", use_container_width=True, type="primary", key="btn_asset_recipe"):
+            st.session_state.current_page = "레시피 등록"
+            st.rerun()
     
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
@@ -1162,10 +1187,10 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (3개)
-    daily_status_text = "기록 중" if has_daily_close else "기록 없음"
-    qsc_status_text = "기록 중" if r4["status"] == "completed" else "기록 없음"
-    settle_status_text = "기록 중" if r5["status"] == "completed" else "기록 없음"
+    # 하위 항목 상태 스트립 (3개) - 운영 체감 언어
+    daily_status_text = "정상 운영" if has_daily_close else "시작 필요"
+    qsc_status_text = "정상 운영" if r4["status"] == "completed" else "보완 필요"
+    settle_status_text = "정상 운영" if r5["status"] == "completed" else "보완 필요"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1187,28 +1212,28 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 지금 기록이 없으면 무엇이 불가능한지
+    # 지금 기록이 없으면 무엇이 불가능한지 (사장 언어)
     if not has_daily_close:
         st.markdown("""
         <div style="padding: 0.6rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 3px solid rgba(245, 158, 11, 0.4); margin-bottom: 1rem;">
-            <div style="font-size: 0.75rem; color: #F59E0B; font-weight: 600;">지금 기록이 없으면 매출 추이 분석이 불가능합니다</div>
+            <div style="font-size: 0.75rem; color: #F59E0B; font-weight: 600;">지금 기록이 없으면 매출 흐름을 파악할 수 없습니다</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 콘솔 영역
+    # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     op_btn_cols = st.columns(3)
     with op_btn_cols[0]:
-        btn_type = "primary" if not has_daily_close else "secondary"
-        if st.button("📝 오늘 매장 기록", use_container_width=True, type=btn_type, key="btn_asset_daily"):
+        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
+        if st.button("📝 오늘 매장 기록", use_container_width=True, type="primary", key="btn_asset_daily"):
             st.session_state.current_page = "일일 입력(통합)"
             st.rerun()
     with op_btn_cols[1]:
-        if st.button("🩺 운영 점검 기록", use_container_width=True, type="secondary", key="btn_asset_qsc"):
+        if st.button("🩺 운영 점검 보완", use_container_width=True, type="primary", key="btn_asset_qsc"):
             st.session_state.current_page = "건강검진 실시"
             st.rerun()
     with op_btn_cols[2]:
-        if st.button("📅 월간 정산 기록", use_container_width=True, type="secondary", key="btn_asset_settle"):
+        if st.button("📅 월간 정산 보완", use_container_width=True, type="primary", key="btn_asset_settle"):
             st.session_state.current_page = "실제정산"
             st.rerun()
     
@@ -1220,17 +1245,17 @@ def render_input_hub_v3():
     # 분석과 AI의 기준선 데이터 자산입니다.
     st.markdown('<h3 class="ps-layer-title">🎯 판단 기준 자산</h3>', unsafe_allow_html=True)
     
-    # 판단 기준 자산 중심 문구
+    # 판단 기준 자산 중심 문구 (운영 체감 언어)
     if assets.get('has_target'):
-        target_main_msg = "이번 달 판단 기준 있음"
+        target_main_msg = "이번 달 목표 설정 완료"
         target_main_color = "#10B981"
-        target_sub_msg = f"{current_month_kst()}월 기준 설정됨"
+        target_sub_msg = f"{current_month_kst()}월 기준 정상 운영 중"
     else:
-        target_main_msg = "현재 매장은 '평가 기준' 없이 운영 중입니다"
+        target_main_msg = "이번 달 목표가 없습니다"
         target_main_color = "#F59E0B"
-        target_sub_msg = "목표를 설정하면 전략 보드가 활성화됩니다"
+        target_sub_msg = "목표를 설정하면 전략 수립이 가능합니다"
     
-    # 판단 기준 자산 진행률 계산
+    # 판단 기준 자산 진행률 계산 (운영 가능 기준)
     target_score = 50 if assets.get('has_target') else 0
     
     st.markdown(f"""
@@ -1247,8 +1272,8 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (2개)
-    target_status_text = "설정됨" if assets.get('has_target') else "미설정"
+    # 하위 항목 상태 스트립 (2개) - 운영 체감 언어
+    target_status_text = "정상 운영" if assets.get('has_target') else "시작 필요"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1265,16 +1290,16 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 콘솔 영역
+    # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     target_btn_cols = st.columns(2)
     with target_btn_cols[0]:
-        btn_type = "primary" if not assets.get('has_target') else "secondary"
-        if st.button("🎯 이번 달 목표 설정", use_container_width=True, type=btn_type, key="btn_asset_target"):
+        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
+        if st.button("🎯 이번 달 목표 보완", use_container_width=True, type="primary", key="btn_asset_target"):
             st.session_state.current_page = "목표 매출구조"
             st.rerun()
     with target_btn_cols[1]:
-        if st.button("🧾 비용 기준 점검", use_container_width=True, type="secondary", key="btn_asset_cost"):
+        if st.button("🧾 비용 기준 보완", use_container_width=True, type="primary", key="btn_asset_cost"):
             st.session_state.current_page = "목표 비용구조"
             st.rerun()
     
@@ -1293,7 +1318,7 @@ def render_input_hub_v3():
     data_map_cols = st.columns(4)
     
     with data_map_cols[0]:
-        close_map_status = "구축됨" if has_daily_close else "비어 있음"
+        close_map_status = "정상 운영" if has_daily_close else "시작 필요"
         close_map_color = "#10B981" if has_daily_close else "#64748B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {close_map_color}40; min-height: 90px;">
@@ -1304,7 +1329,7 @@ def render_input_hub_v3():
         """, unsafe_allow_html=True)
     
     with data_map_cols[1]:
-        qsc_map_status = "구축됨" if r4["status"] == "completed" else "비어 있음"
+        qsc_map_status = "정상 운영" if r4["status"] == "completed" else "보완 필요"
         qsc_map_color = "#10B981" if r4["status"] == "completed" else "#64748B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {qsc_map_color}40; min-height: 90px;">
@@ -1315,8 +1340,11 @@ def render_input_hub_v3():
         """, unsafe_allow_html=True)
     
     with data_map_cols[2]:
-        structure_map_status = "구축됨" if (assets.get('menu_count', 0) > 0 and assets.get('ing_count', 0) > 0) else "비어 있음"
-        structure_map_color = "#10B981" if (assets.get('menu_count', 0) > 0 and assets.get('ing_count', 0) > 0) else "#64748B"
+        # 운영 가능 기준: 메뉴와 재료가 모두 있고 가격/단가가 모두 있으면 정상 운영
+        structure_operable = (assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0 and 
+                             assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0)
+        structure_map_status = "정상 운영" if structure_operable else "보완 필요"
+        structure_map_color = "#10B981" if structure_operable else "#64748B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {structure_map_color}40; min-height: 90px;">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">구조 데이터</div>
@@ -1326,7 +1354,7 @@ def render_input_hub_v3():
         """, unsafe_allow_html=True)
     
     with data_map_cols[3]:
-        target_map_status = "구축됨" if assets.get('has_target') else "비어 있음"
+        target_map_status = "정상 운영" if assets.get('has_target') else "시작 필요"
         target_map_color = "#10B981" if assets.get('has_target') else "#64748B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {target_map_color}40; min-height: 90px;">
@@ -1338,15 +1366,15 @@ def render_input_hub_v3():
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 과거 데이터 구축 (축소형)
-    st.markdown("### 🧮 과거 데이터 구축")
+    # 과거 데이터 구축 (축소형) - 보완 기준
+    st.markdown("### 🧮 과거 데이터 보완")
     past_cols = st.columns(2)
     with past_cols[0]:
-        if st.button("🧮 매출/방문자 구축", use_container_width=True, key="btn_panel_bulk_sales"):
+        if st.button("🧮 매출/방문자 보완", use_container_width=True, type="primary", key="btn_panel_bulk_sales"):
             st.session_state.current_page = "매출 등록"
             st.rerun()
     with past_cols[1]:
-        if st.button("📦 판매량 구축", use_container_width=True, key="btn_panel_bulk_qty"):
+        if st.button("📦 판매량 보완", use_container_width=True, type="primary", key="btn_panel_bulk_qty"):
             st.session_state.current_page = "판매량 등록"
             st.rerun()
     
