@@ -1129,9 +1129,6 @@ def render_input_hub_v3():
     # ============================================================
     # 데이터 자산 구축 현황판입니다.
     # 3개 자산 패널로 구성: 구조 자산 → 운영 기록 자산 → 판단 기준 자산
-    st.markdown("## 🕹 DATA ASSET CONTROL BOARD")
-    st.markdown("**매장 데이터 자산 구축 현황판**")
-    st.markdown("아래 항목들은 모두 '매장을 시스템으로 만드는 데이터 자산'입니다.")
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
     # 최근 입력일 조회
