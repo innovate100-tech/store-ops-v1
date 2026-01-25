@@ -1035,130 +1035,11 @@ def render_input_hub_v3():
     # Control Board 컴팩트 레이아웃 CSS 주입 (1회만) - 헤더 스타일 포함
     inject_input_hub_controlboard_compact_css()
     
-    # 옵션 1: 좌우 분할 레이아웃 통합 헤더 CSS
-    unified_header_css = """
+    # 반응형 CSS만 추가 (인라인 스타일 사용)
+    responsive_css = """
     <style>
-    #ps-input-hub-header-unified {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(30, 41, 59, 0.8) 100%) !important;
-        border-radius: 16px !important;
-        border: 1px solid rgba(59, 130, 246, 0.3) !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        margin-bottom: 2rem !important;
-        overflow: hidden !important;
-        position: relative !important;
-    }
-    #ps-header-neon-bar {
-        height: 6px !important;
-        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%) !important;
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important;
-    }
-    #ps-header-unified-grid {
-        display: grid !important;
-        grid-template-columns: 1.3fr 1.5fr !important;
-        gap: 2rem !important;
-        padding: 2rem !important;
-    }
-    #ps-header-title-section {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.5rem !important;
-        min-width: 200px !important;
-        max-width: 100% !important;
-    }
-    #ps-header-icon {
-        font-size: 2.2rem !important;
-        margin-bottom: 0.5rem !important;
-    }
-    #ps-header-title {
-        font-size: 0.9rem !important;
-        font-weight: 800 !important;
-        color: #F8FAFC !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        white-space: nowrap !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        line-height: 1.2 !important;
-        word-break: keep-all !important;
-        display: block !important;
-        width: 100% !important;
-    }
-    #ps-header-subtitle {
-        font-size: 0.9rem !important;
-        color: #94A3B8 !important;
-        margin: 0 !important;
-    }
-    #ps-header-guide-section {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 1rem !important;
-    }
-    #ps-guide-title {
-        font-size: 1.2rem !important;
-        font-weight: 700 !important;
-        color: #F8FAFC !important;
-        margin: 0 !important;
-    }
-    #ps-guide-description {
-        font-size: 0.85rem !important;
-        color: #94A3B8 !important;
-        line-height: 1.5 !important;
-        margin: 0 !important;
-    }
-    #ps-maturity-section {
-        margin: 0.5rem 0 !important;
-    }
-    #ps-maturity-label {
-        font-size: 0.75rem !important;
-        color: #94A3B8 !important;
-        font-weight: 600 !important;
-    }
-    #ps-maturity-value {
-        font-size: 1rem !important;
-        color: #3B82F6 !important;
-        font-weight: 700 !important;
-    }
-    #ps-progress-bar {
-        width: 100% !important;
-        height: 8px !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-        border-radius: 4px !important;
-        overflow: hidden !important;
-        margin-top: 0.5rem !important;
-    }
-    #ps-progress-bar-fill {
-        height: 100% !important;
-        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%) !important;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
-    }
-    #ps-guide-bullets {
-        list-style: none !important;
-        padding: 0 !important;
-        margin: 0.5rem 0 !important;
-    }
-    #ps-guide-bullets li {
-        font-size: 0.8rem !important;
-        color: #94A3B8 !important;
-        line-height: 1.4 !important;
-        margin-bottom: 0.5rem !important;
-        padding-left: 1.5rem !important;
-        position: relative !important;
-    }
-    #ps-guide-bullets li::before {
-        content: "•" !important;
-        position: absolute !important;
-        left: 0 !important;
-        color: #3B82F6 !important;
-        font-size: 1.2rem !important;
-    }
-    #ps-guide-footer {
-        font-size: 0.75rem !important;
-        color: #64748B !important;
-        margin-top: 0.5rem !important;
-        font-style: italic !important;
-    }
     @media (max-width: 768px) {
-        #ps-header-unified-grid {
+        .option1-grid {
             grid-template-columns: 1fr !important;
             gap: 1.5rem !important;
             padding: 1.5rem !important;
@@ -1166,7 +1047,7 @@ def render_input_hub_v3():
     }
     </style>
     """
-    st.markdown(unified_header_css, unsafe_allow_html=True)
+    st.markdown(responsive_css, unsafe_allow_html=True)
     
     # 개발모드에서만 DB CLIENT MODE 표시 (기존 기능 유지)
     try:
@@ -1212,46 +1093,36 @@ def render_input_hub_v3():
     recommendation = get_system_recommendation(bottleneck, assets)
 
     # ============================================================
-    # ZONE 0: 통합 헤더 (제목 + 가이드) - 옵션 1: 좌우 분할
+    # ZONE 0: 통합 헤더 (제목 + 가이드) - 옵션 1: 좌우 분할 (테스트 페이지와 동일)
     # ============================================================
-    # 제목과 가이드를 하나의 박스에 좌우로 배치하여 공간 절약
-    status_color = "#10B981" if score == 100 else "#3B82F6"
+    # 테스트 페이지의 옵션 1을 그대로 적용 (인라인 스타일 사용)
     
-    # 통합 헤더 HTML을 문자열 연결로 구성
-    unified_header_html = '<div id="ps-input-hub-header-unified" data-ps-scope="input_hub">'
-    unified_header_html += '<div id="ps-header-neon-bar"></div>'
-    unified_header_html += '<div id="ps-header-unified-grid">'
-    
-    # 왼쪽: 제목 영역
-    unified_header_html += '<div id="ps-header-title-section">'
-    unified_header_html += '<div id="ps-header-icon">📝</div>'
-    unified_header_html += '<h1 id="ps-header-title">데이터 입력 센터</h1>'
-    unified_header_html += '<p id="ps-header-subtitle">매장 운영 OS 조종석</p>'
+    # 옵션 1: 문자열 연결로 구성 (테스트 페이지와 동일)
+    unified_header_html = '<div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(30, 41, 59, 0.8) 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); margin-bottom: 2rem; overflow: hidden; position: relative;">'
+    unified_header_html += '<div style="height: 6px; background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%); box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);"></div>'
+    unified_header_html += '<div class="option1-grid" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; padding: 2rem;">'
+    unified_header_html += '<div style="display: flex; flex-direction: column; gap: 0.5rem;">'
+    unified_header_html += '<div style="font-size: 3rem; margin-bottom: 0.5rem;">📝</div>'
+    unified_header_html += '<h1 style="font-size: 1.6rem; font-weight: 800; color: #F8FAFC; margin: 0; white-space: nowrap;">데이터 입력 센터</h1>'
+    unified_header_html += '<p style="font-size: 0.9rem; color: #94A3B8; margin: 0;">매장 운영 OS 조종석</p>'
     unified_header_html += '</div>'
-    
-    # 오른쪽: 가이드 영역
-    unified_header_html += '<div id="ps-header-guide-section">'
-    unified_header_html += '<h2 id="ps-guide-title">💡 데이터 자산 가이드</h2>'
-    unified_header_html += '<p id="ps-guide-description">이 앱은 \'감\'이 아니라 데이터 자산으로 매장을 운영하게 만듭니다.<br>아래 항목들이 채워질수록, 매장 운영이 시스템이 됩니다.</p>'
-    
-    # MATURITY LEVEL
-    unified_header_html += '<div id="ps-maturity-section">'
+    unified_header_html += '<div style="display: flex; flex-direction: column; gap: 1rem;">'
+    unified_header_html += '<h2 style="font-size: 1.2rem; font-weight: 700; color: #F8FAFC; margin: 0;">💡 데이터 자산 가이드</h2>'
+    unified_header_html += '<p style="font-size: 0.85rem; color: #94A3B8; line-height: 1.5; margin: 0;">이 앱은 \'감\'이 아니라 데이터 자산으로 매장을 운영하게 만듭니다.<br>아래 항목들이 채워질수록, 매장 운영이 시스템이 됩니다.</p>'
+    unified_header_html += '<div style="margin: 0.5rem 0;">'
     unified_header_html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">'
-    unified_header_html += '<span id="ps-maturity-label">MATURITY LEVEL</span>'
-    unified_header_html += f'<span id="ps-maturity-value">{score}%</span>'
+    unified_header_html += '<span style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">MATURITY LEVEL</span>'
+    unified_header_html += f'<span style="font-size: 1rem; color: #3B82F6; font-weight: 700;">{score}%</span>'
     unified_header_html += '</div>'
-    unified_header_html += '<div id="ps-progress-bar">'
-    unified_header_html += f'<div id="ps-progress-bar-fill" style="width: {score}%;"></div>'
+    unified_header_html += '<div style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px; overflow: hidden;">'
+    unified_header_html += f'<div style="height: 100%; background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); width: {score}%; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>'
     unified_header_html += '</div>'
     unified_header_html += '</div>'
-    
-    # 불릿 포인트
-    unified_header_html += '<ul id="ps-guide-bullets">'
-    unified_header_html += '<li>비어 있는 데이터를 채우면 정밀 리포트/전략 기능이 단계적으로 열립니다.</li>'
-    unified_header_html += '<li>입력은 일이 아니라, 매장의 운영 시스템을 만드는 과정입니다.</li>'
+    unified_header_html += '<ul style="list-style: none; padding: 0; margin: 0.5rem 0;">'
+    unified_header_html += '<li style="font-size: 0.8rem; color: #94A3B8; line-height: 1.4; margin-bottom: 0.5rem; padding-left: 1.5rem; position: relative;"><span style="position: absolute; left: 0; color: #3B82F6; font-size: 1.2rem;">•</span>비어 있는 데이터를 채우면 정밀 리포트/전략 기능이 단계적으로 열립니다.</li>'
+    unified_header_html += '<li style="font-size: 0.8rem; color: #94A3B8; line-height: 1.4; margin-bottom: 0.5rem; padding-left: 1.5rem; position: relative;"><span style="position: absolute; left: 0; color: #3B82F6; font-size: 1.2rem;">•</span>입력은 일이 아니라, 매장의 운영 시스템을 만드는 과정입니다.</li>'
     unified_header_html += '</ul>'
-    
-    unified_header_html += '<p id="ps-guide-footer">아래 패널들은 현재 매장이 보유한 \'데이터 자산\' 상태입니다.</p>'
+    unified_header_html += '<p style="font-size: 0.75rem; color: #64748B; margin-top: 0.5rem; font-style: italic; margin: 0;">아래 패널들은 현재 매장이 보유한 \'데이터 자산\' 상태입니다.</p>'
     unified_header_html += '</div>'
     unified_header_html += '</div>'
     unified_header_html += '</div>'
