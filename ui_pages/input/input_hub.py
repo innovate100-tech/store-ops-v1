@@ -206,72 +206,89 @@ def inject_input_hub_controlboard_compact_css():
        입력허브 Control Board 컴팩트 레이아웃 CSS
        ============================================ */
     
-    /* Control Board 카드 통일 높이 */
+    /* Control Board 카드 통일 높이 (프리미엄 스타일) */
     [data-ps-scope="{scope_id}"] .ps-control-card-struct {{
-        height: 150px !important;
-        min-height: 150px !important;
-        max-height: 150px !important;
-        padding: 1rem !important;
+        height: 120px !important;
+        min-height: 120px !important;
+        max-height: 120px !important;
+        padding: 0.9rem !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
     }}
     
     [data-ps-scope="{scope_id}"] .ps-control-card-op {{
-        height: 140px !important;
-        min-height: 140px !important;
-        max-height: 140px !important;
-        padding: 1rem !important;
+        height: 115px !important;
+        min-height: 115px !important;
+        max-height: 115px !important;
+        padding: 0.9rem !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
     }}
     
     [data-ps-scope="{scope_id}"] .ps-control-card-target {{
-        height: 130px !important;
-        min-height: 130px !important;
-        max-height: 130px !important;
-        padding: 1rem !important;
+        height: 110px !important;
+        min-height: 110px !important;
+        max-height: 110px !important;
+        padding: 0.9rem !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
     }}
     
-    /* Control Board 버튼 통일 높이 (Streamlit 버튼 타겟팅) */
+    /* Control Board 버튼 통일 높이 - 프리미엄 컨트롤 패널 스타일 */
     [data-ps-scope="{scope_id}"] button[kind="primary"],
     [data-ps-scope="{scope_id}"] button[kind="secondary"] {{
-        height: 52px !important;
-        min-height: 52px !important;
+        height: 48px !important;
+        min-height: 48px !important;
         line-height: 1.2 !important;
-        font-size: 0.9rem !important;
+        font-size: 0.875rem !important;
         font-weight: 600 !important;
         border-radius: 8px !important;
         transition: all 0.2s ease !important;
+        letter-spacing: 0.01em !important;
     }}
     
-    [data-ps-scope="{scope_id}"] button[kind="primary"]:hover,
-    [data-ps-scope="{scope_id}"] button[kind="secondary"]:hover {{
+    /* Primary 버튼 - 핵심 CTA만 글로우 */
+    [data-ps-scope="{scope_id}"] button[kind="primary"] {{
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.3) !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] button[kind="primary"]:hover {{
         transform: translateY(-1px) !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.4) !important;
     }}
     
-    /* Secondary 버튼 입력 전용 스타일 강화 */
+    /* Secondary 버튼 - 입력 전용 컨트롤 패널 스타일 */
     [data-ps-scope="{scope_id}"] button[kind="secondary"] {{
-        border: 1.5px solid rgba(148, 163, 184, 0.3) !important;
+        border: 1px solid rgba(148, 163, 184, 0.25) !important;
+        background: rgba(30, 41, 59, 0.6) !important;
     }}
     
     [data-ps-scope="{scope_id}"] button[kind="secondary"]:hover {{
-        border-color: rgba(59, 130, 246, 0.5) !important;
-        background-color: rgba(59, 130, 246, 0.1) !important;
+        border-color: rgba(59, 130, 246, 0.4) !important;
+        background-color: rgba(59, 130, 246, 0.08) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     }}
     
-    /* 레이어 간 간격 축소 */
+    /* 레이어 간 간격 축소 (프리미엄 레이아웃) */
     [data-ps-scope="{scope_id}"] .ps-layer-section {{
-        margin-bottom: 20px !important;
+        margin-bottom: 18px !important;
     }}
     
     [data-ps-scope="{scope_id}"] .ps-layer-title {{
-        margin-bottom: 12px !important;
+        margin-bottom: 10px !important;
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+        color: #E2E8F0 !important;
+    }}
+    
+    /* 액션 바 스타일 */
+    [data-ps-scope="{scope_id}"] .ps-action-bar-wrapper {{
+        margin-top: 10px !important;
+        margin-bottom: 0 !important;
     }}
     
     /* 카드 그리드 간격 */
@@ -286,34 +303,81 @@ def inject_input_hub_controlboard_compact_css():
         margin-bottom: 0 !important;
     }}
     
-    /* 카드 텍스트 3줄 규격 */
-    [data-ps-scope="{scope_id}"] .ps-card-line1 {{
-        font-size: 1.1rem !important;
+    /* 프리미엄 카드 스타일 - 상태 표시기 */
+    [data-ps-scope="{scope_id}"] .ps-status-card {{
+        background: rgba(30, 41, 59, 0.5) !important;
+        border: 1px solid rgba(148, 163, 184, 0.15) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.2s ease !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-status-card:hover {{
+        border-color: rgba(148, 163, 184, 0.25) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }}
+    
+    /* 카드 내부 계층 */
+    [data-ps-scope="{scope_id}"] .ps-card-title {{
+        font-size: 0.9rem !important;
         font-weight: 600 !important;
-        margin-bottom: 0.4rem !important;
-        line-height: 1.3 !important;
+        color: #94A3B8 !important;
+        margin-bottom: 0.6rem !important;
+        letter-spacing: 0.02em !important;
         display: flex !important;
         align-items: center !important;
         gap: 0.4rem !important;
     }}
     
-    [data-ps-scope="{scope_id}"] .ps-card-line2 {{
-        font-size: 0.85rem !important;
-        color: #E2E8F0 !important;
-        margin-bottom: 0.3rem !important;
-        line-height: 1.3 !important;
-        font-weight: 600 !important;
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge {{
+        display: inline-block !important;
+        padding: 0.25rem 0.6rem !important;
+        border-radius: 6px !important;
+        font-size: 0.7rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em !important;
+        margin-bottom: 0.5rem !important;
     }}
     
-    [data-ps-scope="{scope_id}"] .ps-card-line3 {{
-        font-size: 0.75rem !important;
-        color: #64748B !important;
-        line-height: 1.3 !important;
-        margin-top: auto !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        white-space: nowrap !important;
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge.active {{
+        background: rgba(16, 185, 129, 0.15) !important;
+        color: #10B981 !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
     }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge.incomplete {{
+        background: rgba(245, 158, 11, 0.15) !important;
+        color: #F59E0B !important;
+        border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge.missing {{
+        background: rgba(100, 116, 139, 0.15) !important;
+        color: #64748B !important;
+        border: 1px solid rgba(100, 116, 139, 0.3) !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge.optional {{
+        background: rgba(148, 163, 184, 0.1) !important;
+        color: #94A3B8 !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-value {{
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        color: #F8FAFC !important;
+        line-height: 1.2 !important;
+        margin-top: auto !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-value-sub {{
+        font-size: 0.7rem !important;
+        color: #64748B !important;
+        margin-top: 0.25rem !important;
+        font-weight: 500 !important;
+    }}
+    
     
     /* System Panels expander 여백 축소 */
     [data-ps-scope="{scope_id}"] .ps-system-panels {{
@@ -918,55 +982,107 @@ def render_input_hub_v3():
     # 환경설정 / 시스템 설계 톤으로 유지합니다.
     st.markdown('<h3 class="ps-layer-title">🏗 구조 데이터 (설계 레이어)</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (4개)
+    # STATUS ZONE: 카드 그리드 (4개) - 상태 표시기 스타일
     struct_cols = st.columns(4)
     
-    menu_status = "✅ 있음" if assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0 else ("⚠️ 미완성" if assets.get('menu_count', 0) > 0 else "❌ 없음")
-    menu_value = f"{assets.get('menu_count', 0)}개" + (f" ({assets.get('missing_price')}개 누락)" if assets.get('missing_price', 0) > 0 else "")
+    # 메뉴 상태 계산
+    if assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0:
+        menu_badge_class = "active"
+        menu_badge_text = "ACTIVE"
+        menu_value = f"{assets.get('menu_count', 0)}개"
+    elif assets.get('menu_count', 0) > 0:
+        menu_badge_class = "incomplete"
+        menu_badge_text = "INCOMPLETE"
+        menu_value = f"{assets.get('menu_count', 0)}개"
+        menu_sub = f"{assets.get('missing_price')}개 누락"
+    else:
+        menu_badge_class = "missing"
+        menu_badge_text = "MISSING"
+        menu_value = "0개"
+        menu_sub = None
     
-    ing_status = "✅ 있음" if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0 else ("⚠️ 미완성" if assets.get('ing_count', 0) > 0 else "❌ 없음")
-    ing_value = f"{assets.get('ing_count', 0)}개" + (f" ({assets.get('missing_cost')}개 누락)" if assets.get('missing_cost', 0) > 0 else "")
+    # 재료 상태 계산
+    if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0:
+        ing_badge_class = "active"
+        ing_badge_text = "ACTIVE"
+        ing_value = f"{assets.get('ing_count', 0)}개"
+    elif assets.get('ing_count', 0) > 0:
+        ing_badge_class = "incomplete"
+        ing_badge_text = "INCOMPLETE"
+        ing_value = f"{assets.get('ing_count', 0)}개"
+        ing_sub = f"{assets.get('missing_cost')}개 누락"
+    else:
+        ing_badge_class = "missing"
+        ing_badge_text = "MISSING"
+        ing_value = "0개"
+        ing_sub = None
     
-    recipe_status = "✅ 완성" if assets.get('recipe_rate', 0) >= 80 else ("⚠️ 미완성" if assets.get('recipe_rate', 0) > 0 else "❌ 없음")
-    recipe_value = f"{assets.get('recipe_rate', 0):.0f}%"
+    # 레시피 상태 계산
+    if assets.get('recipe_rate', 0) >= 80:
+        recipe_badge_class = "active"
+        recipe_badge_text = "ACTIVE"
+        recipe_value = f"{assets.get('recipe_rate', 0):.0f}%"
+    elif assets.get('recipe_rate', 0) > 0:
+        recipe_badge_class = "incomplete"
+        recipe_badge_text = "INCOMPLETE"
+        recipe_value = f"{assets.get('recipe_rate', 0):.0f}%"
+    else:
+        recipe_badge_class = "missing"
+        recipe_badge_text = "MISSING"
+        recipe_value = "0%"
     
     with struct_cols[0]:
         st.markdown(f"""
-        <div class="ps-control-card-struct" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">📘 메뉴 구조</div>
-            <div class="ps-card-line2">{menu_status} {menu_value}</div>
-            <div class="ps-card-line3">→ 없으면 메뉴 수익 구조 분석 불가</div>
+        <div class="ps-control-card-struct ps-status-card">
+            <div class="ps-card-title">📘 메뉴 구조</div>
+            <div>
+                <span class="ps-card-status-badge {menu_badge_class}">{menu_badge_text}</span>
+            </div>
+            <div class="ps-card-value">
+                {menu_value}
+                {f'<div class="ps-card-value-sub">{menu_sub}</div>' if menu_sub else ''}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with struct_cols[1]:
         st.markdown(f"""
-        <div class="ps-control-card-struct" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">🧺 재료 구조</div>
-            <div class="ps-card-line2">{ing_status} {ing_value}</div>
-            <div class="ps-card-line3">→ 없으면 원가 계산 불가</div>
+        <div class="ps-control-card-struct ps-status-card">
+            <div class="ps-card-title">🧺 재료 구조</div>
+            <div>
+                <span class="ps-card-status-badge {ing_badge_class}">{ing_badge_text}</span>
+            </div>
+            <div class="ps-card-value">
+                {ing_value}
+                {f'<div class="ps-card-value-sub">{ing_sub}</div>' if ing_sub else ''}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with struct_cols[2]:
         st.markdown(f"""
-        <div class="ps-control-card-struct" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">🍳 레시피 구조</div>
-            <div class="ps-card-line2">{recipe_status} 완성도 {recipe_value}</div>
-            <div class="ps-card-line3">→ 없으면 메뉴 수익성 분석 불가</div>
+        <div class="ps-control-card-struct ps-status-card">
+            <div class="ps-card-title">🍳 레시피 구조</div>
+            <div>
+                <span class="ps-card-status-badge {recipe_badge_class}">{recipe_badge_text}</span>
+            </div>
+            <div class="ps-card-value">{recipe_value}</div>
         </div>
         """, unsafe_allow_html=True)
     
     with struct_cols[3]:
         st.markdown(f"""
-        <div class="ps-control-card-struct" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">📦 재고 구조</div>
-            <div class="ps-card-line2">⏳ 선택 입력</div>
-            <div class="ps-card-line3">→ 없으면 발주 최적화 분석 불가</div>
+        <div class="ps-control-card-struct ps-status-card">
+            <div class="ps-card-title">📦 재고 구조</div>
+            <div>
+                <span class="ps-card-status-badge optional">OPTIONAL</span>
+            </div>
+            <div class="ps-card-value" style="color: #94A3B8; font-size: 0.85rem;">선택 입력</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 버튼 바 (4개)
+    # ACTION ZONE: 버튼 바 (4개) - 컨트롤 패널
+    st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     struct_btn_cols = st.columns(4)
     with struct_btn_cols[0]:
         btn_type = "primary" if assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0 else "secondary"
@@ -997,46 +1113,76 @@ def render_input_hub_v3():
     # 오늘 시스템에 연료 넣는 구역 톤으로 유지합니다.
     st.markdown('<h3 class="ps-layer-title">⚡ 운영 데이터 (기록 레이어)</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (3개)
+    # STATUS ZONE: 카드 그리드 (3개) - 상태 표시기 스타일
     op_cols = st.columns(3)
     
-    daily_status = "✅ 오늘 기록 있음" if has_daily_close else "❌ 오늘 기록 없음"
-    daily_value = f"최근: {last_close_date}" if last_close_date != "기록 없음" else "기록 없음"
+    # 일일 마감 상태
+    if has_daily_close:
+        daily_badge_class = "active"
+        daily_badge_text = "ACTIVE"
+        daily_value = f"최근: {last_close_date}" if last_close_date != "기록 없음" else "오늘 기록"
+    else:
+        daily_badge_class = "missing"
+        daily_badge_text = "MISSING"
+        daily_value = last_close_date if last_close_date != "기록 없음" else "기록 없음"
     
-    qsc_status = "✅ 완료" if r4["status"] == "completed" else "⏳ 권장"
-    qsc_value = r4["summary"]
+    # QSC 상태
+    if r4["status"] == "completed":
+        qsc_badge_class = "active"
+        qsc_badge_text = "ACTIVE"
+        qsc_value = r4["summary"]
+    else:
+        qsc_badge_class = "optional"
+        qsc_badge_text = "OPTIONAL"
+        qsc_value = r4["summary"]
     
-    settle_status = "✅ 완료" if r5["status"] == "completed" else "⏸️ 대기"
-    settle_value = r5["summary"]
+    # 월간 정산 상태
+    if r5["status"] == "completed":
+        settle_badge_class = "active"
+        settle_badge_text = "ACTIVE"
+        settle_value = r5["summary"]
+    else:
+        settle_badge_class = "optional"
+        settle_badge_text = "PENDING"
+        settle_value = r5["summary"]
     
     with op_cols[0]:
         st.markdown(f"""
-        <div class="ps-control-card-op" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">📝 일일 마감</div>
-            <div class="ps-card-line2">{daily_status} {daily_value}</div>
-            <div class="ps-card-line3">→ 없으면 매출 추이 분석 불가</div>
+        <div class="ps-control-card-op ps-status-card">
+            <div class="ps-card-title">📝 일일 마감</div>
+            <div>
+                <span class="ps-card-status-badge {daily_badge_class}">{daily_badge_text}</span>
+            </div>
+            <div class="ps-card-value">
+                {daily_value}
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
     with op_cols[1]:
         st.markdown(f"""
-        <div class="ps-control-card-op" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">🩺 QSC</div>
-            <div class="ps-card-line2">{qsc_status} {qsc_value}</div>
-            <div class="ps-card-line3">→ 없으면 운영 품질 모니터링 불가</div>
+        <div class="ps-control-card-op ps-status-card">
+            <div class="ps-card-title">🩺 QSC</div>
+            <div>
+                <span class="ps-card-status-badge {qsc_badge_class}">{qsc_badge_text}</span>
+            </div>
+            <div class="ps-card-value" style="font-size: 0.85rem;">{qsc_value}</div>
         </div>
         """, unsafe_allow_html=True)
     
     with op_cols[2]:
         st.markdown(f"""
-        <div class="ps-control-card-op" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">📅 월간 정산</div>
-            <div class="ps-card-line2">{settle_status} {settle_value}</div>
-            <div class="ps-card-line3">→ 없으면 목표 대비 성과 분석 불가</div>
+        <div class="ps-control-card-op ps-status-card">
+            <div class="ps-card-title">📅 월간 정산</div>
+            <div>
+                <span class="ps-card-status-badge {settle_badge_class}">{settle_badge_text}</span>
+            </div>
+            <div class="ps-card-value" style="font-size: 0.85rem;">{settle_value}</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 버튼 바 (3개)
+    # ACTION ZONE: 버튼 바 (3개) - 컨트롤 패널
+    st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     op_btn_cols = st.columns(3)
     with op_btn_cols[0]:
         btn_type = "primary" if not has_daily_close else "secondary"
@@ -1061,31 +1207,43 @@ def render_input_hub_v3():
     # AI 판단 기준 세팅 톤으로 유지합니다.
     st.markdown('<h3 class="ps-layer-title">🎯 기준 데이터 (판단 레이어)</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (2개)
+    # STATUS ZONE: 카드 그리드 (2개) - 상태 표시기 스타일
     target_cols = st.columns(2)
     
-    target_status = "✅ 설정됨" if assets.get('has_target') else "⚠️ 미설정"
-    target_value = f"{current_month_kst()}월" if assets.get('has_target') else "미설정"
+    # 매출 목표 상태
+    if assets.get('has_target'):
+        target_badge_class = "active"
+        target_badge_text = "ACTIVE"
+        target_value = f"{current_month_kst()}월"
+    else:
+        target_badge_class = "missing"
+        target_badge_text = "MISSING"
+        target_value = "미설정"
     
     with target_cols[0]:
         st.markdown(f"""
-        <div class="ps-control-card-target" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">🎯 매출 목표</div>
-            <div class="ps-card-line2">{target_status} {target_value}</div>
-            <div class="ps-card-line3">→ 없으면 전략 보드 비활성</div>
+        <div class="ps-control-card-target ps-status-card">
+            <div class="ps-card-title">🎯 매출 목표</div>
+            <div>
+                <span class="ps-card-status-badge {target_badge_class}">{target_badge_text}</span>
+            </div>
+            <div class="ps-card-value">{target_value}</div>
         </div>
         """, unsafe_allow_html=True)
     
     with target_cols[1]:
         st.markdown(f"""
-        <div class="ps-control-card-target" style="background: rgba(30, 41, 59, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-            <div class="ps-card-line1">🧾 비용 목표</div>
-            <div class="ps-card-line2">⏳ 선택 입력</div>
-            <div class="ps-card-line3">→ 없으면 비용 최적화 분석 불가</div>
+        <div class="ps-control-card-target ps-status-card">
+            <div class="ps-card-title">🧾 비용 목표</div>
+            <div>
+                <span class="ps-card-status-badge optional">OPTIONAL</span>
+            </div>
+            <div class="ps-card-value" style="color: #94A3B8; font-size: 0.85rem;">선택 입력</div>
         </div>
         """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 버튼 바 (2개)
+    # ACTION ZONE: 버튼 바 (2개) - 컨트롤 패널
+    st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     target_btn_cols = st.columns(2)
     with target_btn_cols[0]:
         btn_type = "primary" if not assets.get('has_target') else "secondary"
