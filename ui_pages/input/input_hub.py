@@ -992,39 +992,49 @@ def render_input_hub_v3():
                 
                 // 카드에 애니메이션 적용 (텍스트 기반으로 찾기 - Streamlit이 속성을 제거할 수 있으므로)
                 // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있는 div 찾기
-                const allDivs = document.querySelectorAll('div');
-                const cards = [];
+                // 모든 요소에서 "지금 시작하세요" 텍스트 찾기 (텍스트 요소 포함)
+                const allElements = document.querySelectorAll('*');
+                const textElements = [];
                 
-                allDivs.forEach(div => {
-                    const text = div.textContent || '';
-                    const style = window.getComputedStyle(div);
-                    const inlineStyle = div.getAttribute('style') || '';
-                    
-                    // 조건 1: 텍스트 확인 (더 넓은 범위)
-                    const hasStartText = text.includes('지금 시작하세요') || 
-                                        text.includes('시작 필요') ||
-                                        text.includes('🚨 지금 시작하세요');
-                    
-                    // 조건 2: 주황색 스타일 확인 (인라인 스타일 우선)
-                    const hasOrangeStyle = 
-                        inlineStyle.includes('245, 158, 11') ||
-                        inlineStyle.includes('F59E0B') ||
-                        inlineStyle.includes('rgba(245, 158, 11') ||
-                        style.borderColor.includes('245') || 
-                        style.borderColor.includes('158') || 
-                        style.color.includes('245') ||
-                        style.color.includes('158') ||
-                        style.backgroundColor.includes('245') || 
-                        style.backgroundColor.includes('158');
-                    
-                    // 조건 3: 카드처럼 보이는 div
-                    const looksLikeCard = (style.padding !== '0px' && style.padding !== '') || 
-                                         inlineStyle.includes('border-radius') ||
-                                         inlineStyle.includes('padding');
-                    
-                    // 텍스트가 있으면 조건 완화
-                    if (hasStartText && (hasOrangeStyle || looksLikeCard)) {
-                        cards.push(div);
+                allElements.forEach(el => {
+                    const text = el.textContent || '';
+                    if (text.includes('지금 시작하세요') || text.includes('🚨 지금 시작하세요') || text.includes('시작 필요')) {
+                        // 텍스트 요소의 부모 div 찾기 (카드)
+                        let parentDiv = el;
+                        while (parentDiv && parentDiv.tagName !== 'DIV' && parentDiv.parentElement) {
+                            parentDiv = parentDiv.parentElement;
+                        }
+                        // div를 찾지 못하면 원래 요소 사용
+                        if (!parentDiv || parentDiv.tagName !== 'DIV') {
+                            parentDiv = el;
+                        }
+                        
+                        // 이미 추가된 div인지 확인
+                        if (!cards.includes(parentDiv)) {
+                            const inlineStyle = parentDiv.getAttribute('style') || '';
+                            const style = window.getComputedStyle(parentDiv);
+                            
+                            // 주황색 스타일이 있거나 카드처럼 보이는 div만 추가
+                            const hasOrangeStyle = 
+                                inlineStyle.includes('245, 158, 11') ||
+                                inlineStyle.includes('F59E0B') ||
+                                inlineStyle.includes('rgba(245, 158, 11') ||
+                                style.borderColor.includes('245') || 
+                                style.borderColor.includes('158') || 
+                                style.color.includes('245') ||
+                                style.color.includes('158') ||
+                                style.backgroundColor.includes('245') || 
+                                style.backgroundColor.includes('158');
+                            
+                            const looksLikeCard = (style.padding !== '0px' && style.padding !== '') || 
+                                                 inlineStyle.includes('border-radius') ||
+                                                 inlineStyle.includes('padding') ||
+                                                 inlineStyle.includes('background');
+                            
+                            if (hasOrangeStyle || looksLikeCard) {
+                                cards.push(parentDiv);
+                            }
+                        }
                     }
                 });
                 
