@@ -7,15 +7,24 @@ import streamlit as st
 
 def inject_home_premium_css():
     """
-    홈 화면 프리미엄 CSS 주입 (1회만 실행)
+    홈 화면 프리미엄 CSS 주입 (홈 페이지 진입 시마다 재주입)
     모든 섹션 프리미엄 디자인 적용 - 업그레이드 버전
+    
+    Note: 다른 페이지로 갔다가 돌아올 때 CSS가 풀리는 문제를 해결하기 위해
+    홈 페이지에 진입할 때마다 CSS를 재주입합니다.
     """
-    # 1회 주입 가드
-    if st.session_state.get("_ps_home_premium_css_injected", False):
+    # 현재 페이지가 홈인지 확인
+    current_page = st.session_state.get("current_page", "홈")
+    
+    # 홈 페이지가 아니면 주입하지 않음
+    if current_page != "홈":
         return
     
+    # 이전에 주입된 CSS 태그 제거를 위한 고유 ID 사용
+    # (중복 주입 방지는 브라우저가 자동으로 처리)
+    
     css = """
-    <style>
+    <style id="ps-home-premium-style">
     /* ============================================
        홈 화면 프리미엄 스타일 (전체 섹션) - 업그레이드
        ============================================ */
@@ -568,5 +577,22 @@ def inject_home_premium_css():
     </style>
     """
     
+    # 기존 스타일 태그 제거 후 재주입 (중복 방지)
+    remove_script = """
+    <script>
+    (function() {
+        // 기존 홈 프리미엄 CSS 제거
+        var existingStyle = document.getElementById('ps-home-premium-style');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+    })();
+    </script>
+    """
+    st.markdown(remove_script, unsafe_allow_html=True)
+    
+    # CSS 주입
     st.markdown(css, unsafe_allow_html=True)
+    
+    # 주입 완료 플래그 설정 (디버깅용)
     st.session_state["_ps_home_premium_css_injected"] = True
