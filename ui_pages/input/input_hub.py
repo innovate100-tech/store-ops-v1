@@ -1129,24 +1129,29 @@ def render_input_hub_v3():
     
     # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
-    struct_btn_cols = st.columns(2)
+    struct_btn_cols = st.columns(4)
     with struct_btn_cols[0]:
-        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
-        if st.button("🧱 구조 자산 보완하기", use_container_width=True, type="primary", key="btn_asset_struct"):
-            # 가장 우선순위가 높은 항목으로 이동
-            if assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0:
-                st.session_state.current_page = "메뉴 입력"
-            elif assets.get('missing_cost', 0) > 0 or assets.get('ing_count', 0) == 0:
-                st.session_state.current_page = "재료 입력"
-            elif assets.get('recipe_rate', 0) < 80:
-                st.session_state.current_page = "레시피 등록"
-            else:
-                st.session_state.current_page = "메뉴 입력"
+        # 메뉴 입력 버튼 (항상 보완 가능)
+        btn_type = "primary" if (assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0) else "primary"
+        if st.button("📘 메뉴 보완", use_container_width=True, type=btn_type, key="btn_asset_menu"):
+            st.session_state.current_page = "메뉴 입력"
             st.rerun()
     with struct_btn_cols[1]:
-        # 레시피가 완성되어도 항상 보완 가능하도록 버튼 노출
-        if st.button("🍳 레시피 정리하기", use_container_width=True, type="primary", key="btn_asset_recipe"):
+        # 재료 입력 버튼 (항상 보완 가능)
+        btn_type = "primary" if (assets.get('missing_cost', 0) > 0 or assets.get('ing_count', 0) == 0) else "primary"
+        if st.button("🧺 재료 보완", use_container_width=True, type=btn_type, key="btn_asset_ing"):
+            st.session_state.current_page = "재료 입력"
+            st.rerun()
+    with struct_btn_cols[2]:
+        # 레시피 입력 버튼 (항상 보완 가능)
+        btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "primary"
+        if st.button("🍳 레시피 보완", use_container_width=True, type=btn_type, key="btn_asset_recipe"):
             st.session_state.current_page = "레시피 등록"
+            st.rerun()
+    with struct_btn_cols[3]:
+        # 재고 입력 버튼 (선택)
+        if st.button("📦 재고 보완", use_container_width=True, type="primary", key="btn_asset_inv"):
+            st.session_state.current_page = "재고 입력"
             st.rerun()
     
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
