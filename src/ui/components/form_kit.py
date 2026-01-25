@@ -5,6 +5,12 @@ FormKit: 입력센터 통일 UI 컴포넌트
 import streamlit as st
 from typing import Optional, List, Dict, Any, Callable
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
 
 # CSS 스코프 클래스 (페이지별로 주입)
 FORM_KIT_CSS = """
@@ -76,8 +82,14 @@ FORM_KIT_CSS = """
 
 
 def inject_form_kit_css():
-    """FormKit CSS 주입 (페이지 스코프)"""
+    """FormKit CSS 주입 (1회만 실행)"""
+    # 1회 주입 가드
+    if st.session_state.get("_ps_formkit_css_injected", False):
+        return
+    
     st.markdown(FORM_KIT_CSS, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: form_kit.py:78 inject_form_kit_css", extra={"where": "global"})
+    st.session_state["_ps_formkit_css_injected"] = True
 
 
 def ps_section(title: str, icon: Optional[str] = None, help_text: Optional[str] = None):

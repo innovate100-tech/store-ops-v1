@@ -4,6 +4,12 @@
 """
 import streamlit as st
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
 
 # 헤더 CSS 문자열 (상수로 관리, 핵심 속성에 !important 적용)
 COMMON_HEADER_CSS = """
@@ -230,14 +236,16 @@ def render_common_header(marquee_text: str | None = None):
         - 무거운 계산 금지
         - UI-only 구현
         - 제목은 고정 문자열 사용
-        - 매 rerun마다 CSS 주입 (가드 없음, 안정성 우선)
+        - CSS 주입은 1회만 실행 (가드 적용)
     """
     try:
-        # CSS 주입 (매 rerun마다 항상 주입, 가드 없음)
-        # Streamlit의 기본 동작에 맞춰 가장 안정적인 방식
-        # 헤더 HTML보다 먼저 주입되어 FOUC 최소화
-        # 전역 토큰은 app.py에서 주입되므로 여기서는 헤더 CSS만 주입
-        st.markdown(f"<style>{COMMON_HEADER_CSS}</style>", unsafe_allow_html=True)
+        # CSS 주입 (1회만 실행)
+        if st.session_state.get("_ps_common_header_css_injected", False):
+            pass  # CSS는 이미 주입됨, HTML만 렌더링
+        else:
+            st.markdown(f"<style>{COMMON_HEADER_CSS}</style>", unsafe_allow_html=True)
+            push_render_step("CSS_INJECT: common_header.py:240 render_common_header", extra={"where": "global"})
+            st.session_state["_ps_common_header_css_injected"] = True
         
         # 제목 박스 렌더 (고정 제목 사용) - HTML 블록으로 강제 렌더
         st.markdown("""

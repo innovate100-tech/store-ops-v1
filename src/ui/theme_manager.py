@@ -3,6 +3,12 @@
 """
 import streamlit as st
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
 
 def inject_global_ui():
     """
@@ -10,6 +16,9 @@ def inject_global_ui():
     prefers-color-scheme에 따라 자동으로 라이트/다크 모드 토큰을 전환합니다.
     최소한의 CSS 변수와 기본 스타일만 적용합니다.
     """
+    # 1회 주입 가드
+    if st.session_state.get("_ps_global_ui_injected", False):
+        return
     
     # AgGrid 다크 테마 JavaScript (전역 주입)
     aggrid_dark_js = """
@@ -178,6 +187,7 @@ def inject_global_ui():
     """
     
     st.markdown(aggrid_dark_js, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: theme_manager.py:180 inject_global_ui (aggrid_dark_js)", extra={"where": "global"})
     
     st.markdown(f"""
     <style id="ps-ui-base">
@@ -449,4 +459,7 @@ def inject_global_ui():
         
     </style>
     """, unsafe_allow_html=True)
+    
+    push_render_step("CSS_INJECT: theme_manager.py:182 inject_global_ui (global_css)", extra={"where": "global"})
+    st.session_state["_ps_global_ui_injected"] = True
     

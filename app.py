@@ -86,7 +86,11 @@ st.markdown("""
 # 사이드바 프리미엄 CSS 주입 함수
 # ============================================
 def inject_sidebar_premium_css():
-    """사이드바 울트라 시크 CSS 주입 (매 rerun마다 실행)"""
+    """사이드바 울트라 시크 CSS 주입 (1회만 실행)"""
+    # 1회 주입 가드
+    if st.session_state.get("_ps_sidebar_css_injected", False):
+        return
+    
     css_content = """
     <style id="ps-ultra-sleek-css">
     /* =========================
@@ -377,8 +381,14 @@ def inject_sidebar_premium_css():
     }
     </style>
     """
-    # CSS 주입: 매 rerun마다 무조건 실행 (플래그 없음)
+    # CSS 주입: 1회만 실행
     st.markdown(css_content, unsafe_allow_html=True)
+    try:
+        from src.debug.nav_trace import push_render_step
+        push_render_step("CSS_INJECT: app.py:88 inject_sidebar_premium_css", extra={"where": "global"})
+    except ImportError:
+        pass
+    st.session_state["_ps_sidebar_css_injected"] = True
 
 # 나머지 CSS는 별도 스타일 블록으로
 st.markdown("""
@@ -1041,3 +1051,41 @@ elif page == "실제정산 분석":
 elif page == "게시판":
     from ui_pages.board import render_board
     render_board()
+
+# ============================================
+# 최종 안전핀 CSS (모든 CSS 주입 후 마지막에 주입)
+# ============================================
+if not st.session_state.get("_ps_final_safety_pin_injected", False):
+    push_render_step("CSS_INJECT: app.py:1045 FINAL_SAFETY_PIN", extra={"where": "final"})
+    final_safety_pin_css = """
+    <style>
+    /* 컨텐츠 강제 복구 */
+    [data-testid="stMain"], [data-testid="stMainBlockContainer"]{
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    /* 컨텐츠 레이어 올리기 */
+    [data-testid="stAppViewContainer"]{ position: relative !important; z-index: 1 !important; }
+    [data-testid="stSidebar"], [data-testid="stMain"], [data-testid="stMainBlockContainer"]{
+      position: relative !important;
+      z-index: 2147483000 !important;
+    }
+
+    /* 배경/오버레이 레이어는 클릭 방해 금지 + 뒤로 */
+    .ps-ultra-bg, .ps-mesh, .ps-overlay, .ultra-bg, .mesh-bg, .animated-bg,
+    .overlay, .backdrop, .background, .bg-layer,
+    [data-ps-scope="input_hub"].ps-hub-bg::before,
+    [data-ps-scope="input_hub"].ps-hub-bg::after {
+      pointer-events: none !important;
+      z-index: 0 !important;
+    }
+    </style>
+    """
+    st.markdown(final_safety_pin_css, unsafe_allow_html=True)
+    st.session_state["_ps_final_safety_pin_injected"] = True

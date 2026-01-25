@@ -6,6 +6,12 @@ import streamlit as st
 from typing import Optional, List, Dict, Any, Callable
 from datetime import date, datetime
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
 
 # ============================================
 # CSS 스타일 (페이지별 스코프 적용)
@@ -559,7 +565,11 @@ def render_form_layout(
         action_secondary: Secondary 액션 리스트
         main_content: Main Card 내용 렌더링 함수
     """
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+    # 1회 주입 가드
+    if not st.session_state.get("_ps_input_layout_css_injected", False):
+        st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+        push_render_step("CSS_INJECT: input_layouts.py:562 INPUT_LAYOUT_CSS", extra={"where": "global"})
+        st.session_state["_ps_input_layout_css_injected"] = True
     
     # Header
     badge_html = ""
@@ -640,7 +650,11 @@ def render_console_layout(
         cta_label: Bottom CTA 라벨
         cta_action: Bottom CTA 액션 함수
     """
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+    # 1회 주입 가드 (INPUT_LAYOUT_CSS는 이미 위에서 주입됨)
+    if not st.session_state.get("_ps_input_layout_css_injected", False):
+        st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+        push_render_step("CSS_INJECT: input_layouts.py:643 INPUT_LAYOUT_CSS", extra={"where": "global"})
+        st.session_state["_ps_input_layout_css_injected"] = True
     
     # Header (간단 버전)
     header_html = f"""
