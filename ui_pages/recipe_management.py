@@ -279,7 +279,6 @@ def render_recipe_management():
                         st.markdown("<hr style='margin: 0.05rem 0; border-color: rgba(255,255,255,0.05); border-width: 0.5px;'>", unsafe_allow_html=True)
             
             # 조리방법 입력 필드
-            render_section_divider()
             st.markdown("**👨‍🍳 조리방법**")
             cooking_method = st.text_area(
                 "조리방법을 입력하세요 (줄글로 음식 만드는 방법을 적어주세요)",
@@ -288,7 +287,6 @@ def render_recipe_management():
                 key="recipe_management_cooking_method_input"
             )
             
-            render_section_divider()
             
             # 입력 요약 표시
             if recipe_data:
@@ -306,7 +304,6 @@ def render_recipe_management():
                 st.markdown(f"**총 {len(recipe_data)}개 재료**")
             
             # 일괄 저장 버튼 (항상 표시)
-            render_section_divider()
             col1, col2 = st.columns([1, 4])
             with col1:
                 if st.button("💾 일괄 저장", type="primary", use_container_width=True):
@@ -350,7 +347,6 @@ def render_recipe_management():
                             st.success(success_msg)
                             st.balloons()
             
-            render_section_divider()
     
     def render_list_content():
         """List: 레시피 검색 및 수정"""
@@ -595,7 +591,6 @@ def render_recipe_management():
             st.info("등록된 레시피가 없습니다.")
         
         # 레시피 현황 표시
-        render_section_divider()
         st.markdown("### 📋 레시피 현황")
         
         total_menus = len(menu_list)

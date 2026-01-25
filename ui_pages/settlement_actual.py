@@ -13,7 +13,14 @@ logger = logging.getLogger(__name__)
 from src.ui_helpers import safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning, invalidate_keys
 # render_section_divider는 ps_section으로 대체됨
 from src.ui.layouts.input_layouts import render_form_layout
-from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_money_input
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_primary_money_input,
+    ps_primary_ratio_input,
+    ps_input_block,
+    ps_inline_feedback
+)
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
     load_cost_item_templates,
@@ -300,16 +307,27 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         # 자동값으로 초기화
         st.session_state[total_sales_key] = auto_sales
     
-    # 총매출 입력 (FormKit 사용)
-    total_sales_input = ps_money_input(
-        label="총매출 (원)",
+    # 총매출 입력 (FormKit v2 Primary 사용)
+    total_sales_value = _get_total_sales(selected_year, selected_month)
+    total_sales_input = ps_primary_money_input(
+        label="총매출",
         key=f"settlement_total_sales_input_{selected_year}_{selected_month}",
-        value=_get_total_sales(selected_year, selected_month),
+        value=total_sales_value,
         min_value=0,
         step=100000,
         disabled=readonly,
-        help_text=f"💡 sales 월합계(자동): {auto_sales:,.0f}원" if auto_sales > 0 else None
+        help_text=f"💡 sales 월합계(자동): {auto_sales:,.0f}원" if auto_sales > 0 else None,
+        unit="원",
+        status=None  # 자동 판단
     )
+    
+    # 총매출 피드백 (즉시 피드백)
+    if total_sales_input > 0:
+        ps_inline_feedback(
+            label="총매출",
+            value=f"{total_sales_input:,.0f}원",
+            status="ok"
+        )
     if not readonly:
         _set_total_sales(selected_year, selected_month, total_sales_input)
     
@@ -370,17 +388,35 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         except Exception:
             st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
     
+    # KPI 카드 (입력 상태 확인용 - FormKit v2 피드백 스타일)
     st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("총매출", f"{total_sales:,.0f}원")
+        ps_inline_feedback(
+            label="총매출",
+            value=f"{total_sales:,.0f}원",
+            status="ok" if total_sales > 0 else "warn"
+        )
     with col2:
-        st.metric("총비용", f"{totals['total_cost']:,.0f}원")
+        ps_inline_feedback(
+            label="총비용",
+            value=f"{totals['total_cost']:,.0f}원",
+            status="ok" if totals['total_cost'] > 0 else "warn"
+        )
     with col3:
-        profit_delta = f"{totals['operating_profit']:,.0f}원"
-        st.metric("영업이익", profit_delta)
+        profit_status = "ok" if totals['operating_profit'] > 0 else ("warn" if totals['operating_profit'] == 0 else "danger")
+        ps_inline_feedback(
+            label="영업이익",
+            value=f"{totals['operating_profit']:,.0f}원",
+            status=profit_status
+        )
     with col4:
-        st.metric("이익률", f"{totals['profit_margin']:.1f}%")
+        margin_status = "ok" if totals['profit_margin'] > 0 else ("warn" if totals['profit_margin'] == 0 else "danger")
+        ps_inline_feedback(
+            label="이익률",
+            value=f"{totals['profit_margin']:.1f}%",
+            status=margin_status
+        )
     
     # Phase F: 상태 배지 및 확정/해제 버튼
     st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
@@ -697,15 +733,18 @@ def _render_expense_category(
             with col3:
                 # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (Phase F: readonly일 때 비활성화)
                 if selected_input_type == 'amount':
-                    # 금액 입력 (FormKit 사용)
+                    # 금액 입력 (FormKit v2 Primary 사용)
                     amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
-                    amount = ps_money_input(
-                        label="금액 (원)",
+                    amount_value = int(item.get('amount', 0))
+                    amount = ps_primary_money_input(
+                        label="금액",
                         key=amount_key,
-                        value=int(item.get('amount', 0)),
+                        value=amount_value,
                         min_value=0,
                         step=1000,
-                        disabled=readonly
+                        disabled=readonly,
+                        unit="원",
+                        status=None  # 자동 판단
                     )
                     # 금액 업데이트 (readonly일 때는 업데이트 안 함)
                     if not readonly and amount != item.get('amount', 0):
@@ -713,21 +752,29 @@ def _render_expense_category(
                         if idx < len(expense_items[category]):
                             expense_items[category][idx]['amount'] = int(amount)
                 else:
-                    # 비율 입력 (FormKit 사용)
+                    # 비율 입력 (FormKit v2 Primary 사용)
                     rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
-                    rate = st.number_input(
-                        "비율 (%)",
+                    rate_value = float(item.get('rate', 0.0))
+                    rate = ps_primary_ratio_input(
+                        label="비율",
+                        key=rate_key,
+                        value=rate_value,
                         min_value=0.0,
                         max_value=100.0,
-                        value=float(item.get('rate', 0.0)),
                         step=0.1,
-                        format="%.2f",
                         disabled=readonly,
-                        key=rate_key,
-                        label_visibility="visible"
+                        unit="%",
+                        status=None  # 자동 판단
                     )
                     calculated = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
-                    st.caption(f"→ {calculated:,.0f}원")
+                    
+                    # 계산된 금액 피드백
+                    if calculated > 0:
+                        ps_inline_feedback(
+                            label="계산 금액",
+                            value=f"{calculated:,.0f}원",
+                            status="ok"
+                        )
                     # 비율 업데이트 (readonly일 때는 업데이트 안 함)
                     if not readonly and rate != item.get('rate', 0.0):
                         expense_items = _initialize_expense_items(store_id, year, month)
@@ -809,25 +856,27 @@ def _render_expense_category(
             )
             new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
         with add_col3:
-            # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (FormKit 사용)
+            # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (FormKit v2 Primary 사용)
             if new_input_type == 'amount':
-                new_value = ps_money_input(
-                    label="금액 (원)",
+                new_value = ps_primary_money_input(
+                    label="금액",
                     key=f"settlement_new_amount_{category}_{year}_{month}",
                     value=0,
                     min_value=0,
-                    step=1000
+                    step=1000,
+                    unit="원",
+                    status="warn"  # 0이므로 경고 상태
                 )
             else:
-                new_value = st.number_input(
-                    "비율 (%)",
+                new_value = ps_primary_ratio_input(
+                    label="비율",
+                    key=f"settlement_new_rate_{category}_{year}_{month}",
+                    value=0.0,
                     min_value=0.0,
                     max_value=100.0,
-                    value=0.0,
                     step=0.1,
-                    format="%.2f",
-                    key=f"settlement_new_rate_{category}_{year}_{month}",
-                    label_visibility="visible"
+                    unit="%",
+                    status="warn"  # 0이므로 경고 상태
                 )
         with add_col4:
             if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
