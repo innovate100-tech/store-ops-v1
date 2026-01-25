@@ -157,18 +157,10 @@ def inject_input_hub_ultra_premium_css():
         animation: slowDrift 24s ease infinite !important;
     }}
     
-    /* 배경 레이어 ::after (배경 메시/그리드) - 항상 뒤에 */
+    /* 배경 레이어 ::after (배경 메시/그리드) - 제거됨 (파란 투명 화면 문제 해결) */
     [data-ps-scope="{scope_id}"].ps-hub-bg::after {{
-        content: "" !important;
-        position: fixed !important;
-        inset: 0 !important;
-        background: 
-            radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.06) 0%, transparent 50%),
-            linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
-        z-index: 0 !important;
-        pointer-events: none !important;
-        animation: slowDrift 24s ease infinite !important;
+        content: none !important;
+        display: none !important;
     }}
     
     @keyframes slowDrift {{
