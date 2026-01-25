@@ -918,30 +918,23 @@ def render_input_hub_v3():
     
     # 상세 정보 expander
     with st.expander("자세히 보기", expanded=False):
-        detail_html = f"""
-        <div style="padding: 0.5rem 0;">
-            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">현재 시스템 단계</div>
-            <div style="font-size: 0.95rem; color: #3B82F6; font-weight: 700; margin-bottom: 1rem;">LEVEL {stage_level} — {stage_name}</div>
-            
-            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">시스템 병목</div>
-            <div style="font-size: 0.95rem; color: #F59E0B; font-weight: 700; margin-bottom: 1rem;">{bn_msg}</div>
-            
-            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">지금 시스템이 못하는 것</div>
-            <div style="font-size: 0.9rem; color: #E2E8F0; margin-bottom: 1rem; line-height: 1.6;">{blocked_text_full}</div>
-        </div>
-        """
-        st.markdown(detail_html, unsafe_allow_html=True)
+        st.markdown("**현재 시스템 단계**")
+        st.markdown(f"LEVEL {stage_level} — {stage_name}")
+        st.markdown("---")
+        
+        st.markdown("**시스템 병목**")
+        st.markdown(f"{bn_msg}")
+        st.markdown("---")
+        
+        st.markdown("**지금 시스템이 못하는 것**")
+        st.markdown(f"{blocked_text_full}")
         
         if primary:
             next_step_text = primary.get('description', '')
             if next_step_text:
-                next_step_html = f"""
-                <div style="padding-top: 0.5rem; border-top: 1px solid rgba(148, 163, 184, 0.1);">
-                    <div style="font-size: 0.85rem; color: #3B82F6; font-weight: 600;">다음 단계</div>
-                    <div style="font-size: 0.9rem; color: #E2E8F0; margin-top: 0.3rem;">{next_step_text}</div>
-                </div>
-                """
-                st.markdown(next_step_html, unsafe_allow_html=True)
+                st.markdown("---")
+                st.markdown("**다음 단계**")
+                st.markdown(next_step_text)
     
     # PRIMARY ACTION 버튼
     if primary:
