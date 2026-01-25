@@ -18,6 +18,8 @@ except ImportError:
     def push_render_step(*args, **kwargs):
         pass
 
+from src.ui.css_manager import inject_dom
+
 # ============================================
 # 시각 스펙 상수 (고정값)
 # ============================================
@@ -394,13 +396,9 @@ def inject_form_kit_v2_css(scope_id: Optional[str] = None):
         finally:
             del frame
     
-    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
-    # 안전장치: 모든 셀렉터는 [data-ps-scope]로 제한되어 있어 전역 영향 없음
-    
+    # DOM 계층: FormKit v2 CSS
     css = _generate_form_kit_v2_css()
-    st.markdown(css, unsafe_allow_html=True)
-    push_render_step(f"CSS_INJECT: form_kit_v2", extra={"where": "form_kit_v2", "scope": scope_id})
-    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
+    inject_dom(css, "form_kit_v2", scope=scope_id)
     st.markdown(f'<div data-ps-scope="{scope_id}">', unsafe_allow_html=True)
     return scope_id
 

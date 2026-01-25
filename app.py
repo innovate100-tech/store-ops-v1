@@ -17,6 +17,7 @@ from src.ui.theme_manager import inject_global_ui
 inject_global_ui()
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
+from src.ui.css_manager import inject_dom, inject_rescue
 
 try:
     from src.debug.nav_trace import push_render_step
@@ -387,14 +388,8 @@ def inject_sidebar_premium_css():
     }
     </style>
     """
-    # CSS 주입: rerun마다 실행 (사이드바 DOM 재생성 대응)
-    st.markdown(css_content, unsafe_allow_html=True)
-    try:
-        from src.debug.nav_trace import push_render_step
-        push_render_step("CSS_INJECT: sidebar", extra={"where": "sidebar"})
-    except ImportError:
-        pass
-    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
+    # DOM 계층: 사이드바 CSS (rerun마다 실행)
+    inject_dom(css_content, "sidebar")
 
 # 나머지 CSS는 별도 스타일 블록으로
 st.markdown("""
@@ -833,8 +828,9 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
+# THEME 계층: 다크 모드 오버라이드 (조건부)
 if st.session_state.get("theme", "light") == "dark":
-    st.markdown("<style>.main { background-color: #020617 !important; color: #e5e7eb !important; }</style>", unsafe_allow_html=True)
+    inject_theme("<style>.main { background-color: #020617 !important; color: #e5e7eb !important; }</style>", "dark_mode_override")
 
 # Sidebar Navigation
 # 메뉴 구조 정의
@@ -1098,5 +1094,5 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     }
     </style>
     """
-    st.markdown(final_safety_pin_css, unsafe_allow_html=True)
+    inject_rescue(final_safety_pin_css, "final_safety_pin")
     st.session_state["_ps_final_safety_pin_injected"] = True

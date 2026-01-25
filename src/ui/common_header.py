@@ -3,6 +3,7 @@
 모든 페이지 상단에 표시되는 공통 헤더
 """
 import streamlit as st
+from src.ui.css_manager import inject_theme
 
 try:
     from src.debug.nav_trace import push_render_step
@@ -239,12 +240,11 @@ def render_common_header(marquee_text: str | None = None):
         - CSS 주입은 1회만 실행 (가드 적용)
     """
     try:
-        # CSS 주입 (1회만 실행)
+        # THEME 계층: Common Header CSS (1회만 실행)
         if st.session_state.get("_ps_common_header_css_injected", False):
             pass  # CSS는 이미 주입됨, HTML만 렌더링
         else:
-            st.markdown(f"<style>{COMMON_HEADER_CSS}</style>", unsafe_allow_html=True)
-            push_render_step("CSS_INJECT: common_header.py:240 render_common_header", extra={"where": "global"})
+            inject_theme(f"<style>{COMMON_HEADER_CSS}</style>", "common_header")
             st.session_state["_ps_common_header_css_injected"] = True
         
         # 제목 박스 렌더 (고정 제목 사용) - HTML 블록으로 강제 렌더

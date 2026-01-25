@@ -17,10 +17,12 @@ except ImportError:
     def push_render_step(*args, **kwargs):
         pass
 
+from src.ui.css_manager import inject_fx
+
 
 def inject_input_hub_animations_css():
     """입력허브 애니메이션 CSS 주입 (1회만 실행)"""
-    # 1회 주입 가드
+    # 1회 주입 가드 (css_manager 내부에서 처리)
     if st.session_state.get("_ps_input_hub_anim_css_injected", False):
         return
     
@@ -81,8 +83,7 @@ def inject_input_hub_animations_css():
     }
     </style>
     """
-    st.markdown(animations_css, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: input_hub.py inject_input_hub_animations_css", extra={"where": "input_hub"})
+    inject_fx(animations_css, "input_hub_animations")
     st.session_state["_ps_input_hub_anim_css_injected"] = True
 
 
@@ -181,8 +182,7 @@ def inject_input_hub_ultra_premium_css():
     }}
     </style>
     """
-    st.markdown(ultra_css, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: input_hub.py inject_input_hub_ultra_premium_css", extra={"where": "ultra"})
+    inject_fx(ultra_css, "input_hub_ultra")
     st.session_state["_ps_ultra_css_injected"] = True
 
 def _count_completed_checklists_last_n_days(store_id: str, days: int = 14) -> int:

@@ -12,6 +12,8 @@ except ImportError:
     def push_render_step(*args, **kwargs):
         pass
 
+from src.ui.css_manager import inject_dom
+
 
 # ============================================
 # CSS 스타일 (페이지별 스코프 적용)
@@ -565,11 +567,8 @@ def render_form_layout(
         action_secondary: Secondary 액션 리스트
         main_content: Main Card 내용 렌더링 함수
     """
-    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
-    # 안전장치: 모든 셀렉터는 .ps-* 클래스로 제한되어 있어 전역 영향 없음
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: input_layouts", extra={"where": "input_layouts"})
-    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
+    # DOM 계층: Input Layouts CSS
+    inject_dom(INPUT_LAYOUT_CSS, "input_layouts")
     
     # Header
     badge_html = ""
@@ -650,11 +649,8 @@ def render_console_layout(
         cta_label: Bottom CTA 라벨
         cta_action: Bottom CTA 액션 함수
     """
-    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
-    # 안전장치: 모든 셀렉터는 .ps-* 클래스로 제한되어 있어 전역 영향 없음
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: input_layouts", extra={"where": "input_layouts"})
-    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
+    # DOM 계층: Input Layouts CSS
+    inject_dom(INPUT_LAYOUT_CSS, "input_layouts")
     
     # Header (간단 버전)
     header_html = f"""

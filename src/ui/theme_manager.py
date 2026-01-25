@@ -2,12 +2,7 @@
 전역 UI 주입 베이스 - CSS 변수 및 최소 스타일 관리
 """
 import streamlit as st
-
-try:
-    from src.debug.nav_trace import push_render_step
-except ImportError:
-    def push_render_step(*args, **kwargs):
-        pass
+from src.ui.css_manager import inject_base, inject_theme
 
 
 def inject_global_ui():
@@ -16,7 +11,7 @@ def inject_global_ui():
     prefers-color-scheme에 따라 자동으로 라이트/다크 모드 토큰을 전환합니다.
     최소한의 CSS 변수와 기본 스타일만 적용합니다.
     """
-    # 1회 주입 가드
+    # 1회 주입 가드 (css_manager 내부에서 처리)
     if st.session_state.get("_ps_global_ui_injected", False):
         return
     
@@ -187,9 +182,14 @@ def inject_global_ui():
     """
     
     st.markdown(aggrid_dark_js, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: theme_manager.py:180 inject_global_ui (aggrid_dark_js)", extra={"where": "global"})
+    try:
+        from src.debug.nav_trace import push_render_step
+        push_render_step("CSS_INJECT: theme_manager.py:180 inject_global_ui (aggrid_dark_js)", extra={"where": "global"})
+    except ImportError:
+        pass
     
-    st.markdown(f"""
+    # BASE 계층: CSS 변수
+    base_css = f"""
     <style id="ps-ui-base">
         /* 라이트 모드 토큰 (기본) */
         :root {{
@@ -222,7 +222,13 @@ def inject_global_ui():
                 --ps-input-placeholder: var(--ps-muted);
             }}
         }}
-        
+    </style>
+    """
+    inject_base(base_css, "global_ui_vars")
+    
+    # THEME 계층: 기본 스타일
+    theme_css = f"""
+    <style>
         /* 최소 적용 규칙 (안전 범위만) */
         .stApp,
         [data-testid="stAppViewContainer"] {{
@@ -456,10 +462,9 @@ def inject_global_ui():
                 color: var(--ps-text) !important;
             }}
         }}
-        
     </style>
-    """, unsafe_allow_html=True)
+    """
+    inject_theme(theme_css, "global_ui_theme")
     
-    push_render_step("CSS_INJECT: theme_manager.py:182 inject_global_ui (global_css)", extra={"where": "global"})
     st.session_state["_ps_global_ui_injected"] = True
     
