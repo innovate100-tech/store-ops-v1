@@ -45,7 +45,34 @@ def render_home():
     st.markdown("---")
     
     # ============================================
-    # SECTION 2: 핵심 구조 (입력 → 분석 → 설계)
+    # SECTION 2: 현재 위치 (두 번째 핵심 타이틀)
+    # ============================================
+    st.markdown("""
+    <div style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.3;">
+            📍 지금 당신의 매장은 이 단계에 있습니다
+        </h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    - **입력 완성도**: (준비 중)
+    - **활성화된 분석**: (준비 중)
+    - **설계 가능 단계**: (준비 중)
+    """)
+    
+    st.markdown("""
+    <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
+        <p style="font-weight: 600; margin: 0; font-size: 1.05rem;">
+            👉 지금 가장 중요한 것은 "입력 → 분석 → 설계 흐름을 만드는 것"입니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # ============================================
+    # SECTION 3: 핵심 구조 (입력 → 분석 → 설계)
     # ============================================
     
     # STEP 1: 입력
@@ -129,34 +156,14 @@ def render_home():
     st.markdown("---")
     
     # ============================================
-    # SECTION 3: 현재 위치 (임시 버전)
-    # ============================================
-    st.markdown("### 📍 지금 당신의 매장은 이 단계에 있습니다.")
-    
-    st.markdown("""
-    - **입력 완성도**: (준비 중)
-    - **활성화된 분석**: (준비 중)
-    - **설계 가능 단계**: (준비 중)
-    """)
-    
-    st.markdown("""
-    <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
-        <p style="font-weight: 600; margin: 0; font-size: 1.05rem;">
-            👉 지금 가장 중요한 것은 "입력 → 분석 → 설계 흐름을 만드는 것"입니다.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # ============================================
     # SECTION 4: 매일 각인 문장 (하단 고정)
     # ============================================
     st.markdown("""
     <div style="text-align: center; padding: 2rem 0; margin-top: 3rem;">
         <p style="font-size: 1.2rem; font-weight: 600; font-style: italic; color: #94a3b8; line-height: 1.8;">
-            "입력 없는 분석은 의미 없습니다.<br>
-            숫자를 안 보면, 감이 경영합니다."
+            "입력 안 하면, 이 앱은 아무 의미 없습니다.<br>
+            숫자를 안 보면, 장사는 항상 운입니다.<br>
+            바쁜 매장이 망하고, 관리하는 매장이 남습니다."
         </p>
     </div>
     """, unsafe_allow_html=True)
