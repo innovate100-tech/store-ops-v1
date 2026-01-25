@@ -775,14 +775,50 @@ def _get_asset_readiness(store_id: str) -> dict:
                     has_cost_target = expense_res.data and len(expense_res.data) > 0
             except Exception:
                 pass
+        
+        # 재고 안전재고 설정 비율 체크
+        # 총 재료 중 안전재고를 설정한 재료의 비율로 판단
+        inventory_safety_rate = 0
+        try:
+            inventory_df = load_csv("inventory.csv", store_id=store_id)
+            if not inventory_df.empty and ing_count > 0:
+                # 안전재고가 설정된 재료 수 (안전재고 > 0)
+                if "안전재고" in inventory_df.columns:
+                    safety_set_count = (inventory_df["안전재고"] > 0).sum()
+                else:
+                    # Supabase에서 직접 조회
+                    try:
+                        supabase = get_read_client()
+                        if supabase:
+                            inventory_res = supabase.table("inventory").select("ingredient_id").eq("store_id", store_id).gt("safety_stock", 0).execute()
+                            safety_set_count = len(inventory_res.data) if inventory_res.data else 0
+                    except Exception:
+                        safety_set_count = 0
+                inventory_safety_rate = (safety_set_count / ing_count * 100) if ing_count > 0 else 0
+        except Exception:
+            # inventory.csv가 없거나 로드 실패 시 Supabase에서 직접 조회
+            try:
+                supabase = get_read_client()
+                if supabase:
+                    # 총 재료 수
+                    ing_res = supabase.table("ingredients").select("id").eq("store_id", store_id).execute()
+                    total_ing_count = len(ing_res.data) if ing_res.data else ing_count
+                    
+                    # 안전재고가 설정된 재료 수
+                    inventory_res = supabase.table("inventory").select("ingredient_id").eq("store_id", store_id).gt("safety_stock", 0).execute()
+                    safety_set_count = len(inventory_res.data) if inventory_res.data else 0
+                    
+                    inventory_safety_rate = (safety_set_count / total_ing_count * 100) if total_ing_count > 0 else 0
+            except Exception:
+                pass
                 
         return {
             "menu_count": menu_count, "missing_price": int(missing_price),
             "ing_count": ing_count, "missing_cost": int(missing_cost),
             "recipe_rate": recipe_rate, "has_target": has_target,
-            "has_cost_target": has_cost_target
+            "has_cost_target": has_cost_target, "inventory_safety_rate": inventory_safety_rate
         }
-    except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False, "has_cost_target": False}
+    except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False, "has_cost_target": False, "inventory_safety_rate": 0}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending", delay_class: str = ""):
     bg = "rgba(30, 41, 59, 0.5)"
@@ -1089,6 +1125,7 @@ def render_input_hub_v3():
         struct_summary_color = "#64748B"
     
     # 구조 자산 진행률 계산 (운영 가능 기준, MATURITY LEVEL 연결)
+    # 재고는 선택 입력이므로 게이지에 반영하지 않음 (정보만 표시)
     struct_score = 0
     if menu_operable: struct_score += 33
     if ing_operable: struct_score += 33
@@ -1121,6 +1158,18 @@ def render_input_hub_v3():
     else:
         recipe_status_text = "시작 필요"
     
+    # 재고 안전재고 설정 비율 운영 체감 언어
+    inventory_safety_rate = assets.get('inventory_safety_rate', 0)
+    if inventory_safety_rate >= 80:
+        inventory_status_text = "정상 운영"
+        inventory_status_color = "#10B981"
+    elif inventory_safety_rate > 0:
+        inventory_status_text = f"보완 필요 ({inventory_safety_rate:.0f}%)"
+        inventory_status_color = "#F59E0B"
+    else:
+        inventory_status_text = "시작 필요"
+        inventory_status_color = "#94A3B8"
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
@@ -1140,8 +1189,8 @@ def render_input_hub_v3():
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #94A3B8;">관리 중단</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">선택</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1280,7 +1329,10 @@ def render_input_hub_v3():
         target_sub_msg = "목표를 설정하면 전략 수립이 가능합니다"
     
     # 판단 기준 자산 진행률 계산 (운영 가능 기준)
-    target_score = 50 if assets.get('has_target') else 0
+    # 매출 목표와 비용 목표 모두 반영
+    target_score = 0
+    if assets.get('has_target'): target_score += 50
+    if assets.get('has_cost_target'): target_score += 50
     
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
