@@ -606,7 +606,7 @@ def _build_strategy_cards_v4(
         state_code = store_state.get("code", "unknown")
         
         # 2. 건강검진 데이터 로드 (v4: 판독 결과 직접 사용)
-        from ui_pages.home.home_data import load_latest_health_diag
+        from ui_pages._legacy.home_pkg_20260126.home_data import load_latest_health_diag
         from src.health_check.health_integration import health_bias_for_card, should_show_operation_qsc_card
         
         health_diag = load_latest_health_diag(store_id)

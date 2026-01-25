@@ -6,7 +6,7 @@
 import logging
 from typing import Dict, List, Optional
 from datetime import date, timedelta
-from ui_pages.home.home_data import load_latest_health_diag
+from ui_pages._legacy.home_pkg_20260126.home_data import load_latest_health_diag
 from src.health_check.health_integration import get_health_evidence_line
 
 logger = logging.getLogger(__name__)

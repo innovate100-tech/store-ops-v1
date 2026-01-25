@@ -976,24 +976,8 @@ if st.session_state.get("_show_supabase_diagnosis", False):
     _diagnose_supabase_connection()
 
 if page == "홈":
-    st.sidebar.error("ROUTING -> HOME ✅ app.py 홈 분기 실행됨")
-    # ui_pages/home.py에서 직접 import (__init__.py 우회)
-    # import sys
-    # import importlib.util
-    # spec = importlib.util.spec_from_file_location("home_module", "ui_pages/home.py")
-    # home_module = importlib.util.module_from_spec(spec)
-    # spec.loader.exec_module(home_module)
-    # home_module.render_home()
-    
-    # 더 간단한 방법: importlib로 직접 로드
-    import importlib.util
-    import os
-    home_file_path = os.path.join(os.path.dirname(__file__), "ui_pages", "home.py")
-    spec = importlib.util.spec_from_file_location("home_direct", home_file_path)
-    home_direct = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(home_direct)
-    st.sidebar.code(f"home_direct __file__: {home_direct.__file__}")
-    home_direct.render_home()
+    from ui_pages.home_page_v0 import render_home
+    render_home()
 elif page == "오늘의 전략 실행":
     from ui_pages.strategy.mission_detail import render_mission_detail
     render_mission_detail()

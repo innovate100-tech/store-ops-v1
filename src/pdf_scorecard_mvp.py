@@ -120,7 +120,7 @@ def can_generate_scorecard(store_id: str, year: int, month: int) -> Tuple[bool, 
             get_month_settlement_status,
             load_monthly_sales_total
         )
-        from ui_pages.home import get_close_count
+        from ui_pages._legacy.home_pkg_20260126.home_data import get_close_count
         
         supabase = get_supabase_client()
         if not supabase:
@@ -189,11 +189,12 @@ def gather_scorecard_mvp_data(store_id: str, year: int, month: int) -> Dict:
             get_variable_cost_ratio,
             calculate_break_even_sales
         )
-        from ui_pages.home import (
+        from ui_pages._legacy.home_pkg_20260126.home_rules import (
             get_problems_top3,
             get_good_points_top3,
-            get_anomaly_signals,
-            get_coach_summary,
+        )
+        from ui_pages._legacy.home_pkg_20260126.home_alerts import get_anomaly_signals
+        from ui_pages._legacy.home_pkg_20260126.home_page import get_coach_summary
             get_month_status_summary,
             get_monthly_close_stats,
             detect_owner_day_level,

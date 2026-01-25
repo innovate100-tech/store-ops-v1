@@ -10,7 +10,7 @@ from ui_pages.design_lab.design_center_data import get_design_center_summary, ge
 def get_home_coach_verdict(store_id: str, year: int, month: int) -> CoachVerdict:
     """HOME v2 판결을 CoachVerdict로 변환"""
     # 순환 import 방지를 위해 함수 내부에서 import
-    from ui_pages.home.home_verdict import get_coach_verdict
+    from ui_pages._legacy.home_pkg_20260126.home_verdict import get_coach_verdict
     from src.storage_supabase import load_monthly_sales_total
     
     monthly_sales = load_monthly_sales_total(store_id, year, month) or 0
