@@ -56,25 +56,25 @@ def inject_input_hub_animations_css():
     @keyframes pulse-start-needed {
         0%, 100% {
             box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7),
-                        0 0 15px rgba(245, 158, 11, 0.5),
-                        0 0 30px rgba(245, 158, 11, 0.3);
+                        0 0 20px rgba(245, 158, 11, 0.6),
+                        0 0 40px rgba(245, 158, 11, 0.4);
             transform: scale(1);
         }
         50% {
-            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0),
-                        0 0 20px rgba(245, 158, 11, 0.7),
-                        0 0 40px rgba(245, 158, 11, 0.5);
-            transform: scale(1.02);
+            box-shadow: 0 0 0 12px rgba(245, 158, 11, 0),
+                        0 0 30px rgba(245, 158, 11, 0.9),
+                        0 0 60px rgba(245, 158, 11, 0.7);
+            transform: scale(1.05);
         }
     }
     @keyframes glow-pulse {
         0%, 100% {
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5),
-                        0 0 20px rgba(245, 158, 11, 0.3);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6),
+                        0 0 30px rgba(245, 158, 11, 0.4);
         }
         50% {
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.7),
-                        0 0 30px rgba(245, 158, 11, 0.5);
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.9),
+                        0 0 50px rgba(245, 158, 11, 0.7);
         }
     }
     
@@ -1043,30 +1043,62 @@ def render_input_hub_v3():
                 
                 console.log(`[DEBUG] ${cards.length}개 카드 발견 (텍스트 기반)`);
                 
-                cards.forEach(card => {
+                cards.forEach((card, index) => {
                     if (!card.hasAttribute('data-start-needed-applied')) {
                         card.setAttribute('data-start-needed-applied', 'true');
                         
-                        // 애니메이션 강제 적용 (항상 적용, CSS가 덮어쓸 수 있으므로)
-                        // 인라인 스타일의 animation 속성 제거 후 재적용
-                        const currentStyle = card.getAttribute('style') || '';
-                        const newStyle = currentStyle.replace(/animation[^;]*;?/gi, '').replace(/animation-name[^;]*;?/gi, '').replace(/animation-duration[^;]*;?/gi, '').replace(/animation-timing-function[^;]*;?/gi, '').replace(/animation-iteration-count[^;]*;?/gi, '');
-                        card.setAttribute('style', newStyle);
+                        // 기존 스타일 백업
+                        const originalStyle = card.getAttribute('style') || '';
                         
-                        // 애니메이션 강제 적용 (인라인 스타일로 최고 우선순위)
+                        // 애니메이션 관련 속성만 제거 (다른 스타일은 유지)
+                        let cleanStyle = originalStyle;
+                        cleanStyle = cleanStyle.replace(/animation[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/animation-name[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/animation-duration[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/animation-timing-function[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/animation-iteration-count[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/animation-fill-mode[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/transform[^;]*;?/gi, '');
+                        cleanStyle = cleanStyle.replace(/will-change[^;]*;?/gi, '');
+                        
+                        // 기존 스타일 유지하면서 애니메이션 추가
+                        card.setAttribute('style', cleanStyle);
+                        
+                        // 애니메이션 강제 적용 (더 강력한 방법)
+                        // cssText를 사용하여 모든 스타일을 한 번에 설정
+                        const baseStyle = cleanStyle.trim();
+                        const animationStyle = 'animation: pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite !important; transform: scale(1) !important; will-change: transform, box-shadow !important; box-shadow: 0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4) !important;';
+                        
+                        if (baseStyle) {
+                            card.style.cssText = baseStyle + '; ' + animationStyle;
+                        } else {
+                            card.style.cssText = animationStyle;
+                        }
+                        
+                        // 개별 속성도 설정 (이중 보장)
                         card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
                         card.style.setProperty('animation-name', 'pulse-start-needed, glow-pulse', 'important');
                         card.style.setProperty('animation-duration', '2s, 3s', 'important');
                         card.style.setProperty('animation-timing-function', 'ease-in-out, ease-in-out', 'important');
                         card.style.setProperty('animation-iteration-count', 'infinite, infinite', 'important');
                         card.style.setProperty('animation-fill-mode', 'both, both', 'important');
-                        
-                        // 글로우 효과 강제 적용
-                        card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
-                        
-                        // transform이 제거되지 않도록 보장
+                        card.style.setProperty('animation-play-state', 'running', 'important');
                         card.style.setProperty('transform', 'scale(1)', 'important');
+                        card.style.setProperty('box-shadow', '0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4)', 'important');
                         card.style.setProperty('will-change', 'transform, box-shadow', 'important');
+                        
+                        // 애니메이션 강제 재시작 (더 확실한 방법)
+                        const currentAnimation = card.style.animation;
+                        card.style.animation = 'none';
+                        // 강제 리플로우
+                        void card.offsetHeight;
+                        setTimeout(() => {
+                            card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
+                            // 다시 리플로우
+                            void card.offsetHeight;
+                        }, 50);
+                        
+                        console.log(`[DEBUG] 카드 ${index + 1}에 애니메이션 적용 완료`);
                     }
                 });
                 
