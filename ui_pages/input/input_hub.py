@@ -757,13 +757,32 @@ def _get_asset_readiness(store_id: str) -> dict:
         if not targets_df.empty:
             target_row = targets_df[(targets_df["연도"] == current_year_kst()) & (targets_df["월"] == current_month_kst())]
             has_target = not target_row.empty and (target_row.iloc[0].get("목표매출", 0) or 0) > 0
+        
+        # 비용 목표 체크 (expense_structure 테이블)
+        has_cost_target = False
+        try:
+            expense_df = load_csv("expense_structure.csv", store_id=store_id)
+            if not expense_df.empty:
+                expense_row = expense_df[(expense_df["연도"] == current_year_kst()) & (expense_df["월"] == current_month_kst())]
+                has_cost_target = not expense_row.empty and len(expense_row) > 0
+        except Exception:
+            # expense_structure.csv가 없거나 로드 실패 시 Supabase에서 직접 조회
+            try:
+                from src.storage_supabase import get_read_client
+                supabase = get_read_client()
+                if supabase:
+                    expense_res = supabase.table("expense_structure").select("id").eq("store_id", store_id).eq("year", current_year_kst()).eq("month", current_month_kst()).limit(1).execute()
+                    has_cost_target = expense_res.data and len(expense_res.data) > 0
+            except Exception:
+                pass
                 
         return {
             "menu_count": menu_count, "missing_price": int(missing_price),
             "ing_count": ing_count, "missing_cost": int(missing_cost),
-            "recipe_rate": recipe_rate, "has_target": has_target
+            "recipe_rate": recipe_rate, "has_target": has_target,
+            "has_cost_target": has_cost_target
         }
-    except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False}
+    except Exception: return {"menu_count": 0, "missing_price": 0, "ing_count": 0, "missing_cost": 0, "recipe_rate": 0, "has_target": False, "has_cost_target": False}
 
 def _hub_status_card(title: str, value: str, sub: str, status: str = "pending", delay_class: str = ""):
     bg = "rgba(30, 41, 59, 0.5)"
@@ -1279,6 +1298,8 @@ def render_input_hub_v3():
     
     # 하위 항목 상태 스트립 (2개) - 운영 체감 언어
     target_status_text = "정상 운영" if assets.get('has_target') else "시작 필요"
+    cost_target_status_text = "정상 운영" if assets.get('has_cost_target') else "시작 필요"
+    cost_target_color = "#10B981" if assets.get('has_cost_target') else "#94A3B8"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1289,8 +1310,8 @@ def render_input_hub_v3():
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #94A3B8;">관리 중단</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">선택</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
