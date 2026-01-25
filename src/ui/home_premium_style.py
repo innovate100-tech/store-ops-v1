@@ -20,6 +20,19 @@ def inject_home_premium_css():
        홈 화면 프리미엄 스타일 (스코프: .ps-home-scope)
        ============================================ */
     
+    /* CSS 주입 확인용 프로브 */
+    .ps-home-css-probe {
+        background: #FF1493 !important;
+        border: 5px solid #FF00FF !important;
+        padding: 1rem !important;
+        font-size: 1.5rem !important;
+        font-weight: 900 !important;
+        color: #FFFFFF !important;
+        text-align: center !important;
+        margin: 1rem 0 !important;
+        border-radius: 8px !important;
+    }
+    
     /* fadeInUp 애니메이션 */
     @keyframes ps-home-fadeInUp {
         from {
