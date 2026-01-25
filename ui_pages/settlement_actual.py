@@ -19,7 +19,8 @@ from src.ui.components.form_kit_v2 import (
     ps_primary_money_input,
     ps_primary_ratio_input,
     ps_input_block,
-    ps_inline_feedback
+    ps_inline_feedback,
+    ps_secondary_select
 )
 from src.ui.guards import require_auth_and_store
 from src.storage_supabase import (
@@ -254,25 +255,34 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         if "settlement_navigate_to_month" in st.session_state:
             del st.session_state["settlement_navigate_to_month"]
     
-    # 상단 블록: 연/월/템플릿 선택
-    ps_section("정산 기간 선택", icon="📅")
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        selected_year = st.number_input(
-            "연도",
-            min_value=2020,
-            max_value=2100,
-            value=year,
-            key=f"settlement_year{widget_key_suffix}"
-        )
-    with col2:
-        selected_month = st.number_input(
-            "월",
-            min_value=1,
-            max_value=12,
-            value=month,
-            key=f"settlement_month{widget_key_suffix}"
-        )
+    # 블록1: 정산 기간 선택 (Secondary)
+    def render_period_selection():
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            selected_year = st.number_input(
+                "연도",
+                min_value=2020,
+                max_value=2100,
+                value=year,
+                key=f"settlement_year{widget_key_suffix}"
+            )
+        with col2:
+            selected_month = st.number_input(
+                "월",
+                min_value=1,
+                max_value=12,
+                value=month,
+                key=f"settlement_month{widget_key_suffix}"
+            )
+        return selected_year, selected_month
+    
+    ps_input_block(
+        title="정산 기간 선택",
+        description="정산할 연도와 월을 선택하세요",
+        level="secondary",
+        body_fn=render_period_selection
+    )
+    selected_year, selected_month = render_period_selection()
     
     # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
     if selected_year != year or selected_month != month:
@@ -289,9 +299,6 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     month_status = get_month_settlement_status(store_id, selected_year, selected_month)
     readonly = readonly or (month_status == 'final')
     
-    # 이번달 성적표 블록: KPI 요약
-    ps_section("이번 달 성적표", icon="📊")
-    
     # Phase D: sales에서 월매출 자동 계산
     auto_sales_key = f"settlement_auto_sales_{selected_year}_{selected_month}"
     if auto_sales_key not in st.session_state:
@@ -307,29 +314,49 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         # 자동값으로 초기화
         st.session_state[total_sales_key] = auto_sales
     
-    # 총매출 입력 (FormKit v2 Primary 사용)
+    # 블록2: 총매출 입력 (Primary)
     total_sales_value = _get_total_sales(selected_year, selected_month)
-    total_sales_input = ps_primary_money_input(
-        label="총매출",
-        key=f"settlement_total_sales_input_{selected_year}_{selected_month}",
-        value=total_sales_value,
-        min_value=0,
-        step=100000,
-        disabled=readonly,
-        help_text=f"💡 sales 월합계(자동): {auto_sales:,.0f}원" if auto_sales > 0 else None,
-        unit="원",
-        status=None  # 자동 판단
-    )
     
-    # 총매출 피드백 (즉시 피드백)
-    if total_sales_input > 0:
-        ps_inline_feedback(
+    def render_total_sales_input():
+        total_sales_input = ps_primary_money_input(
             label="총매출",
-            value=f"{total_sales_input:,.0f}원",
-            status="ok"
+            key=f"settlement_total_sales_input_{selected_year}_{selected_month}",
+            value=total_sales_value,
+            min_value=0,
+            step=100000,
+            disabled=readonly,
+            unit="원",
+            status=None  # 자동 판단
         )
-    if not readonly:
-        _set_total_sales(selected_year, selected_month, total_sales_input)
+        if not readonly:
+            _set_total_sales(selected_year, selected_month, total_sales_input)
+        return total_sales_input
+    
+    total_sales_input = render_total_sales_input()
+    
+    # 피드백/경고 설정
+    feedback_data = None
+    warning_text = None
+    if total_sales_input > 0:
+        feedback_data = {
+            "label": "총매출",
+            "value": f"{total_sales_input:,.0f}원",
+            "status": "ok"
+        }
+        if auto_sales > 0 and abs(total_sales_input - auto_sales) > 1000:
+            warning_text = f"⚠️ sales 월합계와 차이: {abs(total_sales_input - auto_sales):,.0f}원"
+    elif total_sales_input == 0:
+        warning_text = "⚠️ 총매출을 입력해주세요"
+    
+    ps_input_block(
+        title="총매출 입력",
+        description="이번 달 총매출을 입력하세요",
+        right_hint=f"자동값: {auto_sales:,.0f}원" if auto_sales > 0 else None,
+        level="primary",
+        body_fn=render_total_sales_input,
+        feedback=feedback_data,
+        warning=warning_text
+    )
     
     # 매출 불러오기/자동값으로 버튼은 Action Bar로 이동 (Secondary)
     # session_state에 액션 함수 저장
@@ -358,103 +385,20 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     # 미마감 날짜 개수 확인
     unofficial_days = count_unofficial_days_in_month(store_id, selected_year, selected_month)
     
-    # KPI 카드
+    # KPI 계산
     expense_items = _initialize_expense_items(store_id, selected_year, selected_month)
     total_sales = _get_total_sales(selected_year, selected_month)
     totals = _calculate_totals(expense_items, total_sales)
     
-    st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
-    
-    # 미마감 배지 표시 (KPI 카드 위)
+    # 미마감 경고 (인라인 피드백으로 표시)
     if unofficial_days > 0:
-        # 미마감 날짜 목록 조회 (최대 5일)
-        try:
-            from src.storage_supabase import load_best_available_daily_sales
-            start_date = f"{selected_year}-{selected_month:02d}-01"
-            if selected_month == 12:
-                end_date = f"{selected_year + 1}-01-01"
-            else:
-                end_date = f"{selected_year}-{selected_month + 1:02d}-01"
-            
-            best_df = load_best_available_daily_sales(store_id=store_id, start_date=start_date, end_date=end_date)
-            if not best_df.empty and 'is_official' in best_df.columns:
-                unofficial_dates = best_df[best_df['is_official'] == False]['date'].tolist()[:5]
-                dates_str = ", ".join([str(d) for d in unofficial_dates[:5]])
-                if len(unofficial_dates) > 5:
-                    dates_str += f" 외 {len(unofficial_dates) - 5}일"
-                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다. ({dates_str})")
-            else:
-                st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
-        except Exception:
-            st.warning(f"⚠️ **미마감 데이터 포함 ({unofficial_days}일)**: 이번 달 매출에는 마감되지 않은 날짜의 매출이 포함되어 있습니다.")
-    
-    # KPI 카드 (입력 상태 확인용 - FormKit v2 피드백 스타일)
-    st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
         ps_inline_feedback(
-            label="총매출",
-            value=f"{total_sales:,.0f}원",
-            status="ok" if total_sales > 0 else "warn"
-        )
-    with col2:
-        ps_inline_feedback(
-            label="총비용",
-            value=f"{totals['total_cost']:,.0f}원",
-            status="ok" if totals['total_cost'] > 0 else "warn"
-        )
-    with col3:
-        profit_status = "ok" if totals['operating_profit'] > 0 else ("warn" if totals['operating_profit'] == 0 else "danger")
-        ps_inline_feedback(
-            label="영업이익",
-            value=f"{totals['operating_profit']:,.0f}원",
-            status=profit_status
-        )
-    with col4:
-        margin_status = "ok" if totals['profit_margin'] > 0 else ("warn" if totals['profit_margin'] == 0 else "danger")
-        ps_inline_feedback(
-            label="이익률",
-            value=f"{totals['profit_margin']:.1f}%",
-            status=margin_status
+            label="미마감 데이터",
+            value=f"{unofficial_days}일 포함",
+            status="warn"
         )
     
-    # Phase F: 상태 배지 및 확정/해제 버튼
-    st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        # Phase F: 상태 배지
-        if month_status == 'final':
-            st.markdown("""
-            <div style="padding: 0.5rem 1rem; background-color: #10b981; border-radius: 0.5rem; display: inline-block;">
-                <span style="color: #ffffff; font-weight: 600;">🟢 확정됨</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="padding: 0.5rem 1rem; background-color: #667eea; border-radius: 0.5rem; display: inline-block;">
-                <span style="color: #ffffff; font-weight: 600;">🟡 작성중</span>
-            </div>
-            """, unsafe_allow_html=True)
-    with col2:
-        if month_status == 'final':
-            st.markdown("""
-            <div style="padding: 0.5rem 0;">
-                <span style="color: #ffffff; font-size: 1rem;">
-                    이번 달 정산이 확정되었습니다. (읽기 전용)
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div style="padding: 0.5rem 0;">
-                <span style="color: #ffffff; font-size: 1rem;">
-                    이번 달 성적표를 작성 중입니다.
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-    with col3:
-        # 상태 표시만 (버튼은 Action Bar로 이동)
-        pass
+    # 상태 배지 및 확정/해제 버튼은 ActionBar로 이동 (Summary Strip에 상태 표시)
     
     # 저장/확정 버튼은 Action Bar로 이동 (session_state에 액션 함수 저장)
     def handle_load_saved_values():
@@ -667,27 +611,8 @@ def _render_expense_category(
     # Phase C.5: is_linked는 더 이상 사용하지 않지만, 기본값 설정용으로 유지
     is_linked_default = category_info['type'] == 'linked'  # 기본값 설정용
     
-    # 카테고리 헤더
-    st.markdown(f"""
-    <div style="margin: 1.5rem 0 0.5rem 0;">
-        <h3 style="color: #ffffff; font-weight: 600; margin: 0;">
-            {category_info['icon']} {category}
-        </h3>
-    </div>
-    """, unsafe_allow_html=True)
-    st.caption(category_info['description'])
-    
-    # 카테고리 총액 표시 (Phase C.5: input_type 기준 계산)
+    # 카테고리 총액 계산
     category_total = _calculate_category_total(category, items, total_sales)
-    if category_total > 0:
-        # Phase C.5: input_type 기준으로 표시 (단순화: 총액만 표시)
-        st.markdown(f"""
-        <div style="text-align: right; margin: 0.5rem 0;">
-            <strong style="color: #667eea; font-size: 1.1rem;">
-                카테고리 합계: {category_total:,.0f}원
-            </strong>
-        </div>
-        """, unsafe_allow_html=True)
     
     # 기존 항목 표시 및 수정 (Phase C.5: input_type 선택형)
     if items:
@@ -699,218 +624,156 @@ def _render_expense_category(
                 else:
                     item['input_type'] = 'amount'
             
-            col1, col2, col3, col4 = st.columns([2, 1.5, 2, 1])
-            with col1:
-                item_name_key = f"settlement_item_name_{category}_{idx}_{year}_{month}"
-                item_name = st.text_input(
-                    "항목명",
-                    value=item.get('name', ''),
-                    disabled=readonly,  # Phase F: readonly일 때 비활성화
-                    key=item_name_key
-                )
-            with col2:
-                # Phase C.5: 입력방식 선택 라디오 (Phase F: readonly일 때 비활성화)
-                input_type_key = f"settlement_input_type_{category}_{idx}_{year}_{month}"
-                input_type_options = ["금액(원)", "%(매출대비)"]
-                input_type_index = 0 if item.get('input_type') == 'amount' else 1
-                selected_input_type_label = st.radio(
-                    "입력방식",
-                    options=input_type_options,
-                    index=input_type_index,
-                    key=input_type_key,
-                    horizontal=True,
-                    disabled=readonly,  # Phase F: readonly일 때 비활성화
-                    label_visibility="collapsed"
-                )
-                selected_input_type = 'amount' if selected_input_type_label == "금액(원)" else 'rate'
-                
-                # input_type 변경 감지 및 업데이트 (readonly일 때는 업데이트 안 함)
-                if not readonly and selected_input_type != item.get('input_type'):
-                    expense_items = _initialize_expense_items(store_id, year, month)
-                    if idx < len(expense_items[category]):
-                        expense_items[category][idx]['input_type'] = selected_input_type
-                        # 값은 유지 (amount와 rate 모두 보존)
-            with col3:
-                # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (Phase F: readonly일 때 비활성화)
-                if selected_input_type == 'amount':
-                    # 금액 입력 (FormKit v2 Primary 사용)
-                    amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
-                    amount_value = int(item.get('amount', 0))
-                    amount = ps_primary_money_input(
-                        label="금액",
-                        key=amount_key,
-                        value=amount_value,
-                        min_value=0,
-                        step=1000,
+            # 블록3: 비용 항목 입력 (카테고리별)
+            item_name_key = f"settlement_item_name_{category}_{idx}_{year}_{month}"
+            input_type_key = f"settlement_input_type_{category}_{idx}_{year}_{month}"
+            amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
+            rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
+            
+            def render_expense_item():
+                col1, col2, col3 = st.columns([2, 1.5, 2])
+                with col1:
+                    item_name = st.text_input(
+                        "항목명",
+                        value=item.get('name', ''),
                         disabled=readonly,
-                        unit="원",
-                        status=None  # 자동 판단
+                        key=item_name_key
                     )
-                    # 금액 업데이트 (readonly일 때는 업데이트 안 함)
-                    if not readonly and amount != item.get('amount', 0):
+                with col2:
+                    input_type_options = ["금액(원)", "%(매출대비)"]
+                    input_type_index = 0 if item.get('input_type') == 'amount' else 1
+                    selected_input_type_label = st.radio(
+                        "입력방식",
+                        options=input_type_options,
+                        index=input_type_index,
+                        key=input_type_key,
+                        horizontal=True,
+                        disabled=readonly,
+                        label_visibility="collapsed"
+                    )
+                    selected_input_type = 'amount' if selected_input_type_label == "금액(원)" else 'rate'
+                    
+                    if not readonly and selected_input_type != item.get('input_type'):
                         expense_items = _initialize_expense_items(store_id, year, month)
                         if idx < len(expense_items[category]):
-                            expense_items[category][idx]['amount'] = int(amount)
+                            expense_items[category][idx]['input_type'] = selected_input_type
+                with col3:
+                    if selected_input_type == 'amount':
+                        amount_value = int(item.get('amount', 0))
+                        amount = ps_primary_money_input(
+                            label="금액",
+                            key=amount_key,
+                            value=amount_value,
+                            min_value=0,
+                            step=1000,
+                            disabled=readonly,
+                            unit="원",
+                            status=None
+                        )
+                        if not readonly and amount != item.get('amount', 0):
+                            expense_items = _initialize_expense_items(store_id, year, month)
+                            if idx < len(expense_items[category]):
+                                expense_items[category][idx]['amount'] = int(amount)
+                    else:
+                        rate_value = float(item.get('rate', 0.0))
+                        rate = ps_primary_ratio_input(
+                            label="비율",
+                            key=rate_key,
+                            value=rate_value,
+                            min_value=0.0,
+                            max_value=100.0,
+                            step=0.1,
+                            disabled=readonly,
+                            unit="%",
+                            status=None
+                        )
+                        if not readonly and rate != item.get('rate', 0.0):
+                            expense_items = _initialize_expense_items(store_id, year, month)
+                            if idx < len(expense_items[category]):
+                                expense_items[category][idx]['rate'] = float(rate)
+            
+            # 피드백 설정
+            feedback_data = None
+            if item.get('input_type') == 'rate':
+                rate_value = float(item.get('rate', 0.0))
+                calculated = (float(total_sales) * rate_value / 100) if total_sales > 0 else 0.0
+                if calculated > 0:
+                    feedback_data = {
+                        "label": "계산 금액",
+                        "value": f"{calculated:,.0f}원",
+                        "status": "ok"
+                    }
+            
+            # 블록3: 비용 항목 입력 블록
+            ps_input_block(
+                title=f"{category_info['icon']} {item.get('name', '항목')}",
+                description=category_info['description'] if idx == 0 else None,
+                right_hint=f"합계: {category_total:,.0f}원" if category_total > 0 and idx == len(items) - 1 else None,
+                level="primary",
+                body_fn=render_expense_item,
+                feedback=feedback_data
+            )
+    
+    # 새 항목 추가 (블록3: readonly일 때 숨김)
+    if not readonly:
+        def render_new_item():
+            add_col1, add_col2, add_col3 = st.columns([2, 1.5, 2])
+            with add_col1:
+                st.text_input(
+                    "항목명",
+                    key=f"settlement_new_name_{category}_{year}_{month}",
+                    placeholder="예: 월세, 관리비 등"
+                )
+            with add_col2:
+                new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
+                new_input_type_options = ["금액(원)", "%(매출대비)"]
+                new_input_type_default = 0 if category not in ['재료비', '부가세&카드수수료'] else 1
+                st.radio(
+                    "입력방식",
+                    options=new_input_type_options,
+                    index=new_input_type_default,
+                    key=new_input_type_key,
+                    horizontal=True,
+                    label_visibility="collapsed"
+                )
+            with add_col3:
+                # 입력방식에 따라 입력 필드 표시
+                new_input_type_label = st.session_state.get(new_input_type_key, new_input_type_options[new_input_type_default])
+                new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
+                if new_input_type == 'amount':
+                    ps_primary_money_input(
+                        label="금액",
+                        key=f"settlement_new_amount_{category}_{year}_{month}",
+                        value=0,
+                        min_value=0,
+                        step=1000,
+                        unit="원",
+                        status="warn"
+                    )
                 else:
-                    # 비율 입력 (FormKit v2 Primary 사용)
-                    rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
-                    rate_value = float(item.get('rate', 0.0))
-                    rate = ps_primary_ratio_input(
+                    ps_primary_ratio_input(
                         label="비율",
-                        key=rate_key,
-                        value=rate_value,
+                        key=f"settlement_new_rate_{category}_{year}_{month}",
+                        value=0.0,
                         min_value=0.0,
                         max_value=100.0,
                         step=0.1,
-                        disabled=readonly,
                         unit="%",
-                        status=None  # 자동 판단
+                        status="warn"
                     )
-                    calculated = (float(total_sales) * rate / 100) if total_sales > 0 else 0.0
-                    
-                    # 계산된 금액 피드백
-                    if calculated > 0:
-                        ps_inline_feedback(
-                            label="계산 금액",
-                            value=f"{calculated:,.0f}원",
-                            status="ok"
-                        )
-                    # 비율 업데이트 (readonly일 때는 업데이트 안 함)
-                    if not readonly and rate != item.get('rate', 0.0):
-                        expense_items = _initialize_expense_items(store_id, year, month)
-                        if idx < len(expense_items[category]):
-                            expense_items[category][idx]['rate'] = float(rate)
-            with col4:
-                col_save, col_delete = st.columns(2)
-                with col_save:
-                    # 항목명 수정 시 템플릿 업데이트 버튼 (Phase B, Phase F: readonly일 때 비활성화)
-                    if st.button("💾", key=f"settlement_save_{category}_{idx}_{year}_{month}", 
-                                 disabled=readonly, help="템플릿 저장"):
-                        expense_items = _initialize_expense_items(store_id, year, month)
-                        if idx < len(expense_items[category]):
-                            current_item = expense_items[category][idx]
-                            old_name = current_item.get('name', '')
-                            # 위젯에서 최신 값 가져오기
-                            new_name = st.session_state.get(item_name_key, old_name)
-                            
-                            if new_name.strip() and new_name != old_name:
-                                try:
-                                    # Phase C.5: input_type 기준으로 item_type 결정
-                                    current_input_type = expense_items[category][idx].get('input_type', 'amount')
-                                    item_type = 'percent' if current_input_type == 'rate' else 'normal'
-                                    save_cost_item_template(
-                                        store_id, category, new_name.strip(),
-                                        item_type=item_type, sort_order=idx
-                                    )
-                                    # 기존 항목명이 있고 다르면 soft delete
-                                    if old_name and old_name != new_name.strip():
-                                        soft_delete_cost_item_template(store_id, category, old_name)
-                                    expense_items[category][idx]['name'] = new_name.strip()
-                                    st.caption("✅ 템플릿 업데이트됨")
-                                except Exception as e:
-                                    st.error(f"템플릿 업데이트 실패: {e}")
-                        # Phase 0 STEP 4: 템플릿 업데이트 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-                with col_delete:
-                    if st.button("🗑️", key=f"settlement_delete_{category}_{idx}_{year}_{month}", 
-                                 disabled=readonly, help="삭제"):
-                        expense_items = _initialize_expense_items(store_id, year, month)
-                        if idx < len(expense_items[category]):
-                            item_to_delete = expense_items[category][idx]
-                            item_name_to_delete = item_to_delete.get('name', '')
-                            
-                            # Soft delete (Phase B)
-                            if item_name_to_delete:
-                                try:
-                                    soft_delete_cost_item_template(store_id, category, item_name_to_delete)
-                                    st.caption("✅ 템플릿에서 삭제됨")
-                                except Exception as e:
-                                    st.error(f"템플릿 삭제 실패: {e}")
-                            
-                            # session_state에서도 제거
-                            expense_items[category].pop(idx)
-                        # Phase 0 STEP 4: 항목 삭제 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-    
-    # 새 항목 추가 (Phase C.5: input_type 선택형, Phase F: readonly일 때 숨김)
-    if not readonly:
-        st.markdown("---")
-        add_col1, add_col2, add_col3, add_col4 = st.columns([2, 1.5, 2, 1])
-        with add_col1:
-            new_name = st.text_input(
-                "항목명",
-                key=f"settlement_new_name_{category}_{year}_{month}",
-                placeholder="예: 월세, 관리비 등"
-            )
-        with add_col2:
-            # Phase C.5: 새 항목 입력방식 선택
-            new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
-            new_input_type_options = ["금액(원)", "%(매출대비)"]
-            # 기본값: 카테고리 기본값
-            new_input_type_default = 0 if category not in ['재료비', '부가세&카드수수료'] else 1
-            new_input_type_label = st.radio(
-                "입력방식",
-                options=new_input_type_options,
-                index=new_input_type_default,
-                key=new_input_type_key,
-                horizontal=True,
-                label_visibility="collapsed"
-            )
-            new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
-        with add_col3:
-            # Phase C.5: 선택된 input_type에 따라 입력칸 표시 (FormKit v2 Primary 사용)
-            if new_input_type == 'amount':
-                new_value = ps_primary_money_input(
-                    label="금액",
-                    key=f"settlement_new_amount_{category}_{year}_{month}",
-                    value=0,
-                    min_value=0,
-                    step=1000,
-                    unit="원",
-                    status="warn"  # 0이므로 경고 상태
-                )
-            else:
-                new_value = ps_primary_ratio_input(
-                    label="비율",
-                    key=f"settlement_new_rate_{category}_{year}_{month}",
-                    value=0.0,
-                    min_value=0.0,
-                    max_value=100.0,
-                    step=0.1,
-                    unit="%",
-                    status="warn"  # 0이므로 경고 상태
-                )
-        with add_col4:
-            if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", use_container_width=True):
-                if new_name.strip():
-                    expense_items = _initialize_expense_items(store_id, year, month)
-                    
-                    # 템플릿에 저장 (Phase B)
-                    try:
-                        item_type = 'percent' if new_input_type == 'rate' else 'normal'
-                        sort_order = len(expense_items[category])  # 현재 항목 수를 sort_order로 사용
-                        save_cost_item_template(
-                            store_id, category, new_name.strip(),
-                            item_type=item_type, sort_order=sort_order
-                        )
-                        st.caption("✅ 템플릿에 저장됨")
-                    except Exception as e:
-                        st.error(f"템플릿 저장 실패: {e}")
-                    
-                    # Phase C.5: session_state에 추가 (input_type 포함)
-                    new_item = {
-                        'name': new_name.strip(),
-                        'input_type': new_input_type,
-                        'amount': int(new_value) if new_input_type == 'amount' else 0,
-                        'rate': float(new_value) if new_input_type == 'rate' else 0.0,
-                    }
-                    expense_items[category].append(new_item)
-                    # Phase 0 STEP 4: 항목 추가 후 session_state 변경만으로 UI가 자동 업데이트되므로 rerun 불필요
-                else:
-                    st.error("항목명을 입력해주세요.")
+        
+        ps_input_block(
+            title=f"{category_info['icon']} 새 항목 추가",
+            description="새 비용 항목을 추가하세요",
+            level="primary",
+            body_fn=render_new_item,
+            warning="➕ 추가는 하단 ActionBar에서 사용하세요"
+        )
 
 
 def _render_expense_section(store_id: str, year: int, month: int, total_sales: int, readonly: bool = False):
-    """비용 입력 영역 (Phase F: readonly 지원)"""
-    ps_section("비용 입력", icon="💸")
+    """비용 입력 영역 (블록3: 카테고리별 ps_input_block)"""
+    # 블록3: 비용 입력 (카테고리별)
     
     expense_items = _initialize_expense_items(store_id, year, month)
     
@@ -955,7 +818,6 @@ def _render_expense_section(store_id: str, year: int, month: int, total_sales: i
             month,
             readonly
         )
-        st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
 
 def _load_targets_for_month(store_id: str, year: int, month: int):
