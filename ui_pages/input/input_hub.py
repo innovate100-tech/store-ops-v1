@@ -53,6 +53,26 @@ def inject_input_hub_animations_css():
         50% { transform: scale(1.1); opacity: 1; } 
         100% { transform: scale(0.9); opacity: 0.7; } 
     }
+    @keyframes pulse-start-needed {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+            transform: scale(1.02);
+        }
+    }
+    @keyframes glow-pulse {
+        0%, 100% {
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5),
+                        0 0 20px rgba(245, 158, 11, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.7),
+                        0 0 30px rgba(245, 158, 11, 0.5);
+        }
+    }
     
     /* 기본 상태: 항상 보이게 */
     .guide-card-animated,
@@ -77,12 +97,39 @@ def inject_input_hub_animations_css():
         animation: shimmer-bg 10s ease infinite; 
     }
     
+    /* 시작 필요 상태 강조 스타일 */
+    [data-ps-scope="input_hub"] .ps-start-needed-card {
+        border: 2px solid rgba(245, 158, 11, 0.6) !important;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5),
+                    0 0 30px rgba(245, 158, 11, 0.3) !important;
+        animation: pulse-start-needed 2s ease-in-out infinite,
+                   glow-pulse 3s ease-in-out infinite !important;
+        background: rgba(245, 158, 11, 0.08) !important;
+    }
+    
+    [data-ps-scope="input_hub"] .ps-start-needed-button {
+        background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%) !important;
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.6),
+                    0 0 40px rgba(245, 158, 11, 0.4) !important;
+        animation: glow-pulse 2s ease-in-out infinite !important;
+        border: 2px solid rgba(245, 158, 11, 0.8) !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-ps-scope="input_hub"] .ps-start-needed-button:hover {
+        transform: translateY(-2px) scale(1.02) !important;
+        box-shadow: 0 0 25px rgba(245, 158, 11, 0.8),
+                    0 0 50px rgba(245, 158, 11, 0.6) !important;
+    }
+    
     /* prefers-reduced-motion 지원 */
     @media (prefers-reduced-motion: reduce) {
         [data-ps-scope="input_hub"] *,
         .guide-card-animated,
         .animate-in,
-        .shimmer-overlay {
+        .shimmer-overlay,
+        [data-ps-scope="input_hub"] .ps-start-needed-card,
+        [data-ps-scope="input_hub"] .ps-start-needed-button {
             animation: none !important;
             transition: none !important;
         }
@@ -355,6 +402,14 @@ def inject_input_hub_controlboard_compact_css():
         background: rgba(100, 116, 139, 0.15) !important;
         color: #64748B !important;
         border: 1px solid rgba(100, 116, 139, 0.3) !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-card-status-badge.start-needed {{
+        background: rgba(245, 158, 11, 0.2) !important;
+        color: #F59E0B !important;
+        border: 1px solid rgba(245, 158, 11, 0.5) !important;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.3) !important;
+        animation: pulse-start-needed 2s ease-in-out infinite !important;
     }}
     
     [data-ps-scope="{scope_id}"] .ps-card-status-badge.optional {{
@@ -1122,7 +1177,7 @@ def render_input_hub_v3():
         struct_summary_color = "#F59E0B"
     else:
         struct_summary = "구조 자산: 시작 필요 / 메뉴와 재료부터 시작하세요"
-        struct_summary_color = "#64748B"
+        struct_summary_color = "#F59E0B"  # 회색 → 주황색으로 변경
     
     # 구조 자산 진행률 계산 (운영 가능 기준, MATURITY LEVEL 연결)
     # 재고는 선택 입력이므로 게이지에 반영하지 않음 (정보만 표시)
@@ -1131,15 +1186,23 @@ def render_input_hub_v3():
     if ing_operable: struct_score += 33
     if recipe_operable: struct_score += 34
     
+    # 게이지 0%일 때 특별 처리
+    if struct_score == 0:
+        gauge_text = "시작 필요"
+        gauge_color = "#F59E0B"
+    else:
+        gauge_text = f"{struct_score}%"
+        gauge_color = struct_summary_color
+    
     st.markdown(f"""
     <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
         <div style="font-size: 0.9rem; color: {struct_summary_color}; font-weight: 600; margin-bottom: 0.5rem;">{struct_summary}</div>
         <div style="display: flex; align-items: center; gap: 0.8rem;">
             <div style="font-size: 0.75rem; color: #94A3B8;">구조 자산</div>
             <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {struct_summary_color} 0%, {struct_summary_color} 100%); width: {struct_score}%; height: 100%;"></div>
+                <div style="background: linear-gradient(90deg, {gauge_color} 0%, {gauge_color} 100%); width: {max(struct_score, 5)}%; height: 100%;"></div>
             </div>
-            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{struct_score}%</div>
+            <div style="font-size: 0.75rem; color: {gauge_color}; font-weight: 600;">{gauge_text}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1149,65 +1212,77 @@ def render_input_hub_v3():
     if menu_operable:
         menu_status_text = "정상 운영"
         menu_status_color = "#10B981"
+        menu_card_class = ""
     elif assets.get('menu_count', 0) > 0:
         menu_status_text = "보완 필요"
         menu_status_color = "#F59E0B"
+        menu_card_class = ""
     else:
-        menu_status_text = "시작 필요"
-        menu_status_color = "#94A3B8"
+        menu_status_text = "🚨 지금 시작하세요"
+        menu_status_color = "#F59E0B"
+        menu_card_class = "ps-start-needed-card"
     
     if ing_operable:
         ing_status_text = "정상 운영"
         ing_status_color = "#10B981"
+        ing_card_class = ""
     elif assets.get('ing_count', 0) > 0:
         ing_status_text = "보완 필요"
         ing_status_color = "#F59E0B"
+        ing_card_class = ""
     else:
-        ing_status_text = "시작 필요"
-        ing_status_color = "#94A3B8"
+        ing_status_text = "🚨 지금 시작하세요"
+        ing_status_color = "#F59E0B"
+        ing_card_class = "ps-start-needed-card"
     
     # 레시피 운영 체감 언어 + 색상
     recipe_rate = assets.get('recipe_rate', 0)
     if recipe_rate >= 80:
         recipe_status_text = "정상 운영"
         recipe_status_color = "#10B981"
+        recipe_card_class = ""
     elif recipe_rate > 0:
         recipe_status_text = f"보완 필요 ({recipe_rate:.0f}%)"
         recipe_status_color = "#F59E0B"
+        recipe_card_class = ""
     else:
-        recipe_status_text = "시작 필요"
-        recipe_status_color = "#94A3B8"
+        recipe_status_text = "🚨 지금 시작하세요"
+        recipe_status_color = "#F59E0B"
+        recipe_card_class = "ps-start-needed-card"
     
     # 재고 안전재고 설정 비율 운영 체감 언어 + 색상
     inventory_safety_rate = assets.get('inventory_safety_rate', 0)
     if inventory_safety_rate >= 80:
         inventory_status_text = "정상 운영"
         inventory_status_color = "#10B981"
+        inventory_card_class = ""
     elif inventory_safety_rate > 0:
         inventory_status_text = f"보완 필요 ({inventory_safety_rate:.0f}%)"
         inventory_status_color = "#F59E0B"
+        inventory_card_class = ""
     else:
-        inventory_status_text = "시작 필요"
-        inventory_status_color = "#94A3B8"
+        inventory_status_text = "🚨 지금 시작하세요"
+        inventory_status_color = "#F59E0B"
+        inventory_card_class = "ps-start-needed-card"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{menu_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if menu_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{ing_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if ing_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{recipe_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if recipe_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{inventory_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if inventory_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
@@ -1215,25 +1290,69 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
+    # 시작 필요 항목 체크 (경고 배너용)
+    has_start_needed_struct = (assets.get('menu_count', 0) == 0 or 
+                               assets.get('ing_count', 0) == 0 or 
+                               recipe_rate == 0)
+    
+    # 경고 배너 표시 (시작 필요 항목이 있을 때)
+    if has_start_needed_struct:
+        start_needed_items = []
+        if assets.get('menu_count', 0) == 0:
+            start_needed_items.append("메뉴")
+        if assets.get('ing_count', 0) == 0:
+            start_needed_items.append("재료")
+        if recipe_rate == 0:
+            start_needed_items.append("레시피")
+        
+        items_text = ", ".join(start_needed_items)
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(245, 158, 11, 0.15); 
+                    border-left: 4px solid #F59E0B; border-radius: 8px; 
+                    margin-bottom: 1rem;">
+            <div style="font-weight: 600; color: #F59E0B; margin-bottom: 0.3rem;">
+                ⚠️ {items_text}이(가) 없어서 수익 분석을 사용할 수 없습니다
+            </div>
+            <div style="font-size: 0.85rem; color: #94A3B8;">
+                아래 버튼을 눌러 지금 시작하면 메뉴 수익 구조 분석이 활성화됩니다.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     struct_btn_cols = st.columns(4)
     with struct_btn_cols[0]:
-        # 메뉴 입력 버튼 (항상 보완 가능)
-        btn_type = "primary" if (assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0) else "primary"
-        if st.button("📘 메뉴 보완", use_container_width=True, type=btn_type, key="btn_asset_menu"):
+        # 메뉴 입력 버튼
+        if assets.get('menu_count', 0) == 0:
+            button_text = "🚀 메뉴 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "📘 메뉴 보완"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_menu"):
             st.session_state.current_page = "메뉴 입력"
             st.rerun()
     with struct_btn_cols[1]:
-        # 재료 입력 버튼 (항상 보완 가능)
-        btn_type = "primary" if (assets.get('missing_cost', 0) > 0 or assets.get('ing_count', 0) == 0) else "primary"
-        if st.button("🧺 재료 보완", use_container_width=True, type=btn_type, key="btn_asset_ing"):
+        # 재료 입력 버튼
+        if assets.get('ing_count', 0) == 0:
+            button_text = "🚀 재료 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "🧺 재료 보완"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_ing"):
             st.session_state.current_page = "재료 입력"
             st.rerun()
     with struct_btn_cols[2]:
-        # 레시피 입력 버튼 (항상 보완 가능)
-        btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "primary"
-        if st.button("🍳 레시피 보완", use_container_width=True, type=btn_type, key="btn_asset_recipe"):
+        # 레시피 입력 버튼
+        if recipe_rate == 0:
+            button_text = "🚀 레시피 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "🍳 레시피 보완"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_recipe"):
             st.session_state.current_page = "레시피 등록"
             st.rerun()
     with struct_btn_cols[3]:
@@ -1266,6 +1385,14 @@ def render_input_hub_v3():
     if r4["status"] == "completed": op_score += 30
     if r5["status"] == "completed": op_score += 30
     
+    # 게이지 0%일 때 특별 처리
+    if op_score == 0:
+        op_gauge_text = "시작 필요"
+        op_gauge_color = "#F59E0B"
+    else:
+        op_gauge_text = f"{op_score}%"
+        op_gauge_color = op_main_color
+    
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">
         <div style="font-size: 1rem; color: {op_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{op_main_msg}</div>
@@ -1273,9 +1400,9 @@ def render_input_hub_v3():
         <div style="display: flex; align-items: center; gap: 0.8rem;">
             <div style="font-size: 0.75rem; color: #94A3B8;">운영 기록</div>
             <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {op_main_color} 0%, {op_main_color} 100%); width: {op_score}%; height: 100%;"></div>
+                <div style="background: linear-gradient(90deg, {op_gauge_color} 0%, {op_gauge_color} 100%); width: {max(op_score, 5)}%; height: 100%;"></div>
             </div>
-            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{op_score}%</div>
+            <div style="font-size: 0.75rem; color: {op_gauge_color}; font-weight: 600;">{op_gauge_text}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1284,37 +1411,43 @@ def render_input_hub_v3():
     if has_daily_close:
         daily_status_text = "정상 운영"
         daily_status_color = "#10B981"
+        daily_card_class = ""
     else:
-        daily_status_text = "시작 필요"
-        daily_status_color = "#94A3B8"
+        daily_status_text = "🚨 지금 시작하세요"
+        daily_status_color = "#F59E0B"
+        daily_card_class = "ps-start-needed-card"
     
     if r4["status"] == "completed":
         qsc_status_text = "정상 운영"
         qsc_status_color = "#10B981"
+        qsc_card_class = ""
     else:
         qsc_status_text = "보완 필요"
         qsc_status_color = "#F59E0B"
+        qsc_card_class = ""
     
     if r5["status"] == "completed":
         settle_status_text = "정상 운영"
         settle_status_color = "#10B981"
+        settle_card_class = ""
     else:
         settle_status_text = "보완 필요"
         settle_status_color = "#F59E0B"
+        settle_card_class = ""
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{daily_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if daily_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{qsc_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if qsc_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🩺 QSC</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {qsc_status_color};">{qsc_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r4["summary"]}</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{settle_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if settle_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📅 월간 정산</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {settle_status_color};">{settle_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r5["summary"]}</div>
@@ -1322,11 +1455,18 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 지금 기록이 없으면 무엇이 불가능한지 (사장 언어)
+    # 시작 필요 항목 체크 (경고 배너용)
     if not has_daily_close:
         st.markdown("""
-        <div style="padding: 0.6rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 3px solid rgba(245, 158, 11, 0.4); margin-bottom: 1rem;">
-            <div style="font-size: 0.75rem; color: #F59E0B; font-weight: 600;">지금 기록이 없으면 매출 흐름을 파악할 수 없습니다</div>
+        <div style="padding: 0.8rem; background: rgba(245, 158, 11, 0.15); 
+                    border-left: 4px solid #F59E0B; border-radius: 8px; 
+                    margin-bottom: 1rem;">
+            <div style="font-weight: 600; color: #F59E0B; margin-bottom: 0.3rem;">
+                ⚠️ 일일 마감이 없어서 매출 흐름을 파악할 수 없습니다
+            </div>
+            <div style="font-size: 0.85rem; color: #94A3B8;">
+                오늘 매장 기록을 시작하면 매출 추이 분석이 가능합니다.
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1334,8 +1474,14 @@ def render_input_hub_v3():
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     op_btn_cols = st.columns(3)
     with op_btn_cols[0]:
-        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
-        if st.button("📝 오늘 매장 기록", use_container_width=True, type="primary", key="btn_asset_daily"):
+        # 일일 마감 버튼
+        if not has_daily_close:
+            button_text = "🚀 오늘 기록 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "📝 오늘 매장 기록"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_daily"):
             st.session_state.current_page = "일일 입력(통합)"
             st.rerun()
     with op_btn_cols[1]:
@@ -1371,6 +1517,14 @@ def render_input_hub_v3():
     if assets.get('has_target'): target_score += 50
     if assets.get('has_cost_target'): target_score += 50
     
+    # 게이지 0%일 때 특별 처리
+    if target_score == 0:
+        target_gauge_text = "시작 필요"
+        target_gauge_color = "#F59E0B"
+    else:
+        target_gauge_text = f"{target_score}%"
+        target_gauge_color = target_main_color
+    
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
         <div style="font-size: 1rem; color: {target_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{target_main_msg}</div>
@@ -1378,9 +1532,9 @@ def render_input_hub_v3():
         <div style="display: flex; align-items: center; gap: 0.8rem;">
             <div style="font-size: 0.75rem; color: #94A3B8;">판단 기준</div>
             <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {target_main_color} 0%, {target_main_color} 100%); width: {target_score}%; height: 100%;"></div>
+                <div style="background: linear-gradient(90deg, {target_gauge_color} 0%, {target_gauge_color} 100%); width: {max(target_score, 5)}%; height: 100%;"></div>
             </div>
-            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{target_score}%</div>
+            <div style="font-size: 0.75rem; color: {target_gauge_color}; font-weight: 600;">{target_gauge_text}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1389,25 +1543,29 @@ def render_input_hub_v3():
     if assets.get('has_target'):
         target_status_text = "정상 운영"
         target_status_color = "#10B981"
+        target_card_class = ""
     else:
-        target_status_text = "시작 필요"
-        target_status_color = "#94A3B8"
+        target_status_text = "🚨 지금 시작하세요"
+        target_status_color = "#F59E0B"
+        target_card_class = "ps-start-needed-card"
     
     if assets.get('has_cost_target'):
         cost_target_status_text = "정상 운영"
         cost_target_color = "#10B981"
+        cost_target_card_class = ""
     else:
-        cost_target_status_text = "시작 필요"
-        cost_target_color = "#94A3B8"
+        cost_target_status_text = "🚨 지금 시작하세요"
+        cost_target_color = "#F59E0B"
+        cost_target_card_class = "ps-start-needed-card"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{target_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if target_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
-        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+        <div class="{cost_target_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if cost_target_card_class else 'rgba(148, 163, 184, 0.15)'};">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
@@ -1415,16 +1573,50 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
+    # 시작 필요 항목 체크 (경고 배너용)
+    if not assets.get('has_target') or not assets.get('has_cost_target'):
+        missing_targets = []
+        if not assets.get('has_target'):
+            missing_targets.append("매출 목표")
+        if not assets.get('has_cost_target'):
+            missing_targets.append("비용 목표")
+        targets_text = ", ".join(missing_targets)
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(245, 158, 11, 0.15); 
+                    border-left: 4px solid #F59E0B; border-radius: 8px; 
+                    margin-bottom: 1rem;">
+            <div style="font-weight: 600; color: #F59E0B; margin-bottom: 0.3rem;">
+                ⚠️ {targets_text}이(가) 없어서 전략 수립을 사용할 수 없습니다
+            </div>
+            <div style="font-size: 0.85rem; color: #94A3B8;">
+                목표를 설정하면 목표 대비 성과 분석과 전략 보드가 활성화됩니다.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # ACTION ZONE: 콘솔 영역 (항상 보완 기준으로 노출)
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     target_btn_cols = st.columns(2)
     with target_btn_cols[0]:
-        # 완성 여부와 관계없이 항상 보완 가능하도록 primary 유지
-        if st.button("🎯 이번 달 목표 보완", use_container_width=True, type="primary", key="btn_asset_target"):
+        # 매출 목표 버튼
+        if not assets.get('has_target'):
+            button_text = "🚀 목표 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "🎯 이번 달 목표 보완"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_target"):
             st.session_state.current_page = "목표 매출구조"
             st.rerun()
     with target_btn_cols[1]:
-        if st.button("🧾 비용 기준 보완", use_container_width=True, type="primary", key="btn_asset_cost"):
+        # 비용 목표 버튼
+        if not assets.get('has_cost_target'):
+            button_text = "🚀 비용 기준 지금 시작"
+            button_class = "ps-start-needed-button"
+        else:
+            button_text = "🧾 비용 기준 보완"
+            button_class = ""
+        if st.button(button_text, use_container_width=True, type="primary", key="btn_asset_cost"):
             st.session_state.current_page = "목표 비용구조"
             st.rerun()
     
