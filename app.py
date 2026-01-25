@@ -879,6 +879,9 @@ menu = {
         ("직원 연락망", "직원 연락망"),
         ("협력사 연락망", "협력사 연락망"),
         ("게시판", "게시판")
+    ],
+    "🧪 테스트": [
+        ("화면테스트", "화면테스트")
     ]
 }
 
@@ -1064,6 +1067,9 @@ elif page == "실제정산 분석":
 elif page == "게시판":
     from ui_pages.board import render_board
     render_board()
+elif page == "화면테스트":
+    from ui_pages.design_test.header_unified_test import render_header_unified_test
+    render_header_unified_test()
 
 # ============================================
 # 최종 안전핀 CSS (모든 CSS 주입 후 마지막에 주입)
