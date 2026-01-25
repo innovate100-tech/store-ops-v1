@@ -993,19 +993,76 @@ def render_input_hub_v3():
                 // 카드에 애니메이션 적용 (텍스트 기반으로 찾기 - Streamlit이 속성을 제거할 수 있으므로)
                 // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있는 div 찾기
                 const allDivs = document.querySelectorAll('div');
-                const cards = Array.from(allDivs).filter(div => {
+                const cards = [];
+                
+                allDivs.forEach(div => {
                     const text = div.textContent || '';
                     const style = window.getComputedStyle(div);
-                    // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있고, 주황색 테두리나 배경이 있는 div
-                    const hasStartText = text.includes('지금 시작하세요') || text.includes('시작 필요');
-                    const hasOrangeColor = style.borderColor.includes('245') || style.borderColor.includes('158') || 
-                                          style.borderColor.includes('11') || style.color.includes('245') ||
-                                          style.backgroundColor.includes('245') || style.backgroundColor.includes('158');
-                    return hasStartText && hasOrangeColor;
+                    const inlineStyle = div.getAttribute('style') || '';
+                    
+                    // 조건 1: 텍스트 확인 (더 넓은 범위)
+                    const hasStartText = text.includes('지금 시작하세요') || 
+                                        text.includes('시작 필요') ||
+                                        text.includes('🚨 지금 시작하세요');
+                    
+                    // 조건 2: 주황색 스타일 확인 (인라인 스타일 우선)
+                    const hasOrangeStyle = 
+                        inlineStyle.includes('245, 158, 11') ||
+                        inlineStyle.includes('F59E0B') ||
+                        inlineStyle.includes('rgba(245, 158, 11') ||
+                        style.borderColor.includes('245') || 
+                        style.borderColor.includes('158') || 
+                        style.color.includes('245') ||
+                        style.color.includes('158') ||
+                        style.backgroundColor.includes('245') || 
+                        style.backgroundColor.includes('158');
+                    
+                    // 조건 3: 카드처럼 보이는 div
+                    const looksLikeCard = (style.padding !== '0px' && style.padding !== '') || 
+                                         inlineStyle.includes('border-radius') ||
+                                         inlineStyle.includes('padding');
+                    
+                    // 텍스트가 있으면 조건 완화
+                    if (hasStartText && (hasOrangeStyle || looksLikeCard)) {
+                        cards.push(div);
+                    }
                 });
                 
-                if (cards.length > 0) {
-                    console.log(`[DEBUG] ${cards.length}개 카드 발견 (텍스트 기반)`);
+                console.log(`[DEBUG] ${cards.length}개 카드 발견 (텍스트 기반)`);
+                
+                // 디버깅: 카드를 찾지 못했을 때
+                if (cards.length === 0) {
+                    console.log('[DEBUG] 디버깅: 모든 div 요소 검색 중...');
+                    const allDivsWithText = Array.from(allDivs).filter(div => {
+                        const text = div.textContent || '';
+                        return text.includes('지금') || text.includes('시작') || text.includes('필요') || text.includes('🚨');
+                    });
+                    console.log(`[DEBUG] "지금", "시작", "필요", "🚨" 텍스트가 있는 div: ${allDivsWithText.length}개`);
+                    if (allDivsWithText.length > 0) {
+                        console.log('[DEBUG] 발견된 텍스트 예시 (처음 5개):');
+                        allDivsWithText.slice(0, 5).forEach((div, i) => {
+                            const text = (div.textContent || '').trim().substring(0, 80);
+                            const inlineStyle = div.getAttribute('style') || '';
+                            const hasOrange = inlineStyle.includes('245') || inlineStyle.includes('158') || inlineStyle.includes('F59E0B');
+                            console.log(`  ${i + 1}. 텍스트: "${text}..."`);
+                            console.log(`     인라인 스타일 주황색 포함: ${hasOrange}`);
+                            if (inlineStyle.length > 0) {
+                                console.log(`     인라인 스타일: ${inlineStyle.substring(0, 100)}...`);
+                            }
+                        });
+                        
+                        // 첫 번째 요소에 강제로 애니메이션 적용 시도
+                        console.log('[DEBUG] 첫 번째 요소에 애니메이션 강제 적용 시도...');
+                        const firstDiv = allDivsWithText[0];
+                        firstDiv.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
+                        firstDiv.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
+                        firstDiv.style.setProperty('transform', 'scale(1)', 'important');
+                        firstDiv.style.setProperty('will-change', 'transform, box-shadow', 'important');
+                        console.log('[DEBUG] 첫 번째 요소에 애니메이션 적용 완료!');
+                    } else {
+                        console.log('[DEBUG] "지금", "시작", "필요" 텍스트가 있는 div를 찾을 수 없습니다.');
+                        console.log('[DEBUG] 페이지에 "시작 필요" 상태인 항목이 없을 수 있습니다.');
+                    }
                 }
                 
                 cards.forEach(card => {
