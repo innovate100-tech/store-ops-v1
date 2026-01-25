@@ -1101,10 +1101,19 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     /* 배경/오버레이 레이어는 클릭 방해 금지 + 뒤로 */
     .ps-ultra-bg, .ps-mesh, .ps-overlay, .ultra-bg, .mesh-bg, .animated-bg,
     .overlay, .backdrop, .background, .bg-layer,
-    [data-ps-scope="input_hub"].ps-hub-bg::before,
-    [data-ps-scope="input_hub"].ps-hub-bg::after {
+    [data-ps-scope="input_hub"].ps-hub-bg::before {
       pointer-events: none !important;
       z-index: 0 !important;
+    }
+    
+    /* 파란 투명 화면 문제 해결: ps-hub-bg::after 완전 제거 */
+    [data-ps-scope="input_hub"].ps-hub-bg::after {
+      content: none !important;
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      z-index: -1 !important;
     }
     </style>
     """

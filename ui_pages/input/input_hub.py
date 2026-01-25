@@ -135,26 +135,13 @@ def inject_input_hub_ultra_premium_css():
         filter: none !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
+        background: transparent !important;
     }}
     
-    /* 배경 레이어 ::before (상단 Neon Bar) - 항상 뒤에 */
+    /* 배경 레이어 ::before (상단 Neon Bar) - 제거됨 (파란 투명 화면 문제 해결) */
     [data-ps-scope="{scope_id}"].ps-hub-bg::before {{
-        content: "" !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        height: 4px !important;
-        background: linear-gradient(90deg, 
-            transparent 0%, 
-            rgba(59, 130, 246, 0.6) 20%, 
-            rgba(96, 165, 250, 0.8) 50%, 
-            rgba(59, 130, 246, 0.6) 80%, 
-            transparent 100%
-        ) !important;
-        z-index: 0 !important;
-        pointer-events: none !important;
-        animation: slowDrift 24s ease infinite !important;
+        content: none !important;
+        display: none !important;
     }}
     
     /* 배경 레이어 ::after (배경 메시/그리드) - 제거됨 (파란 투명 화면 문제 해결) */
