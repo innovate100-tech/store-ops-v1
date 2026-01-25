@@ -986,6 +986,7 @@ def render_input_hub_v3():
     struct_cols = st.columns(4)
     
     # 메뉴 상태 계산
+    menu_sub = None
     if assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0:
         menu_badge_class = "active"
         menu_badge_text = "ACTIVE"
@@ -999,9 +1000,9 @@ def render_input_hub_v3():
         menu_badge_class = "missing"
         menu_badge_text = "MISSING"
         menu_value = "0개"
-        menu_sub = None
     
     # 재료 상태 계산
+    ing_sub = None
     if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0:
         ing_badge_class = "active"
         ing_badge_text = "ACTIVE"
@@ -1015,7 +1016,6 @@ def render_input_hub_v3():
         ing_badge_class = "missing"
         ing_badge_text = "MISSING"
         ing_value = "0개"
-        ing_sub = None
     
     # 레시피 상태 계산
     if assets.get('recipe_rate', 0) >= 80:
