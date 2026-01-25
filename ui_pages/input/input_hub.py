@@ -1399,19 +1399,19 @@ def render_input_hub_v3():
     else:
         struct_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
-    st.markdown(f"""
-    <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
-        <div style="font-size: 0.9rem; color: {struct_summary_color}; font-weight: 600; margin-bottom: 0.5rem;">{struct_summary}</div>
-        <div style="display: flex; align-items: center; gap: 0.8rem;">
-            <div style="font-size: 0.75rem; color: #94A3B8;">구조 자산</div>
-            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {gauge_color} 0%, {gauge_color} 100%); width: {max(struct_score, 5)}%; height: 100%;"></div>
-            </div>
-            <div style="font-size: 0.75rem; color: {gauge_color}; font-weight: 600;">{gauge_text}</div>
-        </div>
-        {struct_progress_html}
-    </div>
-    """, unsafe_allow_html=True)
+    # 구조 자산 게이지 HTML을 문자열 연결로 구성
+    struct_gauge_html = f'<div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">'
+    struct_gauge_html += f'<div style="font-size: 0.9rem; color: {struct_summary_color}; font-weight: 600; margin-bottom: 0.5rem;">{struct_summary}</div>'
+    struct_gauge_html += '<div style="display: flex; align-items: center; gap: 0.8rem;">'
+    struct_gauge_html += '<div style="font-size: 0.75rem; color: #94A3B8;">구조 자산</div>'
+    struct_gauge_html += f'<div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">'
+    struct_gauge_html += f'<div style="background: linear-gradient(90deg, {gauge_color} 0%, {gauge_color} 100%); width: {max(struct_score, 5)}%; height: 100%;"></div>'
+    struct_gauge_html += '</div>'
+    struct_gauge_html += f'<div style="font-size: 0.75rem; color: {gauge_color}; font-weight: 600;">{gauge_text}</div>'
+    struct_gauge_html += '</div>'
+    struct_gauge_html += struct_progress_html
+    struct_gauge_html += '</div>'
+    st.markdown(struct_gauge_html, unsafe_allow_html=True)
     
     # 하위 항목 상태 스트립 (4개) - 운영 체감 언어 + 색상
     # '구축됨'이 아니라 '운영 가능' 기준
@@ -1489,34 +1489,34 @@ def render_input_hub_v3():
     recipe_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 3</div>' if recipe_card_class else ""
     inventory_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 4</div>' if inventory_card_class else ""
     
-    st.markdown(f"""
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{menu_card_class}" {menu_card_data} style="{menu_card_style}">
-            {menu_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
-        </div>
-        <div class="{ing_card_class}" {ing_card_data} style="{ing_card_style}">
-            {ing_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
-        </div>
-        <div class="{recipe_card_class}" {recipe_card_data} style="{recipe_card_style}">
-            {recipe_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
-        </div>
-        <div class="{inventory_card_class}" {inventory_card_data} style="{inventory_card_style}">
-            {inventory_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # HTML을 문자열 연결로 구성 (f-string 문제 회피)
+    cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
+    cards_html += f'<div class="{menu_card_class}" {menu_card_data} style="{menu_card_style}">'
+    cards_html += menu_step_badge
+    cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>'
+    cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>'
+    cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get("menu_count", 0)}개</div>'
+    cards_html += '</div>'
+    cards_html += f'<div class="{ing_card_class}" {ing_card_data} style="{ing_card_style}">'
+    cards_html += ing_step_badge
+    cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>'
+    cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>'
+    cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get("ing_count", 0)}개</div>'
+    cards_html += '</div>'
+    cards_html += f'<div class="{recipe_card_class}" {recipe_card_data} style="{recipe_card_style}">'
+    cards_html += recipe_step_badge
+    cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>'
+    cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>'
+    cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>'
+    cards_html += '</div>'
+    cards_html += f'<div class="{inventory_card_class}" {inventory_card_data} style="{inventory_card_style}">'
+    cards_html += inventory_step_badge
+    cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>'
+    cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>'
+    cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>'
+    cards_html += '</div>'
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
     
     # 시작 필요 항목 체크 (경고 배너용)
     has_start_needed_struct = (assets.get('menu_count', 0) == 0 or 
@@ -1640,20 +1640,20 @@ def render_input_hub_v3():
     else:
         op_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
-    st.markdown(f"""
-    <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">
-        <div style="font-size: 1rem; color: {op_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{op_main_msg}</div>
-        <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{op_sub_msg}</div>
-        <div style="display: flex; align-items: center; gap: 0.8rem;">
-            <div style="font-size: 0.75rem; color: #94A3B8;">운영 기록</div>
-            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {op_gauge_color} 0%, {op_gauge_color} 100%); width: {max(op_score, 5)}%; height: 100%;"></div>
-            </div>
-            <div style="font-size: 0.75rem; color: {op_gauge_color}; font-weight: 600;">{op_gauge_text}</div>
-        </div>
-        {op_progress_html}
-    </div>
-    """, unsafe_allow_html=True)
+    # 운영 기록 자산 게이지 HTML을 문자열 연결로 구성
+    op_gauge_html = f'<div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">'
+    op_gauge_html += f'<div style="font-size: 1rem; color: {op_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{op_main_msg}</div>'
+    op_gauge_html += f'<div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{op_sub_msg}</div>'
+    op_gauge_html += '<div style="display: flex; align-items: center; gap: 0.8rem;">'
+    op_gauge_html += '<div style="font-size: 0.75rem; color: #94A3B8;">운영 기록</div>'
+    op_gauge_html += '<div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">'
+    op_gauge_html += f'<div style="background: linear-gradient(90deg, {op_gauge_color} 0%, {op_gauge_color} 100%); width: {max(op_score, 5)}%; height: 100%;"></div>'
+    op_gauge_html += '</div>'
+    op_gauge_html += f'<div style="font-size: 0.75rem; color: {op_gauge_color}; font-weight: 600;">{op_gauge_text}</div>'
+    op_gauge_html += '</div>'
+    op_gauge_html += op_progress_html
+    op_gauge_html += '</div>'
+    st.markdown(op_gauge_html, unsafe_allow_html=True)
     
     # 하위 항목 상태 스트립 (3개) - 운영 체감 언어 + 색상
     if has_daily_close:
@@ -1694,26 +1694,28 @@ def render_input_hub_v3():
         daily_card_data = ''
         daily_step_badge = ""
     
-    st.markdown(f"""
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{daily_card_class}" {daily_card_data} style="{daily_card_style}">
-            {daily_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
-        </div>
-        <div class="{qsc_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if qsc_card_class else 'rgba(148, 163, 184, 0.15)'};">
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🩺 QSC</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {qsc_status_color};">{qsc_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r4["summary"]}</div>
-        </div>
-        <div class="{settle_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if settle_card_class else 'rgba(148, 163, 184, 0.15)'};">
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📅 월간 정산</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {settle_status_color};">{settle_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r5["summary"]}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 운영 기록 카드 HTML을 문자열 연결로 구성
+    op_cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
+    op_cards_html += f'<div class="{daily_card_class}" {daily_card_data} style="{daily_card_style}">'
+    op_cards_html += daily_step_badge
+    op_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>'
+    op_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>'
+    op_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>'
+    op_cards_html += '</div>'
+    qsc_border = 'rgba(245, 158, 11, 0.6)' if qsc_card_class else 'rgba(148, 163, 184, 0.15)'
+    op_cards_html += f'<div class="{qsc_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {qsc_border};">'
+    op_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🩺 QSC</div>'
+    op_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {qsc_status_color};">{qsc_status_text}</div>'
+    op_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r4["summary"]}</div>'
+    op_cards_html += '</div>'
+    settle_border = 'rgba(245, 158, 11, 0.6)' if settle_card_class else 'rgba(148, 163, 184, 0.15)'
+    op_cards_html += f'<div class="{settle_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {settle_border};">'
+    op_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📅 월간 정산</div>'
+    op_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {settle_status_color};">{settle_status_text}</div>'
+    op_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r5["summary"]}</div>'
+    op_cards_html += '</div>'
+    op_cards_html += '</div>'
+    st.markdown(op_cards_html, unsafe_allow_html=True)
     
     # 시작 필요 항목 체크 (경고 배너용)
     if not has_daily_close:
@@ -1804,20 +1806,20 @@ def render_input_hub_v3():
     else:
         target_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
-    st.markdown(f"""
-    <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
-        <div style="font-size: 1rem; color: {target_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{target_main_msg}</div>
-        <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{target_sub_msg}</div>
-        <div style="display: flex; align-items: center; gap: 0.8rem;">
-            <div style="font-size: 0.75rem; color: #94A3B8;">판단 기준</div>
-            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, {target_gauge_color} 0%, {target_gauge_color} 100%); width: {max(target_score, 5)}%; height: 100%;"></div>
-            </div>
-            <div style="font-size: 0.75rem; color: {target_gauge_color}; font-weight: 600;">{target_gauge_text}</div>
-        </div>
-        {target_progress_html}
-    </div>
-    """, unsafe_allow_html=True)
+    # 판단 기준 자산 게이지 HTML을 문자열 연결로 구성
+    target_gauge_html = f'<div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">'
+    target_gauge_html += f'<div style="font-size: 1rem; color: {target_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{target_main_msg}</div>'
+    target_gauge_html += f'<div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{target_sub_msg}</div>'
+    target_gauge_html += '<div style="display: flex; align-items: center; gap: 0.8rem;">'
+    target_gauge_html += '<div style="font-size: 0.75rem; color: #94A3B8;">판단 기준</div>'
+    target_gauge_html += '<div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">'
+    target_gauge_html += f'<div style="background: linear-gradient(90deg, {target_gauge_color} 0%, {target_gauge_color} 100%); width: {max(target_score, 5)}%; height: 100%;"></div>'
+    target_gauge_html += '</div>'
+    target_gauge_html += f'<div style="font-size: 0.75rem; color: {target_gauge_color}; font-weight: 600;">{target_gauge_text}</div>'
+    target_gauge_html += '</div>'
+    target_gauge_html += target_progress_html
+    target_gauge_html += '</div>'
+    st.markdown(target_gauge_html, unsafe_allow_html=True)
     
     # 하위 항목 상태 스트립 (2개) - 운영 체감 언어 + 색상
     if assets.get('has_target'):
@@ -1850,22 +1852,22 @@ def render_input_hub_v3():
     target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if target_card_class else ""
     cost_target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if cost_target_card_class else ""
     
-    st.markdown(f"""
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{target_card_class}" {target_card_data} style="{target_card_style}">
-            {target_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
-        </div>
-        <div class="{cost_target_card_class}" {cost_target_card_data} style="{cost_target_card_style}">
-            {cost_target_step_badge}
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
-            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 목표 카드 HTML을 문자열 연결로 구성
+    target_cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
+    target_cards_html += f'<div class="{target_card_class}" {target_card_data} style="{target_card_style}">'
+    target_cards_html += target_step_badge
+    target_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>'
+    target_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>'
+    target_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>'
+    target_cards_html += '</div>'
+    target_cards_html += f'<div class="{cost_target_card_class}" {cost_target_card_data} style="{cost_target_card_style}">'
+    target_cards_html += cost_target_step_badge
+    target_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>'
+    target_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>'
+    target_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>'
+    target_cards_html += '</div>'
+    target_cards_html += '</div>'
+    st.markdown(target_cards_html, unsafe_allow_html=True)
     
     # 시작 필요 항목 체크 (경고 배너용)
     if not assets.get('has_target') or not assets.get('has_cost_target'):
