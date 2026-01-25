@@ -6,8 +6,9 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import logging
-from src.ui_helpers import ui_flash_success, ui_flash_error, render_section_header
+from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
 from src.storage_supabase import load_csv, save_menu, update_menu, update_menu_category, delete_menu
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_menu_cost
@@ -31,6 +32,9 @@ ROLE_TAGS = ["미끼", "볼륨", "마진"]
 
 def render_menu_input_page():
     """판매 메뉴 입력 페이지 렌더링 (5-Zone 구조, CONSOLE형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -96,8 +100,8 @@ def render_menu_input_page():
 
 
 def _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe):
-    """ZONE A: 대시보드 & 현황 요약"""
-    render_section_header("📊 메뉴 현황 대시보드", "📊")
+    """ZONE A: 대시보드 & 현황 요약 (입력 상태 확인용)"""
+    ps_section("메뉴 현황", icon="📊")
     
     if menu_df.empty:
         st.info("등록된 메뉴가 없습니다. 아래에서 메뉴를 등록해주세요.")
@@ -128,23 +132,23 @@ def _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe):
     st.progress(category_rate / 100, text=f"메뉴분류 지정률: {category_rate:.0f}%")
     st.progress(role_rate / 100, text=f"해시태그 분류 지정률: {role_rate:.0f}%")
     
-    # 스마트 알림
+    # 입력 상태 확인 알림 (입력 오류/주의로만 표현)
     alerts = []
     if menus_with_recipe < total_menus:
-        alerts.append(f"⚠️ 레시피가 없는 메뉴가 {total_menus - menus_with_recipe}개 있습니다.")
+        alerts.append(f"⚠️ 레시피가 없는 메뉴: {total_menus - menus_with_recipe}개")
     if menus_with_category < total_menus:
-        alerts.append(f"ℹ️ 메뉴분류가 미지정인 메뉴가 {total_menus - menus_with_category}개 있습니다.")
+        alerts.append(f"ℹ️ 메뉴분류 미지정: {total_menus - menus_with_category}개")
     if menus_with_role < total_menus:
-        alerts.append(f"ℹ️ 해시태그 분류가 미지정인 메뉴가 {total_menus - menus_with_role}개 있습니다.")
+        alerts.append(f"ℹ️ 해시태그 분류 미지정: {total_menus - menus_with_role}개")
     
     if alerts:
         for alert in alerts:
-            st.info(alert)
+            st.caption(alert)
 
 
 def _render_zone_b_input(store_id):
     """ZONE B: 메뉴 입력 (단일/일괄)"""
-    render_section_header("📝 메뉴 입력", "📝")
+    ps_section("메뉴 입력", icon="📝")
     
     tab1, tab2 = st.tabs(["📝 단일 입력", "📋 일괄 입력"])
     
@@ -277,7 +281,7 @@ def _render_batch_input(store_id):
 
 def _render_zone_c_filters(menu_df, categories, roles, menu_has_recipe):
     """ZONE C: 필터 & 검색"""
-    render_section_header("🔍 필터 & 검색", "🔍")
+    # Filter Bar는 1줄 규칙 (섹션 헤더 제거, 바로 필터 표시)
     
     if menu_df.empty:
         return menu_df
@@ -334,7 +338,7 @@ def _render_zone_c_filters(menu_df, categories, roles, menu_has_recipe):
 
 def _render_zone_d_menu_list(menu_df, categories, roles, menu_has_recipe, menu_cost_df, store_id):
     """ZONE D: 메뉴 목록 & 관리"""
-    render_section_header("📋 메뉴 목록 & 관리", "📋")
+    ps_section("메뉴 목록", icon="📋")
     
     if menu_df.empty:
         st.info("등록된 메뉴가 없습니다.")
@@ -399,8 +403,8 @@ def _render_zone_d_menu_list(menu_df, categories, roles, menu_has_recipe, menu_c
                     st.markdown("-")
             with col6:
                 if has_recipe and cost_rate > 0:
-                    color = "#EF4444" if cost_rate >= 40 else "#22C55E"
-                    st.markdown(f'<span style="color: {color};">{cost_rate:.1f}%</span>', unsafe_allow_html=True)
+                    # 원가율 숫자만 표시 (색상 평가 제거)
+                    st.markdown(f"{cost_rate:.1f}%")
                 else:
                     st.markdown("-")
             with col7:
@@ -480,37 +484,20 @@ def _render_zone_d_menu_list(menu_df, categories, roles, menu_has_recipe, menu_c
 
 
 def _render_zone_e_management(menu_df, categories, roles, store_id):
-    """ZONE E: 메뉴분류 & 해시태그 관리"""
-    render_section_header("📊 메뉴분류 & 해시태그 관리", "📊")
+    """ZONE E: 입력 작업 안내 (Bottom CTA)"""
+    # 분석/전략 요소 제거: 메뉴분류/해시태그 현황 및 포트폴리오 설계실 이동 버튼 제거
+    # TODO: 분석센터로 이동 예정
     
+    # 입력 작업 안내만 남김
     if menu_df.empty:
-        st.info("등록된 메뉴가 없습니다.")
+        st.info("등록된 메뉴가 없습니다. 위에서 메뉴를 등록해주세요.")
         return
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 메뉴분류 현황")
-        category_counts = {}
-        for category in MENU_CATEGORIES:
-            count = sum(1 for name in menu_df['메뉴명'] if categories.get(name) == category)
-            category_counts[category] = count
-        
-        for category, count in category_counts.items():
-            st.metric(category, f"{count}개")
-        
-        if st.button("💡 메뉴 포트폴리오 설계실로 이동", key="go_to_portfolio"):
-            st.session_state["current_page"] = "메뉴 등록"
+    # 레시피 없는 메뉴 보기 (입력 작업 안내)
+    menus_without_recipe = [name for name in menu_df['메뉴명'] if not menu_has_recipe.get(name, False)]
+    if menus_without_recipe:
+        ps_section("다음 입력 작업", icon="📌")
+        st.caption(f"레시피가 없는 메뉴: {len(menus_without_recipe)}개")
+        if st.button("🧑‍🍳 레시피 없는 메뉴 보기", key="show_menus_without_recipe", use_container_width=True):
+            st.session_state["filter_recipe"] = "레시피 없음"
             st.rerun()
-    
-    with col2:
-        st.markdown("### 해시태그 분류 현황")
-        role_counts = {}
-        for role in ROLE_TAGS:
-            count = sum(1 for name in menu_df['메뉴명'] if roles.get(name) == role)
-            role_counts[role] = count
-        
-        for role, count in role_counts.items():
-            st.metric(role, f"{count}개")
-        
-        st.info("💡 해시태그 분류는 메뉴 포트폴리오 설계실에서도 관리할 수 있습니다.")

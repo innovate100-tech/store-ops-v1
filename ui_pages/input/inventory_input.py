@@ -7,11 +7,15 @@ import streamlit as st
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from src.ui_helpers import ui_flash_success, ui_flash_error, render_section_header
+from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
 from src.storage_supabase import load_csv, save_inventory, soft_invalidate, clear_session_cache
 from src.auth import get_current_store_id, get_supabase_client
-from src.analytics import calculate_ingredient_usage, calculate_order_recommendation
+from src.analytics import calculate_ingredient_usage
+# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
+# TODO: 분석센터로 이동 예정
+# from src.analytics import calculate_order_recommendation
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +67,9 @@ def _calculate_status(current, safety):
 
 def render_inventory_input_page():
     """재고 입력 페이지 렌더링 (대량 입력 중심, CONSOLE형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -97,24 +104,17 @@ def render_inventory_input_page():
                     'safety': safety_stock
                 }
     
-    # 발주 필요 여부 확인 (간단 버전)
+    # 발주 필요 여부 확인 (입력 상태 확인용 - 추천 로직 제거)
+    # TODO: 발주 추천 로직은 분석센터로 이동 예정
     needs_order = {}
+    # 발주 필요 여부는 재고 정보에서 직접 확인 (안전재고 대비 현재고)
     if not ingredient_df.empty and not inventory_df.empty:
-        try:
-            recipe_df = load_csv('recipes.csv', store_id=store_id, default_columns=['메뉴명', '재료명', '사용량'])
-            daily_sales_df = load_csv('daily_sales_items.csv', store_id=store_id, 
-                                      default_columns=['날짜', '메뉴명', '판매수량'])
-            usage_df = pd.DataFrame()
-            if not daily_sales_df.empty and not recipe_df.empty:
-                usage_df = calculate_ingredient_usage(daily_sales_df, recipe_df)
-            
-            order_recommendation = calculate_order_recommendation(
-                ingredient_df, inventory_df, usage_df, days_for_avg=7, forecast_days=3
-            )
-            if not order_recommendation.empty:
-                needs_order = {row['재료명']: True for _, row in order_recommendation.iterrows()}
-        except Exception as e:
-            logger.warning(f"발주 추천 계산 실패: {e}")
+        for _, row in inventory_df.iterrows():
+            ingredient_name = row.get('재료명')
+            current_stock = float(row.get('현재고', 0) or 0)
+            safety_stock = float(row.get('안전재고', 0) or 0)
+            if ingredient_name and current_stock < safety_stock:
+                needs_order[ingredient_name] = True
     
     def render_dashboard_content():
         """Top Dashboard: ZONE A"""
@@ -237,7 +237,7 @@ def _render_filters(ingredient_df, inventory_map, categories):
 
 def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map, categories):
     """ZONE B: 대량 입력 테이블"""
-    render_section_header("📝 재고 대량 입력", "📝")
+    ps_section("재고 대량 입력", icon="📝")
     
     if filtered_ingredient_df.empty:
         st.info("필터 조건에 맞는 재료가 없습니다.")
@@ -471,7 +471,7 @@ def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingre
 
 def _render_zone_c_save_validation(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map):
     """ZONE C: 저장 & 검증"""
-    render_section_header("💾 저장 & 검증", "💾")
+    ps_section("저장 & 검증", icon="💾")
     
     # 변경된 항목 수집
     changed_items = {}

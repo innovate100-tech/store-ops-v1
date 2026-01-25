@@ -4,11 +4,12 @@ FORM형 레이아웃 적용
 """
 from src.bootstrap import bootstrap
 import streamlit as st
-from src.ui_helpers import render_section_divider
+from src.ui_helpers import ui_flash_success, ui_flash_error, ui_flash_warning
 from src.utils.time_utils import today_kst
 from src.storage_supabase import load_csv, save_daily_sales_item, verify_overrides_saved
 from src.auth import get_current_store_id, is_dev_mode, get_supabase_client
 from src.ui.layouts.input_layouts import render_form_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
 
 # 공통 설정 적용
 bootstrap(page_title="Sales Volume Entry")
@@ -16,6 +17,8 @@ bootstrap(page_title="Sales Volume Entry")
 
 def render_sales_volume_entry():
     """판매량 등록 페이지 렌더링 (FORM형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
     
     def render_main_content():
         """Main Card 내용: 판매량 입력 UI"""
@@ -29,14 +32,13 @@ def render_sales_volume_entry():
                 st.info(verify_msg)
             if st.button("닫기", key="sales_volume_entry_close_msg"):
                 st.rerun()
-            render_section_divider()
         
         # 메뉴 목록 로드
         menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
         menu_list = menu_df['메뉴명'].tolist() if not menu_df.empty else []
         
         # ========== 일일 판매 입력 (점장 마감 스타일 - 지정 날짜에 전 메뉴 수량 입력) ==========
-        st.subheader("📦 일일 판매 입력 (전 메뉴 일괄 입력)")
+        ps_section("판매량 입력", icon="📦")
         
         if not menu_list:
             st.warning("먼저 메뉴를 등록해주세요.")
@@ -72,8 +74,7 @@ def render_sales_volume_entry():
             else:
                 st.warning("⚠️ **이 날짜는 아직 마감되지 않았습니다.** 이후 점장마감을 하면 기본 판매량이 다시 생성됩니다.")
             
-            st.markdown("---")
-            st.write("**선택한 날짜의 각 메뉴별 판매 수량을 한 번에 입력하세요. (0은 미판매)**")
+            st.caption("선택한 날짜의 각 메뉴별 판매 수량을 한 번에 입력하세요. (0은 미판매)")
             
             sales_items = []
             # 메뉴를 3열 그리드로 표시 (점장 마감 페이지와 동일한 스타일)
@@ -95,37 +96,33 @@ def render_sales_volume_entry():
                             if qty > 0:
                                 sales_items.append((menu_name, qty))
             
-            render_section_divider()
+            # 저장 버튼은 Action Bar로 이동
+            def handle_save_sales_volume():
+                if not sales_items:
+                    ui_flash_error("저장할 판매 내역이 없습니다. 한 개 이상의 메뉴에 판매 수량을 입력해주세요.")
+                else:
+                    success_count = 0
+                    errors = []
+                    for menu_name, quantity in sales_items:
+                        try:
+                            save_daily_sales_item(sales_date, menu_name, quantity)
+                            success_count += 1
+                        except Exception as e:
+                            errors.append(f"{menu_name}: {e}")
+                    
+                    if errors:
+                        for msg in errors:
+                            ui_flash_error(msg)
+                    
+                    if success_count > 0:
+                        st.session_state["sales_volume_entry_success"] = "✅ 판매량 보정 저장 완료! (마감 입력보다 우선 적용)"
+                        if is_dev_mode():
+                            store_id = get_current_store_id()
+                            if store_id and verify_overrides_saved(store_id, sales_date, success_count):
+                                st.session_state["sales_volume_entry_verify"] = "🔧 override 저장 확인됨 (DEV)"
+                        st.rerun()
             
-            # STEP 2: 저장 버튼 근처 고정 문구
-            st.info("💡 **이 입력은 점장마감 판매량보다 우선 적용됩니다.**")
-            
-            save_col, _ = st.columns([1, 3])
-            with save_col:
-                if st.button("💾 판매량 보정 저장", type="primary", use_container_width=True, key="sales_volume_entry_daily_sales_full_save"):
-                    if not sales_items:
-                        st.error("저장할 판매 내역이 없습니다. 한 개 이상의 메뉴에 판매 수량을 입력해주세요.")
-                    else:
-                        success_count = 0
-                        errors = []
-                        for menu_name, quantity in sales_items:
-                            try:
-                                save_daily_sales_item(sales_date, menu_name, quantity)
-                                success_count += 1
-                            except Exception as e:
-                                errors.append(f"{menu_name}: {e}")
-                        
-                        if errors:
-                            for msg in errors:
-                                st.error(msg)
-                        
-                        if success_count > 0:
-                            st.session_state["sales_volume_entry_success"] = "✅ 판매량 보정 저장 완료! (마감 입력보다 우선 적용)"
-                            if is_dev_mode():
-                                store_id = get_current_store_id()
-                                if store_id and verify_overrides_saved(store_id, sales_date, success_count):
-                                    st.session_state["sales_volume_entry_verify"] = "🔧 override 저장 확인됨 (DEV)"
-                            st.rerun()
+            st.session_state["_sales_volume_save"] = handle_save_sales_volume
     
     # 메뉴 목록 로드 (SummaryStrip용)
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
@@ -173,6 +170,19 @@ def render_sales_volume_entry():
         }
     ]
     
+    # Action Bar 설정
+    action_primary = None
+    action_secondary = None
+    
+    # Primary 액션 설정
+    if "_sales_volume_save" in st.session_state:
+        action_primary = {
+            "label": "💾 판매량 보정 저장",
+            "key": "sales_volume_primary_save",
+            "action": st.session_state["_sales_volume_save"]
+        }
+        del st.session_state["_sales_volume_save"]
+    
     # FORM형 레이아웃 적용
     render_form_layout(
         title="판매량 입력",
@@ -184,8 +194,8 @@ def render_sales_volume_entry():
         guide_next_action=None,  # 기본값 사용
         summary_items=summary_items,
         mini_progress_items=None,  # Mini Progress Panel 사용 안 함
-        action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
-        action_secondary=None,
+        action_primary=action_primary,
+        action_secondary=action_secondary,
         main_content=render_main_content
     )
 

@@ -4,8 +4,9 @@
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
-from src.ui_helpers import render_section_divider, render_section_header, safe_get_value
+from src.ui_helpers import safe_get_value
 from src.ui.layouts.input_layouts import render_console_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
 from src.storage_supabase import load_csv, save_recipe, update_menu_cooking_method, delete_recipe
 from src.analytics import calculate_menu_cost
 
@@ -15,6 +16,9 @@ bootstrap(page_title="Recipe Management")
 
 def render_recipe_management():
     """레시피 입력 페이지 렌더링 (입력 전용, CONSOLE형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     # 메뉴 및 재료 목록 로드
     menu_df = load_csv('menu_master.csv', default_columns=['메뉴명', '판매가'])
     ingredient_df = load_csv('ingredient_master.csv', default_columns=['재료명', '단위', '단가'])
@@ -30,7 +34,7 @@ def render_recipe_management():
     def render_work_area_content():
         """Work Area: 레시피 입력"""
         # 일괄 입력 전용 폼
-        st.subheader("📝 레시피 일괄 등록")
+        ps_section("레시피 입력", icon="📝")
         st.info("💡 한 메뉴에 여러 재료를 한 번에 등록할 수 있습니다. (최대 30개 재료)")
         
         if not menu_list:
@@ -359,7 +363,7 @@ def render_recipe_management():
             
             if menus_with_recipes:
                 # 메뉴 필터 (레시피가 있는 메뉴만 표시)
-                render_section_header("레시피 검색 및 수정", "🔍")
+                ps_section("레시피 검색 및 수정", icon="🔍")
                 filter_menu = st.selectbox(
                     "메뉴 선택",
                     options=menus_with_recipes,
@@ -459,7 +463,6 @@ def render_recipe_management():
                     st.dataframe(ingredients_table_df, use_container_width=True, hide_index=True)
                     
                     # 조리방법 표시 (구성 재료 다음에 배치)
-                    render_section_divider()
                     st.markdown("**👨‍🍳 조리방법**")
                     if cooking_method_text:
                         st.markdown(f"""
@@ -472,8 +475,6 @@ def render_recipe_management():
                         """, unsafe_allow_html=True)
                     else:
                         st.info("조리방법이 등록되지 않았습니다. 레시피 일괄 등록에서 조리방법을 입력해주세요.")
-                    
-                    render_section_divider()
                     
                     # 각 재료별 사용량 수정/삭제 UI
                     st.markdown("**✏️ 재료 사용량 수정 및 삭제**")

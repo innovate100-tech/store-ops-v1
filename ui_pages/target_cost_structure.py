@@ -5,18 +5,21 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import time
-from src.ui_helpers import render_section_header, render_section_divider, safe_get_value
+from src.ui_helpers import safe_get_value
 from src.ui.layouts.input_layouts import render_form_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_money_input
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import load_csv, load_expense_structure, save_expense_item, update_expense_item, delete_expense_item, copy_expense_structure_from_previous_month, save_targets, get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales, load_monthly_sales_total
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
-from ui_pages.design_lab.design_lab_frame import (
-    render_coach_board,
-    render_structure_map_container,
-    render_school_cards,
-    render_design_tools_container,
-)
+# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
+# TODO: 분석센터로 이동 예정
+# from ui_pages.design_lab.design_lab_frame import (
+#     render_coach_board,
+#     render_structure_map_container,
+#     render_school_cards,
+#     render_design_tools_container,
+# )
 # from ui_pages.design_lab.design_lab_coach_data import get_revenue_structure_design_coach_data
 import logging
 
@@ -26,6 +29,9 @@ import logging
 
 def render_target_cost_structure():
     """목표 비용구조 페이지 렌더링 (목표 비용 구조 입력, FORM형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     # 성능 측정 시작
     t0 = time.perf_counter()
     
@@ -75,6 +81,32 @@ def render_target_cost_structure():
         # 기존 입력 기능만 렌더링
         _render_revenue_design_tools(current_year, current_month, store_id)
     
+    # Action Bar 설정
+    action_primary = None
+    action_secondary = None
+    
+    # Primary 액션 설정
+    if "_target_cost_save_target_sales" in st.session_state:
+        action_primary = {
+            "label": "💾 목표 저장",
+            "key": "target_cost_primary_save",
+            "action": st.session_state["_target_cost_save_target_sales"]
+        }
+        del st.session_state["_target_cost_save_target_sales"]
+    
+    # Secondary 액션 설정
+    secondary_actions = []
+    if "_target_cost_copy_prev_month" in st.session_state:
+        secondary_actions.append({
+            "label": "📋 전월 데이터 복사",
+            "key": "target_cost_copy_prev_month",
+            "action": st.session_state["_target_cost_copy_prev_month"]
+        })
+        del st.session_state["_target_cost_copy_prev_month"]
+    
+    if secondary_actions:
+        action_secondary = secondary_actions
+    
     # FORM형 레이아웃 적용
     render_form_layout(
         title="비용 목표 입력",
@@ -86,8 +118,8 @@ def render_target_cost_structure():
         guide_next_action=None,  # 기본값 사용
         summary_items=summary_items,
         mini_progress_items=None,  # Mini Progress Panel 사용 안 함
-        action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
-        action_secondary=None,
+        action_primary=action_primary,
+        action_secondary=action_secondary,
         main_content=render_main_content
     )
 
@@ -97,9 +129,9 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
     selected_year = year
     selected_month = month
     
-    # ========== ZONE A: 기간 선택 & 전월 복사 ==========
-    render_section_header("기간 선택", "📅")
-    col1, col2, col3 = st.columns([2, 2, 2])
+    # ========== ZONE A: 기간 선택 ==========
+    ps_section("기간 선택", icon="📅")
+    col1, col2 = st.columns([1, 1])
     with col1:
         selected_year = st.number_input(
             "연도",
@@ -116,21 +148,20 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
             value=month,
             key="target_cost_structure_expense_month"
         )
-    with col3:
-        st.write("")
-        st.write("")
-        if st.button("📋 전월 데이터 복사", key="target_cost_structure_copy_prev_month", use_container_width=True):
-            try:
-                success, message = copy_expense_structure_from_previous_month(selected_year, selected_month)
-                if success:
-                    st.success(message)
-                    st.rerun()
-                else:
-                    st.warning(message)
-            except Exception as e:
-                st.error(f"복사 중 오류: {e}")
     
-    render_section_divider()
+    # 전월 데이터 복사 버튼은 Action Bar로 이동 (Secondary)
+    def handle_copy_prev_month():
+        try:
+            success, message = copy_expense_structure_from_previous_month(selected_year, selected_month)
+            if success:
+                ui_flash_success(message)
+                st.rerun()
+            else:
+                ui_flash_warning(message)
+        except Exception as e:
+            ui_flash_error(f"복사 중 오류: {e}")
+    
+    st.session_state["_target_cost_copy_prev_month"] = handle_copy_prev_month
     
     # ========== 데이터 로드 (내부 로직) ==========
     # 공식 엔진 함수 사용 (헌법 준수)
@@ -248,107 +279,57 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
     
     
     # ========== ZONE B: 기본 정보 입력 ==========
-    render_section_header("기본 정보 입력", "📋")
+    ps_section("목표 매출 입력", icon="🎯")
     
-    # 1. 목표 매출 입력
-    st.markdown("""
-    <div class="info-box">
-        <strong>🎯 목표 월매출 설정</strong>
-    </div>
-    """, unsafe_allow_html=True)
+    # 목표 매출 입력 (FormKit 사용)
+    target_sales_input = ps_money_input(
+        label="목표 월매출 (원)",
+        key="target_cost_structure_target_sales_input",
+        value=int(target_sales) if target_sales > 0 else 0,
+        min_value=0,
+        step=100000,
+        help_text="이번 달 목표 매출을 입력하세요"
+    )
     
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        target_sales_input = st.number_input(
-            "목표 월매출 (원)",
-            min_value=0,
-            value=int(target_sales) if target_sales > 0 else 0,
-            step=100000,
-            key="target_cost_structure_target_sales_input",
-            help="이번 달 목표 매출을 입력하세요"
-        )
-    with col2:
-        st.write("")
-        st.write("")
-        if st.button("💾 목표 저장", key="target_cost_structure_save_target_sales", use_container_width=True):
-            try:
-                # 목표 매출만 저장 (나머지는 0으로 설정)
-                save_targets(
-                    selected_year, selected_month, 
-                    target_sales_input, 0, 0, 0, 0, 0
-                )
-                st.success("목표 매출이 저장되었습니다!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"저장 중 오류: {e}")
+    # 목표 저장 버튼은 Action Bar로 이동 (Primary)
+    def handle_save_target_sales():
+        try:
+            save_targets(
+                selected_year, selected_month, 
+                target_sales_input, 0, 0, 0, 0, 0
+            )
+            ui_flash_success("목표 매출이 저장되었습니다!")
+            st.rerun()
+        except Exception as e:
+            ui_flash_error(f"저장 중 오류: {e}")
     
-    # 2. 평일/주말 매출 비율 설정 (선택 사항)
-    st.markdown("""
-    <div class="info-box">
-        <strong>📅 평일/주말 매출 비율 설정 (선택)</strong>
-    </div>
-    """, unsafe_allow_html=True)
+    st.session_state["_target_cost_save_target_sales"] = handle_save_target_sales
     
-    col1, col2, col3 = st.columns([2, 2, 2])
-    with col1:
-        weekday_ratio = st.number_input(
-            "평일 매출 비율 (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=70.0,
-            step=1.0,
-            format="%.1f",
-            key="target_cost_structure_weekday_ratio",
-            help="평일(22일) 매출이 차지하는 비율"
-        )
-    with col2:
-        weekend_ratio = st.number_input(
-            "주말 매출 비율 (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=30.0,
-            step=1.0,
-            format="%.1f",
-            key="target_cost_structure_weekend_ratio",
-            help="주말(8일) 매출이 차지하는 비율"
-        )
-    with col3:
-        st.write("")
-        st.write("")
-        total_ratio = weekday_ratio + weekend_ratio
-        if abs(total_ratio - 100.0) > 0.1:
-            st.warning(f"⚠️ 합계: {total_ratio:.1f}% (100%가 되어야 합니다)")
-        else:
-            st.success(f"✓ 합계: {total_ratio:.1f}%")
+    # 평일/주말 매출 비율 설정 제거 (분석/전략 요소)
+    # TODO: 분석센터로 이동 예정
     
-    render_section_divider()
+    # ========== ZONE C: 손익분기점 미리보기 (입력 상태 확인용 KPI만 유지) ==========
+    ps_section("입력 상태 확인", icon="📊")
     
-    # ========== ZONE C: 손익분기점 미리보기 (최소한의 계산) ==========
     if breakeven_sales is not None and breakeven_sales > 0:
-        render_section_header("손익분기점 계산 결과", "📊")
+        # 손익분기점 숫자만 표시 (계산 공식 제거)
         st.markdown(f"""
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
             <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
             <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
-            <div style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 0.8rem;">
-                계산 공식: 고정비 ÷ (1 - 변동비율) = {int(fixed_costs):,}원 ÷ (1 - {variable_cost_rate:.1f}%)
-            </div>
         </div>
         """, unsafe_allow_html=True)
-        render_section_divider()
     else:
-        render_section_header("손익분기점 계산 결과", "📊")
+        # 입력 안내만 표시 (해석 문구 제거)
         st.markdown(f"""
         <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
             <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
             <div style="font-size: 0.9rem; color: #666;">고정비와 변동비율을 모두 입력해야 손익분기 매출이 계산됩니다.</div>
-            <div style="font-size: 0.85rem; color: #888; margin-top: 0.3rem;">고정비: 임차료, 인건비, 공과금 / 변동비: 재료비, 부가세&카드수수료</div>
         </div>
         """, unsafe_allow_html=True)
-        render_section_divider()
     
     # ========== ZONE D: 비용 구조 입력 ==========
-    render_section_header("비용 구조 입력", "💰")
+    ps_section("비용 구조 입력", icon="💰")
     # 5개 카테고리별 입력
     expense_categories = {
         '임차료': {'type': 'fixed', 'icon': '🏢', 'description': '고정비 (금액 직접 입력)'},
@@ -466,12 +447,13 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                                 )
                             with col2:
                                 if info['type'] == 'fixed':
-                                    edit_amount = st.number_input(
-                                        "금액 (원)",
-                                        min_value=0,
+                                    # FormKit 사용
+                                    edit_amount = ps_money_input(
+                                        label="금액 (원)",
+                                        key=f"edit_amount_{category}_{item['id']}",
                                         value=int(item['amount']),
-                                        step=10000,
-                                        key=f"edit_amount_{category}_{item['id']}"
+                                        min_value=0,
+                                        step=10000
                                     )
                                 else:
                                     edit_amount = st.number_input(
@@ -481,7 +463,8 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                                         value=float(item['amount']),
                                         step=0.1,
                                         format="%.2f",
-                                        key=f"edit_rate_{category}_{item['id']}"
+                                        key=f"edit_rate_{category}_{item['id']}",
+                                        label_visibility="visible"
                                     )
                             with col3:
                                 st.write("")
@@ -582,12 +565,13 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                     )
                 with col2:
                     default_amount = 0 if st.session_state[reset_key] == 0 else 0
-                    new_amount = st.number_input(
-                        "금액 (원)",
-                        min_value=0,
+                    # FormKit 사용
+                    new_amount = ps_money_input(
+                        label="금액 (원)",
+                        key=f"new_amount_{category}_{st.session_state[reset_key]}",
                         value=default_amount,
-                        step=10000,
-                        key=f"new_amount_{category}_{st.session_state[reset_key]}"
+                        min_value=0,
+                        step=10000
                     )
                     # 한글 원화 표시
                     if new_amount > 0:
@@ -683,10 +667,9 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                         else:
                             st.error("항목명과 비율을 모두 입력해주세요.")
         
-        render_section_divider()
-    
     # 분석 기능 제거: 목표매출 달성시 비용구조 분석은 분석 페이지로 이동
     # 분석 기능 제거: 월간 집계 표시는 분석 페이지로 이동
+    # TODO: 분석센터로 이동 예정
     
     # UI 출력 완료 시점
     t3 = time.perf_counter()

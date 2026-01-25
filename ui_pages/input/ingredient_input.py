@@ -7,11 +7,15 @@ import streamlit as st
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from src.ui_helpers import ui_flash_success, ui_flash_error, render_section_header
+from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section
 from src.storage_supabase import load_csv, save_ingredient, update_ingredient, delete_ingredient
 from src.auth import get_current_store_id, get_supabase_client
-from src.analytics import calculate_ingredient_usage, calculate_order_recommendation
+from src.analytics import calculate_ingredient_usage
+# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
+# TODO: 분석센터로 이동 예정
+# from src.analytics import calculate_order_recommendation
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +30,9 @@ UNIT_OPTIONS = ["g", "ml", "ea", "개", "kg", "L", "박스", "봉지"]
 
 def render_ingredient_input_page():
     """사용 재료 입력 페이지 렌더링 (5-Zone 구조, CONSOLE형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
@@ -71,17 +78,20 @@ def render_ingredient_input_page():
         except Exception as e:
             logger.warning(f"사용량 계산 실패: {e}")
     
-    # 발주 필요 여부 확인
+    # 발주 필요 여부 확인 (입력 상태 확인용 - 추천 로직 제거)
+    # TODO: 발주 추천 로직은 분석센터로 이동 예정
     needs_order = {}
+    # 발주 필요 여부는 재고 정보에서 직접 확인 (안전재고 대비 현재고)
     if not ingredient_df.empty and not inventory_df.empty:
         try:
-            order_recommendation = calculate_order_recommendation(
-                ingredient_df, inventory_df, usage_df, days_for_avg=7, forecast_days=3
-            )
-            if not order_recommendation.empty:
-                needs_order = {row['재료명']: True for _, row in order_recommendation.iterrows()}
+            for _, row in inventory_df.iterrows():
+                ingredient_name = row.get('재료명')
+                current_stock = float(row.get('현재고', 0) or 0)
+                safety_stock = float(row.get('안전재고', 0) or 0)
+                if ingredient_name and current_stock < safety_stock:
+                    needs_order[ingredient_name] = True
         except Exception as e:
-            logger.warning(f"발주 추천 계산 실패: {e}")
+            logger.warning(f"발주 필요 여부 확인 실패: {e}")
     
     def render_dashboard_content():
         """Top Dashboard: ZONE A"""
@@ -281,8 +291,8 @@ def _set_ingredient_status_and_notes(store_id, ingredient_name, status=None, not
 
 
 def _render_zone_a_dashboard(ingredient_df, categories, ingredient_in_recipe, needs_order):
-    """ZONE A: 대시보드 & 현황 요약"""
-    render_section_header("📊 재료 현황 대시보드", "📊")
+    """ZONE A: 대시보드 & 현황 요약 (입력 상태 확인용)"""
+    ps_section("재료 현황", icon="📊")
     
     if ingredient_df.empty:
         st.info("등록된 재료가 없습니다. 아래에서 재료를 등록해주세요.")
@@ -313,23 +323,23 @@ def _render_zone_a_dashboard(ingredient_df, categories, ingredient_in_recipe, ne
     st.progress(recipe_usage_rate / 100, text=f"레시피 사용률: {recipe_usage_rate:.0f}%")
     st.progress(category_rate / 100, text=f"재료 분류 지정률: {category_rate:.0f}%")
     
-    # 스마트 알림
+    # 입력 상태 확인 알림 (입력 오류/주의로만 표현)
     alerts = []
     if ingredients_in_recipe_count < total_ingredients:
-        alerts.append(f"ℹ️ 레시피에서 사용하지 않는 재료가 {total_ingredients - ingredients_in_recipe_count}개 있습니다.")
+        alerts.append(f"ℹ️ 레시피 미사용 재료: {total_ingredients - ingredients_in_recipe_count}개")
     if ingredients_with_category < total_ingredients:
-        alerts.append(f"ℹ️ 재료 분류가 미지정인 재료가 {total_ingredients - ingredients_with_category}개 있습니다.")
+        alerts.append(f"ℹ️ 재료 분류 미지정: {total_ingredients - ingredients_with_category}개")
     if needs_order_count > 0:
-        alerts.append(f"⚠️ 발주 필요 재료가 {needs_order_count}개 있습니다.")
+        alerts.append(f"⚠️ 발주 필요 재료: {needs_order_count}개")
     
     if alerts:
         for alert in alerts:
-            st.info(alert)
+            st.caption(alert)
 
 
 def _render_zone_b_input(store_id):
     """ZONE B: 재료 입력 (단일/일괄)"""
-    render_section_header("📝 재료 입력", "📝")
+    ps_section("재료 입력", icon="📝")
     
     tab1, tab2 = st.tabs(["📝 단일 입력", "📋 일괄 입력"])
     
@@ -545,7 +555,7 @@ def _render_batch_input(store_id):
 
 def _render_zone_c_filters(ingredient_df, categories, ingredient_in_recipe, needs_order):
     """ZONE C: 필터 & 검색"""
-    render_section_header("🔍 필터 & 검색", "🔍")
+    # Filter Bar는 1줄 규칙 (섹션 헤더 제거, 바로 필터 표시)
     
     if ingredient_df.empty:
         return ingredient_df
@@ -598,7 +608,7 @@ def _render_zone_c_filters(ingredient_df, categories, ingredient_in_recipe, need
 
 def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_recipe, recent_usage, needs_order, store_id):
     """ZONE D: 재료 목록 & 관리"""
-    render_section_header("📋 재료 목록 & 관리", "📋")
+    ps_section("재료 목록", icon="📋")
     
     if ingredient_df.empty:
         st.info("등록된 재료가 없습니다.")
@@ -927,45 +937,26 @@ def _render_zone_d_ingredient_list(ingredient_df, categories, ingredient_in_reci
 
 
 def _render_zone_e_management(ingredient_df, categories, ingredient_in_recipe, recent_usage, store_id):
-    """ZONE E: 재료 분류 & 통계 관리"""
-    render_section_header("📊 재료 분류 & 통계 관리", "📊")
+    """ZONE E: 입력 작업 안내 (Bottom CTA)"""
+    # 분석/전략 요소 제거: 재료 분류 현황, 통계, TOP 5, 설계실 이동 버튼 제거
+    # TODO: 분석센터로 이동 예정
     
     if ingredient_df.empty:
-        st.info("등록된 재료가 없습니다.")
+        st.info("등록된 재료가 없습니다. 위에서 재료를 등록해주세요.")
         return
     
-    col1, col2 = st.columns(2)
+    # 발주 단위 미설정 재료 보기 (입력 작업 안내)
+    ingredients_without_order_unit = []
+    for _, row in ingredient_df.iterrows():
+        ingredient_name = row['재료명']
+        order_unit = row.get('발주단위', '')
+        unit = row.get('단위', '')
+        if not order_unit or order_unit == unit:
+            ingredients_without_order_unit.append(ingredient_name)
     
-    with col1:
-        st.markdown("### 재료 분류 현황")
-        category_counts = {}
-        for category in INGREDIENT_CATEGORIES:
-            count = sum(1 for name in ingredient_df['재료명'] if categories.get(name) == category)
-            category_counts[category] = count
-        
-        for category, count in category_counts.items():
-            st.metric(category, f"{count}개")
-        
-        if st.button("💡 재료 구조 설계실로 이동", key="ingredient_input_go_to_design"):
-            st.session_state["current_page"] = "재료 등록"
-            st.rerun()
-    
-    with col2:
-        st.markdown("### 재료 사용 통계")
-        
-        # 레시피 사용률
-        total = len(ingredient_df)
-        in_recipe = sum(1 for name in ingredient_df['재료명'] if ingredient_in_recipe.get(name, False))
-        usage_rate = (in_recipe / total * 100) if total > 0 else 0
-        st.metric("레시피 사용률", f"{usage_rate:.0f}%", delta=f"{in_recipe}/{total}")
-        
-        # 최근 사용량 TOP 5
-        if recent_usage:
-            st.markdown("**최근 사용량 TOP 5**")
-            sorted_usage = sorted(recent_usage.items(), key=lambda x: x[1], reverse=True)[:5]
-            for name, usage_val in sorted_usage:
-                st.write(f"- {name}: {usage_val:.1f}")
-        
-        if st.button("🛒 발주 관리로 이동", key="ingredient_input_go_to_order"):
-            st.session_state["current_page"] = "발주 관리"
-            st.rerun()
+    if ingredients_without_order_unit:
+        ps_section("다음 입력 작업", icon="📌")
+        st.caption(f"발주 단위 미설정 재료: {len(ingredients_without_order_unit)}개")
+        if st.button("📦 발주 단위 미설정 재료 보기", key="show_ingredients_without_order_unit", use_container_width=True):
+            # 필터에 발주 단위 미설정 조건 추가 (필터 로직은 향후 구현)
+            st.info("발주 단위를 설정하려면 재료 목록에서 수정하세요.")

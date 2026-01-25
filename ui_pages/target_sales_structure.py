@@ -5,8 +5,9 @@ from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import time
-from src.ui_helpers import render_section_header, render_section_divider, safe_get_value
+from src.ui_helpers import safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning
 from src.ui.layouts.input_layouts import render_form_layout
+from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_money_input
 from src.storage_supabase import load_expense_structure
 from src.utils.time_utils import current_year_kst, current_month_kst
 from src.storage_supabase import load_csv, save_targets
@@ -18,6 +19,9 @@ from src.auth import get_current_store_id
 
 def render_target_sales_structure():
     """목표 매출 구조 입력 페이지 렌더링 (FORM형 레이아웃 적용)"""
+    # FormKit CSS 주입
+    inject_form_kit_css()
+    
     # 성능 측정 시작
     t0 = time.perf_counter()
     
@@ -79,6 +83,7 @@ def render_target_sales_structure():
     def render_main_content():
         """Main Card 내용: 목표 매출 구조 입력 UI"""
         # ========== ZONE A: 기간 선택 ==========
+        ps_section("기간 선택", icon="📅")
         # 세션 상태에서 연/월 가져오기
         current_year = current_year_kst()
         current_month = current_month_kst()
@@ -107,10 +112,8 @@ def render_target_sales_structure():
         st.session_state["expense_year"] = selected_year
         st.session_state["expense_month"] = selected_month
         
-        render_section_divider()
-        
         # ========== ZONE B: 목표 매출 입력 ==========
-        render_section_header("목표 매출 입력", "🎯")
+        ps_section("목표 매출 입력", icon="🎯")
         
         # 목표 매출 로드
         targets_df = load_csv('targets.csv', default_columns=[
@@ -123,37 +126,32 @@ def render_target_sales_structure():
             target_row = targets_df[(targets_df['연도'] == selected_year) & (targets_df['월'] == selected_month)]
             target_sales = float(safe_get_value(target_row, '목표매출', 0)) if not target_row.empty else 0.0
         
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            target_sales_input = st.number_input(
-                "목표 월매출 (원)",
-                min_value=0,
-                value=int(target_sales) if target_sales > 0 else 0,
-                step=100000,
-                key="target_sales_structure_target_sales_input",
-                help="이번 달 목표 매출을 입력하세요"
-            )
-        with col2:
-            st.write("")
-            st.write("")
-            if st.button("💾 목표 저장", key="target_sales_structure_save_target_sales", use_container_width=True):
-                try:
-                    # 목표 매출만 저장 (나머지는 0으로 설정)
-                    save_targets(
-                        selected_year, selected_month, 
-                        target_sales_input, 0, 0, 0, 0, 0
-                    )
-                    st.success("목표 매출이 저장되었습니다!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"저장 중 오류: {e}")
+        # 목표 매출 입력 (FormKit 사용)
+        target_sales_input = ps_money_input(
+            label="목표 월매출 (원)",
+            key="target_sales_structure_target_sales_input",
+            value=int(target_sales) if target_sales > 0 else 0,
+            min_value=0,
+            step=100000,
+            help_text="이번 달 목표 매출을 입력하세요"
+        )
         
-        render_section_divider()
+        # 목표 저장 버튼은 Action Bar로 이동 (Primary)
+        def handle_save_target_sales():
+            try:
+                save_targets(
+                    selected_year, selected_month, 
+                    target_sales_input, 0, 0, 0, 0, 0
+                )
+                ui_flash_success("목표 매출이 저장되었습니다!")
+                st.rerun()
+            except Exception as e:
+                ui_flash_error(f"저장 중 오류: {e}")
         
-        # ========== ZONE B-2: 목표 매출 구조 입력 (신규) ==========
-        render_section_header("목표 매출 구조 입력", "📊")
+        st.session_state["_target_sales_save_target_sales"] = handle_save_target_sales
         
-        st.info("목표 매출을 달성하기 위한 매출 구조를 입력하세요.")
+        # ========== ZONE B-2: 목표 매출 구조 입력 ==========
+        ps_section("목표 매출 구조 입력", icon="📊")
         
         # 메뉴 카테고리별 목표 매출 비율
         st.markdown("### 메뉴 카테고리별 목표 매출 비율")
@@ -260,22 +258,20 @@ def render_target_sales_structure():
         else:
             st.success(f"✓ 합계: {time_total:.1f}%")
         
-        # 저장 버튼
-        if st.button("💾 매출 구조 저장", key="target_sales_structure_save_structure", use_container_width=True):
+        # 매출 구조 저장 버튼은 Action Bar로 이동 (Secondary)
+        def handle_save_structure():
             if abs(menu_total - 100.0) > 0.1:
-                st.error("메뉴 카테고리별 비율의 합이 100%가 되어야 합니다.")
+                ui_flash_error("메뉴 카테고리별 비율의 합이 100%가 되어야 합니다.")
             elif abs(time_total - 100.0) > 0.1:
-                st.error("시간대별 비율의 합이 100%가 되어야 합니다.")
+                ui_flash_error("시간대별 비율의 합이 100%가 되어야 합니다.")
             else:
                 # TODO: target_sales_structure 테이블에 저장
-                st.info("매출 구조 저장 기능은 향후 구현 예정입니다.")
-                # st.success("매출 구조가 저장되었습니다!")
-                # st.rerun()
+                ui_flash_warning("매출 구조 저장 기능은 향후 구현 예정입니다.")
         
-        render_section_divider()
+        st.session_state["_target_sales_save_structure"] = handle_save_structure
         
-        # ========== ZONE C: 입력 현황 요약 ==========
-        render_section_header("입력 현황", "📋")
+        # ========== ZONE C: 입력 현황 요약 (입력 상태 확인용) ==========
+        ps_section("입력 현황", icon="📋")
         
         # 비용 구조 입력 완료 여부 확인
         expense_df = load_expense_structure(selected_year, selected_month, store_id)
@@ -310,6 +306,32 @@ def render_target_sales_structure():
         except Exception:
             pass  # 성능 측정 실패해도 페이지는 계속 동작
     
+    # Action Bar 설정
+    action_primary = None
+    action_secondary = None
+    
+    # Primary 액션 설정
+    if "_target_sales_save_target_sales" in st.session_state:
+        action_primary = {
+            "label": "💾 목표 저장",
+            "key": "target_sales_primary_save",
+            "action": st.session_state["_target_sales_save_target_sales"]
+        }
+        del st.session_state["_target_sales_save_target_sales"]
+    
+    # Secondary 액션 설정
+    secondary_actions = []
+    if "_target_sales_save_structure" in st.session_state:
+        secondary_actions.append({
+            "label": "💾 매출 구조 저장",
+            "key": "target_sales_save_structure",
+            "action": st.session_state["_target_sales_save_structure"]
+        })
+        del st.session_state["_target_sales_save_structure"]
+    
+    if secondary_actions:
+        action_secondary = secondary_actions
+    
     # FORM형 레이아웃 적용
     render_form_layout(
         title="매출 목표 입력",
@@ -321,8 +343,8 @@ def render_target_sales_structure():
         guide_next_action=None,  # 기본값 사용
         summary_items=summary_items,
         mini_progress_items=None,  # Mini Progress Panel 사용 안 함
-        action_primary=None,  # ActionBar 사용 안 함 (기존 버튼 유지)
-        action_secondary=None,
+        action_primary=action_primary,
+        action_secondary=action_secondary,
         main_content=render_main_content
     )
 

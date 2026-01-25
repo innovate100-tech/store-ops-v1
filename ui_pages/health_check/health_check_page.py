@@ -119,6 +119,8 @@ def render_health_check_page():
             render_input_form_redesigned(store_id, session_id)
         
         with tab2:
+            # 분석/전략 요소 안내 (입력 전용 페이지 역할 분리)
+            st.caption("ℹ️ 이 탭은 참고용입니다. (분석센터로 이전 예정)")
             try:
                 render_result_report(store_id, session_id)
             except Exception as e:
@@ -126,6 +128,8 @@ def render_health_check_page():
                 st.error(f"결과 리포트를 표시하는 중 오류가 발생했습니다: {e}")
         
         with tab3:
+            # 분석/전략 요소 안내 (입력 전용 페이지 역할 분리)
+            st.caption("ℹ️ 이 탭은 참고용입니다. (분석센터로 이전 예정)")
             render_history(store_id)
     else:
         # 세션이 없으면 시작 화면
@@ -133,6 +137,7 @@ def render_health_check_page():
         
         # 이력은 별도 섹션으로
         st.markdown("---")
+        st.caption("ℹ️ 이 섹션은 참고용입니다. (분석센터로 이전 예정)")
         render_history(store_id)
 
 

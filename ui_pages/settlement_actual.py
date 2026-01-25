@@ -30,9 +30,10 @@ from src.storage_supabase import (
     load_available_settlement_months,
     load_monthly_settlement_snapshot
 )
-from ui_pages.monthly_structure_report import build_monthly_structure_report
-from ui_pages.coach.coach_renderer import render_verdict_card
-from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
+# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
+# from ui_pages.monthly_structure_report import build_monthly_structure_report
+# from ui_pages.coach.coach_renderer import render_verdict_card
+# from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
 
 # 공통 설정 적용
 bootstrap(page_title="Settlement Actual")
@@ -1517,41 +1518,8 @@ def render_settlement_actual():
                 store_id, initial_year, initial_month, readonly=False
             )
         
-            # 구조 리포트 섹션 (STEP 10-2) - 비용 입력 전에 배치
-            _render_structure_report_section(store_id, year, month)
-            
             # 비용 입력 영역 (템플릿 저장/삭제 포함, Phase F: readonly 전달)
             _render_expense_section(store_id, year, month, total_sales, readonly)
-            
-            # 분석 영역 (Phase E: 성적표) - lazy loading (expander)
-            # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
-            if 'settlement_analysis_expanded' not in st.session_state:
-                st.session_state['settlement_analysis_expanded'] = False
-            
-            with st.expander("📊 이번 달 성적표 (목표 대비)", expanded=st.session_state['settlement_analysis_expanded']):
-                if st.session_state['settlement_analysis_expanded']:
-                    _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
-                else:
-                    st.info("💡 펼치면 이번 달 성적표를 확인할 수 있습니다.")
-                    if st.button("📊 성적표 보기", key="settlement_expand_analysis", use_container_width=True):
-                        # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
-                        _render_analysis_section(store_id, year, month, expense_items, totals, total_sales)
-                        st.session_state['settlement_analysis_expanded'] = True
-            
-            # Phase H: 월별 히스토리 섹션 - lazy loading (expander)
-            # Phase 0 STEP 5: rerun 없이 버튼 클릭 시 즉시 로드
-            if 'settlement_history_expanded' not in st.session_state:
-                st.session_state['settlement_history_expanded'] = False
-            
-            with st.expander("📊 월별 성적 히스토리", expanded=st.session_state['settlement_history_expanded']):
-                if st.session_state['settlement_history_expanded']:
-                    _render_settlement_history(store_id)
-                else:
-                    st.info("💡 펼치면 최근 월별 성적 히스토리를 확인할 수 있습니다.")
-                    if st.button("📅 히스토리 보기", key="settlement_expand_history", use_container_width=True):
-                        # Phase 0 STEP 5: rerun 없이 즉시 로드 (버튼 클릭 시 그 자리에서 렌더)
-                        _render_settlement_history(store_id)
-                        st.session_state['settlement_history_expanded'] = True
             
             # SummaryStrip용 값 반환 (클로저로 접근)
             return year, month, total_sales, totals
@@ -1595,42 +1563,7 @@ def render_settlement_actual():
             action_secondary = st.session_state["_settlement_secondary_actions"]
             del st.session_state["_settlement_secondary_actions"]
         
-        # PDF 다운로드 버튼 추가 (Secondary에 추가)
-        try:
-            from src.pdf_scorecard_mvp import can_generate_scorecard, build_scorecard_pdf_bytes
-            
-            def handle_pdf_download():
-                can_generate, reason = can_generate_scorecard(store_id, temp_year, temp_month)
-                if not can_generate:
-                    ui_flash_warning(reason)
-                else:
-                    with st.spinner("PDF 생성 중..."):
-                        try:
-                            pdf_bytes = build_scorecard_pdf_bytes(store_id, temp_year, temp_month)
-                            filename = f"성적표_{temp_year}년{temp_month:02d}월.pdf"
-                            st.download_button(
-                                label="📥 PDF 다운로드",
-                                data=pdf_bytes,
-                                file_name=filename,
-                                mime="application/pdf",
-                                key="pdf_download_button",
-                                use_container_width=True
-                            )
-                        except Exception as e:
-                            logger.error(f"PDF generation error: {e}")
-                            ui_flash_error(f"PDF 생성 중 오류가 발생했습니다. (상세: {str(e)})")
-            
-            if action_secondary is None:
-                action_secondary = []
-            action_secondary.append({
-                "label": "📄 PDF 받기",
-                "key": "pdf_scorecard_download",
-                "action": handle_pdf_download
-            })
-        except ImportError:
-            pass
-        except Exception as e:
-            logger.error(f"PDF button error: {e}")
+        # PDF 다운로드 버튼 제거 (분석/전략 페이지로 이동 예정)
         
         # FORM형 레이아웃 적용
         render_form_layout(
