@@ -92,16 +92,16 @@ st.markdown("""
 # 사이드바 프리미엄 CSS 주입 함수
 # ============================================
 def inject_sidebar_premium_css():
-    """사이드바 울트라 시크 CSS 주입 (1회만 실행)"""
-    # 1회 주입 가드
-    if st.session_state.get("_ps_sidebar_css_injected", False):
-        return
+    """사이드바 울트라 시크 CSS 주입 (rerun마다 실행, 사이드바 DOM 재생성 대응)"""
+    # 주의: 1회 가드 없음 - 사이드바 DOM이 재생성될 때마다 CSS 재적용 필요
+    # 안전장치: 모든 셀렉터는 [data-testid="stSidebar"]로 제한되어 있어 전역 영향 없음
     
     css_content = """
-    <style id="ps-ultra-sleek-css">
+    <style>
     /* =========================
        ULTRA SLEEK SIDEBAR v3
-       scope: sidebar only
+       scope: sidebar only (rerun마다 재주입)
+       안전장치: 모든 셀렉터는 [data-testid="stSidebar"]로 제한
        ========================= */
     
     @keyframes ultra-neon-pulse {
@@ -387,14 +387,14 @@ def inject_sidebar_premium_css():
     }
     </style>
     """
-    # CSS 주입: 1회만 실행
+    # CSS 주입: rerun마다 실행 (사이드바 DOM 재생성 대응)
     st.markdown(css_content, unsafe_allow_html=True)
     try:
         from src.debug.nav_trace import push_render_step
-        push_render_step("CSS_INJECT: app.py:88 inject_sidebar_premium_css", extra={"where": "global"})
+        push_render_step("CSS_INJECT: sidebar", extra={"where": "sidebar"})
     except ImportError:
         pass
-    st.session_state["_ps_sidebar_css_injected"] = True
+    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
 
 # 나머지 CSS는 별도 스타일 블록으로
 st.markdown("""
