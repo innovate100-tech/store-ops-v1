@@ -256,6 +256,10 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
             del st.session_state["settlement_navigate_to_month"]
     
     # 블록1: 정산 기간 선택 (Secondary)
+    # 위젯 키를 미리 생성하여 중복 방지
+    year_key = f"settlement_year{widget_key_suffix}"
+    month_key = f"settlement_month{widget_key_suffix}"
+    
     def render_period_selection():
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -264,7 +268,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 min_value=2020,
                 max_value=2100,
                 value=year,
-                key=f"settlement_year{widget_key_suffix}"
+                key=year_key
             )
         with col2:
             selected_month = st.number_input(
@@ -272,7 +276,7 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
                 min_value=1,
                 max_value=12,
                 value=month,
-                key=f"settlement_month{widget_key_suffix}"
+                key=month_key
             )
         return selected_year, selected_month
     
@@ -282,7 +286,10 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         level="secondary",
         body_fn=render_period_selection
     )
-    selected_year, selected_month = render_period_selection()
+    
+    # 위젯 값은 session_state에서 직접 가져오기 (중복 호출 방지)
+    selected_year = st.session_state.get(year_key, year)
+    selected_month = st.session_state.get(month_key, month)
     
     # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
     if selected_year != year or selected_month != month:
@@ -316,11 +323,12 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     
     # 블록2: 총매출 입력 (Primary)
     total_sales_value = _get_total_sales(selected_year, selected_month)
+    total_sales_key = f"settlement_total_sales_input_{selected_year}_{selected_month}"
     
     def render_total_sales_input():
         total_sales_input = ps_primary_money_input(
             label="총매출",
-            key=f"settlement_total_sales_input_{selected_year}_{selected_month}",
+            key=total_sales_key,
             value=total_sales_value,
             min_value=0,
             step=100000,
@@ -330,23 +338,26 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         )
         if not readonly:
             _set_total_sales(selected_year, selected_month, total_sales_input)
-        return total_sales_input
     
-    total_sales_input = render_total_sales_input()
+    # 피드백/경고 설정 (ps_input_block 호출 전에 계산)
+    def get_feedback_and_warning():
+        current_value = st.session_state.get(total_sales_key, total_sales_value)
+        feedback_data = None
+        warning_text = None
+        if current_value > 0:
+            feedback_data = {
+                "label": "총매출",
+                "value": f"{current_value:,.0f}원",
+                "status": "ok"
+            }
+            if auto_sales > 0 and abs(current_value - auto_sales) > 1000:
+                warning_text = f"⚠️ sales 월합계와 차이: {abs(current_value - auto_sales):,.0f}원"
+        elif current_value == 0:
+            warning_text = "⚠️ 총매출을 입력해주세요"
+        return feedback_data, warning_text
     
-    # 피드백/경고 설정
-    feedback_data = None
-    warning_text = None
-    if total_sales_input > 0:
-        feedback_data = {
-            "label": "총매출",
-            "value": f"{total_sales_input:,.0f}원",
-            "status": "ok"
-        }
-        if auto_sales > 0 and abs(total_sales_input - auto_sales) > 1000:
-            warning_text = f"⚠️ sales 월합계와 차이: {abs(total_sales_input - auto_sales):,.0f}원"
-    elif total_sales_input == 0:
-        warning_text = "⚠️ 총매출을 입력해주세요"
+    # 피드백/경고는 위젯 값이 변경된 후에 계산되므로, 일단 기본값으로 설정
+    feedback_data, warning_text = get_feedback_and_warning()
     
     ps_input_block(
         title="총매출 입력",
@@ -357,6 +368,9 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
         feedback=feedback_data,
         warning=warning_text
     )
+    
+    # 위젯 값은 session_state에서 가져오기 (ps_input_block 내부에서 이미 호출됨)
+    total_sales_input = st.session_state.get(total_sales_key, total_sales_value)
     
     # 매출 불러오기/자동값으로 버튼은 Action Bar로 이동 (Secondary)
     # session_state에 액션 함수 저장
