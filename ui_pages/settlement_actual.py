@@ -1531,6 +1531,8 @@ def render_settlement_actual():
     """실제정산 페이지 렌더링 (Phase B - 템플릿 저장/자동 로드, FORM형 레이아웃 적용)"""
     # FormKit CSS 주입
     inject_form_kit_css()
+    # FormKit v2 CSS 주입 (파일럿 - 고유 스코프)
+    scope_id = inject_form_kit_v2_css("settlement_actual")
     
     try:
         # 안전장치: 함수 실행 확인 (DEV용)
