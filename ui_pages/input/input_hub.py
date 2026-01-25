@@ -11,6 +11,180 @@ from src.utils.time_utils import today_kst, current_year_kst, current_month_kst
 from datetime import timedelta
 import pandas as pd
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
+
+def inject_input_hub_animations_css():
+    """입력허브 애니메이션 CSS 주입 (1회만 실행)"""
+    # 1회 주입 가드
+    if st.session_state.get("_ps_input_hub_anim_css_injected", False):
+        return
+    
+    animations_css = """
+    <style>
+    /* 입력허브 애니메이션 keyframes (실패해도 기본은 보이게 설계) */
+    @keyframes fadeInUp { 
+        from { opacity: 0; transform: translateY(20px); } 
+        to { opacity: 1; transform: translateY(0); } 
+    }
+    @keyframes shimmer-bg { 
+        0% { background-position: 0% 50%; } 
+        50% { background-position: 100% 50%; } 
+        100% { background-position: 0% 50%; } 
+    }
+    @keyframes wave-move { 
+        0% { transform: translateX(-100%); } 
+        100% { transform: translateX(100%); } 
+    }
+    @keyframes pulse-ring { 
+        0% { transform: scale(0.9); opacity: 0.7; } 
+        50% { transform: scale(1.1); opacity: 1; } 
+        100% { transform: scale(0.9); opacity: 0.7; } 
+    }
+    
+    /* 기본 상태: 항상 보이게 */
+    .guide-card-animated,
+    .animate-in {
+        opacity: 1 !important;
+        transform: none !important;
+        animation-fill-mode: both;
+    }
+    
+    /* 애니메이션 적용 (장식용) */
+    .guide-card-animated { 
+        animation: fadeInUp 0.8s ease-out forwards; 
+    }
+    .shimmer-overlay { 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: linear-gradient(-45deg, rgba(59, 130, 246, 0.05), rgba(30, 41, 59, 0), rgba(96, 165, 250, 0.05));
+        background-size: 400% 400%; 
+        animation: shimmer-bg 10s ease infinite; 
+    }
+    
+    /* prefers-reduced-motion 지원 */
+    @media (prefers-reduced-motion: reduce) {
+        [data-ps-scope="input_hub"] *,
+        .guide-card-animated,
+        .animate-in,
+        .shimmer-overlay {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+    </style>
+    """
+    st.markdown(animations_css, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: input_hub.py inject_input_hub_animations_css", extra={"where": "input_hub"})
+    st.session_state["_ps_input_hub_anim_css_injected"] = True
+
+
+def inject_input_hub_ultra_premium_css():
+    """입력허브 Ultra Premium CSS 주입 (배경 레이어 + FX, 1회만 실행)"""
+    # 토글 확인
+    if st.session_state.get("_ps_disable_ultra_css", False):
+        return
+    
+    # 1회 주입 가드
+    if st.session_state.get("_ps_ultra_css_injected", False):
+        return
+    
+    scope_id = "input_hub"
+    
+    ultra_css = f"""
+    <style>
+    /* ============================================
+       입력허브 Ultra Premium 배경 레이어 (안정화)
+       ============================================ */
+    
+    /* 배경 레이어 wrapper (컨텐츠를 감싸지 않음, 독립 배경만) */
+    [data-ps-scope="{scope_id}"].ps-hub-bg {{
+        position: relative !important;
+        z-index: 1 !important;
+        visibility: visible !important;
+        display: block !important;
+        transform: none !important;
+        filter: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }}
+    
+    /* 배경 레이어 ::before (상단 Neon Bar) - 항상 뒤에 */
+    [data-ps-scope="{scope_id}"].ps-hub-bg::before {{
+        content: "" !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 4px !important;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(59, 130, 246, 0.6) 20%, 
+            rgba(96, 165, 250, 0.8) 50%, 
+            rgba(59, 130, 246, 0.6) 80%, 
+            transparent 100%
+        ) !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+        animation: slowDrift 24s ease infinite !important;
+    }}
+    
+    /* 배경 레이어 ::after (배경 메시/그리드) - 항상 뒤에 */
+    [data-ps-scope="{scope_id}"].ps-hub-bg::after {{
+        content: "" !important;
+        position: fixed !important;
+        inset: 0 !important;
+        background: 
+            radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+            radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.06) 0%, transparent 50%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%) !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+        animation: slowDrift 24s ease infinite !important;
+    }}
+    
+    @keyframes slowDrift {{
+        0%, 100% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+    }}
+    
+    /* 컨텐츠 wrapper는 항상 앞에 */
+    [data-ps-scope="{scope_id}"].ps-hub-content {{
+        position: relative !important;
+        z-index: 10 !important;
+    }}
+    
+    /* TIER 카드 기본 스타일 */
+    [data-ps-scope="{scope_id}"] .tier-1-wrapper,
+    [data-ps-scope="{scope_id}"] .hub-tier-1 {{
+        position: relative !important;
+        z-index: 5 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }}
+    
+    /* prefers-reduced-motion 지원 (입력허브 전체) */
+    @media (prefers-reduced-motion: reduce) {{
+        [data-ps-scope="{scope_id}"] *,
+        [data-ps-scope="{scope_id}"].ps-hub-bg::before,
+        [data-ps-scope="{scope_id}"].ps-hub-bg::after {{
+            animation: none !important;
+            transition: none !important;
+        }}
+    }}
+    </style>
+    """
+    st.markdown(ultra_css, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: input_hub.py inject_input_hub_ultra_premium_css", extra={"where": "ultra"})
+    st.session_state["_ps_ultra_css_injected"] = True
+
 def _count_completed_checklists_last_n_days(store_id: str, days: int = 14) -> int:
     if not store_id: return 0
     try:
@@ -110,9 +284,16 @@ def _hub_status_card(title: str, value: str, sub: str, status: str = "pending", 
         glow = "box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);"
     else:
         text_color = "#94A3B8"
+    
+    # backdrop-filter는 토글로 옵션화
+    blur_style = ""
+    if st.session_state.get("_ps_fx_blur_on", False):
+        blur_style = "backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);"
+    else:
+        blur_style = "background: rgba(30, 41, 59, 0.6);"  # 배경색으로 대체
 
     st.markdown(f"""
-    <div class="animate-in {delay_class}" style="padding: 1.5rem; background: {bg}; border-radius: 16px; border: 1px solid {border}; {glow} backdrop-filter: blur(10px); min-height: 150px; transition: all 0.3s ease; position: relative; overflow: hidden;">
+    <div class="animate-in {delay_class}" style="padding: 1.5rem; background: {bg}; border-radius: 16px; border: 1px solid {border}; {glow} {blur_style} min-height: 150px; transition: all 0.3s ease; position: relative; overflow: hidden;">
         <div style="font-size: 0.8rem; font-weight: 600; color: #94A3B8; margin-bottom: 1rem; letter-spacing: 0.05em;">{title.upper()}</div>
         <div style="font-size: 1.5rem; font-weight: 700; color: {text_color}; margin-bottom: 0.5rem;">{value}</div>
         <div style="font-size: 0.85rem; color: #64748B; line-height: 1.4;">{sub}</div>
@@ -141,6 +322,15 @@ def render_input_hub_v3():
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
 
+    # Ultra Premium CSS 주입 (1회만)
+    inject_input_hub_ultra_premium_css()
+    
+    # 애니메이션 CSS 주입 (1회만)
+    inject_input_hub_animations_css()
+    
+    # 컨텐츠 wrapper 시작
+    st.markdown('<div data-ps-scope="input_hub" class="ps-hub-bg"><div class="ps-hub-content">', unsafe_allow_html=True)
+
     # 데이터 로드
     recs = _get_today_recommendations(store_id)
     assets = _get_asset_readiness(store_id)
@@ -155,23 +345,6 @@ def render_input_hub_v3():
     # [1] 통합 가이드 카드 (애니메이션 완벽 복구 버전)
     status_color = "#10B981" if score == 100 else "#3B82F6"
     status_msg = "PREMIUM: 모든 지능형 분석 엔진이 활성화되었습니다!" if score == 100 else "🚩 미완료 데이터를 보완하여 정밀 분석 기능을 잠금 해제하세요."
-    
-    # 페이지 전용 애니메이션 정의 재주입
-    st.markdown("""
-    <style>
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes shimmer-bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-    @keyframes wave-move { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-    @keyframes pulse-ring { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }
-    
-    .guide-card-animated { animation: fadeInUp 0.8s ease-out forwards; }
-    .shimmer-overlay { 
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-        background: linear-gradient(-45deg, rgba(59, 130, 246, 0.05), rgba(30, 41, 59, 0), rgba(96, 165, 250, 0.05));
-        background-size: 400% 400%; animation: shimmer-bg 10s ease infinite;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
     guide_html = f"""
 <div class="guide-card-animated" style="padding: 1.8rem; background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 2.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.4); position: relative; overflow: hidden;">
@@ -301,3 +474,6 @@ def render_input_hub_v3():
 
     st.markdown("---")
     st.info("💡 **Tip**: 파란색 글로우(Glow)가 적용된 버튼은 현재 데이터 보완이 가장 필요한 항목입니다.")
+    
+    # 컨텐츠 wrapper 종료
+    st.markdown('</div></div>', unsafe_allow_html=True)

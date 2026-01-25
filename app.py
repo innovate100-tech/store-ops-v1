@@ -18,6 +18,12 @@ inject_global_ui()
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 
+try:
+    from src.debug.nav_trace import push_render_step
+except ImportError:
+    def push_render_step(*args, **kwargs):
+        pass
+
 if not check_login():
     show_login_page()
     st.stop()
@@ -917,6 +923,11 @@ def render_expanded_sidebar(menu):
                                type="primary" if st.session_state.current_page == key else "secondary"):
                         st.session_state.current_page = key
                         st.rerun()
+    
+    # FX 토글 섹션
+    st.markdown("---")
+    st.markdown("**FX 설정**")
+    st.sidebar.checkbox("FX: blur(backdrop-filter) ON", key="_ps_fx_blur_on", value=False, help="카드에 backdrop-filter blur 효과 적용 (기본 OFF)")
     
     # 시스템 버튼 (ultra-system wrapper)
     st.markdown('<div class="ultra-system">', unsafe_allow_html=True)
