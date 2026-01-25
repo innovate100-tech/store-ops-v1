@@ -39,20 +39,8 @@ def inject_input_hub_animations_css():
         from { opacity: 0; transform: translateY(20px); } 
         to { opacity: 1; transform: translateY(0); } 
     }
-    @keyframes shimmer-bg { 
-        0% { background-position: 0% 50%; } 
-        50% { background-position: 100% 50%; } 
-        100% { background-position: 0% 50%; } 
-    }
-    @keyframes wave-move { 
-        0% { transform: translateX(-100%); } 
-        100% { transform: translateX(100%); } 
-    }
-    @keyframes pulse-ring { 
-        0% { transform: scale(0.9); opacity: 0.7; } 
-        50% { transform: scale(1.1); opacity: 1; } 
-        100% { transform: scale(0.9); opacity: 0.7; } 
-    }
+    /* shimmer-bg keyframe 제거됨 (shimmer-overlay 제거로 인해 불필요) */
+    /* wave-move, pulse-ring keyframe 제거됨 (사용되지 않음) */
     /* 기본 상태: 항상 보이게 */
     .guide-card-animated,
     .animate-in {
@@ -65,16 +53,7 @@ def inject_input_hub_animations_css():
     .guide-card-animated { 
         animation: fadeInUp 0.8s ease-out forwards; 
     }
-    .shimmer-overlay { 
-        position: absolute; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        background: linear-gradient(-45deg, rgba(59, 130, 246, 0.05), rgba(30, 41, 59, 0), rgba(96, 165, 250, 0.05));
-        background-size: 400% 400%; 
-        animation: shimmer-bg 10s ease infinite; 
-    }
+    /* shimmer-overlay 제거됨 (파란 투명 화면 문제 해결) */
     
     /* 시작 필요 상태 강조 스타일 - JavaScript로 동적 적용 (CSS는 보조용) */
     /* 주의: Streamlit이 클래스와 속성을 제거할 수 있으므로 JavaScript가 주로 담당 */
@@ -94,7 +73,6 @@ def inject_input_hub_animations_css():
         [data-ps-scope="input_hub"] *,
         .guide-card-animated,
         .animate-in,
-        .shimmer-overlay,
         [data-ps-scope="input_hub"] .ps-start-needed-card,
         [data-ps-scope="input_hub"] .ps-start-needed-button {
             animation: none !important;
@@ -150,10 +128,7 @@ def inject_input_hub_ultra_premium_css():
         display: none !important;
     }}
     
-    @keyframes slowDrift {{
-        0%, 100% {{ background-position: 0% 50%; }}
-        50% {{ background-position: 100% 50%; }}
-    }}
+    /* slowDrift keyframe 제거됨 (ps-hub-bg::before 제거로 인해 불필요) */
     
     /* 컨텐츠 wrapper는 항상 앞에 */
     [data-ps-scope="{scope_id}"].ps-hub-content {{
@@ -172,9 +147,7 @@ def inject_input_hub_ultra_premium_css():
     
     /* prefers-reduced-motion 지원 (입력허브 전체) */
     @media (prefers-reduced-motion: reduce) {{
-        [data-ps-scope="{scope_id}"] *,
-        [data-ps-scope="{scope_id}"].ps-hub-bg::before,
-        [data-ps-scope="{scope_id}"].ps-hub-bg::after {{
+        [data-ps-scope="{scope_id}"] * {{
             animation: none !important;
             transition: none !important;
         }}

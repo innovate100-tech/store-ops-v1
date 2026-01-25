@@ -134,7 +134,7 @@ def inject_sidebar_premium_css():
         }
     }
     
-    /* ---------- CATEGORY TITLE (with PROBE dot) ---------- */
+    /* ---------- CATEGORY TITLE ---------- */
     [data-testid="stSidebar"] .ultra-category {
         margin: 22px 0 10px;
         padding: 0 10px;
@@ -161,7 +161,7 @@ def inject_sidebar_premium_css():
         }
     }
     
-    /* PROBE #1: dot */
+    /* 카테고리 액센트 dot */
     [data-testid="stSidebar"] .ultra-category::before {
         content: "•";
         position: absolute;
@@ -213,7 +213,7 @@ def inject_sidebar_premium_css():
         margin-bottom: 0.5rem;
     }
     
-    /* PROBE #2: left accent bar */
+    /* 버튼 왼쪽 액센트 바 */
     [data-testid="stSidebar"] .stButton > button::before,
     [data-testid="stSidebar"] button[kind]::before,
     [data-testid="stSidebar"] button::before {
@@ -1100,13 +1100,13 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
 
     /* 배경/오버레이 레이어는 클릭 방해 금지 + 뒤로 */
     .ps-ultra-bg, .ps-mesh, .ps-overlay, .ultra-bg, .mesh-bg, .animated-bg,
-    .overlay, .backdrop, .background, .bg-layer,
-    [data-ps-scope="input_hub"].ps-hub-bg::before {
+    .overlay, .backdrop, .background, .bg-layer {
       pointer-events: none !important;
       z-index: 0 !important;
     }
     
-    /* 파란 투명 화면 문제 해결: ps-hub-bg::after 완전 제거 */
+    /* 파란 투명 화면 문제 해결: ps-hub-bg::before와 ::after 완전 제거 */
+    [data-ps-scope="input_hub"].ps-hub-bg::before,
     [data-ps-scope="input_hub"].ps-hub-bg::after {
       content: none !important;
       display: none !important;

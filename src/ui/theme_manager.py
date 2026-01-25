@@ -244,7 +244,7 @@ def inject_global_ui():
             border-right: 1px solid var(--ps-border);
         }}
         
-        /* ps-leftpanel은 내부 구조용으로 유지 (디버그 윤곽선용) */
+        /* ps-leftpanel은 내부 구조용으로 유지 */
         .ps-leftpanel {{
             /* 배경은 상위 [data-testid="stSidebar"]에서 처리 */
         }}
