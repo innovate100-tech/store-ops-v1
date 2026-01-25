@@ -652,6 +652,7 @@ def render_input_hub_v3():
     # 할 일 목록이 아니라 시스템 상태판입니다.
     # 현재 단계, 병목, 못하는 것, PRIMARY ACTION만 표시합니다.
     st.markdown("### 🧠 시스템 진단 요약")
+    st.markdown("<div style='margin-bottom: 0.5rem;'></div>", unsafe_allow_html=True)
     
     # 시스템이 못하는 것 계산
     system_blocked = []
@@ -666,28 +667,64 @@ def render_input_hub_v3():
     stage_level = system_stage.get("level", 1)
     stage_name = system_stage.get("name", "기록 단계")
     bn_msg = bottleneck.get("message", "병목 없음") if bottleneck.get("bottleneck") else "병목 없음"
-    blocked_text = ", ".join(system_blocked) if system_blocked else "없음 (모든 기능 활성화)"
+    blocked_text_full = ", ".join(system_blocked) if system_blocked else "없음 (모든 기능 활성화)"
     primary = recommendation.get("primary")
     
+    # 잠김 기능 요약 (최대 3개만 노출, 나머지는 "+N")
+    blocked_display = []
+    if system_blocked:
+        blocked_display = system_blocked[:3]
+        if len(system_blocked) > 3:
+            blocked_display.append(f"+{len(system_blocked) - 3}")
+        blocked_summary = " · ".join(blocked_display)
+    else:
+        blocked_summary = "없음"
+    
+    # 1줄 요약 생성
+    summary_line = f"LEVEL {stage_level} · {bn_msg} → {blocked_summary}"
+    
+    # 기본 카드 (압축형)
     snapshot_html = f"""
-    <div class="animate-in delay-1" style="padding: 1.5rem; background: rgba(30, 41, 59, 0.6); border-radius: 14px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 2rem;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-            <div>
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600; letter-spacing: 0.05em;">현재 시스템 단계</div>
-                <div style="font-size: 1rem; font-weight: 700; color: #3B82F6;">LEVEL {stage_level} — {stage_name}</div>
-            </div>
-            <div>
-                <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600; letter-spacing: 0.05em;">시스템 병목</div>
-                <div style="font-size: 1rem; font-weight: 700; color: #F59E0B;">{bn_msg}</div>
-            </div>
+    <div class="animate-in delay-1" style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.6); border-radius: 14px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 1rem;">
+        <div style="font-size: 0.95rem; font-weight: 700; color: #F8FAFC; margin-bottom: 0.8rem; line-height: 1.4;">
+            {summary_line}
         </div>
-        <div style="margin-bottom: 1rem; padding-top: 1rem; border-top: 1px solid rgba(148, 163, 184, 0.1);">
-            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem; font-weight: 600; letter-spacing: 0.05em;">지금 시스템이 못하는 것</div>
-            <div style="font-size: 0.9rem; color: #E2E8F0;">{blocked_text}</div>
+        <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+            <span style="display: inline-block; padding: 0.25rem 0.75rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; font-size: 0.75rem; color: #F59E0B; font-weight: 600;">
+                병목: {bn_msg}
+            </span>
+            <span style="display: inline-block; padding: 0.25rem 0.75rem; background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 12px; font-size: 0.75rem; color: #94A3B8; font-weight: 600;">
+                잠김: {blocked_summary}
+            </span>
         </div>
     </div>
     """
     st.markdown(snapshot_html, unsafe_allow_html=True)
+    
+    # 상세 정보 expander
+    with st.expander("자세히 보기", expanded=False):
+        st.markdown(f"""
+        <div style="padding: 0.5rem 0;">
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">현재 시스템 단계</div>
+            <div style="font-size: 0.95rem; color: #3B82F6; font-weight: 700; margin-bottom: 1rem;">LEVEL {stage_level} — {stage_name}</div>
+            
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">시스템 병목</div>
+            <div style="font-size: 0.95rem; color: #F59E0B; font-weight: 700; margin-bottom: 1rem;">{bn_msg}</div>
+            
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem; font-weight: 600;">지금 시스템이 못하는 것</div>
+            <div style="font-size: 0.9rem; color: #E2E8F0; margin-bottom: 1rem; line-height: 1.6;">{blocked_text_full}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if primary:
+            next_step_text = primary.get('description', '')
+            if next_step_text:
+                st.markdown(f"""
+                <div style="padding-top: 0.5rem; border-top: 1px solid rgba(148, 163, 184, 0.1);">
+                    <div style="font-size: 0.85rem; color: #3B82F6; font-weight: 600;">다음 단계</div>
+                    <div style="font-size: 0.9rem; color: #E2E8F0; margin-top: 0.3rem;">{next_step_text}</div>
+                </div>
+                """, unsafe_allow_html=True)
     
     # PRIMARY ACTION 버튼
     if primary:
