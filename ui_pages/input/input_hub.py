@@ -97,29 +97,28 @@ def inject_input_hub_animations_css():
         animation: shimmer-bg 10s ease infinite; 
     }
     
-    /* 시작 필요 상태 강조 스타일 */
-    [data-ps-scope="input_hub"] .ps-start-needed-card {
+    /* 시작 필요 상태 강조 스타일 - 더 강력한 선택자 */
+    [data-ps-scope="input_hub"] .ps-start-needed-card,
+    div[data-ps-scope="input_hub"] .ps-start-needed-card,
+    [data-ps-scope="input_hub"] div.ps-start-needed-card {
         border: 2px solid rgba(245, 158, 11, 0.6) !important;
         box-shadow: 0 0 15px rgba(245, 158, 11, 0.5),
                     0 0 30px rgba(245, 158, 11, 0.3) !important;
         animation: pulse-start-needed 2s ease-in-out infinite,
                    glow-pulse 3s ease-in-out infinite !important;
         background: rgba(245, 158, 11, 0.08) !important;
+        position: relative !important;
     }
     
-    [data-ps-scope="input_hub"] .ps-start-needed-button {
+    /* 버튼 강조 - JavaScript로 동적 적용 */
+    [data-ps-scope="input_hub"] button[kind="primary"]:has-text("🚀"),
+    [data-ps-scope="input_hub"] .stButton button:contains("🚀") {
         background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%) !important;
         box-shadow: 0 0 20px rgba(245, 158, 11, 0.6),
                     0 0 40px rgba(245, 158, 11, 0.4) !important;
         animation: glow-pulse 2s ease-in-out infinite !important;
         border: 2px solid rgba(245, 158, 11, 0.8) !important;
         font-weight: 700 !important;
-    }
-    
-    [data-ps-scope="input_hub"] .ps-start-needed-button:hover {
-        transform: translateY(-2px) scale(1.02) !important;
-        box-shadow: 0 0 25px rgba(245, 158, 11, 0.8),
-                    0 0 50px rgba(245, 158, 11, 0.6) !important;
     }
     
     /* prefers-reduced-motion 지원 */
@@ -949,6 +948,87 @@ def render_input_hub_v3():
     
     # Control Board 컴팩트 레이아웃 CSS 주입 (1회만)
     inject_input_hub_controlboard_compact_css()
+    
+    # 시작 필요 상태 강조 JavaScript 주입 (1회만)
+    if not st.session_state.get("_ps_start_needed_js_injected", False):
+        start_needed_js = """
+        <script>
+        (function() {
+            'use strict';
+            
+            function applyStartNeededStyles() {
+                // 카드에 애니메이션 적용
+                const cards = document.querySelectorAll('[data-ps-scope="input_hub"] .ps-start-needed-card');
+                cards.forEach(card => {
+                    if (!card.hasAttribute('data-start-needed-applied')) {
+                        card.setAttribute('data-start-needed-applied', 'true');
+                        card.style.setProperty('border', '2px solid rgba(245, 158, 11, 0.6)', 'important');
+                        card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
+                        card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
+                        card.style.setProperty('background', 'rgba(245, 158, 11, 0.08)', 'important');
+                        card.style.setProperty('position', 'relative', 'important');
+                    }
+                });
+                
+                // 버튼에 글로우 효과 적용 (🚀 텍스트가 있는 버튼)
+                const buttons = document.querySelectorAll('[data-ps-scope="input_hub"] button[kind="primary"]');
+                buttons.forEach(button => {
+                    const buttonText = button.textContent || button.innerText || '';
+                    if (buttonText.includes('🚀') && !button.hasAttribute('data-start-needed-applied')) {
+                        button.setAttribute('data-start-needed-applied', 'true');
+                        button.style.setProperty('background', 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)', 'important');
+                        button.style.setProperty('box-shadow', '0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4)', 'important');
+                        button.style.setProperty('animation', 'glow-pulse 2s ease-in-out infinite', 'important');
+                        button.style.setProperty('border', '2px solid rgba(245, 158, 11, 0.8)', 'important');
+                        button.style.setProperty('font-weight', '700', 'important');
+                        
+                        // hover 효과 (이벤트 리스너는 한 번만 추가)
+                        button.addEventListener('mouseenter', function() {
+                            this.style.setProperty('transform', 'translateY(-2px) scale(1.02)', 'important');
+                            this.style.setProperty('box-shadow', '0 0 25px rgba(245, 158, 11, 0.8), 0 0 50px rgba(245, 158, 11, 0.6)', 'important');
+                        });
+                        button.addEventListener('mouseleave', function() {
+                            this.style.setProperty('transform', 'none', 'important');
+                            this.style.setProperty('box-shadow', '0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4)', 'important');
+                        });
+                    }
+                });
+            }
+            
+            // 즉시 실행
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', applyStartNeededStyles);
+            } else {
+                applyStartNeededStyles();
+            }
+            
+            // MutationObserver로 새로 추가된 요소 감지
+            const observer = new MutationObserver(function(mutations) {
+                let shouldApply = false;
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        shouldApply = true;
+                    }
+                });
+                if (shouldApply) {
+                    setTimeout(applyStartNeededStyles, 100);
+                }
+            });
+            
+            if (document.body) {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            
+            // 주기적 확인 (Streamlit rerun 대응)
+            setInterval(applyStartNeededStyles, 1000);
+        })();
+        </script>
+        """
+        st.markdown(start_needed_js, unsafe_allow_html=True)
+        st.session_state["_ps_start_needed_js_injected"] = True
     
     # 컨텐츠 wrapper 시작
     st.markdown('<div data-ps-scope="input_hub" class="ps-hub-bg"><div class="ps-hub-content">', unsafe_allow_html=True)
