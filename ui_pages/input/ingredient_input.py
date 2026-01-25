@@ -1,6 +1,6 @@
 """
-사용 재료 입력 페이지 (입력 전용)
-재기획안에 따른 5-Zone 구조
+사용 재료 입력 페이지 (FormKit v2 + 블록 리듬)
+CONSOLE형: 입력 컴포넌트만 FormKit v2로 통일
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -10,6 +10,14 @@ from datetime import datetime, timedelta
 from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
 from src.ui.components.form_kit import inject_form_kit_css, ps_section
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_input_block,
+    ps_primary_money_input,
+    ps_primary_ratio_input,
+    ps_secondary_select,
+    ps_note_input,
+)
 from src.storage_supabase import load_csv, save_ingredient, update_ingredient, delete_ingredient
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_ingredient_usage
@@ -29,9 +37,9 @@ UNIT_OPTIONS = ["g", "ml", "ea", "개", "kg", "L", "박스", "봉지"]
 
 
 def render_ingredient_input_page():
-    """사용 재료 입력 페이지 렌더링 (5-Zone 구조, CONSOLE형 레이아웃 적용)"""
-    # FormKit CSS 주입
+    """사용 재료 입력 (FormKit v2 + 블록 리듬, ActionBar만 저장)"""
     inject_form_kit_css()
+    inject_form_kit_v2_css("ingredient_input")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -110,16 +118,33 @@ def render_ingredient_input_page():
         _render_zone_d_ingredient_list(filtered_ingredient_df, categories, ingredient_in_recipe, 
                                         recent_usage, needs_order, store_id)
     
+    # ActionBar 설정
+    action_primary = None
+    if "_ingredient_single_save" in st.session_state:
+        action_primary = {
+            "label": "💾 단일 저장",
+            "key": "ingredient_single_save",
+            "action": st.session_state["_ingredient_single_save"]
+        }
+        del st.session_state["_ingredient_single_save"]
+    elif "_ingredient_batch_save" in st.session_state:
+        action_primary = {
+            "label": "💾 일괄 저장",
+            "key": "ingredient_batch_save",
+            "action": st.session_state["_ingredient_batch_save"]
+        }
+        del st.session_state["_ingredient_batch_save"]
+    
     # CONSOLE형 레이아웃 적용
     render_console_layout(
         title="재료 입력",
         icon="🧺",
         dashboard_content=render_dashboard_content,
         work_area_content=render_work_area_content,
-        filter_content=None,  # Filter는 List 내부에서 처리
+        filter_content=None,
         list_content=render_list_content,
-        cta_label=None,  # CTA는 별도 섹션으로 처리
-        cta_action=None
+        cta_label=action_primary["label"] if action_primary else None,
+        cta_action=action_primary["action"] if action_primary else None
     )
     
     # ZONE E는 레이아웃 외부에 배치 (기존 구조 유지)
@@ -338,9 +363,7 @@ def _render_zone_a_dashboard(ingredient_df, categories, ingredient_in_recipe, ne
 
 
 def _render_zone_b_input(store_id):
-    """ZONE B: 재료 입력 (단일/일괄)"""
-    ps_section("재료 입력", icon="📝")
-    
+    """Work Area: 재료 입력 (단일/일괄 블록 분리)"""
     tab1, tab2 = st.tabs(["📝 단일 입력", "📋 일괄 입력"])
     
     with tab1:
@@ -351,206 +374,174 @@ def _render_zone_b_input(store_id):
 
 
 def _render_single_input(store_id):
-    """단일 재료 입력"""
-    st.markdown("### 📝 재료 단일 등록")
+    """단일 재료 입력 (FormKit v2, ActionBar만 저장)"""
+    def _body_single():
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.text_input("재료명 *", key="ingredient_input_single_name", placeholder="재료명을 입력하세요")
+        with col2:
+            ps_secondary_select("단위 *", key="ingredient_input_single_unit", options=UNIT_OPTIONS, index=0)
+        with col3:
+            ps_primary_money_input("단가 (원/단위) *", key="ingredient_input_single_price", value=0.0, min_value=0.0, step=100.0, unit="원")
+        
+        st.markdown("**📦 발주 단위 설정 (선택사항)**")
+        col4, col5 = st.columns(2)
+        with col4:
+            ps_secondary_select("발주 단위", key="ingredient_input_single_order_unit", options=[""] + UNIT_OPTIONS, index=0, help_text="발주 시 사용할 단위 (비워두면 기본 단위와 동일)")
+        with col5:
+            ps_primary_ratio_input("변환 비율 (1 발주단위 = ? 기본단위)", key="ingredient_input_single_conversion_rate", value=1.0, min_value=0.1, step=0.1, compact=True, help_text="예: 버터 1개 = 500g이면 500 입력")
+        
+        col6, col7 = st.columns(2)
+        with col6:
+            ps_secondary_select("재료 분류", key="ingredient_input_single_category", options=[""] + INGREDIENT_CATEGORIES, index=0)
+        with col7:
+            ps_secondary_select("상태", key="ingredient_input_single_status", options=INGREDIENT_STATUSES, index=0)
+        
+        ps_note_input("메모 (선택)", key="ingredient_input_single_notes", value="", height=100)
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        ingredient_name = st.text_input("재료명 *", key="ingredient_input_single_name", placeholder="재료명을 입력하세요")
-    with col2:
-        unit = st.selectbox("단위 *", options=UNIT_OPTIONS, key="ingredient_input_single_unit")
-    with col3:
-        unit_price = st.number_input("단가 (원/단위) *", min_value=0.0, value=0.0, step=100.0, 
-                                     format="%.2f", key="ingredient_input_single_price")
+    ps_input_block(title="재료 단일 등록", description="재료명, 단가, 단위, 발주단위/변환비율 입력", level="primary", body_fn=_body_single)
     
-    st.markdown("**📦 발주 단위 설정 (선택사항)**")
-    col4, col5 = st.columns(2)
-    with col4:
-        order_unit = st.selectbox("발주 단위", options=[""] + UNIT_OPTIONS, key="ingredient_input_single_order_unit",
-                                  help="발주 시 사용할 단위 (비워두면 기본 단위와 동일)")
-    with col5:
-        conversion_rate = st.number_input("변환 비율 (1 발주단위 = ? 기본단위)", min_value=0.1, value=1.0, 
-                                         step=0.1, format="%.2f", key="ingredient_input_single_conversion_rate",
-                                         help="예: 버터 1개 = 500g이면 500 입력")
-    
-    col6, col7 = st.columns(2)
-    with col6:
-        category = st.selectbox("재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="ingredient_input_single_category")
-    with col7:
-        status = st.selectbox("상태", options=INGREDIENT_STATUSES, index=0, key="ingredient_input_single_status")
-    
-    notes = st.text_area("메모 (선택)", key="ingredient_input_single_notes", height=100)
-    
-    col_save, col_reset = st.columns([1, 1])
-    with col_save:
-        if st.button("💾 저장", type="primary", key="ingredient_input_single_save", use_container_width=True):
-            # 입력값 검증
-            ingredient_name_clean = ingredient_name.strip() if ingredient_name else ""
-            if not ingredient_name_clean:
-                ui_flash_error("재료명을 입력해주세요.")
-            elif unit_price <= 0:
-                ui_flash_error("단가를 입력해주세요.")
-            elif conversion_rate <= 0:
-                ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
-            else:
-                try:
-                    # 변환비율 검증
-                    conversion_rate_float = float(conversion_rate) if conversion_rate else 1.0
-                    if conversion_rate_float <= 0:
-                        ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
-                        return
-                    
-                    # 재료 저장
-                    success, msg = save_ingredient(
-                        ingredient_name_clean,
-                        unit,
-                        float(unit_price),
-                        order_unit.strip() if order_unit and order_unit.strip() else None,
-                        conversion_rate_float
-                    )
-                    if not success:
-                        ui_flash_error(msg)
-                    else:
-                        # 재료 분류 저장
-                        if category and category.strip():
-                            category_success = _set_ingredient_category(store_id, ingredient_name_clean, category.strip())
-                            if not category_success:
-                                logger.warning(f"재료 분류 저장 실패: {ingredient_name_clean}")
-                        
-                        # 재료 상태 및 메모 저장
-                        status_value = status if status else "사용중"
-                        notes_value = notes.strip() if notes and notes.strip() else None
-                        status_success = _set_ingredient_status_and_notes(store_id, ingredient_name_clean, status_value, notes_value)
-                        if not status_success:
-                            logger.warning(f"재료 상태/메모 저장 실패: {ingredient_name_clean}")
-                        
-                        ui_flash_success(f"재료 '{ingredient_name_clean}'이(가) 저장되었습니다.")
-                        st.rerun()
-                except ValueError as e:
-                    ui_flash_error(f"입력값 형식 오류: {str(e)}")
-                except Exception as e:
-                    logger.error(f"재료 저장 중 예외 발생: {e}")
-                    ui_flash_error(f"저장 실패: {str(e)}")
-    
-    with col_reset:
-        if st.button("🔄 초기화", key="ingredient_input_single_reset", use_container_width=True):
+    def handle_save_single():
+        ingredient_name = st.session_state.get("ingredient_input_single_name", "").strip()
+        unit = st.session_state.get("ingredient_input_single_unit", UNIT_OPTIONS[0])
+        unit_price = st.session_state.get("ingredient_input_single_price", 0.0) or 0.0
+        order_unit = st.session_state.get("ingredient_input_single_order_unit", "")
+        conversion_rate = st.session_state.get("ingredient_input_single_conversion_rate", 1.0) or 1.0
+        category = st.session_state.get("ingredient_input_single_category", "")
+        status = st.session_state.get("ingredient_input_single_status", INGREDIENT_STATUSES[0])
+        notes = st.session_state.get("ingredient_input_single_notes", "")
+        
+        if not ingredient_name:
+            ui_flash_error("재료명을 입력해주세요.")
+            return
+        if unit_price <= 0:
+            ui_flash_error("단가를 입력해주세요.")
+            return
+        if conversion_rate <= 0:
+            ui_flash_error("변환 비율은 0보다 큰 값이어야 합니다.")
+            return
+        
+        try:
+            success, msg = save_ingredient(ingredient_name, unit, float(unit_price), order_unit.strip() if order_unit else None, float(conversion_rate))
+            if not success:
+                ui_flash_error(msg)
+                return
+            if category and category.strip():
+                _set_ingredient_category(store_id, ingredient_name, category.strip())
+            status_value = status if status else "사용중"
+            notes_value = notes.strip() if notes else None
+            _set_ingredient_status_and_notes(store_id, ingredient_name, status_value, notes_value)
+            ui_flash_success(f"재료 '{ingredient_name}'이(가) 저장되었습니다.")
             st.rerun()
+        except Exception as e:
+            logger.error(f"재료 저장 중 예외 발생: {e}")
+            ui_flash_error(f"저장 실패: {str(e)}")
+    
+    st.session_state["_ingredient_single_save"] = handle_save_single
 
 
 def _render_batch_input(store_id):
-    """일괄 재료 입력"""
-    st.markdown("### 📋 재료 일괄 등록")
+    """일괄 재료 입력 (FormKit v2, ActionBar만 저장)"""
+    def _body_batch():
+        ingredient_count = st.number_input("등록할 재료 개수", min_value=1, max_value=20, value=5, step=1, key="ingredient_input_batch_count")
+        
+        col_batch1, col_batch2 = st.columns(2)
+        with col_batch1:
+            batch_category = ps_secondary_select("일괄 재료 분류", key="ingredient_input_batch_category", options=[""] + INGREDIENT_CATEGORIES, index=0)
+        with col_batch2:
+            batch_status = ps_secondary_select("일괄 상태", key="ingredient_input_batch_status", options=[""] + INGREDIENT_STATUSES, index=0)
+        
+        st.markdown("---")
+        st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
+        
+        for i in range(ingredient_count):
+            with st.expander(f"재료 {i+1}", expanded=(i < 3)):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.text_input(f"재료명 {i+1}", key=f"ingredient_input_batch_name_{i}")
+                with col2:
+                    ps_secondary_select(f"단위 {i+1}", key=f"ingredient_input_batch_unit_{i}", options=UNIT_OPTIONS, index=0)
+                with col3:
+                    ps_primary_money_input(f"단가 (원) {i+1}", key=f"ingredient_input_batch_price_{i}", value=0.0, min_value=0.0, step=100.0, unit="원", compact=True)
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    ps_secondary_select(f"발주단위 {i+1}", key=f"ingredient_input_batch_order_unit_{i}", options=[""] + UNIT_OPTIONS, index=0)
+                with col5:
+                    ps_primary_ratio_input(f"변환비율 {i+1}", key=f"ingredient_input_batch_conversion_{i}", value=1.0, min_value=0.1, step=0.1, compact=True)
+                
+                col6, col7 = st.columns(2)
+                with col6:
+                    cat_idx = INGREDIENT_CATEGORIES.index(batch_category) + 1 if batch_category and batch_category in INGREDIENT_CATEGORIES else 0
+                    ps_secondary_select(f"재료 분류 {i+1}", key=f"ingredient_input_batch_category_{i}", options=[""] + INGREDIENT_CATEGORIES, index=cat_idx)
+                with col7:
+                    status_idx = INGREDIENT_STATUSES.index(batch_status) if batch_status and batch_status in INGREDIENT_STATUSES else 0
+                    ps_secondary_select(f"상태 {i+1}", key=f"ingredient_input_batch_status_{i}", options=INGREDIENT_STATUSES, index=status_idx)
     
-    ingredient_count = st.number_input("등록할 재료 개수", min_value=1, max_value=20, value=5, step=1, key="ingredient_input_batch_count")
+    ps_input_block(title="재료 일괄 등록", description="여러 재료를 한 번에 등록", level="secondary", body_fn=_body_batch)
     
-    # 일괄 선택 옵션
-    col_batch1, col_batch2 = st.columns(2)
-    with col_batch1:
-        batch_category = st.selectbox("일괄 재료 분류", options=[""] + INGREDIENT_CATEGORIES, key="ingredient_input_batch_category")
-    with col_batch2:
-        batch_status = st.selectbox("일괄 상태", options=[""] + INGREDIENT_STATUSES, key="ingredient_input_batch_status")
-    
-    st.markdown("---")
-    st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
-    
-    ingredient_data = []
-    for i in range(ingredient_count):
-        with st.expander(f"재료 {i+1}", expanded=(i < 3)):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                ingredient_name = st.text_input(f"재료명 {i+1}", key=f"ingredient_input_batch_name_{i}")
-            with col2:
-                unit = st.selectbox(f"단위 {i+1}", options=UNIT_OPTIONS, key=f"ingredient_input_batch_unit_{i}")
-            with col3:
-                unit_price = st.number_input(f"단가 (원) {i+1}", min_value=0.0, value=0.0, step=100.0, 
-                                            format="%.2f", key=f"ingredient_input_batch_price_{i}")
+    def handle_save_batch():
+        ingredient_count = st.session_state.get("ingredient_input_batch_count", 5)
+        ingredient_data = []
+        for i in range(ingredient_count):
+            name = st.session_state.get(f"ingredient_input_batch_name_{i}", "").strip()
+            unit = st.session_state.get(f"ingredient_input_batch_unit_{i}", UNIT_OPTIONS[0])
+            price = st.session_state.get(f"ingredient_input_batch_price_{i}", 0.0) or 0.0
+            order_unit = st.session_state.get(f"ingredient_input_batch_order_unit_{i}", "")
+            conversion = st.session_state.get(f"ingredient_input_batch_conversion_{i}", 1.0) or 1.0
+            category = st.session_state.get(f"ingredient_input_batch_category_{i}", "")
+            status = st.session_state.get(f"ingredient_input_batch_status_{i}", INGREDIENT_STATUSES[0])
             
-            col4, col5 = st.columns(2)
-            with col4:
-                order_unit = st.selectbox(f"발주단위 {i+1}", options=[""] + UNIT_OPTIONS, key=f"ingredient_input_batch_order_unit_{i}")
-            with col5:
-                conversion_rate = st.number_input(f"변환비율 {i+1}", min_value=0.1, value=1.0, step=0.1, 
-                                                format="%.2f", key=f"ingredient_input_batch_conversion_{i}")
-            
-            col6, col7 = st.columns(2)
-            with col6:
-                category = st.selectbox(f"재료 분류 {i+1}", options=[""] + INGREDIENT_CATEGORIES,
-                                      index=INGREDIENT_CATEGORIES.index(batch_category) + 1 if batch_category in INGREDIENT_CATEGORIES else 0,
-                                      key=f"ingredient_input_batch_category_{i}")
-            with col7:
-                status = st.selectbox(f"상태 {i+1}", options=INGREDIENT_STATUSES,
-                                      index=INGREDIENT_STATUSES.index(batch_status) if batch_status in INGREDIENT_STATUSES else 0,
-                                      key=f"ingredient_input_batch_status_{i}")
-            
-            # 입력값 검증 및 데이터 수집
-            ingredient_name_clean = ingredient_name.strip() if ingredient_name else ""
-            if ingredient_name_clean and unit_price > 0:
-                try:
-                    ingredient_data.append({
-                        'name': ingredient_name_clean,
-                        'unit': unit,
-                        'price': float(unit_price),
-                        'order_unit': order_unit.strip() if order_unit and order_unit.strip() else None,
-                        'conversion_rate': float(conversion_rate) if conversion_rate and conversion_rate > 0 else 1.0,
-                        'category': category.strip() if category and category.strip() else None,
-                        'status': status
-                    })
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"재료 데이터 변환 실패 ({ingredient_name_clean}): {e}")
-    
-    if st.button("💾 일괄 저장", type="primary", key="ingredient_input_batch_save", use_container_width=True):
+            if name and price > 0:
+                ingredient_data.append({
+                    'name': name,
+                    'unit': unit,
+                    'price': float(price),
+                    'order_unit': order_unit.strip() if order_unit else None,
+                    'conversion_rate': float(conversion) if conversion > 0 else 1.0,
+                    'category': category.strip() if category else None,
+                    'status': status
+                })
+        
         if not ingredient_data:
             ui_flash_error("저장할 재료가 없습니다. 재료명과 단가를 입력해주세요.")
-        else:
-            try:
-                saved_count = 0
-                failed_items = []
-                
-                for ing in ingredient_data:
-                    try:
-                        success, msg = save_ingredient(
-                            ing['name'], 
-                            ing['unit'], 
-                            ing['price'], 
-                            ing['order_unit'], 
-                            ing['conversion_rate']
-                        )
-                        if success:
-                            # 재료 분류 저장
-                            if ing.get('category') and ing['category'].strip():
-                                category_success = _set_ingredient_category(store_id, ing['name'], ing['category'].strip())
-                                if not category_success:
-                                    logger.warning(f"재료 분류 저장 실패: {ing['name']}")
-                            
-                            # 재료 상태 저장
-                            status_value = ing.get('status', '사용중')
-                            status_success = _set_ingredient_status_and_notes(store_id, ing['name'], status_value, None)
-                            if not status_success:
-                                logger.warning(f"재료 상태 저장 실패: {ing['name']}")
-                            
-                            saved_count += 1
-                        else:
-                            failed_items.append(f"{ing['name']}: {msg}")
-                    except Exception as e:
-                        logger.error(f"재료 저장 중 예외 발생 ({ing['name']}): {e}")
-                        failed_items.append(f"{ing['name']}: {str(e)}")
-                
-                # 결과 메시지 표시
-                if saved_count > 0:
-                    if failed_items:
-                        ui_flash_success(f"{saved_count}개 재료가 저장되었습니다. ({len(failed_items)}개 실패)")
-                        for failed in failed_items:
-                            st.warning(failed)
+            return
+        
+        try:
+            saved_count = 0
+            failed_items = []
+            for ing in ingredient_data:
+                try:
+                    success, msg = save_ingredient(ing['name'], ing['unit'], ing['price'], ing['order_unit'], ing['conversion_rate'])
+                    if success:
+                        if ing.get('category') and ing['category'].strip():
+                            _set_ingredient_category(store_id, ing['name'], ing['category'].strip())
+                        status_value = ing.get('status', '사용중')
+                        _set_ingredient_status_and_notes(store_id, ing['name'], status_value, None)
+                        saved_count += 1
                     else:
-                        ui_flash_success(f"{saved_count}개 재료가 모두 저장되었습니다.")
-                    st.rerun()
-                else:
-                    ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재료 모두 저장 실패.")
+                        failed_items.append(f"{ing['name']}: {msg}")
+                except Exception as e:
+                    logger.error(f"재료 저장 중 예외 발생 ({ing['name']}): {e}")
+                    failed_items.append(f"{ing['name']}: {str(e)}")
+            
+            if saved_count > 0:
+                if failed_items:
+                    ui_flash_success(f"{saved_count}개 재료가 저장되었습니다. ({len(failed_items)}개 실패)")
                     for failed in failed_items:
-                        st.error(failed)
-            except Exception as e:
-                logger.error(f"일괄 저장 중 예외 발생: {e}")
-                ui_flash_error(f"저장 실패: {str(e)}")
+                        st.warning(failed)
+                else:
+                    ui_flash_success(f"{saved_count}개 재료가 모두 저장되었습니다.")
+                st.rerun()
+            else:
+                ui_flash_error(f"저장에 실패했습니다. {len(failed_items)}개 재료 모두 저장 실패.")
+                for failed in failed_items:
+                    st.error(failed)
+        except Exception as e:
+            logger.error(f"일괄 저장 중 예외 발생: {e}")
+            ui_flash_error(f"저장 실패: {str(e)}")
+    
+    st.session_state["_ingredient_batch_save"] = handle_save_batch
 
 
 def _render_zone_c_filters(ingredient_df, categories, ingredient_in_recipe, needs_order):

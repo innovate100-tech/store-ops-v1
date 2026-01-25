@@ -1,6 +1,6 @@
 """
-판매 메뉴 입력 페이지 (입력 전용)
-재기획안에 따른 5-Zone 구조
+판매 메뉴 입력 페이지 (FormKit v2 + 블록 리듬)
+CONSOLE형: 입력 컴포넌트만 FormKit v2로 통일
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -9,6 +9,13 @@ import logging
 from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
 from src.ui.components.form_kit import inject_form_kit_css, ps_section
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_input_block,
+    ps_primary_money_input,
+    ps_secondary_select,
+    ps_note_input,
+)
 from src.storage_supabase import load_csv, save_menu, update_menu, update_menu_category, delete_menu
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_menu_cost
@@ -34,6 +41,7 @@ def render_menu_input_page():
     """판매 메뉴 입력 페이지 렌더링 (5-Zone 구조, CONSOLE형 레이아웃 적용)"""
     # FormKit CSS 주입
     inject_form_kit_css()
+    inject_form_kit_v2_css("menu_input")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -82,21 +90,38 @@ def render_menu_input_page():
         """Bottom CTA: ZONE E"""
         _render_zone_e_management(menu_df, categories, roles, store_id)
     
+    # ActionBar 설정 (단일/일괄 저장)
+    action_primary = None
+    if "_menu_single_save" in st.session_state:
+        action_primary = {
+            "label": "💾 단일 저장",
+            "key": "menu_single_save",
+            "action": st.session_state["_menu_single_save"]
+        }
+        del st.session_state["_menu_single_save"]
+    elif "_menu_batch_save" in st.session_state:
+        action_primary = {
+            "label": "💾 일괄 저장",
+            "key": "menu_batch_save",
+            "action": st.session_state["_menu_batch_save"]
+        }
+        del st.session_state["_menu_batch_save"]
+    
     # CONSOLE형 레이아웃 적용
     render_console_layout(
         title="메뉴 입력",
         icon="📘",
         dashboard_content=render_dashboard_content,
         work_area_content=render_work_area_content,
-        filter_content=None,  # Filter는 List 내부에서 처리
+        filter_content=None,
         list_content=render_list_content,
-        cta_label=None,  # CTA는 별도 섹션으로 처리
-        cta_action=None
+        cta_label=action_primary["label"] if action_primary else None,
+        cta_action=action_primary["action"] if action_primary else None
     )
     
     # ZONE E는 레이아웃 외부에 배치 (기존 구조 유지)
     st.markdown("---")
-    _render_zone_e_management(menu_df, categories, roles, store_id)
+    _render_zone_e_management(menu_df, categories, roles, menu_has_recipe, store_id)
 
 
 def _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe):
@@ -147,9 +172,7 @@ def _render_zone_a_dashboard(menu_df, categories, roles, menu_has_recipe):
 
 
 def _render_zone_b_input(store_id):
-    """ZONE B: 메뉴 입력 (단일/일괄)"""
-    ps_section("메뉴 입력", icon="📝")
-    
+    """Work Area: 메뉴 입력 (단일/일괄 블록 분리)"""
     tab1, tab2 = st.tabs(["📝 단일 입력", "📋 일괄 입력"])
     
     with tab1:
@@ -160,123 +183,132 @@ def _render_zone_b_input(store_id):
 
 
 def _render_single_input(store_id):
-    """단일 메뉴 입력"""
-    st.markdown("### 📝 메뉴 단일 등록")
+    """단일 메뉴 입력 (FormKit v2, ActionBar만 저장)"""
+    def _body_single():
+        col1, col2 = st.columns(2)
+        with col1:
+            menu_name = st.text_input("메뉴명 *", key="single_menu_name", placeholder="메뉴명을 입력하세요")
+        with col2:
+            ps_primary_money_input("판매가 (원) *", key="single_menu_price", value=0, min_value=0, step=1000, unit="원")
+        
+        col3, col4, col5 = st.columns(3)
+        with col3:
+            ps_secondary_select("메뉴분류", key="single_menu_category", options=[""] + MENU_CATEGORIES, index=0)
+        with col4:
+            ps_secondary_select("상태", key="single_menu_status", options=MENU_STATUSES, index=0)
+        with col5:
+            role_tags = st.multiselect("해시태그 분류", options=ROLE_TAGS, key="single_menu_roles")
+        
+        ps_note_input("메모 (선택)", key="single_menu_notes", value="", height=100)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        menu_name = st.text_input("메뉴명 *", key="single_menu_name", placeholder="메뉴명을 입력하세요")
-    with col2:
-        price = st.number_input("판매가 (원) *", min_value=0, value=0, step=1000, key="single_menu_price")
+    ps_input_block(title="메뉴 단일 등록", description="메뉴명, 판매가, 분류 입력", level="primary", body_fn=_body_single)
     
-    col3, col4, col5 = st.columns(3)
-    with col3:
-        category = st.selectbox("메뉴분류", options=[""] + MENU_CATEGORIES, key="single_menu_category")
-    with col4:
-        status = st.selectbox("상태", options=MENU_STATUSES, index=0, key="single_menu_status")
-    with col5:
-        role_tags = st.multiselect("해시태그 분류", options=ROLE_TAGS, key="single_menu_roles")
-    
-    notes = st.text_area("메모 (선택)", key="single_menu_notes", height=100)
-    
-    col_save, col_reset = st.columns([1, 1])
-    with col_save:
-        if st.button("💾 저장", type="primary", key="single_save", use_container_width=True):
-            if not menu_name or not menu_name.strip():
-                ui_flash_error("메뉴명을 입력해주세요.")
-            elif price <= 0:
-                ui_flash_error("판매가를 입력해주세요.")
-            else:
-                try:
-                    # 메뉴 저장
-                    success, msg = save_menu(menu_name.strip(), int(price))
-                    if not success:
-                        ui_flash_error(msg)
-                    else:
-                        # 메뉴분류 저장
-                        if category:
-                            set_menu_portfolio_category(store_id, menu_name.strip(), category)
-                        
-                        # 해시태그 분류 저장 (첫 번째 것만, 향후 멀티 지원)
-                        if role_tags:
-                            set_menu_portfolio_tag(store_id, menu_name.strip(), role_tags[0])
-                        
-                        ui_flash_success(f"메뉴 '{menu_name.strip()}'이(가) 저장되었습니다.")
-                        st.rerun()
-                except Exception as e:
-                    ui_flash_error(f"저장 실패: {str(e)}")
-    
-    with col_reset:
-        if st.button("🔄 초기화", key="single_reset", use_container_width=True):
+    def handle_save_single():
+        menu_name = st.session_state.get("single_menu_name", "").strip()
+        price = st.session_state.get("single_menu_price", 0) or 0
+        category = st.session_state.get("single_menu_category", "")
+        role_tags = st.session_state.get("single_menu_roles", [])
+        notes = st.session_state.get("single_menu_notes", "")
+        
+        if not menu_name:
+            ui_flash_error("메뉴명을 입력해주세요.")
+            return
+        if price <= 0:
+            ui_flash_error("판매가를 입력해주세요.")
+            return
+        
+        try:
+            success, msg = save_menu(menu_name, int(price))
+            if not success:
+                ui_flash_error(msg)
+                return
+            if category:
+                set_menu_portfolio_category(store_id, menu_name, category)
+            if role_tags:
+                set_menu_portfolio_tag(store_id, menu_name, role_tags[0])
+            ui_flash_success(f"메뉴 '{menu_name}'이(가) 저장되었습니다.")
             st.rerun()
+        except Exception as e:
+            ui_flash_error(f"저장 실패: {str(e)}")
+    
+    st.session_state["_menu_single_save"] = handle_save_single
 
 
 def _render_batch_input(store_id):
-    """일괄 메뉴 입력"""
-    st.markdown("### 📋 메뉴 일괄 등록")
+    """일괄 메뉴 입력 (FormKit v2, ActionBar만 저장)"""
+    def _body_batch():
+        menu_count = st.number_input("등록할 메뉴 개수", min_value=1, max_value=20, value=5, step=1, key="batch_menu_count")
+        
+        col_batch1, col_batch2, col_batch3 = st.columns(3)
+        with col_batch1:
+            batch_category = ps_secondary_select("일괄 메뉴분류", key="batch_category", options=[""] + MENU_CATEGORIES, index=0)
+        with col_batch2:
+            batch_status = ps_secondary_select("일괄 상태", key="batch_status", options=[""] + MENU_STATUSES, index=0)
+        with col_batch3:
+            batch_roles = st.multiselect("일괄 해시태그 분류", options=ROLE_TAGS, key="batch_roles")
+        
+        st.markdown("---")
+        st.write(f"**📋 총 {menu_count}개 메뉴 입력**")
+        
+        for i in range(menu_count):
+            with st.expander(f"메뉴 {i+1}", expanded=(i < 3)):
+                col1, col2 = st.columns([3, 2])
+                with col1:
+                    st.text_input(f"메뉴명 {i+1}", key=f"batch_menu_name_{i}")
+                with col2:
+                    ps_primary_money_input(f"판매가 (원) {i+1}", key=f"batch_menu_price_{i}", value=0, min_value=0, step=1000, unit="원", compact=True)
+                
+                col3, col4 = st.columns(2)
+                with col3:
+                    cat_idx = MENU_CATEGORIES.index(batch_category) + 1 if batch_category and batch_category in MENU_CATEGORIES else 0
+                    ps_secondary_select(f"메뉴분류 {i+1}", key=f"batch_category_{i}", options=[""] + MENU_CATEGORIES, index=cat_idx)
+                with col4:
+                    status_idx = MENU_STATUSES.index(batch_status) if batch_status and batch_status in MENU_STATUSES else 0
+                    ps_secondary_select(f"상태 {i+1}", key=f"batch_status_{i}", options=MENU_STATUSES, index=status_idx)
+                
+                st.multiselect(f"해시태그 분류 {i+1}", options=ROLE_TAGS, default=batch_roles, key=f"batch_roles_{i}")
     
-    menu_count = st.number_input("등록할 메뉴 개수", min_value=1, max_value=20, value=5, step=1, key="batch_menu_count")
+    ps_input_block(title="메뉴 일괄 등록", description="여러 메뉴를 한 번에 등록", level="secondary", body_fn=_body_batch)
     
-    # 일괄 선택 옵션
-    col_batch1, col_batch2, col_batch3 = st.columns(3)
-    with col_batch1:
-        batch_category = st.selectbox("일괄 메뉴분류", options=[""] + MENU_CATEGORIES, key="batch_category")
-    with col_batch2:
-        batch_status = st.selectbox("일괄 상태", options=[""] + MENU_STATUSES, key="batch_status")
-    with col_batch3:
-        batch_roles = st.multiselect("일괄 해시태그 분류", options=ROLE_TAGS, key="batch_roles")
-    
-    st.markdown("---")
-    st.write(f"**📋 총 {menu_count}개 메뉴 입력**")
-    
-    menu_data = []
-    for i in range(menu_count):
-        with st.expander(f"메뉴 {i+1}", expanded=(i < 3)):
-            col1, col2 = st.columns([3, 2])
-            with col1:
-                menu_name = st.text_input(f"메뉴명 {i+1}", key=f"batch_menu_name_{i}")
-            with col2:
-                price = st.number_input(f"판매가 (원) {i+1}", min_value=0, value=0, step=1000, key=f"batch_menu_price_{i}")
+    def handle_save_batch():
+        menu_count = st.session_state.get("batch_menu_count", 5)
+        menu_data = []
+        for i in range(menu_count):
+            menu_name = st.session_state.get(f"batch_menu_name_{i}", "").strip()
+            price = st.session_state.get(f"batch_menu_price_{i}", 0) or 0
+            category = st.session_state.get(f"batch_category_{i}", "")
+            status = st.session_state.get(f"batch_status_{i}", MENU_STATUSES[0])
+            roles = st.session_state.get(f"batch_roles_{i}", [])
             
-            col3, col4 = st.columns(2)
-            with col3:
-                category = st.selectbox(f"메뉴분류 {i+1}", options=[""] + MENU_CATEGORIES, 
-                                       index=MENU_CATEGORIES.index(batch_category) + 1 if batch_category in MENU_CATEGORIES else 0,
-                                       key=f"batch_category_{i}")
-            with col4:
-                status = st.selectbox(f"상태 {i+1}", options=MENU_STATUSES,
-                                     index=MENU_STATUSES.index(batch_status) if batch_status in MENU_STATUSES else 0,
-                                     key=f"batch_status_{i}")
-            
-            roles = st.multiselect(f"해시태그 분류 {i+1}", options=ROLE_TAGS, default=batch_roles, key=f"batch_roles_{i}")
-            
-            if menu_name and menu_name.strip() and price > 0:
+            if menu_name and price > 0:
                 menu_data.append({
-                    'name': menu_name.strip(),
+                    'name': menu_name,
                     'price': int(price),
                     'category': category if category else None,
                     'status': status,
                     'roles': roles
                 })
-    
-    if st.button("💾 일괄 저장", type="primary", key="batch_save", use_container_width=True):
+        
         if not menu_data:
             ui_flash_error("저장할 메뉴가 없습니다. 메뉴명과 판매가를 입력해주세요.")
-        else:
-            try:
-                saved_count = 0
-                for menu in menu_data:
-                    success, msg = save_menu(menu['name'], menu['price'])
-                    if success:
-                        if menu['category']:
-                            set_menu_portfolio_category(store_id, menu['name'], menu['category'])
-                        if menu['roles']:
-                            set_menu_portfolio_tag(store_id, menu['name'], menu['roles'][0])
-                        saved_count += 1
-                ui_flash_success(f"{saved_count}개 메뉴가 저장되었습니다.")
-                st.rerun()
-            except Exception as e:
-                ui_flash_error(f"저장 실패: {str(e)}")
+            return
+        
+        try:
+            saved_count = 0
+            for menu in menu_data:
+                success, msg = save_menu(menu['name'], menu['price'])
+                if success:
+                    if menu['category']:
+                        set_menu_portfolio_category(store_id, menu['name'], menu['category'])
+                    if menu['roles']:
+                        set_menu_portfolio_tag(store_id, menu['name'], menu['roles'][0])
+                    saved_count += 1
+            ui_flash_success(f"{saved_count}개 메뉴가 저장되었습니다.")
+            st.rerun()
+        except Exception as e:
+            ui_flash_error(f"저장 실패: {str(e)}")
+    
+    st.session_state["_menu_batch_save"] = handle_save_batch
 
 
 def _render_zone_c_filters(menu_df, categories, roles, menu_has_recipe):
@@ -483,7 +515,7 @@ def _render_zone_d_menu_list(menu_df, categories, roles, menu_has_recipe, menu_c
             st.markdown("---")
 
 
-def _render_zone_e_management(menu_df, categories, roles, store_id):
+def _render_zone_e_management(menu_df, categories, roles, menu_has_recipe, store_id):
     """ZONE E: 입력 작업 안내 (Bottom CTA)"""
     # 분석/전략 요소 제거: 메뉴분류/해시태그 현황 및 포트폴리오 설계실 이동 버튼 제거
     # TODO: 분석센터로 이동 예정

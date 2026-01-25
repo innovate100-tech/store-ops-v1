@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from src.ui_helpers import ui_flash_success, ui_flash_error
 from src.ui.layouts.input_layouts import render_console_layout
 from src.ui.components.form_kit import inject_form_kit_css, ps_section
+from src.ui.components.form_kit_v2 import inject_form_kit_v2_css, ps_input_block, ps_inline_feedback, ps_input_status_badge
 from src.storage_supabase import load_csv, save_inventory, soft_invalidate, clear_session_cache
 from src.auth import get_current_store_id, get_supabase_client
 from src.analytics import calculate_ingredient_usage
@@ -69,6 +70,7 @@ def render_inventory_input_page():
     """재고 입력 페이지 렌더링 (대량 입력 중심, CONSOLE형 레이아웃 적용)"""
     # FormKit CSS 주입
     inject_form_kit_css()
+    inject_form_kit_v2_css("inventory_input")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -121,15 +123,13 @@ def render_inventory_input_page():
         _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order)
     
     def render_work_area_content():
-        """Work Area: Filter + ZONE B"""
-        # 필터 & 검색
+        """Work Area: Filter + ZONE B + Zone C + Action Bar"""
         filtered_ingredient_df = _render_filters(ingredient_df, inventory_map, categories)
         st.markdown("---")
-        # ZONE B: 대량 입력 테이블
         _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, ingredient_df, inventory_map, categories)
-        # ZONE C도 여기서 처리 (filtered_ingredient_df 접근을 위해)
         st.markdown("---")
         _render_zone_c_save_validation(store_id, filtered_ingredient_df, ingredient_df, inventory_map)
+        _render_inventory_action_bar(store_id, filtered_ingredient_df, ingredient_df, inventory_map)
     
     def render_list_content():
         """List/Editor: 사용 안 함 (Work Area에 포함)"""
@@ -149,8 +149,8 @@ def render_inventory_input_page():
 
 
 def _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order):
-    """ZONE A: 대시보드 & 빠른 액션"""
-    render_section_header("📊 재고 현황 대시보드", "📊")
+    """ZONE A: 대시보드 (읽기 전용 KPI). 액션은 하단 Action Bar에서."""
+    ps_section("재고 현황", icon="📊")
     
     total_ingredients = len(ingredient_df)
     registered_inventory = len(inventory_map)
@@ -158,7 +158,6 @@ def _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order):
                          if inv_data['current'] < inv_data['safety'])
     unregistered_count = total_ingredients - registered_inventory
     
-    # 핵심 지표 카드
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("전체 재료 수", f"{total_ingredients}개")
@@ -173,25 +172,8 @@ def _render_zone_a_dashboard(ingredient_df, inventory_map, needs_order):
                           if inv_data['current'] > inv_data['safety'] * 1.2)
         st.metric("정상 재고", f"{normal_count}개")
     
-    # 진행률 표시
     registration_rate = (registered_inventory / total_ingredients * 100) if total_ingredients > 0 else 0
     st.progress(registration_rate / 100, text=f"재고 등록률: {registration_rate:.0f}%")
-    
-    # 빠른 액션 버튼
-    col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
-    with col_btn1:
-        if st.button("📋 기존 재고 불러오기", key="inventory_load_existing", use_container_width=True):
-            st.session_state['inventory_load_existing'] = True
-            st.rerun()
-    with col_btn2:
-        if st.button("🔄 초기화", key="inventory_reset", use_container_width=True):
-            if 'inventory_input_data' in st.session_state:
-                del st.session_state['inventory_input_data']
-            st.rerun()
-    with col_btn3:
-        if st.button("💾 전체 저장", type="primary", key="inventory_save_all", use_container_width=True):
-            st.session_state['inventory_save_trigger'] = True
-            st.rerun()
 
 
 def _render_filters(ingredient_df, inventory_map, categories):
@@ -438,8 +420,8 @@ def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingre
                 label_visibility="collapsed"
             )
         with row_cols[5]:
-            st.markdown(f'<span style="color: {status_color}; font-weight: 600;">{status_text}</span>', 
-                       unsafe_allow_html=True)
+            badge_status = "ok" if status_text == "정상" else ("danger" if status_text == "부족" else "warn")
+            ps_input_status_badge(badge_status, status_text)
         with row_cols[6]:
             st.markdown(f"{existing_current_order:.2f}")
         with row_cols[7]:
@@ -470,10 +452,9 @@ def _render_zone_b_bulk_input_table(store_id, filtered_ingredient_df, full_ingre
 
 
 def _render_zone_c_save_validation(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map):
-    """ZONE C: 저장 & 검증"""
+    """ZONE C: 검증 정보만 (저장/초기화/불러오기는 하단 Action Bar에서)"""
     ps_section("저장 & 검증", icon="💾")
     
-    # 변경된 항목 수집
     changed_items = {}
     if 'inventory_changed_items' in st.session_state:
         for ingredient_name in st.session_state['inventory_changed_items']:
@@ -481,47 +462,55 @@ def _render_zone_c_save_validation(store_id, filtered_ingredient_df, full_ingred
             if session_key in st.session_state:
                 changed_items[ingredient_name] = st.session_state[session_key]
     
-    # 변경된 항목 표시
     if changed_items:
-        st.info(f"**변경된 항목: {len(changed_items)}개**")
-        
-        # 변경된 항목 목록
+        ps_inline_feedback("변경된 항목", f"{len(changed_items)}개", "warn")
         with st.expander("변경된 항목 목록 보기"):
-            for ingredient_name in list(changed_items.keys())[:10]:  # 최대 10개만 표시
+            for ingredient_name in list(changed_items.keys())[:10]:
                 st.write(f"- {ingredient_name}")
             if len(changed_items) > 10:
                 st.write(f"... 외 {len(changed_items) - 10}개")
     else:
-        st.info("변경된 항목이 없습니다.")
+        ps_inline_feedback("변경된 항목", "없음", "ok")
     
-    # 저장 버튼
-    col_save, col_cancel = st.columns([1, 1])
-    with col_save:
-        if st.button("💾 변경된 항목 저장", type="primary", key="inventory_save_changed", use_container_width=True):
-            if not changed_items:
-                ui_flash_error("저장할 변경 사항이 없습니다.")
-            else:
-                _save_changed_items(store_id, changed_items, full_ingredient_df)
-    
-    with col_cancel:
-        if st.button("🔄 초기화", key="inventory_reset_changes", use_container_width=True):
-            if 'inventory_changed_items' in st.session_state:
-                for ingredient_name in st.session_state['inventory_changed_items']:
-                    session_key = f"inventory_input_{ingredient_name}"
-                    if session_key in st.session_state:
-                        del st.session_state[session_key]
-                del st.session_state['inventory_changed_items']
-            st.rerun()
-    
-    # 전체 저장 버튼 (ZONE A에서 트리거된 경우)
     if st.session_state.get('inventory_save_trigger', False):
         st.session_state['inventory_save_trigger'] = False
         _save_all_items(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map)
-    
-    # 기존 재고 불러오기 (ZONE A에서 트리거된 경우)
+    if st.session_state.get('inventory_save_changed_trigger', False):
+        st.session_state['inventory_save_changed_trigger'] = False
+        _save_changed_items(store_id, changed_items, full_ingredient_df)
     if st.session_state.get('inventory_load_existing', False):
         st.session_state['inventory_load_existing'] = False
         _load_existing_inventory(filtered_ingredient_df, inventory_map, full_ingredient_df)
+
+
+def _render_inventory_action_bar(store_id, filtered_ingredient_df, full_ingredient_df, inventory_map):
+    """하단 Action Bar: 저장/불러오기/초기화 (1곳만)"""
+    def _body():
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            if st.button("💾 변경 저장", type="primary", key="inventory_act_save_changed", use_container_width=True):
+                st.session_state["inventory_save_changed_trigger"] = True
+                st.rerun()
+        with c2:
+            if st.button("💾 전체 저장", key="inventory_act_save_all", use_container_width=True):
+                st.session_state["inventory_save_trigger"] = True
+                st.rerun()
+        with c3:
+            if st.button("📋 불러오기", key="inventory_act_load", use_container_width=True):
+                st.session_state["inventory_load_existing"] = True
+                st.rerun()
+        with c4:
+            if st.button("🔄 초기화", key="inventory_act_reset", use_container_width=True):
+                if "inventory_changed_items" in st.session_state:
+                    for k in list(st.session_state.get("inventory_changed_items", [])):
+                        sk = f"inventory_input_{k}"
+                        if sk in st.session_state:
+                            del st.session_state[sk]
+                    del st.session_state["inventory_changed_items"]
+                if "inventory_input_data" in st.session_state:
+                    del st.session_state["inventory_input_data"]
+                st.rerun()
+    ps_input_block(title="액션", description="저장·불러오기·초기화", level="primary", body_fn=_body)
 
 
 def _save_changed_items(store_id, changed_items, full_ingredient_df):
