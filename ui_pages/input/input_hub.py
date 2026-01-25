@@ -1483,34 +1483,24 @@ def render_input_hub_v3():
     recipe_card_data = 'data-ps-start-needed="true"' if recipe_card_class else ''
     inventory_card_data = 'data-ps-start-needed="true"' if inventory_card_class else ''
     
-    # STEP 배지 추가 (시작 필요 항목에만)
-    menu_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 1</div>' if menu_card_class else ""
-    ing_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 2</div>' if ing_card_class else ""
-    recipe_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 3</div>' if recipe_card_class else ""
-    inventory_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 4</div>' if inventory_card_class else ""
-    
     # HTML을 문자열 연결로 구성 (f-string 문제 회피)
     cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
     cards_html += f'<div class="{menu_card_class}" {menu_card_data} style="{menu_card_style}">'
-    cards_html += menu_step_badge
     cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>'
     cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>'
     cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get("menu_count", 0)}개</div>'
     cards_html += '</div>'
     cards_html += f'<div class="{ing_card_class}" {ing_card_data} style="{ing_card_style}">'
-    cards_html += ing_step_badge
     cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>'
     cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>'
     cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get("ing_count", 0)}개</div>'
     cards_html += '</div>'
     cards_html += f'<div class="{recipe_card_class}" {recipe_card_data} style="{recipe_card_style}">'
-    cards_html += recipe_step_badge
     cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>'
     cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>'
     cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>'
     cards_html += '</div>'
     cards_html += f'<div class="{inventory_card_class}" {inventory_card_data} style="{inventory_card_style}">'
-    cards_html += inventory_step_badge
     cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>'
     cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>'
     cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>'
@@ -1688,16 +1678,13 @@ def render_input_hub_v3():
         # 시작 필요일 때는 기본 스타일 + data 속성 (Streamlit이 클래스를 제거할 수 있으므로)
         daily_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);"
         daily_card_data = 'data-ps-start-needed="true"'
-        daily_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 5</div>'
     else:
         daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
         daily_card_data = ''
-        daily_step_badge = ""
     
     # 운영 기록 카드 HTML을 문자열 연결로 구성
     op_cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
     op_cards_html += f'<div class="{daily_card_class}" {daily_card_data} style="{daily_card_style}">'
-    op_cards_html += daily_step_badge
     op_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>'
     op_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>'
     op_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>'
@@ -1848,20 +1835,14 @@ def render_input_hub_v3():
     target_card_data = 'data-ps-start-needed="true"' if target_card_class else ''
     cost_target_card_data = 'data-ps-start-needed="true"' if cost_target_card_class else ''
     
-    # STEP 배지 추가 (시작 필요 항목에만)
-    target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if target_card_class else ""
-    cost_target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if cost_target_card_class else ""
-    
     # 목표 카드 HTML을 문자열 연결로 구성
     target_cards_html = f'<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">'
     target_cards_html += f'<div class="{target_card_class}" {target_card_data} style="{target_card_style}">'
-    target_cards_html += target_step_badge
     target_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>'
     target_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>'
     target_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>'
     target_cards_html += '</div>'
     target_cards_html += f'<div class="{cost_target_card_class}" {cost_target_card_data} style="{cost_target_card_style}">'
-    target_cards_html += cost_target_step_badge
     target_cards_html += f'<div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>'
     target_cards_html += f'<div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>'
     target_cards_html += f'<div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>'
