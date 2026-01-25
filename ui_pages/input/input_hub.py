@@ -1394,19 +1394,10 @@ def render_input_hub_v3():
     struct_completed = sum([menu_operable, ing_operable, recipe_operable])
     struct_total = 3
     struct_remaining = struct_total - struct_completed
-    struct_progress_text = ""
     if struct_remaining > 0:
-        struct_progress_text = f"""
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
-            ⚠️ {struct_remaining}개 항목 남음
-        </div>
-        """
+        struct_progress_html = f'<div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">⚠️ {struct_remaining}개 항목 남음</div>'
     else:
-        struct_progress_text = """
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
-            ✅ 모든 항목 완료!
-        </div>
-        """
+        struct_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
     st.markdown(f"""
     <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
@@ -1418,7 +1409,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {gauge_color}; font-weight: 600;">{gauge_text}</div>
         </div>
-        {struct_progress_text}
+        {struct_progress_html}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1493,61 +1484,10 @@ def render_input_hub_v3():
     inventory_card_data = 'data-ps-start-needed="true"' if inventory_card_class else ''
     
     # STEP 배지 추가 (시작 필요 항목에만)
-    menu_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 1</div>
-    """ if menu_card_class else ""
-    
-    ing_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 2</div>
-    """ if ing_card_class else ""
-    
-    recipe_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 3</div>
-    """ if recipe_card_class else ""
-    
-    inventory_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 4</div>
-    """ if inventory_card_class else ""
+    menu_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 1</div>' if menu_card_class else ""
+    ing_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 2</div>' if ing_card_class else ""
+    recipe_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 3</div>' if recipe_card_class else ""
+    inventory_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 4</div>' if inventory_card_class else ""
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1695,19 +1635,10 @@ def render_input_hub_v3():
     op_completed = sum([has_daily_close, r4["status"] == "completed", r5["status"] == "completed"])
     op_total = 3
     op_remaining = op_total - op_completed
-    op_progress_text = ""
     if op_remaining > 0:
-        op_progress_text = f"""
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
-            ⚠️ {op_remaining}개 항목 남음
-        </div>
-        """
+        op_progress_html = f'<div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">⚠️ {op_remaining}개 항목 남음</div>'
     else:
-        op_progress_text = """
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
-            ✅ 모든 항목 완료!
-        </div>
-        """
+        op_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">
@@ -1720,7 +1651,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {op_gauge_color}; font-weight: 600;">{op_gauge_text}</div>
         </div>
-        {op_progress_text}
+        {op_progress_html}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1757,19 +1688,7 @@ def render_input_hub_v3():
         # 시작 필요일 때는 기본 스타일 + data 속성 (Streamlit이 클래스를 제거할 수 있으므로)
         daily_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);"
         daily_card_data = 'data-ps-start-needed="true"'
-        daily_step_badge = """
-        <div style="
-            display: inline-block;
-            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 700;
-            padding: 0.2rem 0.5rem;
-            border-radius: 10px;
-            margin-bottom: 0.3rem;
-            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-        ">STEP 5</div>
-        """
+        daily_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 5</div>'
     else:
         daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
         daily_card_data = ''
@@ -1880,19 +1799,10 @@ def render_input_hub_v3():
     target_completed = sum([assets.get('has_target', False), assets.get('has_cost_target', False)])
     target_total = 2
     target_remaining = target_total - target_completed
-    target_progress_text = ""
     if target_remaining > 0:
-        target_progress_text = f"""
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
-            ⚠️ {target_remaining}개 항목 남음
-        </div>
-        """
+        target_progress_html = f'<div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">⚠️ {target_remaining}개 항목 남음</div>'
     else:
-        target_progress_text = """
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
-            ✅ 모든 항목 완료!
-        </div>
-        """
+        target_progress_html = '<div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">✅ 모든 항목 완료!</div>'
     
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
@@ -1905,7 +1815,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {target_gauge_color}; font-weight: 600;">{target_gauge_text}</div>
         </div>
-        {target_progress_text}
+        {target_progress_html}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1937,33 +1847,8 @@ def render_input_hub_v3():
     cost_target_card_data = 'data-ps-start-needed="true"' if cost_target_card_class else ''
     
     # STEP 배지 추가 (시작 필요 항목에만)
-    target_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 6</div>
-    """ if target_card_class else ""
-    
-    cost_target_step_badge = """
-    <div style="
-        display: inline-block;
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 10px;
-        margin-bottom: 0.3rem;
-        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-    ">STEP 6</div>
-    """ if cost_target_card_class else ""
+    target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if target_card_class else ""
+    cost_target_step_badge = '<div style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); color: white; font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 10px; margin-bottom: 0.3rem; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);">STEP 6</div>' if cost_target_card_class else ""
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
