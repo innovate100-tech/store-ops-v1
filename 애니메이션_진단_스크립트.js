@@ -50,28 +50,90 @@ if (hasKeyframes) {
     console.log('✅ keyframes 생성 완료');
 }
 
-// 2단계: "지금 시작하세요" 텍스트가 있는 요소 찾기
-const allElements = document.querySelectorAll('*');
+// 2단계: 카드 찾기 (여러 방법 시도)
 const foundElements = [];
 const processedDivs = new Set();
 
+// 방법 1: 텍스트 기반 검색
+const allElements = document.querySelectorAll('*');
 allElements.forEach(el => {
     const text = el.textContent || '';
-    if (text.includes('지금 시작하세요') || text.includes('🚨 지금 시작하세요') || text.includes('시작 필요')) {
+    if (text.includes('지금 시작하세요') || text.includes('🚨') || text.includes('시작 필요')) {
+        // 텍스트 요소의 부모 div 찾기 (카드)
         let parentDiv = el;
         while (parentDiv && parentDiv.tagName !== 'DIV' && parentDiv.parentElement) {
             parentDiv = parentDiv.parentElement;
         }
+        // div를 찾지 못하면 원래 요소 사용
         if (!parentDiv || parentDiv.tagName !== 'DIV') {
             parentDiv = el;
         }
         
-        if (!processedDivs.has(parentDiv)) {
-            processedDivs.add(parentDiv);
+        // 이미 처리한 div인지 확인
+        if (processedDivs.has(parentDiv)) {
+            return;
+        }
+        processedDivs.add(parentDiv);
+        
+        const inlineStyle = parentDiv.getAttribute('style') || '';
+        const style = window.getComputedStyle(parentDiv);
+        
+        // 주황색 스타일이 있거나 카드처럼 보이는 div만 추가 (실제 코드와 동일한 로직)
+        const hasOrangeStyle = 
+            inlineStyle.includes('245, 158, 11') ||
+            inlineStyle.includes('F59E0B') ||
+            inlineStyle.includes('rgba(245, 158, 11') ||
+            style.borderColor.includes('245') || 
+            style.borderColor.includes('158') || 
+            style.color.includes('245') ||
+            style.color.includes('158') ||
+            style.backgroundColor.includes('245') || 
+            style.backgroundColor.includes('158');
+        
+        const looksLikeCard = (style.padding !== '0px' && style.padding !== '') || 
+                             inlineStyle.includes('border-radius') ||
+                             inlineStyle.includes('padding') ||
+                             inlineStyle.includes('background');
+        
+        if (hasOrangeStyle || looksLikeCard) {
             foundElements.push(parentDiv);
         }
     }
 });
+
+// 방법 2: 오렌지색 스타일 기반 검색 (텍스트 검색이 실패한 경우)
+if (foundElements.length === 0) {
+    console.log('⚠️ 텍스트 검색 실패 - 스타일 기반 검색 시도...');
+    const allDivs = document.querySelectorAll('div');
+    allDivs.forEach(div => {
+        const inlineStyle = div.getAttribute('style') || '';
+        const computedStyle = window.getComputedStyle(div);
+        
+        // 오렌지색 확인 (여러 방법) - 실제 코드와 동일한 로직
+        const hasOrangeStyle = 
+            inlineStyle.includes('245, 158, 11') || 
+            inlineStyle.includes('F59E0B') || 
+            inlineStyle.includes('rgba(245, 158, 11') ||
+            computedStyle.borderColor.includes('245') || 
+            computedStyle.borderColor.includes('158') || 
+            computedStyle.color.includes('245') || 
+            computedStyle.color.includes('158') ||
+            computedStyle.backgroundColor.includes('245') || 
+            computedStyle.backgroundColor.includes('158');
+        
+        // 카드처럼 보이는지 확인 - 실제 코드와 동일한 로직
+        const looksLikeCard = 
+            (computedStyle.padding !== '0px' && computedStyle.padding !== '') || 
+            inlineStyle.includes('border-radius') ||
+            inlineStyle.includes('padding') || 
+            inlineStyle.includes('background');
+        
+        if ((hasOrangeStyle || looksLikeCard) && !processedDivs.has(div)) {
+            processedDivs.add(div);
+            foundElements.push(div);
+        }
+    });
+}
 
 console.log(`📊 발견된 카드: ${foundElements.length}개`);
 

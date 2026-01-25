@@ -1075,26 +1075,30 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     /* keyframes 정의 (RESCUE 계층에서도 보장) */
     @keyframes pulse-start-needed {
         0%, 100% {
-            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7),
-                        0 0 15px rgba(245, 158, 11, 0.5),
-                        0 0 30px rgba(245, 158, 11, 0.3);
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8),
+                        0 0 25px rgba(245, 158, 11, 0.7),
+                        0 0 50px rgba(245, 158, 11, 0.5),
+                        0 0 75px rgba(245, 158, 11, 0.3);
             transform: scale(1);
         }
         50% {
-            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0),
-                        0 0 20px rgba(245, 158, 11, 0.7),
-                        0 0 40px rgba(245, 158, 11, 0.5);
-            transform: scale(1.02);
+            box-shadow: 0 0 0 15px rgba(245, 158, 11, 0),
+                        0 0 35px rgba(245, 158, 11, 1),
+                        0 0 70px rgba(245, 158, 11, 0.8),
+                        0 0 100px rgba(245, 158, 11, 0.5);
+            transform: scale(1.08);
         }
     }
     @keyframes glow-pulse {
         0%, 100% {
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5),
-                        0 0 20px rgba(245, 158, 11, 0.3);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.7),
+                        0 0 40px rgba(245, 158, 11, 0.5),
+                        0 0 60px rgba(245, 158, 11, 0.3);
         }
         50% {
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.7),
-                        0 0 30px rgba(245, 158, 11, 0.5);
+            box-shadow: 0 0 30px rgba(245, 158, 11, 1),
+                        0 0 60px rgba(245, 158, 11, 0.8),
+                        0 0 90px rgba(245, 158, 11, 0.5);
         }
     }
     
