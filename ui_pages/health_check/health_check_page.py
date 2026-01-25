@@ -1,7 +1,7 @@
 """
-매장 체크리스트 페이지 (리디자인)
+매장 체크리스트 페이지 (Phase 3: FormKit v2 + 블록 리듬 적용)
 QSCPPPMHF 9개 영역 매장 체크리스트 UI - 빠른 입력 중심
-Header + GuideBox 추가 (탭 구조 유지)
+입력 도구 톤으로 통일
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -10,7 +10,15 @@ import time
 from datetime import datetime
 from typing import Dict, Optional, List
 from src.ui_helpers import handle_data_error, render_section_header
-from src.ui.layouts.input_layouts import render_guide_box, INPUT_LAYOUT_CSS
+from src.ui.layouts.input_layouts import render_form_layout, render_guide_box, INPUT_LAYOUT_CSS
+from src.ui.components.form_kit import inject_form_kit_css
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_input_block,
+    ps_secondary_select,
+    ps_inline_feedback,
+    ps_input_status_badge
+)
 from src.auth import get_current_store_id
 from src.health_check.storage import (
     create_health_session,
@@ -37,29 +45,10 @@ AUTO_SAVE_DELAY = 2.0  # 자동 저장 지연 시간 (초)
 
 
 def render_health_check_page():
-    """매장 체크리스트 페이지 렌더링 (리디자인, Header + GuideBox 추가)"""
-    # CSS 주입
-    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-    
-    # Header
-    header_html = """
-    <div class="ps-input-header">
-        <div class="ps-input-header-left">
-            <span class="ps-input-header-icon">📋</span>
-            <h1 class="ps-input-header-title">건강검진 실시</h1>
-        </div>
-    </div>
-    """
-    st.markdown(header_html, unsafe_allow_html=True)
-    
-    # GuideBox (G1)
-    render_guide_box(
-        kind="G1",
-        conclusion=None,  # 기본값 사용
-        bullets=None,  # 기본값 사용
-        next_action=None,  # 기본값 사용
-        inject_css=False  # CSS는 이미 위에서 주입
-    )
+    """매장 체크리스트 페이지 렌더링 (Phase 3: FormKit v2 + 블록 리듬)"""
+    # FormKit v2 CSS 주입
+    inject_form_kit_css()
+    inject_form_kit_v2_css("health_check_page")
     
     store_id = get_current_store_id()
     if not store_id:
@@ -120,7 +109,7 @@ def render_health_check_page():
         
         with tab2:
             # 분석/전략 요소 안내 (입력 전용 페이지 역할 분리)
-            st.caption("ℹ️ 이 탭은 참고용입니다. (분석센터로 이전 예정)")
+            st.info("📊 분석센터로 이전 예정 (현재는 참고용)")
             try:
                 render_result_report(store_id, session_id)
             except Exception as e:
@@ -129,7 +118,7 @@ def render_health_check_page():
         
         with tab3:
             # 분석/전략 요소 안내 (입력 전용 페이지 역할 분리)
-            st.caption("ℹ️ 이 탭은 참고용입니다. (분석센터로 이전 예정)")
+            st.info("📊 분석센터로 이전 예정 (현재는 참고용)")
             render_history(store_id)
     else:
         # 세션이 없으면 시작 화면
@@ -137,7 +126,7 @@ def render_health_check_page():
         
         # 이력은 별도 섹션으로
         st.markdown("---")
-        st.caption("ℹ️ 이 섹션은 참고용입니다. (분석센터로 이전 예정)")
+        st.info("📊 분석센터로 이전 예정 (현재는 참고용)")
         render_history(store_id)
 
 
@@ -262,7 +251,7 @@ def _save_answers_batch(store_id: str, session_id: str) -> tuple[bool, Optional[
 
 
 def render_input_form_redesigned(store_id: str, session_id: str):
-    """입력 폼 렌더링 (리디자인) - 버튼 그리드 방식"""
+    """입력 폼 렌더링 (Phase 3: FormKit v2 + 블록 리듬)"""
     # session_state 초기화 (초기 1회만 DB 로드)
     _initialize_health_check_state(store_id, session_id)
     
@@ -293,194 +282,242 @@ def render_input_form_redesigned(store_id: str, session_id: str):
     # 진행률 계산
     progress_ratio = answered_count / TOTAL_QUESTIONS if TOTAL_QUESTIONS > 0 else 0.0
     can_complete = answered_count >= 60  # 최소 60개 이상
+    completion_rate = (answered_count / TOTAL_QUESTIONS * 100) if TOTAL_QUESTIONS > 0 else 0
     
-    # ============================================
-    # ZONE A: 대시보드 & 진행 상황
-    # ============================================
-    render_section_header("📊 진행 상황 대시보드", "📊")
+    # Summary Strip 항목
+    summary_items = [
+        {
+            "label": "전체 문항",
+            "value": f"{TOTAL_QUESTIONS}개",
+            "badge": None
+        },
+        {
+            "label": "완료 문항",
+            "value": f"{answered_count}개",
+            "badge": "success" if answered_count >= 60 else "warning"
+        },
+        {
+            "label": "완료율",
+            "value": f"{completion_rate:.0f}%",
+            "badge": "success" if completion_rate >= 80 else "warning"
+        }
+    ]
     
-    # 핵심 지표 카드
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("전체 문항", f"{TOTAL_QUESTIONS}개")
-    with col2:
-        st.metric("완료 문항", f"{answered_count}개", delta=f"{TOTAL_QUESTIONS - answered_count}개 남음")
-    with col3:
-        st.metric("미완료", f"{TOTAL_QUESTIONS - answered_count}개")
-    with col4:
-        completion_rate = (answered_count / TOTAL_QUESTIONS * 100) if TOTAL_QUESTIONS > 0 else 0
-        st.metric("완료율", f"{completion_rate:.0f}%")
+    # Mini Progress Panel 항목 (영역별 진행률)
+    mini_progress_items = []
+    for category in CATEGORIES_ORDER[:4]:  # 최대 4개만 표시
+        prog = category_progress[category]
+        status = "success" if prog['ratio'] >= 1.0 else ("pending" if prog['answered'] > 0 else "none")
+        mini_progress_items.append({
+            "label": category,
+            "status": status,
+            "value": f"{prog['answered']}/{prog['total']}"
+        })
     
-    # 진행률 바
-    st.progress(min(progress_ratio, 1.0))
-    st.caption(f"진행률: {answered_count}/{TOTAL_QUESTIONS} 문항 완료 ({progress_ratio*100:.1f}%)")
+    # ActionBar 액션 정의
+    def handle_complete():
+        """체크 완료 처리"""
+        if dirty_count > 0:
+            success, error_msg = _save_answers_batch(store_id, session_id)
+            if not success:
+                st.error(f"저장 실패: {error_msg}")
+                return
+        
+        success = finalize_health_session(store_id, session_id)
+        if success:
+            _clear_session_state()
+            if 'health_session_id' in st.session_state:
+                del st.session_state['health_session_id']
+            if 'health_check_view_mode' in st.session_state:
+                del st.session_state['health_check_view_mode']
+            st.success("체크가 완료되었습니다!")
+            st.rerun()
+        else:
+            st.error("체크 완료 처리에 실패했습니다.")
     
-    # 영역별 진행률
-    st.markdown("### 영역별 진행률")
-    progress_cols = st.columns(9)
-    for idx, category in enumerate(CATEGORIES_ORDER):
-        with progress_cols[idx]:
-            cat_progress = category_progress[category]
-            st.progress(cat_progress['ratio'])
-            st.caption(f"{category}: {cat_progress['answered']}/{cat_progress['total']}")
+    def handle_save():
+        """수동 저장"""
+        success, error_msg = _save_answers_batch(store_id, session_id)
+        if success:
+            st.session_state['qsc_last_save_time'] = time.time()
+            st.success("저장되었습니다!")
+            st.rerun()
+        else:
+            st.error(f"저장 실패: {error_msg}")
     
-    # 스마트 알림
-    alerts = []
-    if dirty_count > 0:
-        alerts.append(f"💾 저장되지 않은 변경: {dirty_count}개")
-    else:
-        alerts.append("✅ 모든 변경사항이 저장되었습니다.")
+    def handle_reset():
+        """초기화"""
+        _clear_session_state()
+        st.success("상태가 초기화되었습니다.")
+        st.rerun()
     
-    incomplete_categories = [cat for cat, prog in category_progress.items() if prog['answered'] < prog['total']]
-    if incomplete_categories:
-        alerts.append(f"ℹ️ 미완료 영역: {', '.join(incomplete_categories)}")
+    # ActionBar 구성
+    action_primary = None
+    action_secondary = []
     
     if can_complete:
-        alerts.append(f"✅ 완료 가능합니다! ({answered_count}개 답변 완료)")
+        action_primary = {
+            "label": "✅ 체크 완료",
+            "key": "health_check_complete",
+            "action": handle_complete
+        }
     else:
-        needed = 60
-        remaining = needed - answered_count
-        alerts.append(f"💡 최소 {needed}개 문항을 답변해야 완료할 수 있습니다. (현재: {answered_count}개, 남은 문항: {remaining}개)")
+        action_primary = {
+            "label": "⏳ 완료 불가 (최소 60개 필요)",
+            "key": "health_check_complete_disabled",
+            "action": lambda: st.warning("최소 60개 문항을 답변해야 완료할 수 있습니다.")
+        }
     
-    for alert in alerts:
-        if "저장되지 않은" in alert:
-            st.warning(alert)
-        elif "완료 가능" in alert:
-            st.success(alert)
-        else:
-            st.info(alert)
+    if dirty_count > 0:
+        action_secondary.append({
+            "label": "💾 수동 저장",
+            "key": "health_check_manual_save",
+            "action": handle_save
+        })
     
-    st.markdown("---")
+    action_secondary.append({
+        "label": "🔄 초기화",
+        "key": "health_check_reset",
+        "action": handle_reset
+    })
     
-    # ============================================
-    # 필터 & 네비게이션
-    # ============================================
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        category_filter = st.multiselect(
-            "영역 필터",
-            options=["전체"] + CATEGORIES_ORDER,
-            default=["전체"],
-            key="qsc_category_filter"
-        )
-    with col2:
-        search_term = st.text_input(
-            "🔍 질문 검색",
-            key="qsc_search",
-            placeholder="질문 코드 또는 텍스트로 검색..."
-        )
+    # GuideBox 내용 (입력 도구 톤)
+    guide_conclusion = "9개 영역(Q, S, C, P1, P2, P3, M, H, F)에 대해 각 10문항씩 총 90문항을 답변하세요"
+    guide_bullets = [
+        "답변은 자동 저장됩니다 (버튼 클릭 시 즉시 저장)",
+        "최소 60개 문항을 답변하면 완료할 수 있습니다"
+    ]
+    guide_next_action = "완료 후 결과 리포트에서 상세 분석을 확인하세요"
     
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE B: 빠른 입력 테이블 (핵심)
-    # ============================================
-    render_section_header("📝 빠른 입력", "📝")
-    
-    # 모든 질문 수집
-    all_questions = []
-    for category in CATEGORIES_ORDER:
-        category_questions = QUESTIONS.get(category, [])
-        for q in category_questions:
-            all_questions.append({
-                'category': category,
-                'code': q['code'],
-                'text': q['text']
-            })
-    
-    # 필터링 적용
-    filtered_questions = all_questions.copy()
-    
-    # 영역 필터
-    if "전체" not in category_filter:
-        filtered_questions = [q for q in filtered_questions if q['category'] in category_filter]
-    
-    # 검색 필터
-    if search_term and search_term.strip():
-        search_lower = search_term.lower()
-        filtered_questions = [
-            q for q in filtered_questions
-            if search_lower in q['code'].lower() or search_lower in q['text'].lower()
-        ]
-    
-    # 질문 렌더링 (영역별로 그룹화)
-    current_category = None
-    for question in filtered_questions:
-        category = question['category']
-        
-        # 영역 헤더 표시
-        if category != current_category:
-            if current_category is not None:
-                st.markdown("---")
-            st.markdown(f"### {category} ({CATEGORY_LABELS.get(category, category)})")
-            current_category = category
-        
-        # 질문별 버튼 그리드 렌더링
-        render_question_buttons(store_id, session_id, category, question['code'], question['text'])
-    
-    st.markdown("---")
-    
-    # ============================================
-    # ZONE C: 저장 & 완료
-    # ============================================
-    render_section_header("💾 저장 & 완료", "💾")
-    
-    # 저장 상태 표시
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
+    # Main Content 렌더링 함수
+    def render_main_content():
+        # 진행 상황 피드백
         if dirty_count > 0:
-            st.warning(f"💾 저장되지 않은 변경: {dirty_count}개")
+            ps_inline_feedback("warning", f"💾 저장되지 않은 변경: {dirty_count}개")
         else:
-            st.success("✅ 모든 변경사항이 저장되었습니다.")
+            ps_inline_feedback("success", "✅ 모든 변경사항이 저장되었습니다.")
         
-        # 마지막 저장 시간 표시
         last_save_time = st.session_state.get('qsc_last_save_time')
         if last_save_time:
             st.caption(f"마지막 저장: {datetime.fromtimestamp(last_save_time).strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    with col2:
-        if st.button("💾 수동 저장", use_container_width=True, disabled=dirty_count == 0):
-            success, error_msg = _save_answers_batch(store_id, session_id)
-            if success:
-                st.session_state['qsc_last_save_time'] = time.time()
-                st.success("저장되었습니다!")
-                st.rerun()
-            else:
-                st.error(f"저장 실패: {error_msg}")
-    
-    with col3:
-        if st.button("🔄 초기화", use_container_width=True, type="secondary"):
-            _clear_session_state()
-            st.success("상태가 초기화되었습니다.")
-            st.rerun()
-    
-    # 완료 버튼
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if can_complete:
-            if st.button("✅ 체크 완료", type="primary", use_container_width=True):
-                # dirty가 있으면 먼저 저장
-                if dirty_count > 0:
-                    success, error_msg = _save_answers_batch(store_id, session_id)
-                    if not success:
-                        st.error(f"저장 실패: {error_msg}")
-                        return
+        
+        # 진행률 바
+        st.progress(min(progress_ratio, 1.0))
+        st.caption(f"진행률: {answered_count}/{TOTAL_QUESTIONS} 문항 완료 ({progress_ratio*100:.1f}%)")
+        
+        # 미완료 영역 알림
+        incomplete_categories = [cat for cat, prog in category_progress.items() if prog['answered'] < prog['total']]
+        if incomplete_categories:
+            ps_inline_feedback("info", f"ℹ️ 미완료 영역: {', '.join(incomplete_categories)}")
+        
+        st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
+        
+        # 필터 블록
+        def _body_filter():
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                category_filter = st.multiselect(
+                    "영역 필터",
+                    options=["전체"] + CATEGORIES_ORDER,
+                    default=["전체"],
+                    key="qsc_category_filter"
+                )
+            with col2:
+                search_term = st.text_input(
+                    "🔍 질문 검색",
+                    key="qsc_search",
+                    placeholder="질문 코드 또는 텍스트로 검색..."
+                )
+        
+        ps_input_block(
+            title="필터",
+            description="영역별 필터링 및 질문 검색",
+            level="secondary",
+            body_fn=_body_filter
+        )
+        
+        st.markdown('<div style="margin: 1rem 0;"></div>', unsafe_allow_html=True)
+        
+        # 질문 입력 블록들
+        all_questions = []
+        for category in CATEGORIES_ORDER:
+            category_questions = QUESTIONS.get(category, [])
+            for q in category_questions:
+                all_questions.append({
+                    'category': category,
+                    'code': q['code'],
+                    'text': q['text']
+                })
+        
+        # 필터링 적용
+        filtered_questions = all_questions.copy()
+        category_filter = st.session_state.get("qsc_category_filter", ["전체"])
+        if "전체" not in category_filter:
+            filtered_questions = [q for q in filtered_questions if q['category'] in category_filter]
+        
+        search_term = st.session_state.get("qsc_search", "")
+        if search_term and search_term.strip():
+            search_lower = search_term.lower()
+            filtered_questions = [
+                q for q in filtered_questions
+                if search_lower in q['code'].lower() or search_lower in q['text'].lower()
+            ]
+        
+        # 영역별로 그룹화하여 블록으로 렌더링
+        current_category = None
+        category_questions_list = []
+        
+        for question in filtered_questions:
+            category = question['category']
+            if category != current_category:
+                # 이전 카테고리 블록 렌더링
+                if current_category is not None and category_questions_list:
+                    def _render_category_questions(cat=current_category, q_list=category_questions_list):
+                        for q in q_list:
+                            render_question_buttons(store_id, session_id, cat, q['code'], q['text'])
+                    
+                    ps_input_block(
+                        title=f"{current_category} ({CATEGORY_LABELS.get(current_category, current_category)})",
+                        description=f"{len(category_questions_list)}개 문항",
+                        level="secondary",
+                        body_fn=_render_category_questions
+                    )
+                    st.markdown('<div style="margin: 0.5rem 0;"></div>', unsafe_allow_html=True)
                 
-                # finalize 실행
-                success = finalize_health_session(store_id, session_id)
-                if success:
-                    _clear_session_state()
-                    if 'health_session_id' in st.session_state:
-                        del st.session_state['health_session_id']
-                    if 'health_check_view_mode' in st.session_state:
-                        del st.session_state['health_check_view_mode']
-                    st.success("체크가 완료되었습니다!")
-                    st.rerun()
-                else:
-                    st.error("체크 완료 처리에 실패했습니다.")
-        else:
-            st.button("⏳ 완료 불가", disabled=True, use_container_width=True)
+                # 새 카테고리 시작
+                current_category = category
+                category_questions_list = [question]
+            else:
+                category_questions_list.append(question)
+        
+        # 마지막 카테고리 블록 렌더링
+        if current_category is not None and category_questions_list:
+            def _render_category_questions(cat=current_category, q_list=category_questions_list):
+                for q in q_list:
+                    render_question_buttons(store_id, session_id, cat, q['code'], q['text'])
+            
+            ps_input_block(
+                title=f"{current_category} ({CATEGORY_LABELS.get(current_category, current_category)})",
+                description=f"{len(category_questions_list)}개 문항",
+                level="secondary",
+                body_fn=_render_category_questions
+            )
+    
+    # render_form_layout 적용
+    render_form_layout(
+        title="건강검진 실시",
+        icon="📋",
+        status_badge=None,
+        guide_kind="G1",
+        guide_conclusion=guide_conclusion,
+        guide_bullets=guide_bullets,
+        guide_next_action=guide_next_action,
+        summary_items=summary_items,
+        mini_progress_items=mini_progress_items if mini_progress_items else None,
+        action_primary=action_primary,
+        action_secondary=action_secondary if action_secondary else None,
+        main_content=render_main_content
+    )
 
 
 def render_question_buttons(store_id: str, session_id: str, category: str, question_code: str, question_text: str):
