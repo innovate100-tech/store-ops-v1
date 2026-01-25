@@ -962,11 +962,9 @@ def render_input_hub_v3():
                 cards.forEach(card => {
                     if (!card.hasAttribute('data-start-needed-applied')) {
                         card.setAttribute('data-start-needed-applied', 'true');
-                        card.style.setProperty('border', '2px solid rgba(245, 158, 11, 0.6)', 'important');
-                        card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
-                        card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
-                        card.style.setProperty('background', 'rgba(245, 158, 11, 0.08)', 'important');
-                        card.style.setProperty('position', 'relative', 'important');
+                        // 인라인 스타일 제거 후 애니메이션 적용
+                        card.removeAttribute('style');
+                        card.style.cssText = 'padding: 0.6rem; border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6) !important; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3) !important; animation: pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite !important; background: rgba(245, 158, 11, 0.08) !important; position: relative !important;';
                     }
                 });
                 
@@ -995,12 +993,25 @@ def render_input_hub_v3():
                 });
             }
             
-            // 즉시 실행
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', applyStartNeededStyles);
-            } else {
+            // 즉시 실행 (여러 시점에서 실행)
+            function startApplying() {
                 applyStartNeededStyles();
+                setTimeout(applyStartNeededStyles, 100);
+                setTimeout(applyStartNeededStyles, 300);
+                setTimeout(applyStartNeededStyles, 500);
+                setTimeout(applyStartNeededStyles, 1000);
             }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startApplying);
+            } else {
+                startApplying();
+            }
+            
+            window.addEventListener('load', function() {
+                setTimeout(applyStartNeededStyles, 100);
+                setTimeout(applyStartNeededStyles, 500);
+            });
             
             // MutationObserver로 새로 추가된 요소 감지
             const observer = new MutationObserver(function(mutations) {
@@ -1011,7 +1022,8 @@ def render_input_hub_v3():
                     }
                 });
                 if (shouldApply) {
-                    setTimeout(applyStartNeededStyles, 100);
+                    setTimeout(applyStartNeededStyles, 50);
+                    setTimeout(applyStartNeededStyles, 200);
                 }
             });
             
@@ -1022,8 +1034,8 @@ def render_input_hub_v3():
                 });
             }
             
-            // 주기적 확인 (Streamlit rerun 대응)
-            setInterval(applyStartNeededStyles, 1000);
+            // 주기적 확인 (Streamlit rerun 대응) - 더 자주 확인
+            setInterval(applyStartNeededStyles, 500);
         })();
         </script>
         """
@@ -1345,24 +1357,30 @@ def render_input_hub_v3():
         inventory_status_color = "#F59E0B"
         inventory_card_class = "ps-start-needed-card"
     
+    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
+    menu_card_style = "padding: 0.6rem; border-radius: 8px;" if menu_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    ing_card_style = "padding: 0.6rem; border-radius: 8px;" if ing_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    recipe_card_style = "padding: 0.6rem; border-radius: 8px;" if recipe_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    inventory_card_style = "padding: 0.6rem; border-radius: 8px;" if inventory_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{menu_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if menu_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{menu_card_class}" style="{menu_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
-        <div class="{ing_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if ing_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{ing_card_class}" style="{ing_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
-        <div class="{recipe_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if recipe_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{recipe_card_class}" style="{recipe_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
-        <div class="{inventory_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if inventory_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{inventory_card_class}" style="{inventory_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
@@ -1515,9 +1533,17 @@ def render_input_hub_v3():
         settle_status_color = "#F59E0B"
         settle_card_class = ""
     
+    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
+    daily_card_style = ""
+    if daily_card_class:
+        # 시작 필요일 때는 인라인 스타일 최소화 (JavaScript가 애니메이션 적용)
+        daily_card_style = "padding: 0.6rem; border-radius: 8px;"
+    else:
+        daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{daily_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if daily_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{daily_card_class}" style="{daily_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
@@ -1638,14 +1664,18 @@ def render_input_hub_v3():
         cost_target_color = "#F59E0B"
         cost_target_card_class = "ps-start-needed-card"
     
+    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
+    target_card_style = "padding: 0.6rem; border-radius: 8px;" if target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    cost_target_card_style = "padding: 0.6rem; border-radius: 8px;" if cost_target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{target_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if target_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{target_card_class}" style="{target_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
-        <div class="{cost_target_card_class}" style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {'rgba(245, 158, 11, 0.6)' if cost_target_card_class else 'rgba(148, 163, 184, 0.15)'};">
+        <div class="{cost_target_card_class}" style="{cost_target_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
