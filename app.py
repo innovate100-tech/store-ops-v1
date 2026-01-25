@@ -588,6 +588,19 @@ st.markdown("""
         padding: 0.5rem 1rem !important;
         background: transparent !important;
         border-bottom: none !important;
+        position: relative !important;
+        z-index: 2147483647 !important; /* 최상위 z-index 보장 */
+        pointer-events: auto !important; /* 클릭 가능 보장 */
+    }
+    
+    /* 햄버거 버튼 클릭 가능성 보장 */
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] [role="button"],
+    header[data-testid="stHeader"] > div > button,
+    header[data-testid="stHeader"] > div > div > button {
+        position: relative !important;
+        z-index: 2147483647 !important; /* 최상위 z-index 보장 */
+        pointer-events: auto !important; /* 클릭 가능 보장 */
     }
     
     /* 제목 위 불필요한 간격 제거 */
@@ -1091,6 +1104,24 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     }
     
 
+    /* 헤더와 햄버거 버튼 최우선 보장 */
+    header[data-testid="stHeader"] {
+      position: relative !important;
+      z-index: 2147483647 !important; /* 최상위 z-index 보장 */
+      pointer-events: auto !important; /* 클릭 가능 보장 */
+    }
+    
+    /* 햄버거 버튼 클릭 가능성 보장 */
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] [role="button"],
+    header[data-testid="stHeader"] > div > button,
+    header[data-testid="stHeader"] > div > div > button,
+    header[data-testid="stHeader"] > div > div > div > button {
+      position: relative !important;
+      z-index: 2147483647 !important; /* 최상위 z-index 보장 */
+      pointer-events: auto !important; /* 클릭 가능 보장 */
+    }
+    
     /* 컨텐츠 레이어 올리기 */
     [data-testid="stAppViewContainer"]{ position: relative !important; z-index: 1 !important; }
     [data-testid="stSidebar"], [data-testid="stMain"], [data-testid="stMainBlockContainer"]{
@@ -1103,6 +1134,16 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     .overlay, .backdrop, .background, .bg-layer {
       pointer-events: none !important;
       z-index: 0 !important;
+    }
+    
+    /* 헤더 위를 덮는 모든 fixed/absolute 요소 차단 */
+    div[style*="position: fixed"][style*="top: 0"],
+    div[style*="position: fixed"][style*="top:0"],
+    div[style*="position: absolute"][style*="top: 0"],
+    div[style*="position: absolute"][style*="top:0"] {
+      /* 헤더 영역(상단 60px)을 덮는 경우 pointer-events 차단 */
+      pointer-events: none !important;
+      z-index: -1 !important;
     }
     
     /* 파란 투명 화면 문제 해결: ps-hub-bg::before와 ::after 완전 제거 */
@@ -1118,4 +1159,93 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     </style>
     """
     inject_rescue(final_safety_pin_css, "final_safety_pin")
+    
+    # 햄버거 버튼 클릭 가능성 보장 JavaScript
+    hamburger_fix_js = """
+    <script>
+    (function() {
+        'use strict';
+        
+        function ensureHamburgerClickable() {
+            try {
+                // 헤더 찾기
+                const header = document.querySelector('header[data-testid="stHeader"]');
+                if (!header) return;
+                
+                // 헤더 z-index 최상위 보장
+                header.style.setProperty('z-index', '2147483647', 'important');
+                header.style.setProperty('position', 'relative', 'important');
+                header.style.setProperty('pointer-events', 'auto', 'important');
+                
+                // 헤더 내부 모든 버튼 찾기
+                const buttons = header.querySelectorAll('button, [role="button"]');
+                buttons.forEach(btn => {
+                    btn.style.setProperty('z-index', '2147483647', 'important');
+                    btn.style.setProperty('position', 'relative', 'important');
+                    btn.style.setProperty('pointer-events', 'auto', 'important');
+                });
+                
+                // 헤더 위를 덮는 모든 요소 찾기
+                const allElements = document.querySelectorAll('*');
+                allElements.forEach(el => {
+                    if (el === header || header.contains(el)) return;
+                    
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    const headerRect = header.getBoundingClientRect();
+                    
+                    // 헤더 영역과 겹치는지 확인
+                    const overlaps = !(
+                        rect.bottom < headerRect.top ||
+                        rect.top > headerRect.bottom ||
+                        rect.right < headerRect.left ||
+                        rect.left > headerRect.right
+                    );
+                    
+                    if (overlaps && (style.position === 'fixed' || style.position === 'absolute')) {
+                        // 헤더보다 z-index가 높으면 낮춤
+                        const zIndex = parseInt(style.zIndex) || 0;
+                        if (zIndex >= 2147483000) {
+                            el.style.setProperty('pointer-events', 'none', 'important');
+                            el.style.setProperty('z-index', '-1', 'important');
+                        }
+                    }
+                });
+            } catch (e) {
+                // 에러 무시
+            }
+        }
+        
+        // 즉시 실행
+        ensureHamburgerClickable();
+        
+        // DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureHamburgerClickable);
+        }
+        
+        // load 이벤트
+        window.addEventListener('load', ensureHamburgerClickable);
+        
+        // 사이드바 토글 시마다 실행
+        const observer = new MutationObserver(function() {
+            setTimeout(ensureHamburgerClickable, 100);
+        });
+        
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+        }
+        
+        // 주기적 확인 (덜 자주)
+        setInterval(ensureHamburgerClickable, 2000);
+    })();
+    </script>
+    """
+    st.markdown(hamburger_fix_js, unsafe_allow_html=True)
+    
     st.session_state["_ps_final_safety_pin_injected"] = True
