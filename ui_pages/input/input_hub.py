@@ -287,8 +287,10 @@ def inject_input_hub_controlboard_compact_css():
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     }}
     
-    /* 페이지 헤더 - 레이어드 카드 스타일 (옵션 4) */
-    [data-ps-scope="{scope_id}"] .ps-page-header-layered {{
+    /* 페이지 헤더 - 레이어드 카드 스타일 (옵션 4) - 전역 선택자 추가 */
+    .ps-page-header-layered,
+    [data-ps-scope="{scope_id}"] .ps-page-header-layered,
+    div[data-ps-scope="input_hub"].ps-page-header-layered {{
         background: rgba(30, 41, 59, 0.5) !important;
         border: 1px solid rgba(59, 130, 246, 0.3) !important;
         border-radius: 12px !important;
@@ -302,7 +304,9 @@ def inject_input_hub_controlboard_compact_css():
         position: relative !important;
     }}
     
-    [data-ps-scope="{scope_id}"] .ps-page-header-layered::before {{
+    .ps-page-header-layered::before,
+    [data-ps-scope="{scope_id}"] .ps-page-header-layered::before,
+    div[data-ps-scope="input_hub"].ps-page-header-layered::before {{
         content: "" !important;
         position: absolute !important;
         top: 0 !important;
@@ -319,12 +323,14 @@ def inject_input_hub_controlboard_compact_css():
         z-index: 1 !important;
     }}
     
+    .ps-page-header-content,
     [data-ps-scope="{scope_id}"] .ps-page-header-content {{
         padding: 1.8rem 2rem 1.5rem 2rem !important;
         position: relative !important;
         z-index: 2 !important;
     }}
     
+    .ps-page-header-title-row,
     [data-ps-scope="{scope_id}"] .ps-page-header-title-row {{
         display: flex !important;
         align-items: center !important;
@@ -332,13 +338,16 @@ def inject_input_hub_controlboard_compact_css():
         margin-bottom: 0.5rem !important;
     }}
     
+    .ps-page-header-icon,
     [data-ps-scope="{scope_id}"] .ps-page-header-icon {{
         font-size: 2.2rem !important;
         filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.5)) !important;
         line-height: 1 !important;
     }}
     
-    [data-ps-scope="{scope_id}"] .ps-page-header-title {{
+    .ps-page-header-title,
+    [data-ps-scope="{scope_id}"] .ps-page-header-title,
+    h1.ps-page-header-title {{
         font-size: 2.2rem !important;
         font-weight: 800 !important;
         color: #F8FAFC !important;
@@ -348,6 +357,7 @@ def inject_input_hub_controlboard_compact_css():
         line-height: 1.2 !important;
     }}
     
+    .ps-page-header-subtitle,
     [data-ps-scope="{scope_id}"] .ps-page-header-subtitle {{
         font-size: 0.9rem !important;
         color: #94A3B8 !important;
@@ -357,6 +367,7 @@ def inject_input_hub_controlboard_compact_css():
         margin-left: 3.2rem !important;
     }}
     
+    .ps-page-header-divider,
     [data-ps-scope="{scope_id}"] .ps-page-header-divider {{
         height: 4px !important;
         width: 60px !important;
@@ -368,23 +379,29 @@ def inject_input_hub_controlboard_compact_css():
     
     /* 반응형 대응 */
     @media (max-width: 768px) {{
+        .ps-page-header-content,
         [data-ps-scope="{scope_id}"] .ps-page-header-content {{
             padding: 1.4rem 1.5rem 1.2rem 1.5rem !important;
         }}
         
+        .ps-page-header-icon,
         [data-ps-scope="{scope_id}"] .ps-page-header-icon {{
             font-size: 1.8rem !important;
         }}
         
-        [data-ps-scope="{scope_id}"] .ps-page-header-title {{
+        .ps-page-header-title,
+        [data-ps-scope="{scope_id}"] .ps-page-header-title,
+        h1.ps-page-header-title {{
             font-size: 1.8rem !important;
         }}
         
+        .ps-page-header-subtitle,
         [data-ps-scope="{scope_id}"] .ps-page-header-subtitle {{
             font-size: 0.85rem !important;
             margin-left: 2.8rem !important;
         }}
         
+        .ps-page-header-divider,
         [data-ps-scope="{scope_id}"] .ps-page-header-divider {{
             margin-left: 2.8rem !important;
         }}
@@ -1005,7 +1022,20 @@ def render_input_hub_v3():
     
     정체성: 입력 페이지 모음 ❌ → 시스템 조종석 ✅
     """
-    # 프리미엄 레이어드 카드 스타일 헤더 렌더링
+    store_id = get_current_store_id()
+    if not store_id:
+        st.error("매장 정보를 찾을 수 없습니다."); return
+
+    # Ultra Premium CSS 주입 (1회만)
+    inject_input_hub_ultra_premium_css()
+    
+    # 애니메이션 CSS 주입 (1회만)
+    inject_input_hub_animations_css()
+    
+    # Control Board 컴팩트 레이아웃 CSS 주입 (1회만) - 헤더 스타일 포함
+    inject_input_hub_controlboard_compact_css()
+    
+    # 프리미엄 레이어드 카드 스타일 헤더 렌더링 (CSS 주입 후)
     st.markdown("""
     <div data-ps-scope="input_hub" class="ps-page-header-layered">
         <div class="ps-page-header-content">
@@ -1034,18 +1064,6 @@ def render_input_hub_v3():
                 st.caption(f"🔧 **DB CLIENT MODE: {client_mode}**")
     except Exception:
         pass  # 표시 실패해도 페이지는 계속 동작
-    store_id = get_current_store_id()
-    if not store_id:
-        st.error("매장 정보를 찾을 수 없습니다."); return
-
-    # Ultra Premium CSS 주입 (1회만)
-    inject_input_hub_ultra_premium_css()
-    
-    # 애니메이션 CSS 주입 (1회만)
-    inject_input_hub_animations_css()
-    
-    # Control Board 컴팩트 레이아웃 CSS 주입 (1회만)
-    inject_input_hub_controlboard_compact_css()
     
     # 시작 필요 상태 강조 JavaScript 제거 (애니메이션만 제거, 스타일은 Python에서 처리)
     # 애니메이션 관련 JavaScript 코드 완전 제거
