@@ -8,7 +8,7 @@ import streamlit as st
 def inject_home_premium_css():
     """
     홈 화면 프리미엄 CSS 주입 (1회만 실행)
-    모든 섹션 프리미엄 디자인 적용
+    모든 섹션 프리미엄 디자인 적용 - 업그레이드 버전
     """
     # 1회 주입 가드
     if st.session_state.get("_ps_home_premium_css_injected", False):
@@ -17,18 +17,28 @@ def inject_home_premium_css():
     css = """
     <style>
     /* ============================================
-       홈 화면 프리미엄 스타일 (전체 섹션)
+       홈 화면 프리미엄 스타일 (전체 섹션) - 업그레이드
        ============================================ */
     
     /* fadeInUp 애니메이션 */
     @keyframes ps-home-fadeInUp {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
         }
         to {
             opacity: 1;
             transform: translateY(0);
+        }
+    }
+    
+    /* glow pulse 애니메이션 */
+    @keyframes ps-home-glow-pulse {
+        0%, 100% {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 30px rgba(59, 130, 246, 0.18);
+        }
+        50% {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(59, 130, 246, 0.28);
         }
     }
     
@@ -43,36 +53,57 @@ def inject_home_premium_css():
     }
     
     /* ============================================
-       SECTION 1: Hero Card (프리미엄)
+       SECTION 1: Hero Card (프리미엄) - 업그레이드
        ============================================ */
     
     .ps-hero-card {
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(59, 130, 246, 0.35);
-        border-radius: 16px;
-        padding: 24px;
-        margin: 10px 0 18px 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 30px rgba(59, 130, 246, 0.18);
-        animation: ps-home-fadeInUp 0.8s ease-out forwards;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 20px;
+        padding: 32px;
+        margin: 0 0 2rem 0;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 50px rgba(59, 130, 246, 0.2);
+        animation: ps-home-fadeInUp 0.9s ease-out forwards, ps-home-glow-pulse 4s ease-in-out infinite;
         opacity: 0;
+        position: relative;
+        overflow: hidden;
     }
     
-    @supports (backdrop-filter: blur(10px)) {
+    .ps-hero-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+        opacity: 0.6;
+    }
+    
+    @supports (backdrop-filter: blur(12px)) {
         .ps-hero-card {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
     }
     
     .ps-neon {
         height: 6px;
         border-radius: 999px;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
+        position: relative;
     }
     
     .ps-neon-blue {
-        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%);
-        box-shadow: 0 0 18px rgba(59, 130, 246, 0.55);
+        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 30%, #93C5FD 50%, #60A5FA 70%, #3B82F6 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+        animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     .ps-hero-body {
@@ -81,13 +112,23 @@ def inject_home_premium_css():
     }
     
     .ps-hero-title {
-        font-size: 2.2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
+        font-size: 2.5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%);
+        background-size: 200% 200%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 10px;
+        background-clip: text;
+        margin-bottom: 16px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        animation: gradient-shift 5s ease infinite;
         color: #60A5FA; /* fallback */
+    }
+    
+    @keyframes gradient-shift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
     }
     
     @supports not (-webkit-background-clip: text) {
@@ -98,44 +139,61 @@ def inject_home_premium_css():
     }
     
     .ps-hero-sub {
-        color: #94a3b8;
-        font-size: 1.2rem;
-        margin-bottom: 10px;
+        color: #CBD5E1;
+        font-size: 1.35rem;
+        margin-bottom: 12px;
         font-weight: 600;
+        letter-spacing: -0.01em;
     }
     
     .ps-hero-desc {
-        color: #cbd5e1;
-        font-size: 1rem;
-        line-height: 1.6;
+        color: #E2E8F0;
+        font-size: 1.1rem;
+        line-height: 1.7;
+        font-weight: 400;
     }
     
     /* ============================================
-       SECTION 2: Status Dashboard (프리미엄)
+       SECTION 2: Status Dashboard (프리미엄) - 업그레이드
        ============================================ */
     
     .ps-status-card {
-        background: rgba(30, 41, 59, 0.6);
-        border: 1px solid rgba(245, 158, 11, 0.3);
-        border-radius: 16px;
-        padding: 24px;
-        margin: 18px 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 40px rgba(245, 158, 11, 0.1);
-        animation: ps-home-fadeInUp 0.8s ease-out forwards;
-        animation-delay: 0.1s;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.65) 100%);
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        border-radius: 20px;
+        padding: 32px;
+        margin: 2rem 0;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 60px rgba(245, 158, 11, 0.15);
+        animation: ps-home-fadeInUp 0.9s ease-out forwards;
+        animation-delay: 0.15s;
         opacity: 0;
+        position: relative;
+        overflow: hidden;
     }
     
-    @supports (backdrop-filter: blur(8px)) {
+    .ps-status-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.6), transparent);
+        opacity: 0.6;
+    }
+    
+    @supports (backdrop-filter: blur(10px)) {
         .ps-status-card {
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
     }
     
     .ps-neon-amber {
-        background: linear-gradient(90deg, #F59E0B 0%, #EF4444 50%, #F59E0B 100%);
-        box-shadow: 0 0 18px rgba(245, 158, 11, 0.55);
+        background: linear-gradient(90deg, #F59E0B 0%, #EF4444 30%, #F97316 50%, #EF4444 70%, #F59E0B 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.3);
+        animation: shimmer 3s ease-in-out infinite;
     }
     
     .ps-status-content {
@@ -144,219 +202,334 @@ def inject_home_premium_css():
     }
     
     .ps-status-title {
-        font-size: 1.8rem;
-        font-weight: 700;
+        font-size: 2rem;
+        font-weight: 800;
         color: #F8FAFC;
         line-height: 1.3;
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem;
+        letter-spacing: -0.02em;
     }
     
     .ps-metric-card {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.2);
-        border-radius: 12px;
-        padding: 1rem;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.08) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 14px;
+        padding: 1.25rem;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 20px rgba(59, 130, 246, 0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .ps-metric-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
     }
     
     .ps-metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2), 0 0 30px rgba(59, 130, 246, 0.2);
+        border-color: rgba(59, 130, 246, 0.5);
     }
     
     .ps-metric-label {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: #94a3b8;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     
     .ps-metric-value {
-        font-size: 1.1rem;
-        font-weight: 700;
+        font-size: 1.4rem;
+        font-weight: 800;
         color: #F8FAFC;
+        letter-spacing: -0.02em;
     }
     
     .ps-reco-section {
-        margin-top: 2rem;
+        margin-top: 2.5rem;
     }
     
     .ps-reco-title {
-        font-size: 1.2rem;
-        font-weight: 700;
+        font-size: 1.4rem;
+        font-weight: 800;
         color: #F59E0B;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
     }
     
     .ps-reco-subtitle {
-        font-size: 0.85rem;
+        font-size: 0.95rem;
         color: #94a3b8;
         font-style: italic;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
     }
     
     .ps-reco-message-card {
-        background: rgba(245, 158, 11, 0.1);
-        border-left: 4px solid #F59E0B;
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+        border-left: 5px solid #F59E0B;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15), 0 0 30px rgba(245, 158, 11, 0.1);
     }
     
     .ps-reco-message-card p {
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 0.5rem;
-        font-size: 1.05rem;
+        font-size: 1.15rem;
         white-space: pre-line;
         color: #F8FAFC;
+        line-height: 1.6;
     }
     
     .ps-reco-summary-card {
-        margin-top: 1rem;
-        padding: 0.75rem;
-        background: rgba(59, 130, 246, 0.05);
-        border-radius: 8px;
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%);
+        border-radius: 10px;
+        border: 1px solid rgba(59, 130, 246, 0.2);
     }
     
     .ps-reco-summary-card p {
         margin: 0;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         color: #94a3b8;
+        font-weight: 500;
     }
     
     /* ============================================
-       SECTION 3: STEP Cards (프리미엄)
+       SECTION 3: STEP Cards (프리미엄) - 업그레이드
        ============================================ */
     
     .ps-step-card {
-        background: rgba(30, 41, 59, 0.5);
-        border-radius: 16px;
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
-        padding: 24px;
-        margin: 18px 0;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        animation: ps-home-fadeInUp 0.8s ease-out forwards;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.5) 100%);
+        border-radius: 20px;
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 40px rgba(59, 130, 246, 0.12);
+        padding: 32px;
+        margin: 2rem 0;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: ps-home-fadeInUp 0.9s ease-out forwards;
         opacity: 0;
+        position: relative;
+        overflow: hidden;
     }
     
-    @supports (backdrop-filter: blur(8px)) {
+    .ps-step-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+        opacity: 0.6;
+    }
+    
+    @supports (backdrop-filter: blur(10px)) {
         .ps-step-card {
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
     }
     
     .ps-step-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 30px rgba(59, 130, 246, 0.2);
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 50px rgba(59, 130, 246, 0.25);
     }
     
     .ps-step-card.ps-step-1 {
-        border-color: rgba(59, 130, 246, 0.3);
-        animation-delay: 0.2s;
+        border-color: rgba(59, 130, 246, 0.4);
+        animation-delay: 0.25s;
+    }
+    
+    .ps-step-card.ps-step-1 .ps-neon-blue {
+        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 30%, #93C5FD 50%, #60A5FA 70%, #3B82F6 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+        animation: shimmer 3s ease-in-out infinite;
     }
     
     .ps-step-card.ps-step-2 {
-        border-color: rgba(16, 185, 129, 0.3);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 20px rgba(16, 185, 129, 0.1);
-        animation-delay: 0.3s;
+        border-color: rgba(16, 185, 129, 0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 40px rgba(16, 185, 129, 0.12);
+        animation-delay: 0.35s;
+    }
+    
+    .ps-step-card.ps-step-2::before {
+        background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
     }
     
     .ps-step-card.ps-step-2:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 30px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 50px rgba(16, 185, 129, 0.25);
+    }
+    
+    .ps-step-card.ps-step-2 .ps-neon-green {
+        background: linear-gradient(90deg, #10B981 0%, #34D399 30%, #6EE7B7 50%, #34D399 70%, #10B981 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6), 0 0 40px rgba(16, 185, 129, 0.3);
+        animation: shimmer 3s ease-in-out infinite;
     }
     
     .ps-step-card.ps-step-3 {
-        border-color: rgba(168, 85, 247, 0.3);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 20px rgba(168, 85, 247, 0.1);
-        animation-delay: 0.4s;
+        border-color: rgba(168, 85, 247, 0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 40px rgba(168, 85, 247, 0.12);
+        animation-delay: 0.45s;
+    }
+    
+    .ps-step-card.ps-step-3::before {
+        background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.5), transparent);
     }
     
     .ps-step-card.ps-step-3:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 30px rgba(168, 85, 247, 0.2);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 50px rgba(168, 85, 247, 0.25);
+    }
+    
+    .ps-step-card.ps-step-3 .ps-neon-purple {
+        background: linear-gradient(90deg, #A855F7 0%, #C084FC 30%, #E9D5FF 50%, #C084FC 70%, #A855F7 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.3);
+        animation: shimmer 3s ease-in-out infinite;
     }
     
     .ps-step-title {
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 1.75rem;
+        font-weight: 800;
         color: #F8FAFC;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.02em;
+        line-height: 1.3;
     }
     
     .ps-step-highlight-box {
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
-        border-left: 4px solid;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        border-left: 5px solid;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     .ps-step-highlight-box.ps-color-blue {
-        background: rgba(59, 130, 246, 0.1);
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.08) 100%);
         border-left-color: #3B82F6;
     }
     
     .ps-step-highlight-box.ps-color-green {
-        background: rgba(16, 185, 129, 0.1);
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%);
         border-left-color: #10B981;
     }
     
     .ps-step-highlight-box.ps-color-purple {
-        background: rgba(168, 85, 247, 0.1);
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0.08) 100%);
         border-left-color: #A855F7;
     }
     
     .ps-step-highlight-box p {
-        font-weight: 600;
+        font-weight: 700;
         margin-bottom: 0.5rem;
-        font-size: 1.05rem;
+        font-size: 1.15rem;
         color: #F8FAFC;
-        line-height: 1.5;
+        line-height: 1.6;
     }
     
     .ps-step-description {
-        color: #cbd5e1;
-        line-height: 1.6;
-        margin: 1rem 0;
+        color: #CBD5E1;
+        line-height: 1.7;
+        margin: 1.5rem 0;
+        font-size: 1.05rem;
     }
     
     .ps-step-actions {
-        margin-top: 1.5rem;
+        margin-top: 2rem;
     }
     
     /* ============================================
-       SECTION 4: Quote Card (프리미엄)
+       SECTION 4: Quote Card (프리미엄) - 업그레이드
        ============================================ */
     
     .ps-quote-card {
-        background: rgba(30, 41, 59, 0.4);
-        border-radius: 16px;
-        border-left: 4px solid rgba(59, 130, 246, 0.5);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
-        padding: 24px;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.4) 100%);
+        border-radius: 20px;
+        border-left: 5px solid rgba(59, 130, 246, 0.6);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 40px rgba(59, 130, 246, 0.12);
+        padding: 40px;
         margin: 3rem 0 0 0;
         text-align: center;
-        animation: ps-home-fadeInUp 0.8s ease-out forwards;
-        animation-delay: 0.5s;
+        animation: ps-home-fadeInUp 0.9s ease-out forwards;
+        animation-delay: 0.55s;
         opacity: 0;
+        position: relative;
+        overflow: hidden;
     }
     
-    @supports (backdrop-filter: blur(8px)) {
+    .ps-quote-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+        opacity: 0.6;
+    }
+    
+    @supports (backdrop-filter: blur(10px)) {
         .ps-quote-card {
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
     }
     
     .ps-quote-text {
-        font-size: 1.2rem;
-        font-weight: 600;
+        font-size: 1.4rem;
+        font-weight: 700;
         font-style: italic;
-        color: #94a3b8;
-        line-height: 1.8;
+        color: #CBD5E1;
+        line-height: 2;
         margin: 0;
+        letter-spacing: -0.01em;
+    }
+    
+    /* ============================================
+       버튼 스타일 개선
+       ============================================ */
+    
+    .ps-step-actions .stButton > button,
+    .ps-status-content .stButton > button {
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        padding: 0.875rem 1.5rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .ps-step-actions .stButton > button:hover,
+    .ps-status-content .stButton > button:hover {
+        transform: translateY(-2px) scale(1.02) !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    .ps-step-actions .stButton > button[kind="primary"],
+    .ps-status-content .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        border: none !important;
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), 0 0 30px rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    .ps-step-actions .stButton > button[kind="primary"]:hover,
+    .ps-status-content .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3) !important;
     }
     
     /* ============================================
@@ -368,20 +541,28 @@ def inject_home_premium_css():
         .ps-status-card,
         .ps-step-card,
         .ps-quote-card {
-            padding: 1.5rem 1rem;
-            border-radius: 12px;
+            padding: 1.5rem 1.25rem;
+            border-radius: 16px;
         }
         
         .ps-hero-title {
-            font-size: 1.8rem;
+            font-size: 1.9rem;
         }
         
         .ps-status-title {
-            font-size: 1.5rem;
+            font-size: 1.6rem;
         }
         
         .ps-step-title {
-            font-size: 1.2rem;
+            font-size: 1.4rem;
+        }
+        
+        .ps-quote-text {
+            font-size: 1.1rem;
+        }
+        
+        .ps-metric-card {
+            padding: 1rem;
         }
     }
     </style>

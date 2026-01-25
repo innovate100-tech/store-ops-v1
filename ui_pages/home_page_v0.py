@@ -227,6 +227,7 @@ def render_home():
     # STEP 1: 입력
     st.markdown("""
     <div class="ps-step-card ps-step-1">
+        <div class="ps-neon ps-neon-blue"></div>
         <div class="ps-step-title">STEP 1. 입력 — 매장을 '데이터 자산'으로 만든다</div>
         <div class="ps-step-highlight-box ps-color-blue">
             <p>
@@ -259,6 +260,7 @@ def render_home():
     # STEP 2: 분석
     st.markdown("""
     <div class="ps-step-card ps-step-2">
+        <div class="ps-neon ps-neon-green"></div>
         <div class="ps-step-title">STEP 2. 분석 — 숫자가 문제를 말해준다</div>
         <div class="ps-step-highlight-box ps-color-green">
             <p>
@@ -286,6 +288,7 @@ def render_home():
     # STEP 3: 설계
     st.markdown("""
     <div class="ps-step-card ps-step-3">
+        <div class="ps-neon ps-neon-purple"></div>
         <div class="ps-step-title">STEP 3. 설계 — 숫자를 행동으로 바꾼다</div>
         <div class="ps-step-highlight-box ps-color-purple">
             <p>
