@@ -38,10 +38,10 @@ from src.storage_supabase import (
     load_available_settlement_months,
     load_monthly_settlement_snapshot
 )
-# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
-# from ui_pages.monthly_structure_report import build_monthly_structure_report
-# from ui_pages.coach.coach_renderer import render_verdict_card
-# from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
+# 분석/전략 관련 import (구조 리포트 섹션에서 사용)
+from ui_pages.monthly_structure_report import build_monthly_structure_report
+from ui_pages.coach.coach_renderer import render_verdict_card
+from ui_pages.routines.routine_state import get_routine_status, mark_monthly_review_done
 
 # 공통 설정 적용
 bootstrap(page_title="Settlement Actual")
