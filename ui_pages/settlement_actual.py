@@ -644,6 +644,10 @@ def _render_expense_category(
             amount_key = f"settlement_item_amount_{category}_{idx}_{year}_{month}"
             rate_key = f"settlement_item_rate_{category}_{idx}_{year}_{month}"
             
+            # 클로저를 위한 변수 캡처
+            current_idx = idx
+            current_category = category
+            
             def render_expense_item():
                 col1, col2, col3 = st.columns([2, 1.5, 2])
                 with col1:
@@ -719,12 +723,37 @@ def _render_expense_category(
                     }
             
             # 블록3: 비용 항목 입력 블록
+            # 삭제 버튼을 블록 내부에 포함
+            def render_expense_item_with_delete():
+                render_expense_item()
+                if not readonly:
+                    col1, col2, col3, col4 = st.columns([2, 1.5, 2, 0.5])
+                    with col4:
+                        if st.button("🗑️", key=f"settlement_delete_{current_category}_{current_idx}_{year}_{month}", 
+                                     help="삭제", use_container_width=True):
+                            expense_items = _initialize_expense_items(store_id, year, month)
+                            if current_idx < len(expense_items[current_category]):
+                                item_to_delete = expense_items[current_category][current_idx]
+                                item_name_to_delete = item_to_delete.get('name', '')
+                                
+                                # Soft delete
+                                if item_name_to_delete:
+                                    try:
+                                        soft_delete_cost_item_template(store_id, current_category, item_name_to_delete)
+                                        ui_flash_success("✅ 템플릿에서 삭제됨")
+                                    except Exception as e:
+                                        ui_flash_error(f"템플릿 삭제 실패: {e}")
+                                
+                                # session_state에서도 제거
+                                expense_items[current_category].pop(current_idx)
+                                st.rerun()
+            
             ps_input_block(
                 title=f"{category_info['icon']} {item.get('name', '항목')}",
                 description=category_info['description'] if idx == 0 else None,
                 right_hint=f"합계: {category_total:,.0f}원" if category_total > 0 and idx == len(items) - 1 else None,
                 level="primary",
-                body_fn=render_expense_item,
+                body_fn=render_expense_item_with_delete,
                 feedback=feedback_data
             )
     
