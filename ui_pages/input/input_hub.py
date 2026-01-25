@@ -1054,7 +1054,7 @@ def render_input_hub_v3():
     }
     #ps-header-unified-grid {
         display: grid !important;
-        grid-template-columns: 1.2fr 1.5fr !important;
+        grid-template-columns: 1fr 1.5fr !important;
         gap: 2rem !important;
         padding: 2rem !important;
     }
@@ -1069,7 +1069,7 @@ def render_input_hub_v3():
         margin-bottom: 0.5rem !important;
     }
     #ps-header-title {
-        font-size: 1.3rem !important;
+        font-size: 0.9rem !important;
         font-weight: 800 !important;
         color: #F8FAFC !important;
         margin: 0 !important;
