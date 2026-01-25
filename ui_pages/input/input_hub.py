@@ -967,7 +967,45 @@ def render_input_hub_v3():
         (function() {
             'use strict';
             
+            // keyframes를 동적으로 생성 (CSS 주입 실패 대비)
+            function ensureKeyframes() {
+                const styleId = 'ps-start-needed-keyframes';
+                if (document.getElementById(styleId)) return;
+                
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.textContent = `
+                    @keyframes pulse-start-needed {
+                        0%, 100% {
+                            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7),
+                                        0 0 15px rgba(245, 158, 11, 0.5),
+                                        0 0 30px rgba(245, 158, 11, 0.3);
+                            transform: scale(1);
+                        }
+                        50% {
+                            box-shadow: 0 0 0 8px rgba(245, 158, 11, 0),
+                                        0 0 20px rgba(245, 158, 11, 0.7),
+                                        0 0 40px rgba(245, 158, 11, 0.5);
+                            transform: scale(1.02);
+                        }
+                    }
+                    @keyframes glow-pulse {
+                        0%, 100% {
+                            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5),
+                                        0 0 20px rgba(245, 158, 11, 0.3);
+                        }
+                        50% {
+                            box-shadow: 0 0 15px rgba(245, 158, 11, 0.7),
+                                        0 0 30px rgba(245, 158, 11, 0.5);
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
             function applyStartNeededStyles() {
+                // keyframes 먼저 확인
+                ensureKeyframes();
                 // 카드에 애니메이션 적용 (CSS가 적용되지 않을 경우를 대비한 백업)
                 const cards = document.querySelectorAll('[data-ps-scope="input_hub"] .ps-start-needed-card');
                 cards.forEach(card => {
@@ -978,20 +1016,19 @@ def render_input_hub_v3():
                         const computedStyle = window.getComputedStyle(card);
                         const currentAnimation = computedStyle.animation || computedStyle.getPropertyValue('animation');
                         
-                        // 애니메이션이 없거나 pulse-start-needed가 없으면 강제 적용
-                        if (!currentAnimation || currentAnimation === 'none' || !currentAnimation.includes('pulse-start-needed')) {
-                            // 인라인 스타일의 animation 속성 제거 후 재적용
-                            const currentStyle = card.getAttribute('style') || '';
-                            const newStyle = currentStyle.replace(/animation\s*:[^;]+;?/gi, '');
-                            card.setAttribute('style', newStyle);
-                            
-                            // 애니메이션 강제 적용
-                            card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
-                            card.style.setProperty('animation-name', 'pulse-start-needed, glow-pulse', 'important');
-                            card.style.setProperty('animation-duration', '2s, 3s', 'important');
-                            card.style.setProperty('animation-timing-function', 'ease-in-out, ease-in-out', 'important');
-                            card.style.setProperty('animation-iteration-count', 'infinite, infinite', 'important');
-                        }
+                        // 애니메이션 강제 적용 (항상 적용, CSS가 덮어쓸 수 있으므로)
+                        // 인라인 스타일의 animation 속성 제거 후 재적용
+                        const currentStyle = card.getAttribute('style') || '';
+                        const newStyle = currentStyle.replace(/animation[^;]*;?/gi, '').replace(/animation-name[^;]*;?/gi, '').replace(/animation-duration[^;]*;?/gi, '').replace(/animation-timing-function[^;]*;?/gi, '').replace(/animation-iteration-count[^;]*;?/gi, '');
+                        card.setAttribute('style', newStyle);
+                        
+                        // 애니메이션 강제 적용 (인라인 스타일로 최고 우선순위)
+                        card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
+                        card.style.setProperty('animation-name', 'pulse-start-needed, glow-pulse', 'important');
+                        card.style.setProperty('animation-duration', '2s, 3s', 'important');
+                        card.style.setProperty('animation-timing-function', 'ease-in-out, ease-in-out', 'important');
+                        card.style.setProperty('animation-iteration-count', 'infinite, infinite', 'important');
+                        card.style.setProperty('animation-fill-mode', 'both, both', 'important');
                         
                         // 글로우 효과 강제 적용
                         card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
