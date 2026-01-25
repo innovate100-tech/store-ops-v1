@@ -1073,35 +1073,6 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     final_safety_pin_css = """
     <style>
     /* keyframes 정의 (RESCUE 계층에서도 보장) */
-    @keyframes pulse-start-needed {
-        0%, 100% {
-            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8),
-                        0 0 25px rgba(245, 158, 11, 0.7),
-                        0 0 50px rgba(245, 158, 11, 0.5),
-                        0 0 75px rgba(245, 158, 11, 0.3);
-            transform: scale(1);
-        }
-        50% {
-            box-shadow: 0 0 0 15px rgba(245, 158, 11, 0),
-                        0 0 35px rgba(245, 158, 11, 1),
-                        0 0 70px rgba(245, 158, 11, 0.8),
-                        0 0 100px rgba(245, 158, 11, 0.5);
-            transform: scale(1.08);
-        }
-    }
-    @keyframes glow-pulse {
-        0%, 100% {
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.7),
-                        0 0 40px rgba(245, 158, 11, 0.5),
-                        0 0 60px rgba(245, 158, 11, 0.3);
-        }
-        50% {
-            box-shadow: 0 0 30px rgba(245, 158, 11, 1),
-                        0 0 60px rgba(245, 158, 11, 0.8),
-                        0 0 90px rgba(245, 158, 11, 0.5);
-        }
-    }
-    
     /* 컨텐츠 강제 복구 */
     [data-testid="stMain"], [data-testid="stMainBlockContainer"]{
       display: block !important;
@@ -1113,19 +1084,6 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
       -webkit-backdrop-filter: none !important;
     }
     
-    /* 애니메이션이 적용된 요소는 transform 보호 */
-    div[data-start-needed-applied="true"] {
-      transform: scale(1) !important;
-      animation: pulse-start-needed 2s ease-in-out infinite,
-                 glow-pulse 3s ease-in-out infinite !important;
-      animation-name: pulse-start-needed, glow-pulse !important;
-      animation-duration: 2s, 3s !important;
-      animation-timing-function: ease-in-out, ease-in-out !important;
-      animation-iteration-count: infinite, infinite !important;
-      animation-fill-mode: both, both !important;
-      animation-play-state: running !important;
-      will-change: transform, box-shadow !important;
-    }
 
     /* 컨텐츠 레이어 올리기 */
     [data-testid="stAppViewContainer"]{ position: relative !important; z-index: 1 !important; }
