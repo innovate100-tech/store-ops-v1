@@ -33,28 +33,14 @@ def inject_home_premium_css():
         border-radius: 8px !important;
     }
     
-    /* fadeInUp 애니메이션 */
-    @keyframes ps-home-fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    /* prefers-reduced-motion 지원 */
-    @media (prefers-reduced-motion: reduce) {
-        .ps-hero-card {
-            animation: none !important;
-        }
-    }
-    
     /* ============================================
-       SECTION 1: Hero Card (프리미엄)
+       SECTION 1: Hero Card (프리미엄) - 강제 테스트
        ============================================ */
+    
+    /* 강제 테스트: 빨간 테두리 (CSS 매칭 확인용) */
+    .ps-hero-card {
+        outline: 3px solid red !important;
+    }
     
     .ps-hero-card {
         background: rgba(30, 41, 59, 0.7);
