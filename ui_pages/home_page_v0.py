@@ -32,27 +32,18 @@ def render_home():
         st.error("HOME V1 LOADED ✅  ui_pages/home_page_v0.py  (2026-01-26)")
     
     # Step A: CSS 주입 확인용 프로브
-    st.markdown('<div class="ps-home-scope"><div class="ps-home-css-probe">HOME CSS PROBE ✅</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ps-home-css-probe">HOME CSS PROBE ✅</div>', unsafe_allow_html=True)
     
     # ============================================
     # SECTION 1: 앱 정체성 (Hero Section)
     # ============================================
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-home-hero-card">
-            <div class="ps-neon-bar ps-neon-blue"></div>
-            <div class="ps-hero-content">
-                <h1 class="ps-hero-title">
-                    이 앱은 감이 아니라, 숫자로 매장을 운영하게 만드는 시스템입니다.
-                </h1>
-                <h2 class="ps-hero-subtitle">
-                    매출은 결과이고,<br>
-                    숫자는 원인입니다.
-                </h2>
-                <p class="ps-hero-description">
-                    이 앱은 아래 3단계를 반복할수록 매장이 강해지도록 설계되어 있습니다.
-                </p>
-            </div>
+    <div class="ps-home-hero-card">
+        <div class="ps-neon-bar ps-neon-blue"></div>
+        <div class="ps-hero-content">
+            <div class="ps-hero-title">이 앱은 감이 아니라, 숫자로 매장을 운영하게 만드는 시스템입니다.</div>
+            <div class="ps-hero-subtitle">매출은 결과이고,<br>숫자는 원인입니다.</div>
+            <div class="ps-hero-description">이 앱은 아래 3단계를 반복할수록 매장이 강해지도록 설계되어 있습니다.</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -61,11 +52,10 @@ def render_home():
     # SECTION 2: 현재 위치 (Status Dashboard)
     # ============================================
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-home-status-card">
-            <div class="ps-neon-bar ps-neon-amber"></div>
-            <div class="ps-status-content">
-                <h2 class="ps-status-title">📍 지금 당신의 매장은 이 단계에 있습니다</h2>
+    <div class="ps-home-status-card">
+        <div class="ps-neon-bar ps-neon-amber"></div>
+        <div class="ps-status-content">
+            <div class="ps-status-title">📍 지금 당신의 매장은 이 단계에 있습니다</div>
     """, unsafe_allow_html=True)
     
     # 추천 엔진 호출
@@ -88,28 +78,29 @@ def render_home():
             sales_goal_exists = status.get("sales_goal_exists", False)
             cost_goal_exists = status.get("cost_goal_exists", False)
             
-            st.markdown("""
-            <div class="ps-status-metrics">
+            # 상태 미니 카드 3개 (st.columns 사용)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">마감</div>
-                    <div class="ps-metric-value">{} / {}/7</div>
+                    <div class="ps-metric-value">{"✅" if yesterday_closed else "❌"} / {last7_close_days}/7</div>
                 </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">레시피</div>
-                    <div class="ps-metric-value">{:.0f}%</div>
+                    <div class="ps-metric-value">{recipe_cover_rate * 100:.0f}%</div>
                 </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">목표</div>
-                    <div class="ps-metric-value">{} / {}</div>
+                    <div class="ps-metric-value">{"✅" if sales_goal_exists else "❌"} / {"✅" if cost_goal_exists else "❌"}</div>
                 </div>
-            </div>
-            """.format(
-                "✅" if yesterday_closed else "❌",
-                last7_close_days,
-                recipe_cover_rate * 100,
-                "✅" if sales_goal_exists else "❌",
-                "✅" if cost_goal_exists else "❌"
-            ), unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
             # DEV 모드에서만 상세 상태 표시
             if is_dev_mode():
@@ -118,8 +109,8 @@ def render_home():
             # 추천 블록
             st.markdown("""
             <div class="ps-reco-section">
-                <h3 class="ps-reco-title">🎯 오늘 우리 매장 추천</h3>
-                <p class="ps-reco-subtitle">이 앱이 오늘 데이터를 보고 판단한, 가장 우선해야 할 한 가지입니다.</p>
+                <div class="ps-reco-title">🎯 오늘 우리 매장 추천</div>
+                <div class="ps-reco-subtitle">이 앱이 오늘 데이터를 보고 판단한, 가장 우선해야 할 한 가지입니다.</div>
                 <div class="ps-reco-message-card">
                     <p>{}</p>
                 </div>
@@ -161,22 +152,28 @@ def render_home():
                 # 실패 시 숨김 (크래시 방지)
         else:
             # store_id나 user_id가 없는 경우 기본 표시
-            st.markdown("""
-            <div class="ps-status-metrics">
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">입력 완성도</div>
                     <div class="ps-metric-value">준비 중</div>
                 </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown("""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">활성화된 분석</div>
                     <div class="ps-metric-value">준비 중</div>
                 </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown("""
                 <div class="ps-metric-card">
                     <div class="ps-metric-label">설계 가능 단계</div>
                     <div class="ps-metric-value">준비 중</div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
             st.markdown("""
             <div class="ps-reco-section">
@@ -190,22 +187,28 @@ def render_home():
         logger = logging.getLogger(__name__)
         logger.warning(f"Failed to load recommendation: {e}")
         
-        st.markdown("""
-        <div class="ps-status-metrics">
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("""
             <div class="ps-metric-card">
                 <div class="ps-metric-label">입력 완성도</div>
                 <div class="ps-metric-value">준비 중</div>
             </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("""
             <div class="ps-metric-card">
                 <div class="ps-metric-label">활성화된 분석</div>
                 <div class="ps-metric-value">준비 중</div>
             </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown("""
             <div class="ps-metric-card">
                 <div class="ps-metric-label">설계 가능 단계</div>
                 <div class="ps-metric-value">준비 중</div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
         
         st.markdown("""
         <div class="ps-reco-section">
@@ -216,7 +219,6 @@ def render_home():
         """, unsafe_allow_html=True)
     
     st.markdown("""
-            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -227,20 +229,19 @@ def render_home():
     
     # STEP 1: 입력
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-step-card ps-step-1">
-            <h3 class="ps-step-title">STEP 1. 입력 — 매장을 '데이터 자산'으로 만든다</h3>
-            <div class="ps-step-highlight-box ps-color-blue">
-                <p>
-                    입력은 기록이 아닙니다.<br>
-                    입력은 매장을 시스템으로 만드는 작업입니다.
-                </p>
-            </div>
-            <div class="ps-step-description">
-                - 메뉴 / 재료 / 레시피 / 매출 / 비용 / 마감<br>
-                - 이 데이터들이 쌓여야 분석과 전략이 작동합니다.
-            </div>
-            <div class="ps-step-actions">
+    <div class="ps-step-card ps-step-1">
+        <div class="ps-step-title">STEP 1. 입력 — 매장을 '데이터 자산'으로 만든다</div>
+        <div class="ps-step-highlight-box ps-color-blue">
+            <p>
+                입력은 기록이 아닙니다.<br>
+                입력은 매장을 시스템으로 만드는 작업입니다.
+            </p>
+        </div>
+        <div class="ps-step-description">
+            - 메뉴 / 재료 / 레시피 / 매출 / 비용 / 마감<br>
+            - 이 데이터들이 쌓여야 분석과 전략이 작동합니다.
+        </div>
+        <div class="ps-step-actions">
     """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -254,28 +255,26 @@ def render_home():
             st.rerun()
     
     st.markdown("""
-            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
     # STEP 2: 분석
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-step-card ps-step-2">
-            <h3 class="ps-step-title">STEP 2. 분석 — 숫자가 문제를 말해준다</h3>
-            <div class="ps-step-highlight-box ps-color-green">
-                <p>
-                    분석은 보고서가 아닙니다.<br>
-                    분석은 "왜 이런 결과가 나왔는지"를 알려주는 엔진입니다.
-                </p>
-            </div>
-            <div class="ps-step-description">
-                - 매출이 왜 이 숫자인지<br>
-                - 어디서 새고 있는지<br>
-                - 무엇을 키워야 하는지
-            </div>
-            <div class="ps-step-actions">
+    <div class="ps-step-card ps-step-2">
+        <div class="ps-step-title">STEP 2. 분석 — 숫자가 문제를 말해준다</div>
+        <div class="ps-step-highlight-box ps-color-green">
+            <p>
+                분석은 보고서가 아닙니다.<br>
+                분석은 "왜 이런 결과가 나왔는지"를 알려주는 엔진입니다.
+            </p>
+        </div>
+        <div class="ps-step-description">
+            - 매출이 왜 이 숫자인지<br>
+            - 어디서 새고 있는지<br>
+            - 무엇을 키워야 하는지
+        </div>
+        <div class="ps-step-actions">
     """, unsafe_allow_html=True)
     
     if st.button("▶ 데이터 분석센터", type="primary", use_container_width=True, key="step2_btn"):
@@ -283,28 +282,26 @@ def render_home():
         st.rerun()
     
     st.markdown("""
-            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
     # STEP 3: 설계
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-step-card ps-step-3">
-            <h3 class="ps-step-title">STEP 3. 설계 — 숫자를 행동으로 바꾼다</h3>
-            <div class="ps-step-highlight-box ps-color-purple">
-                <p>
-                    설계는 조언이 아닙니다.<br>
-                    설계는 사장의 '다음 행동'을 만드는 단계입니다.
-                </p>
-            </div>
-            <div class="ps-step-description">
-                - 개선 우선순위<br>
-                - 전략 보드<br>
-                - 메뉴/비용/운영 방향
-            </div>
-            <div class="ps-step-actions">
+    <div class="ps-step-card ps-step-3">
+        <div class="ps-step-title">STEP 3. 설계 — 숫자를 행동으로 바꾼다</div>
+        <div class="ps-step-highlight-box ps-color-purple">
+            <p>
+                설계는 조언이 아닙니다.<br>
+                설계는 사장의 '다음 행동'을 만드는 단계입니다.
+            </p>
+        </div>
+        <div class="ps-step-description">
+            - 개선 우선순위<br>
+            - 전략 보드<br>
+            - 메뉴/비용/운영 방향
+        </div>
+        <div class="ps-step-actions">
     """, unsafe_allow_html=True)
     
     if st.button("▶ 가게 전략 센터", type="primary", use_container_width=True, key="step3_btn"):
@@ -312,7 +309,6 @@ def render_home():
         st.rerun()
     
     st.markdown("""
-            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -321,15 +317,11 @@ def render_home():
     # SECTION 4: 매일 각인 문장 (Quote Section)
     # ============================================
     st.markdown("""
-    <div class="ps-home-scope">
-        <div class="ps-home-quote-card">
-            <div class="ps-quote-content">
-                <p class="ps-quote-text">
-                    "입력 안 하면, 이 앱은 아무 의미 없습니다.<br>
-                    숫자를 안 보면, 장사는 항상 운입니다.<br>
-                    바쁜 매장이 망하고, 관리하는 매장이 남습니다."
-                </p>
-            </div>
-        </div>
+    <div class="ps-home-quote-card">
+        <p class="ps-quote-text">
+            "입력 안 하면, 이 앱은 아무 의미 없습니다.<br>
+            숫자를 안 보면, 장사는 항상 운입니다.<br>
+            바쁜 매장이 망하고, 관리하는 매장이 남습니다."
+        </p>
     </div>
     """, unsafe_allow_html=True)
