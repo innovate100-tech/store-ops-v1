@@ -101,12 +101,11 @@ def inject_input_hub_animations_css():
     [data-ps-scope="input_hub"] .ps-start-needed-card,
     div[data-ps-scope="input_hub"] .ps-start-needed-card,
     [data-ps-scope="input_hub"] div.ps-start-needed-card {
-        border: 2px solid rgba(245, 158, 11, 0.6) !important;
-        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5),
-                    0 0 30px rgba(245, 158, 11, 0.3) !important;
+        /* 인라인 스타일과 충돌하지 않도록 애니메이션만 강제 적용 */
         animation: pulse-start-needed 2s ease-in-out infinite,
                    glow-pulse 3s ease-in-out infinite !important;
-        background: rgba(245, 158, 11, 0.08) !important;
+        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5),
+                    0 0 30px rgba(245, 158, 11, 0.3) !important;
         position: relative !important;
     }
     
@@ -957,14 +956,19 @@ def render_input_hub_v3():
             'use strict';
             
             function applyStartNeededStyles() {
-                // 카드에 애니메이션 적용
+                // 카드에 애니메이션 적용 (CSS가 적용되지 않을 경우를 대비한 백업)
                 const cards = document.querySelectorAll('[data-ps-scope="input_hub"] .ps-start-needed-card');
                 cards.forEach(card => {
                     if (!card.hasAttribute('data-start-needed-applied')) {
                         card.setAttribute('data-start-needed-applied', 'true');
-                        // 인라인 스타일 제거 후 애니메이션 적용
-                        card.removeAttribute('style');
-                        card.style.cssText = 'padding: 0.6rem; border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6) !important; box-shadow: 0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3) !important; animation: pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite !important; background: rgba(245, 158, 11, 0.08) !important; position: relative !important;';
+                        // CSS 애니메이션이 적용되지 않았을 경우를 대비해 JavaScript로 강제 적용
+                        const computedStyle = window.getComputedStyle(card);
+                        const currentAnimation = computedStyle.animation;
+                        if (!currentAnimation || currentAnimation === 'none' || !currentAnimation.includes('pulse-start-needed')) {
+                            card.style.setProperty('animation', 'pulse-start-needed 2s ease-in-out infinite, glow-pulse 3s ease-in-out infinite', 'important');
+                        }
+                        // 글로우 효과 강제 적용
+                        card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
                     }
                 });
                 
@@ -1357,11 +1361,11 @@ def render_input_hub_v3():
         inventory_status_color = "#F59E0B"
         inventory_card_class = "ps-start-needed-card"
     
-    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
-    menu_card_style = "padding: 0.6rem; border-radius: 8px;" if menu_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
-    ing_card_style = "padding: 0.6rem; border-radius: 8px;" if ing_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
-    recipe_card_style = "padding: 0.6rem; border-radius: 8px;" if recipe_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
-    inventory_card_style = "padding: 0.6rem; border-radius: 8px;" if inventory_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
+    menu_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if menu_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    ing_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if ing_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    recipe_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if recipe_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    inventory_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if inventory_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
@@ -1533,11 +1537,10 @@ def render_input_hub_v3():
         settle_status_color = "#F59E0B"
         settle_card_class = ""
     
-    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
-    daily_card_style = ""
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
     if daily_card_class:
-        # 시작 필요일 때는 인라인 스타일 최소화 (JavaScript가 애니메이션 적용)
-        daily_card_style = "padding: 0.6rem; border-radius: 8px;"
+        # 시작 필요일 때는 기본 스타일 + 애니메이션 클래스
+        daily_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);"
     else:
         daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     
@@ -1664,9 +1667,9 @@ def render_input_hub_v3():
         cost_target_color = "#F59E0B"
         cost_target_card_class = "ps-start-needed-card"
     
-    # 시작 필요 카드는 인라인 스타일을 최소화하여 애니메이션이 적용되도록
-    target_card_style = "padding: 0.6rem; border-radius: 8px;" if target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
-    cost_target_card_style = "padding: 0.6rem; border-radius: 8px;" if cost_target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
+    target_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+    cost_target_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if cost_target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
