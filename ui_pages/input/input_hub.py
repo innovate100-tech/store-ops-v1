@@ -1035,72 +1035,92 @@ def render_input_hub_v3():
     # Control Board 컴팩트 레이아웃 CSS 주입 (1회만) - 헤더 스타일 포함
     inject_input_hub_controlboard_compact_css()
     
-    # 프리미엄 레이어드 카드 스타일 헤더 렌더링 (인라인 스타일로 직접 적용)
+    # 프리미엄 레이어드 카드 스타일 헤더 렌더링 (JavaScript로 강제 적용)
     st.markdown("""
-    <div data-ps-scope="input_hub" style="
-        background: rgba(30, 41, 59, 0.5) !important;
-        border: 1px solid rgba(59, 130, 246, 0.3) !important;
-        border-radius: 12px !important;
-        padding: 0 !important;
-        margin-bottom: 2rem !important;
-        margin-top: 0 !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 20px rgba(59, 130, 246, 0.15) !important;
-        overflow: hidden !important;
-        position: relative !important;
-    ">
-        <div style="
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 6px;
-            background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.6) 20%, rgba(96, 165, 250, 0.9) 50%, rgba(59, 130, 246, 0.6) 80%, transparent 100%);
-            z-index: 1;
-        "></div>
-        <div style="
-            padding: 1.8rem 2rem 1.5rem 2rem !important;
-            position: relative !important;
-            z-index: 2 !important;
-        ">
-            <div style="
-                display: flex !important;
-                align-items: center !important;
-                gap: 1rem !important;
-                margin-bottom: 0.5rem !important;
-            ">
-                <div style="
-                    font-size: 2.2rem !important;
-                    filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.5)) !important;
-                    line-height: 1 !important;
-                ">✍</div>
-                <h1 style="
-                    font-size: 2.2rem !important;
-                    font-weight: 800 !important;
-                    color: #F8FAFC !important;
-                    margin: 0 !important;
-                    letter-spacing: -0.02em !important;
-                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
-                    line-height: 1.2 !important;
-                ">데이터 입력 센터</h1>
+    <div id="ps-input-hub-header" data-ps-scope="input_hub">
+        <div id="ps-header-neon-bar"></div>
+        <div id="ps-header-content">
+            <div id="ps-header-title-row">
+                <div id="ps-header-icon">✍</div>
+                <h1 id="ps-header-title">데이터 입력 센터</h1>
             </div>
-            <div style="
-                font-size: 0.9rem !important;
-                color: #94A3B8 !important;
-                margin: 0 !important;
-                font-weight: 500 !important;
-                letter-spacing: 0.02em !important;
-                margin-left: 3.2rem !important;
-            ">매장 운영 OS 조종석</div>
-            <div style="
-                height: 4px !important;
-                width: 60px !important;
-                background: linear-gradient(90deg, #3B82F6 0%, transparent 100%) !important;
-                border-radius: 2px !important;
-                margin-top: 1.2rem !important;
-                margin-left: 3.2rem !important;
-            "></div>
+            <div id="ps-header-subtitle">매장 운영 OS 조종석</div>
+            <div id="ps-header-divider"></div>
         </div>
     </div>
+    <script>
+    (function() {
+        function applyHeaderStyles() {
+            const header = document.getElementById('ps-input-hub-header');
+            if (!header) return;
+            
+            // 헤더 컨테이너 스타일
+            header.style.cssText = 'background: rgba(30, 41, 59, 0.5) !important; border: 1px solid rgba(59, 130, 246, 0.3) !important; border-radius: 12px !important; padding: 0 !important; margin-bottom: 2rem !important; margin-top: 0 !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 20px rgba(59, 130, 246, 0.15) !important; overflow: hidden !important; position: relative !important;';
+            
+            // 네온 바
+            const neonBar = document.getElementById('ps-header-neon-bar');
+            if (neonBar) {
+                neonBar.style.cssText = 'position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; height: 6px !important; background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.6) 20%, rgba(96, 165, 250, 0.9) 50%, rgba(59, 130, 246, 0.6) 80%, transparent 100%) !important; z-index: 1 !important;';
+            }
+            
+            // 컨텐츠 영역
+            const content = document.getElementById('ps-header-content');
+            if (content) {
+                content.style.cssText = 'padding: 1.8rem 2rem 1.5rem 2rem !important; position: relative !important; z-index: 2 !important;';
+            }
+            
+            // 제목 행
+            const titleRow = document.getElementById('ps-header-title-row');
+            if (titleRow) {
+                titleRow.style.cssText = 'display: flex !important; align-items: center !important; gap: 1rem !important; margin-bottom: 0.5rem !important;';
+            }
+            
+            // 아이콘
+            const icon = document.getElementById('ps-header-icon');
+            if (icon) {
+                icon.style.cssText = 'font-size: 2.2rem !important; filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.5)) !important; line-height: 1 !important;';
+            }
+            
+            // 제목
+            const title = document.getElementById('ps-header-title');
+            if (title) {
+                title.style.cssText = 'font-size: 2.2rem !important; font-weight: 800 !important; color: #F8FAFC !important; margin: 0 !important; letter-spacing: -0.02em !important; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important; line-height: 1.2 !important;';
+            }
+            
+            // 부제목
+            const subtitle = document.getElementById('ps-header-subtitle');
+            if (subtitle) {
+                subtitle.style.cssText = 'font-size: 0.9rem !important; color: #94A3B8 !important; margin: 0 !important; font-weight: 500 !important; letter-spacing: 0.02em !important; margin-left: 3.2rem !important;';
+            }
+            
+            // 구분선
+            const divider = document.getElementById('ps-header-divider');
+            if (divider) {
+                divider.style.cssText = 'height: 4px !important; width: 60px !important; background: linear-gradient(90deg, #3B82F6 0%, transparent 100%) !important; border-radius: 2px !important; margin-top: 1.2rem !important; margin-left: 3.2rem !important;';
+            }
+        }
+        
+        // 즉시 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyHeaderStyles);
+        } else {
+            applyHeaderStyles();
+        }
+        
+        // 여러 시점에서 재시도
+        setTimeout(applyHeaderStyles, 100);
+        setTimeout(applyHeaderStyles, 300);
+        setTimeout(applyHeaderStyles, 500);
+        
+        // MutationObserver로 DOM 변경 감지
+        if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(function() {
+                setTimeout(applyHeaderStyles, 50);
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    })();
+    </script>
     """, unsafe_allow_html=True)
     
     # 개발모드에서만 DB CLIENT MODE 표시 (기존 기능 유지)
