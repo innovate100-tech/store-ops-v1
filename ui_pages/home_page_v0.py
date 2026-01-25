@@ -62,6 +62,7 @@ def render_home():
     try:
         from src.auth import get_current_store_id
         from src.home.home_reco_v1 import get_home_recommendation_v1
+        from src.home.home_reco_log import log_reco_event, get_reco_weekly_counts
         
         store_id = get_current_store_id()
         user_id = st.session_state.get('user_id')
@@ -106,9 +107,36 @@ def render_home():
             action_label = reco.get("action_label", "오늘 마감 시작하기")
             action_page = reco.get("action_page", "일일 입력(통합)")
             
+            # shown 이벤트 로깅 (홈 진입 시 1회)
+            try:
+                log_reco_event(user_id, store_id, reco, "shown")
+            except Exception as e:
+                logger.warning(f"Failed to log shown event: {e}")
+            
+            # 버튼 클릭 처리
             if st.button(f"▶ {action_label}", type="primary", use_container_width=True):
+                # clicked 이벤트 로깅
+                try:
+                    log_reco_event(user_id, store_id, reco, "clicked")
+                except Exception as e:
+                    logger.warning(f"Failed to log clicked event: {e}")
+                
                 st.session_state.current_page = action_page
                 st.rerun()
+            
+            # 최근 7일 요약 표시
+            try:
+                shown_count, clicked_count = get_reco_weekly_counts(store_id, days=7)
+                st.markdown(f"""
+                <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.05); border-radius: 4px;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #94a3b8;">
+                        📊 최근 7일 코치 기록: 추천 {shown_count}회 · 실행 {clicked_count}회
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            except Exception as e:
+                logger.warning(f"Failed to get weekly counts: {e}")
+                # 실패 시 숨김 (크래시 방지)
         else:
             # store_id나 user_id가 없는 경우 기본 표시
             st.markdown("""
