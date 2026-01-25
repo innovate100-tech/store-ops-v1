@@ -606,11 +606,17 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
     }
 
-    /* 강조 버튼 애니메이션 (Glow) */
-    .stButton > button[kind="primary"] {
+    /* 강조 버튼 애니메이션 (Glow) - 입력허브 시작 필요 버튼 제외 */
+    .stButton > button[kind="primary"]:not([data-start-needed-applied]) {
         background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
         border: none !important;
         animation: pulse-glow 3s infinite !important;
+    }
+    
+    /* 입력허브 시작 필요 버튼은 페이지별 CSS 우선 */
+    [data-ps-scope="input_hub"] .stButton > button[kind="primary"][data-start-needed-applied],
+    [data-ps-scope="input_hub"] button[kind="primary"]:has-text("🚀") {
+        animation: inherit !important;
     }
 
     /* 글래스모피즘 효과 카드 */
@@ -1071,10 +1077,16 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
       display: block !important;
       visibility: visible !important;
       opacity: 1 !important;
-      transform: none !important;
+      /* transform: none 제거 - 애니메이션을 위해 제외 */
       filter: none !important;
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
+    }
+    
+    /* 애니메이션이 있는 요소는 transform 제외 */
+    [data-ps-scope="input_hub"] .ps-start-needed-card,
+    [data-ps-scope="input_hub"] .ps-start-needed-card * {
+      transform: inherit !important;
     }
 
     /* 컨텐츠 레이어 올리기 */
