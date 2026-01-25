@@ -394,16 +394,13 @@ def inject_form_kit_v2_css(scope_id: Optional[str] = None):
         finally:
             del frame
     
-    # scope_id별 1회 주입 가드
-    flag_key = f"_ps_formkitv2_css_injected__{scope_id}"
-    if st.session_state.get(flag_key, False):
-        st.markdown(f'<div data-ps-scope="{scope_id}">', unsafe_allow_html=True)
-        return scope_id
+    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
+    # 안전장치: 모든 셀렉터는 [data-ps-scope]로 제한되어 있어 전역 영향 없음
     
     css = _generate_form_kit_v2_css()
     st.markdown(css, unsafe_allow_html=True)
-    push_render_step(f"CSS_INJECT: form_kit_v2.py:392 inject_form_kit_v2_css (scope={scope_id})", extra={"where": "global", "scope": scope_id})
-    st.session_state[flag_key] = True
+    push_render_step(f"CSS_INJECT: form_kit_v2", extra={"where": "form_kit_v2", "scope": scope_id})
+    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
     st.markdown(f'<div data-ps-scope="{scope_id}">', unsafe_allow_html=True)
     return scope_id
 

@@ -565,11 +565,11 @@ def render_form_layout(
         action_secondary: Secondary 액션 리스트
         main_content: Main Card 내용 렌더링 함수
     """
-    # 1회 주입 가드
-    if not st.session_state.get("_ps_input_layout_css_injected", False):
-        st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-        push_render_step("CSS_INJECT: input_layouts.py:562 INPUT_LAYOUT_CSS", extra={"where": "global"})
-        st.session_state["_ps_input_layout_css_injected"] = True
+    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
+    # 안전장치: 모든 셀렉터는 .ps-* 클래스로 제한되어 있어 전역 영향 없음
+    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: input_layouts", extra={"where": "input_layouts"})
+    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
     
     # Header
     badge_html = ""
@@ -650,11 +650,11 @@ def render_console_layout(
         cta_label: Bottom CTA 라벨
         cta_action: Bottom CTA 액션 함수
     """
-    # 1회 주입 가드 (INPUT_LAYOUT_CSS는 이미 위에서 주입됨)
-    if not st.session_state.get("_ps_input_layout_css_injected", False):
-        st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
-        push_render_step("CSS_INJECT: input_layouts.py:643 INPUT_LAYOUT_CSS", extra={"where": "global"})
-        st.session_state["_ps_input_layout_css_injected"] = True
+    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
+    # 안전장치: 모든 셀렉터는 .ps-* 클래스로 제한되어 있어 전역 영향 없음
+    st.markdown(INPUT_LAYOUT_CSS, unsafe_allow_html=True)
+    push_render_step("CSS_INJECT: input_layouts", extra={"where": "input_layouts"})
+    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
     
     # Header (간단 버전)
     header_html = f"""

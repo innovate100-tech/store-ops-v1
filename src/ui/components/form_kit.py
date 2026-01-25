@@ -82,14 +82,13 @@ FORM_KIT_CSS = """
 
 
 def inject_form_kit_css():
-    """FormKit CSS 주입 (1회만 실행)"""
-    # 1회 주입 가드
-    if st.session_state.get("_ps_formkit_css_injected", False):
-        return
+    """FormKit CSS 주입 (rerun마다 실행, DOM 종속 CSS)"""
+    # 주의: 1회 가드 없음 - DOM 재생성 시마다 CSS 재적용 필요
+    # 안전장치: 모든 셀렉터는 .ps-form-scope로 제한되어 있어 전역 영향 없음
     
     st.markdown(FORM_KIT_CSS, unsafe_allow_html=True)
-    push_render_step("CSS_INJECT: form_kit.py:78 inject_form_kit_css", extra={"where": "global"})
-    st.session_state["_ps_formkit_css_injected"] = True
+    push_render_step("CSS_INJECT: form_kit", extra={"where": "form_kit"})
+    # 주의: 플래그 설정 없음 - 매 rerun마다 CSS 재적용
 
 
 def ps_section(title: str, icon: Optional[str] = None, help_text: Optional[str] = None):
