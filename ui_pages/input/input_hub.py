@@ -1086,11 +1086,6 @@ def render_input_hub_v3():
     if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0: score += 25
     if assets.get('recipe_rate', 0) >= 80: score += 25
     if assets.get('has_target'): score += 25
-    
-    # 시스템 진단
-    system_stage = detect_system_stage(assets, has_daily_close)
-    bottleneck = detect_system_bottleneck(assets, has_daily_close, system_stage)
-    recommendation = get_system_recommendation(bottleneck, assets)
 
     # ============================================================
     # ZONE 0: 통합 헤더 (제목 + 가이드) - 옵션 1: 좌우 분할 (테스트 페이지와 동일)
@@ -1128,118 +1123,6 @@ def render_input_hub_v3():
     unified_header_html += '</div>'
     
     st.markdown(unified_header_html, unsafe_allow_html=True)
-
-    # ============================================================
-    # ZONE 1: System Snapshot (초압축 시스템 진단) - 사장 언어 버전
-    # ============================================================
-    # 할 일 목록이 아니라 매장 운영 상태판입니다.
-    # 사장이 이해하기 쉬운 언어로 현재 상태, 막히는 것, 다음 행동만 표시합니다.
-    st.markdown("### 🧠 매장 운영 상태")
-    st.markdown("<div style='margin-bottom: 0.3rem;'></div>", unsafe_allow_html=True)
-    
-    # 시스템이 못하는 것 계산 (사장 언어)
-    system_blocked = []
-    if not has_daily_close:
-        system_blocked.append("매출 흐름 파악")
-    if assets.get('recipe_rate', 0) < 80:
-        system_blocked.append("메뉴별 수익 확인")
-        system_blocked.append("전략 수립")
-    elif not assets.get('has_target'):
-        system_blocked.append("전략 수립")
-    
-    stage_level = system_stage.get("level", 1)
-    stage_name = system_stage.get("name", "기록 단계")
-    bn_msg = bottleneck.get("message", "병목 없음") if bottleneck.get("bottleneck") else "병목 없음"
-    blocked_text_full = ", ".join(system_blocked) if system_blocked else "없음 (모든 기능 활성화)"
-    primary = recommendation.get("primary")
-    
-    # 사장 언어로 단계/병목 변환
-    stage_display = {
-        1: "기록 시작 단계",
-        2: "구조 정리 단계",
-        3: "수익 분석 단계",
-        4: "전략 운영 단계"
-    }.get(stage_level, f"단계 {stage_level}")
-    
-    # 병목 메시지를 사장 언어로 변환
-    bn_display = bn_msg
-    if "일일 마감" in bn_msg or "마감" in bn_msg:
-        bn_display = "오늘 매장 기록이 없습니다"
-    elif "레시피" in bn_msg:
-        bn_display = "레시피 정리가 부족합니다"
-    elif "메뉴" in bn_msg:
-        bn_display = "메뉴 정보가 부족합니다"
-    elif "재료" in bn_msg:
-        bn_display = "재료 정보가 부족합니다"
-    elif "목표" in bn_msg:
-        bn_display = "이번 달 목표가 없습니다"
-    
-    # 잠김 기능 요약 (사장 언어, 최대 3개만 노출)
-    blocked_display = []
-    if system_blocked:
-        blocked_display = system_blocked[:3]
-        if len(system_blocked) > 3:
-            blocked_display.append(f"외 {len(system_blocked) - 3}개")
-        blocked_summary = " · ".join(blocked_display)
-    else:
-        blocked_summary = "없음"
-    
-    # 기본 카드 (압축형 - 사장 언어)
-    snapshot_html = f"""
-    <div class="animate-in delay-1" style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.6); border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.3); margin-bottom: 0.8rem;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.6rem;">
-            <div>
-                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">현재 상태</div>
-                <div style="font-size: 0.85rem; font-weight: 700; color: #3B82F6;">{stage_display}</div>
-            </div>
-            <div>
-                <div style="font-size: 0.7rem; color: #94A3B8; margin-bottom: 0.2rem; font-weight: 600; letter-spacing: 0.05em;">지금 막히는 것</div>
-                <div style="font-size: 0.85rem; font-weight: 700; color: #F59E0B;">{bn_display}</div>
-            </div>
-        </div>
-        <div style="font-size: 0.75rem; color: #94A3B8; line-height: 1.3;">
-            사용 불가: {blocked_summary}
-        </div>
-    </div>
-    """
-    st.markdown(snapshot_html, unsafe_allow_html=True)
-    
-    # 상세 정보 expander (사장 언어)
-    with st.expander("자세히 보기", expanded=False):
-        st.markdown("**현재 매장 운영 상태**")
-        st.markdown(f"{stage_display}")
-        st.markdown("---")
-        
-        st.markdown("**지금 막히는 것**")
-        st.markdown(f"{bn_display}")
-        st.markdown("---")
-        
-        st.markdown("**지금 사용할 수 없는 기능**")
-        st.markdown(f"{blocked_text_full}")
-        
-        if primary:
-            next_step_text = primary.get('description', '')
-            if next_step_text:
-                st.markdown("---")
-                st.markdown("**다음 행동**")
-                st.markdown(next_step_text)
-    
-    # PRIMARY ACTION 버튼 (항상 보완 기준)
-    if primary:
-        button_text = primary.get('button_text', '이동')
-        # 버튼 텍스트를 보완 기준으로 변경
-        if "입력" in button_text:
-            button_text = button_text.replace("입력", "보완")
-        elif "등록" in button_text:
-            button_text = button_text.replace("등록", "보완")
-        elif "설정" in button_text:
-            button_text = button_text.replace("설정", "보완")
-        
-        if st.button(button_text, use_container_width=True, type="primary", key="btn_primary_action"):
-            st.session_state.current_page = primary.get('page_key', '홈')
-            st.rerun()
-    
-    st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
 
     # ============================================================
     # ZONE 2: DATA ASSET CONTROL BOARD (페이지 본체)
