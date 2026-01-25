@@ -4,7 +4,10 @@
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import logging
 from src.auth import get_current_store_id, get_current_store_name, check_login, show_login_page
+
+logger = logging.getLogger(__name__)
 
 # 공통 설정 적용
 bootstrap(page_title="Home")
@@ -55,19 +58,90 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("""
-    - **입력 완성도**: (준비 중)
-    - **활성화된 분석**: (준비 중)
-    - **설계 가능 단계**: (준비 중)
-    """)
-    
-    st.markdown("""
-    <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
-        <p style="font-weight: 600; margin: 0; font-size: 1.05rem;">
-            👉 지금 가장 중요한 것은 "입력 → 분석 → 설계 흐름을 만드는 것"입니다.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # 추천 엔진 호출
+    try:
+        from src.auth import get_current_store_id
+        from src.home.home_reco_v1 import get_home_recommendation_v1
+        
+        store_id = get_current_store_id()
+        user_id = st.session_state.get('user_id')
+        
+        if store_id and user_id:
+            reco = get_home_recommendation_v1(user_id, store_id)
+            status = reco.get("status", {})
+            
+            # 상태 표시
+            yesterday_closed = status.get("yesterday_closed", False)
+            last7_close_days = status.get("last7_close_days", 0)
+            recipe_cover_rate = status.get("recipe_cover_rate", 0.0)
+            sales_goal_exists = status.get("sales_goal_exists", False)
+            cost_goal_exists = status.get("cost_goal_exists", False)
+            
+            st.markdown("""
+            - **마감**: 어제 마감 {} / 최근 7일 마감: {}/7
+            - **레시피**: 레시피 커버율: {:.0f}%
+            - **목표**: 목표(매출/비용): {} / {}
+            """.format(
+                "✅" if yesterday_closed else "❌",
+                last7_close_days,
+                recipe_cover_rate * 100,
+                "✅" if sales_goal_exists else "❌",
+                "✅" if cost_goal_exists else "❌"
+            ))
+            
+            # DEV 모드에서만 상세 상태 표시
+            if is_dev_mode():
+                st.caption(f"DEBUG: type={reco.get('type')}, status={status}")
+            
+            # 추천 블록
+            st.markdown("""
+            <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
+                <p style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.05rem; white-space: pre-line;">
+                    {}
+                </p>
+            </div>
+            """.format(reco.get("message", "상태 계산 중입니다.")), unsafe_allow_html=True)
+            
+            # 액션 버튼
+            action_label = reco.get("action_label", "오늘 마감 시작하기")
+            action_page = reco.get("action_page", "일일 입력(통합)")
+            
+            if st.button(f"▶ {action_label}", type="primary", use_container_width=True):
+                st.session_state.current_page = action_page
+                st.rerun()
+        else:
+            # store_id나 user_id가 없는 경우 기본 표시
+            st.markdown("""
+            - **입력 완성도**: (준비 중)
+            - **활성화된 분석**: (준비 중)
+            - **설계 가능 단계**: (준비 중)
+            """)
+            
+            st.markdown("""
+            <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
+                <p style="font-weight: 600; margin: 0; font-size: 1.05rem;">
+                    👉 지금 가장 중요한 것은 "입력 → 분석 → 설계 흐름을 만드는 것"입니다.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+    except Exception as e:
+        # 에러 발생 시 기본 표시 (안전 가드)
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to load recommendation: {e}")
+        
+        st.markdown("""
+        - **입력 완성도**: (준비 중)
+        - **활성화된 분석**: (준비 중)
+        - **설계 가능 단계**: (준비 중)
+        """)
+        
+        st.markdown("""
+        <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
+            <p style="font-weight: 600; margin: 0; font-size: 1.05rem;">
+                👉 지금 가장 중요한 것은 "입력 → 분석 → 설계 흐름을 만드는 것"입니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
