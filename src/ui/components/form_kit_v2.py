@@ -825,13 +825,19 @@ def ps_input_block(
         feedback: 피드백 정보 {label, value, status}
         warning: 경고 메시지
     """
+    # HTML 이스케이프 처리
+    import html
+    escaped_title = html.escape(title)
+    escaped_description = html.escape(description) if description else None
+    escaped_right_hint = html.escape(right_hint) if right_hint else None
+    
     st.markdown(f"""
     <div class="ps-input-block">
         <div class="ps-input-block-header">
-            <div class="ps-input-block-title">{title}</div>
-            {f'<div class="ps-input-block-hint">{right_hint}</div>' if right_hint else ''}
+            <div class="ps-input-block-title">{escaped_title}</div>
+            {f'<div class="ps-input-block-hint">{escaped_right_hint}</div>' if escaped_right_hint else ''}
         </div>
-        {f'<div class="ps-input-block-description">{description}</div>' if description else ''}
+        {f'<div class="ps-input-block-description">{escaped_description}</div>' if escaped_description else ''}
         <div class="ps-input-block-body">
     """, unsafe_allow_html=True)
     
@@ -851,7 +857,8 @@ def ps_input_block(
     
     # 경고 표시
     if warning:
-        st.markdown(f'<div class="ps-input-block-warning">⚠️ {warning}</div>', unsafe_allow_html=True)
+        escaped_warning = html.escape(str(warning))
+        st.markdown(f'<div class="ps-input-block-warning">⚠️ {escaped_warning}</div>', unsafe_allow_html=True)
     
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -905,7 +912,9 @@ def ps_inline_warning(message: str):
     Args:
         message: 경고 메시지
     """
-    st.markdown(f'<div class="ps-input-block-warning">⚠️ {message}</div>', unsafe_allow_html=True)
+    import html
+    escaped_message = html.escape(str(message))
+    st.markdown(f'<div class="ps-input-block-warning">⚠️ {escaped_message}</div>', unsafe_allow_html=True)
 
 
 def ps_input_status_badge(status: str, text: str):

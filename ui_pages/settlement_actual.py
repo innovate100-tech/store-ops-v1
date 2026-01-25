@@ -263,19 +263,37 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     def render_period_selection():
         col1, col2 = st.columns([1, 1])
         with col1:
+            # session_state에서 가져온 값도 int로 확실히 변환
+            year_value = st.session_state.get(year_key, year)
+            if isinstance(year_value, float):
+                year_value = int(year_value)
+            elif not isinstance(year_value, int):
+                year_value = int(year_value) if year_value else year
+            
             selected_year = st.number_input(
                 "연도",
                 min_value=2020,
                 max_value=2100,
-                value=year,
+                value=int(year_value),
+                step=1,
+                format="%d",
                 key=year_key
             )
         with col2:
+            # session_state에서 가져온 값도 int로 확실히 변환
+            month_value = st.session_state.get(month_key, month)
+            if isinstance(month_value, float):
+                month_value = int(month_value)
+            elif not isinstance(month_value, int):
+                month_value = int(month_value) if month_value else month
+            
             selected_month = st.number_input(
                 "월",
                 min_value=1,
                 max_value=12,
-                value=month,
+                value=int(month_value),
+                step=1,
+                format="%d",
                 key=month_key
             )
         return selected_year, selected_month
@@ -288,8 +306,11 @@ def _render_header_section(store_id: str, year: int, month: int, readonly: bool 
     )
     
     # 위젯 값은 session_state에서 직접 가져오기 (중복 호출 방지)
-    selected_year = st.session_state.get(year_key, year)
-    selected_month = st.session_state.get(month_key, month)
+    # float 타입일 수 있으므로 명시적으로 int로 변환
+    year_val = st.session_state.get(year_key, year)
+    month_val = st.session_state.get(month_key, month)
+    selected_year = int(year_val) if year_val is not None else year
+    selected_month = int(month_val) if month_val is not None else month
     
     # 연/월이 변경되면 session_state 업데이트 (Streamlit 위젯 변경 자체가 rerun을 유발하므로 중복 rerun 제거)
     if selected_year != year or selected_month != month:
@@ -805,12 +826,53 @@ def _render_expense_category(
                         status="warn"
                     )
         
+        # 새 항목 추가 블록 (추가 버튼 포함)
+        def render_new_item_with_add():
+            render_new_item()
+            if st.button("➕ 추가", key=f"settlement_add_{category}_{year}_{month}", 
+                        use_container_width=True, type="primary"):
+                new_name = st.session_state.get(f"settlement_new_name_{category}_{year}_{month}", "").strip()
+                new_input_type_key = f"settlement_new_input_type_{category}_{year}_{month}"
+                new_input_type_label = st.session_state.get(new_input_type_key, "금액(원)")
+                new_input_type = 'amount' if new_input_type_label == "금액(원)" else 'rate'
+                
+                if new_name:
+                    expense_items = _initialize_expense_items(store_id, year, month)
+                    
+                    # 템플릿에 저장
+                    try:
+                        item_type = 'percent' if new_input_type == 'rate' else 'normal'
+                        sort_order = len(expense_items[category])
+                        save_cost_item_template(
+                            store_id, category, new_name,
+                            item_type=item_type, sort_order=sort_order
+                        )
+                        ui_flash_success("✅ 템플릿에 저장됨")
+                    except Exception as e:
+                        ui_flash_error(f"템플릿 저장 실패: {e}")
+                    
+                    # session_state에 추가
+                    if new_input_type == 'amount':
+                        new_value = st.session_state.get(f"settlement_new_amount_{category}_{year}_{month}", 0)
+                    else:
+                        new_value = st.session_state.get(f"settlement_new_rate_{category}_{year}_{month}", 0.0)
+                    
+                    new_item = {
+                        'name': new_name,
+                        'input_type': new_input_type,
+                        'amount': int(new_value) if new_input_type == 'amount' else 0,
+                        'rate': float(new_value) if new_input_type == 'rate' else 0.0,
+                    }
+                    expense_items[category].append(new_item)
+                    st.rerun()
+                else:
+                    ui_flash_warning("⚠️ 항목명을 입력해주세요")
+        
         ps_input_block(
             title=f"{category_info['icon']} 새 항목 추가",
             description="새 비용 항목을 추가하세요",
             level="primary",
-            body_fn=render_new_item,
-            warning="➕ 추가는 하단 ActionBar에서 사용하세요"
+            body_fn=render_new_item_with_add
         )
 
 
@@ -1536,6 +1598,9 @@ def render_settlement_actual():
             action_secondary=action_secondary,
             main_content=render_main_content
         )
+        
+        # FormKit v2 스코프 닫기
+        st.markdown('</div>', unsafe_allow_html=True)
         
     except Exception as e:
         # 에러 발생 시 최소한의 UI 표시
