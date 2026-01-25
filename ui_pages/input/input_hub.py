@@ -287,6 +287,109 @@ def inject_input_hub_controlboard_compact_css():
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
     }}
     
+    /* 페이지 헤더 - 레이어드 카드 스타일 (옵션 4) */
+    [data-ps-scope="{scope_id}"] .ps-page-header-layered {{
+        background: rgba(30, 41, 59, 0.5) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+        border-radius: 12px !important;
+        padding: 0 !important;
+        margin-bottom: 2rem !important;
+        margin-top: 0 !important;
+        box-shadow: 
+            0 2px 8px rgba(0, 0, 0, 0.1),
+            0 0 20px rgba(59, 130, 246, 0.15) !important;
+        overflow: hidden !important;
+        position: relative !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-layered::before {{
+        content: "" !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 6px !important;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(59, 130, 246, 0.6) 20%, 
+            rgba(96, 165, 250, 0.9) 50%, 
+            rgba(59, 130, 246, 0.6) 80%, 
+            transparent 100%
+        ) !important;
+        z-index: 1 !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-content {{
+        padding: 1.8rem 2rem 1.5rem 2rem !important;
+        position: relative !important;
+        z-index: 2 !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-title-row {{
+        display: flex !important;
+        align-items: center !important;
+        gap: 1rem !important;
+        margin-bottom: 0.5rem !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-icon {{
+        font-size: 2.2rem !important;
+        filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.5)) !important;
+        line-height: 1 !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-title {{
+        font-size: 2.2rem !important;
+        font-weight: 800 !important;
+        color: #F8FAFC !important;
+        margin: 0 !important;
+        letter-spacing: -0.02em !important;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+        line-height: 1.2 !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-subtitle {{
+        font-size: 0.9rem !important;
+        color: #94A3B8 !important;
+        margin: 0 !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em !important;
+        margin-left: 3.2rem !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-page-header-divider {{
+        height: 4px !important;
+        width: 60px !important;
+        background: linear-gradient(90deg, #3B82F6 0%, transparent 100%) !important;
+        border-radius: 2px !important;
+        margin-top: 1.2rem !important;
+        margin-left: 3.2rem !important;
+    }}
+    
+    /* 반응형 대응 */
+    @media (max-width: 768px) {{
+        [data-ps-scope="{scope_id}"] .ps-page-header-content {{
+            padding: 1.4rem 1.5rem 1.2rem 1.5rem !important;
+        }}
+        
+        [data-ps-scope="{scope_id}"] .ps-page-header-icon {{
+            font-size: 1.8rem !important;
+        }}
+        
+        [data-ps-scope="{scope_id}"] .ps-page-header-title {{
+            font-size: 1.8rem !important;
+        }}
+        
+        [data-ps-scope="{scope_id}"] .ps-page-header-subtitle {{
+            font-size: 0.85rem !important;
+            margin-left: 2.8rem !important;
+        }}
+        
+        [data-ps-scope="{scope_id}"] .ps-page-header-divider {{
+            margin-left: 2.8rem !important;
+        }}
+    }}
+    
     /* 레이어 간 간격 축소 (프리미엄 레이아웃) */
     [data-ps-scope="{scope_id}"] .ps-layer-section {{
         margin-bottom: 18px !important;
@@ -902,7 +1005,35 @@ def render_input_hub_v3():
     
     정체성: 입력 페이지 모음 ❌ → 시스템 조종석 ✅
     """
-    render_page_header("✍ 데이터 입력 센터", "✍")
+    # 프리미엄 레이어드 카드 스타일 헤더 렌더링
+    st.markdown("""
+    <div data-ps-scope="input_hub" class="ps-page-header-layered">
+        <div class="ps-page-header-content">
+            <div class="ps-page-header-title-row">
+                <div class="ps-page-header-icon">✍</div>
+                <h1 class="ps-page-header-title">데이터 입력 센터</h1>
+            </div>
+            <div class="ps-page-header-subtitle">매장 운영 OS 조종석</div>
+            <div class="ps-page-header-divider"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 개발모드에서만 DB CLIENT MODE 표시 (기존 기능 유지)
+    try:
+        from src.storage_supabase import get_client_mode
+        from src.auth import is_dev_mode
+        
+        if is_dev_mode():
+            client_mode = get_client_mode()
+            if client_mode == "service_role_dev":
+                st.info(f"🔧 **DB CLIENT MODE: service_role_dev** (DEV MODE 전용, RLS 우회)")
+            elif client_mode == "anon":
+                st.caption(f"🔧 **DB CLIENT MODE: anon** (일반 모드)")
+            else:
+                st.caption(f"🔧 **DB CLIENT MODE: {client_mode}**")
+    except Exception:
+        pass  # 표시 실패해도 페이지는 계속 동작
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다."); return
