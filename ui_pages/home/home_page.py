@@ -969,6 +969,12 @@ def _render_anomaly_signals(store_id: str) -> None:
 
 def render_home() -> None:
     """홈 진입점."""
+    # 실행 증거 워터마크
+    st.error("⚠️ HOME_PAGE.PY LOADED ❌  ui_pages/home/home_page.py  (2026-01-26)")
+    import os
+    st.code(f"home_page.py __file__: {__file__}")
+    st.code(f"home_page.py abs path: {os.path.abspath(__file__)}")
+    
     user_id = st.session_state.get("user_id")
     if not user_id:
         st.error("로그인이 필요합니다.")

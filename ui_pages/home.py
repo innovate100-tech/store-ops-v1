@@ -19,6 +19,16 @@ def render_home():
     """
     HOME v0 - 단순 뼈대 버전
     """
+    # 실행 증거 워터마크
+    st.error("HOME V0 LOADED ✅  ui_pages/home.py  (2026-01-26)")
+    
+    # 실제 실행 파일 경로 출력
+    import os
+    st.code(f"__file__: {__file__}")
+    st.code(f"os.path.abspath(__file__): {os.path.abspath(__file__)}")
+    import ui_pages.home as h
+    st.code(f"h.__file__: {h.__file__}")
+    
     # 타이틀
     st.title("HOME (v0)")
     
