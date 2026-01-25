@@ -384,6 +384,49 @@ def inject_input_hub_controlboard_compact_css():
         margin-top: 16px !important;
     }}
     
+    /* 자산 패널 스타일 */
+    [data-ps-scope="{scope_id}"] .ps-asset-panel {{
+        background: rgba(30, 41, 59, 0.5) !important;
+        border-radius: 10px !important;
+        border-left: 3px solid !important;
+        padding: 0.8rem 1rem !important;
+        margin-bottom: 1rem !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-asset-progress {{
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.8rem !important;
+        margin-top: 0.8rem !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-asset-progress-bar {{
+        flex: 1 !important;
+        background: rgba(255,255,255,0.05) !important;
+        border-radius: 4px !important;
+        height: 6px !important;
+        overflow: hidden !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-asset-progress-fill {{
+        height: 100% !important;
+        border-radius: 4px !important;
+    }}
+    
+    /* 자산 상태 스트립 */
+    [data-ps-scope="{scope_id}"] .ps-asset-strip {{
+        display: grid !important;
+        gap: 0.6rem !important;
+        margin-bottom: 1rem !important;
+    }}
+    
+    [data-ps-scope="{scope_id}"] .ps-asset-strip-item {{
+        padding: 0.6rem !important;
+        background: rgba(30, 41, 59, 0.4) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    }}
+    
     /* prefers-reduced-motion 지원 */
     @media (prefers-reduced-motion: reduce) {{
         [data-ps-scope="{scope_id}"] button[kind="primary"],
@@ -856,6 +899,11 @@ def render_input_hub_v3():
             입력은 일이 아니라, 매장의 운영 시스템을 만드는 과정입니다.
         </p>
     </div>
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(148, 163, 184, 0.1);">
+        <p style="margin: 0; color: #94A3B8; font-size: 0.85rem; font-style: italic;">
+            아래 패널들은 현재 매장이 보유한 '데이터 자산' 상태입니다.
+        </p>
+    </div>
 </div>"""
     st.markdown(guide_html, unsafe_allow_html=True)
 
@@ -945,14 +993,13 @@ def render_input_hub_v3():
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
 
     # ============================================================
-    # ZONE 2: INPUT CONTROL BOARD (페이지 본체)
+    # ZONE 2: DATA ASSET CONTROL BOARD (페이지 본체)
     # ============================================================
-    # 입력센터의 핵심 영역입니다.
-    # 모든 입력 네비게이션이 여기서 이루어집니다.
-    # 3개 레이어로 구성: 구조 데이터 → 운영 데이터 → 기준 데이터
-    # STATUS ZONE (카드) + ACTION ZONE (버튼 바) 분리 구조
-    st.markdown("## 🕹 INPUT CONTROL BOARD")
-    st.markdown("**매장을 시스템으로 만드는 입력 모듈**")
+    # 데이터 자산 구축 현황판입니다.
+    # 3개 자산 패널로 구성: 구조 자산 → 운영 기록 자산 → 판단 기준 자산
+    st.markdown("## 🕹 DATA ASSET CONTROL BOARD")
+    st.markdown("**매장 데이터 자산 구축 현황판**")
+    st.markdown("아래 항목들은 모두 '매장을 시스템으로 만드는 데이터 자산'입니다.")
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
     # 최근 입력일 조회
@@ -971,376 +1018,337 @@ def render_input_hub_v3():
     r5 = next((r for r in recs if r["priority"] == 5), {"status": "pending", "summary": "확인 불가"})
     
     # ────────────────────────────────────────────────────────────
-    # 1️⃣ 구조 데이터 (설계 레이어)
+    # A. 🧱 매장 구조 자산 패널
     # ────────────────────────────────────────────────────────────
-    # 매장의 구조를 정의하는 데이터입니다.
-    # 환경설정 / 시스템 설계 톤으로 유지합니다.
-    st.markdown('<h3 class="ps-layer-title">🏗 구조 데이터 (설계 레이어)</h3>', unsafe_allow_html=True)
+    # 매장의 구조를 정의하는 데이터 자산입니다.
+    st.markdown('<h3 class="ps-layer-title">🧱 매장 구조 자산</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (4개) - 상태 표시기 스타일
-    struct_cols = st.columns(4)
+    # 구조 자산 전체 요약 상태 계산
+    menu_ready = assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0
+    ing_ready = assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0
+    recipe_ready = assets.get('recipe_rate', 0) >= 80
     
-    # 메뉴 상태 계산
-    menu_sub = None
-    if assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0:
-        menu_badge_class = "active"
-        menu_badge_text = "ACTIVE"
-        menu_value = f"{assets.get('menu_count', 0)}개"
-    elif assets.get('menu_count', 0) > 0:
-        menu_badge_class = "incomplete"
-        menu_badge_text = "INCOMPLETE"
-        menu_value = f"{assets.get('menu_count', 0)}개"
-        menu_sub = f"{assets.get('missing_price')}개 누락"
+    if menu_ready and ing_ready and recipe_ready:
+        struct_summary = "구조 자산: 기본 틀은 구축됨"
+        struct_summary_color = "#10B981"
+    elif (assets.get('menu_count', 0) > 0 or assets.get('ing_count', 0) > 0) and assets.get('recipe_rate', 0) > 0:
+        struct_summary = "구조 자산: 기본 틀은 있음 / 레시피 정리가 부족합니다"
+        struct_summary_color = "#F59E0B"
+    elif assets.get('menu_count', 0) > 0 or assets.get('ing_count', 0) > 0:
+        struct_summary = "구조 자산: 일부 있음 / 메뉴와 재료 보완이 필요합니다"
+        struct_summary_color = "#F59E0B"
     else:
-        menu_badge_class = "missing"
-        menu_badge_text = "MISSING"
-        menu_value = "0개"
+        struct_summary = "구조 자산: 거의 없음 / 메뉴와 재료부터 구축해야 합니다"
+        struct_summary_color = "#64748B"
     
-    # 재료 상태 계산
-    ing_sub = None
-    if assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0:
-        ing_badge_class = "active"
-        ing_badge_text = "ACTIVE"
-        ing_value = f"{assets.get('ing_count', 0)}개"
-    elif assets.get('ing_count', 0) > 0:
-        ing_badge_class = "incomplete"
-        ing_badge_text = "INCOMPLETE"
-        ing_value = f"{assets.get('ing_count', 0)}개"
-        ing_sub = f"{assets.get('missing_cost')}개 누락"
+    # 구조 자산 진행률 계산 (MATURITY LEVEL 연결)
+    struct_score = 0
+    if menu_ready: struct_score += 33
+    if ing_ready: struct_score += 33
+    if recipe_ready: struct_score += 34
+    
+    st.markdown(f"""
+    <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
+        <div style="font-size: 0.9rem; color: {struct_summary_color}; font-weight: 600; margin-bottom: 0.5rem;">{struct_summary}</div>
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <div style="font-size: 0.75rem; color: #94A3B8;">구조 자산</div>
+            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
+                <div style="background: linear-gradient(90deg, {struct_summary_color} 0%, {struct_summary_color} 100%); width: {struct_score}%; height: 100%;"></div>
+            </div>
+            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{struct_score}%</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 하위 항목 상태 스트립 (4개) - 의미 번역 포함
+    menu_status_text = "구축됨" if menu_ready else ("일부 있음" if assets.get('menu_count', 0) > 0 else "거의 없음")
+    ing_status_text = "구축됨" if ing_ready else ("일부 있음" if assets.get('ing_count', 0) > 0 else "거의 없음")
+    
+    # 레시피 의미 번역
+    recipe_rate = assets.get('recipe_rate', 0)
+    if recipe_rate >= 80:
+        recipe_status_text = "구축됨"
+    elif recipe_rate > 0:
+        recipe_status_text = f"거의 없음 ({recipe_rate:.0f}%)"
     else:
-        ing_badge_class = "missing"
-        ing_badge_text = "MISSING"
-        ing_value = "0개"
+        recipe_status_text = "비어 있음"
     
-    # 레시피 상태 계산
-    if assets.get('recipe_rate', 0) >= 80:
-        recipe_badge_class = "active"
-        recipe_badge_text = "ACTIVE"
-        recipe_value = f"{assets.get('recipe_rate', 0):.0f}%"
-    elif assets.get('recipe_rate', 0) > 0:
-        recipe_badge_class = "incomplete"
-        recipe_badge_text = "INCOMPLETE"
-        recipe_value = f"{assets.get('recipe_rate', 0):.0f}%"
-    else:
-        recipe_badge_class = "missing"
-        recipe_badge_text = "MISSING"
-        recipe_value = "0%"
-    
-    with struct_cols[0]:
-        menu_sub_html = f'<div class="ps-card-value-sub">{menu_sub}</div>' if menu_sub else ''
-        st.markdown(f"""
-        <div class="ps-control-card-struct ps-status-card">
-            <div class="ps-card-title">📘 메뉴 구조</div>
-            <div>
-                <span class="ps-card-status-badge {menu_badge_class}">{menu_badge_text}</span>
-            </div>
-            <div class="ps-card-value">
-                {menu_value}{menu_sub_html}
-            </div>
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{menu_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with struct_cols[1]:
-        ing_sub_html = f'<div class="ps-card-value-sub">{ing_sub}</div>' if ing_sub else ''
-        st.markdown(f"""
-        <div class="ps-control-card-struct ps-status-card">
-            <div class="ps-card-title">🧺 재료 구조</div>
-            <div>
-                <span class="ps-card-status-badge {ing_badge_class}">{ing_badge_text}</span>
-            </div>
-            <div class="ps-card-value">
-                {ing_value}{ing_sub_html}
-            </div>
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{ing_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with struct_cols[2]:
-        st.markdown(f"""
-        <div class="ps-control-card-struct ps-status-card">
-            <div class="ps-card-title">🍳 레시피 구조</div>
-            <div>
-                <span class="ps-card-status-badge {recipe_badge_class}">{recipe_badge_text}</span>
-            </div>
-            <div class="ps-card-value">{recipe_value}</div>
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{recipe_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
-        """, unsafe_allow_html=True)
-    
-    with struct_cols[3]:
-        st.markdown(f"""
-        <div class="ps-control-card-struct ps-status-card">
-            <div class="ps-card-title">📦 재고 구조</div>
-            <div>
-                <span class="ps-card-status-badge optional">OPTIONAL</span>
-            </div>
-            <div class="ps-card-value" style="color: #94A3B8; font-size: 0.85rem;">선택 입력</div>
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #94A3B8;">관리 중단</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">선택</div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 버튼 바 (4개) - 컨트롤 패널
+    # ACTION ZONE: 콘솔 영역
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
-    struct_btn_cols = st.columns(4)
+    struct_btn_cols = st.columns(2)
     with struct_btn_cols[0]:
-        btn_type = "primary" if assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0 else "secondary"
-        if st.button("📘 메뉴 입력", use_container_width=True, type=btn_type, key="btn_control_menu"):
-            st.session_state.current_page = "메뉴 입력"
+        btn_type = "primary" if not (menu_ready and ing_ready and recipe_ready) else "secondary"
+        if st.button("🧱 구조 자산 보완하기", use_container_width=True, type=btn_type, key="btn_asset_struct"):
+            # 가장 우선순위가 높은 항목으로 이동
+            if assets.get('missing_price', 0) > 0 or assets.get('menu_count', 0) == 0:
+                st.session_state.current_page = "메뉴 입력"
+            elif assets.get('missing_cost', 0) > 0 or assets.get('ing_count', 0) == 0:
+                st.session_state.current_page = "재료 입력"
+            elif assets.get('recipe_rate', 0) < 80:
+                st.session_state.current_page = "레시피 등록"
+            else:
+                st.session_state.current_page = "메뉴 입력"
             st.rerun()
     with struct_btn_cols[1]:
-        btn_type = "primary" if assets.get('missing_cost', 0) > 0 or assets.get('ing_count', 0) == 0 else "secondary"
-        if st.button("🧺 재료 입력", use_container_width=True, type=btn_type, key="btn_control_ing"):
-            st.session_state.current_page = "재료 입력"
-            st.rerun()
-    with struct_btn_cols[2]:
-        btn_type = "primary" if assets.get('recipe_rate', 0) < 80 else "secondary"
-        if st.button("🍳 레시피 입력", use_container_width=True, type=btn_type, key="btn_control_recipe"):
-            st.session_state.current_page = "레시피 등록"
-            st.rerun()
-    with struct_btn_cols[3]:
-        if st.button("📦 재고 입력", use_container_width=True, type="secondary", key="btn_control_inv"):
-            st.session_state.current_page = "재고 입력"
-            st.rerun()
+        if assets.get('recipe_rate', 0) < 80:
+            if st.button("🍳 레시피 정리 시작", use_container_width=True, type="primary", key="btn_asset_recipe"):
+                st.session_state.current_page = "레시피 등록"
+                st.rerun()
+        else:
+            if st.button("📦 재고 관리 시작", use_container_width=True, type="secondary", key="btn_asset_inv"):
+                st.session_state.current_page = "재고 입력"
+                st.rerun()
     
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
     # ────────────────────────────────────────────────────────────
-    # 2️⃣ 운영 데이터 (기록 레이어)
+    # B. 📒 운영 기록 자산 패널
     # ────────────────────────────────────────────────────────────
-    # 매장의 일상 기록 데이터입니다.
-    # 오늘 시스템에 연료 넣는 구역 톤으로 유지합니다.
-    st.markdown('<h3 class="ps-layer-title">⚡ 운영 데이터 (기록 레이어)</h3>', unsafe_allow_html=True)
+    # 매장의 일상 기록 데이터 자산입니다.
+    st.markdown('<h3 class="ps-layer-title">📒 운영 기록 자산</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (3개) - 상태 표시기 스타일
-    op_cols = st.columns(3)
-    
-    # 일일 마감 상태
+    # 운영 기록 자산 중심 문구
     if has_daily_close:
-        daily_badge_class = "active"
-        daily_badge_text = "ACTIVE"
-        daily_value = f"최근: {last_close_date}" if last_close_date != "기록 없음" else "오늘 기록"
+        op_main_msg = "어제까지 기록 유지 중"
+        op_main_color = "#10B981"
+        op_sub_msg = f"최근 기록: {last_close_date}" if last_close_date != "기록 없음" else "오늘 기록 완료"
     else:
-        daily_badge_class = "missing"
-        daily_badge_text = "MISSING"
-        daily_value = last_close_date if last_close_date != "기록 없음" else "기록 없음"
+        op_main_msg = "오늘 매장 기록이 없습니다"
+        op_main_color = "#F59E0B"
+        op_sub_msg = last_close_date if last_close_date != "기록 없음" else "기록 없음"
     
-    # QSC 상태
-    if r4["status"] == "completed":
-        qsc_badge_class = "active"
-        qsc_badge_text = "ACTIVE"
-        qsc_value = r4["summary"]
-    else:
-        qsc_badge_class = "optional"
-        qsc_badge_text = "OPTIONAL"
-        qsc_value = r4["summary"]
+    # 운영 기록 자산 진행률 계산
+    op_score = 0
+    if has_daily_close: op_score += 40
+    if r4["status"] == "completed": op_score += 30
+    if r5["status"] == "completed": op_score += 30
     
-    # 월간 정산 상태
-    if r5["status"] == "completed":
-        settle_badge_class = "active"
-        settle_badge_text = "ACTIVE"
-        settle_value = r5["summary"]
-    else:
-        settle_badge_class = "optional"
-        settle_badge_text = "PENDING"
-        settle_value = r5["summary"]
-    
-    with op_cols[0]:
-        st.markdown(f"""
-        <div class="ps-control-card-op ps-status-card">
-            <div class="ps-card-title">📝 일일 마감</div>
-            <div>
-                <span class="ps-card-status-badge {daily_badge_class}">{daily_badge_text}</span>
+    st.markdown(f"""
+    <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">
+        <div style="font-size: 1rem; color: {op_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{op_main_msg}</div>
+        <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{op_sub_msg}</div>
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <div style="font-size: 0.75rem; color: #94A3B8;">운영 기록</div>
+            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
+                <div style="background: linear-gradient(90deg, {op_main_color} 0%, {op_main_color} 100%); width: {op_score}%; height: 100%;"></div>
             </div>
-            <div class="ps-card-value">
-                {daily_value}
-            </div>
+            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{op_score}%</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 하위 항목 상태 스트립 (3개)
+    daily_status_text = "기록 중" if has_daily_close else "기록 없음"
+    qsc_status_text = "기록 중" if r4["status"] == "completed" else "기록 없음"
+    settle_status_text = "기록 중" if r5["status"] == "completed" else "기록 없음"
+    
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{daily_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
+        </div>
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🩺 QSC</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{qsc_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r4["summary"]}</div>
+        </div>
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📅 월간 정산</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{settle_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r5["summary"]}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 지금 기록이 없으면 무엇이 불가능한지
+    if not has_daily_close:
+        st.markdown("""
+        <div style="padding: 0.6rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 3px solid rgba(245, 158, 11, 0.4); margin-bottom: 1rem;">
+            <div style="font-size: 0.75rem; color: #F59E0B; font-weight: 600;">지금 기록이 없으면 매출 추이 분석이 불가능합니다</div>
         </div>
         """, unsafe_allow_html=True)
     
-    with op_cols[1]:
-        st.markdown(f"""
-        <div class="ps-control-card-op ps-status-card">
-            <div class="ps-card-title">🩺 QSC</div>
-            <div>
-                <span class="ps-card-status-badge {qsc_badge_class}">{qsc_badge_text}</span>
-            </div>
-            <div class="ps-card-value" style="font-size: 0.85rem;">{qsc_value}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with op_cols[2]:
-        st.markdown(f"""
-        <div class="ps-control-card-op ps-status-card">
-            <div class="ps-card-title">📅 월간 정산</div>
-            <div>
-                <span class="ps-card-status-badge {settle_badge_class}">{settle_badge_text}</span>
-            </div>
-            <div class="ps-card-value" style="font-size: 0.85rem;">{settle_value}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # ACTION ZONE: 버튼 바 (3개) - 컨트롤 패널
+    # ACTION ZONE: 콘솔 영역
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     op_btn_cols = st.columns(3)
     with op_btn_cols[0]:
         btn_type = "primary" if not has_daily_close else "secondary"
-        if st.button("📝 오늘 마감 입력", use_container_width=True, type=btn_type, key="btn_control_daily"):
+        if st.button("📝 오늘 매장 기록", use_container_width=True, type=btn_type, key="btn_asset_daily"):
             st.session_state.current_page = "일일 입력(통합)"
             st.rerun()
     with op_btn_cols[1]:
-        if st.button("🩺 QSC 입력", use_container_width=True, type="secondary", key="btn_control_qsc"):
+        if st.button("🩺 운영 점검 기록", use_container_width=True, type="secondary", key="btn_asset_qsc"):
             st.session_state.current_page = "건강검진 실시"
             st.rerun()
     with op_btn_cols[2]:
-        if st.button("📅 월간 정산 입력", use_container_width=True, type="secondary", key="btn_control_settle"):
+        if st.button("📅 월간 정산 기록", use_container_width=True, type="secondary", key="btn_asset_settle"):
             st.session_state.current_page = "실제정산"
             st.rerun()
     
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
     # ────────────────────────────────────────────────────────────
-    # 3️⃣ 기준 데이터 (판단 레이어)
+    # C. 🎯 판단 기준 자산 패널
     # ────────────────────────────────────────────────────────────
-    # 분석과 AI의 기준선 데이터입니다.
-    # AI 판단 기준 세팅 톤으로 유지합니다.
-    st.markdown('<h3 class="ps-layer-title">🎯 기준 데이터 (판단 레이어)</h3>', unsafe_allow_html=True)
+    # 분석과 AI의 기준선 데이터 자산입니다.
+    st.markdown('<h3 class="ps-layer-title">🎯 판단 기준 자산</h3>', unsafe_allow_html=True)
     
-    # STATUS ZONE: 카드 그리드 (2개) - 상태 표시기 스타일
-    target_cols = st.columns(2)
-    
-    # 매출 목표 상태
+    # 판단 기준 자산 중심 문구
     if assets.get('has_target'):
-        target_badge_class = "active"
-        target_badge_text = "ACTIVE"
-        target_value = f"{current_month_kst()}월"
+        target_main_msg = "이번 달 판단 기준 있음"
+        target_main_color = "#10B981"
+        target_sub_msg = f"{current_month_kst()}월 기준 설정됨"
     else:
-        target_badge_class = "missing"
-        target_badge_text = "MISSING"
-        target_value = "미설정"
+        target_main_msg = "현재 매장은 '평가 기준' 없이 운영 중입니다"
+        target_main_color = "#F59E0B"
+        target_sub_msg = "목표를 설정하면 전략 보드가 활성화됩니다"
     
-    with target_cols[0]:
-        st.markdown(f"""
-        <div class="ps-control-card-target ps-status-card">
-            <div class="ps-card-title">🎯 매출 목표</div>
-            <div>
-                <span class="ps-card-status-badge {target_badge_class}">{target_badge_text}</span>
+    # 판단 기준 자산 진행률 계산
+    target_score = 50 if assets.get('has_target') else 0
+    
+    st.markdown(f"""
+    <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
+        <div style="font-size: 1rem; color: {target_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{target_main_msg}</div>
+        <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.8rem;">{target_sub_msg}</div>
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <div style="font-size: 0.75rem; color: #94A3B8;">판단 기준</div>
+            <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 6px; overflow: hidden;">
+                <div style="background: linear-gradient(90deg, {target_main_color} 0%, {target_main_color} 100%); width: {target_score}%; height: 100%;"></div>
             </div>
-            <div class="ps-card-value">{target_value}</div>
+            <div style="font-size: 0.75rem; color: #94A3B8; font-weight: 600;">{target_score}%</div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
     
-    with target_cols[1]:
-        st.markdown(f"""
-        <div class="ps-control-card-target ps-status-card">
-            <div class="ps-card-title">🧾 비용 목표</div>
-            <div>
-                <span class="ps-card-status-badge optional">OPTIONAL</span>
-            </div>
-            <div class="ps-card-value" style="color: #94A3B8; font-size: 0.85rem;">선택 입력</div>
+    # 하위 항목 상태 스트립 (2개)
+    target_status_text = "설정됨" if assets.get('has_target') else "미설정"
+    
+    st.markdown(f"""
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{target_status_text}</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
-        """, unsafe_allow_html=True)
+        <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #94A3B8;">관리 중단</div>
+            <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">선택</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # ACTION ZONE: 버튼 바 (2개) - 컨트롤 패널
+    # ACTION ZONE: 콘솔 영역
     st.markdown('<div class="ps-action-bar-wrapper"></div>', unsafe_allow_html=True)
     target_btn_cols = st.columns(2)
     with target_btn_cols[0]:
         btn_type = "primary" if not assets.get('has_target') else "secondary"
-        if st.button("🎯 목표 입력", use_container_width=True, type=btn_type, key="btn_control_target"):
+        if st.button("🎯 이번 달 목표 설정", use_container_width=True, type=btn_type, key="btn_asset_target"):
             st.session_state.current_page = "목표 매출구조"
             st.rerun()
     with target_btn_cols[1]:
-        if st.button("🧾 비용 목표 입력", use_container_width=True, type="secondary", key="btn_control_cost"):
+        if st.button("🧾 비용 기준 점검", use_container_width=True, type="secondary", key="btn_asset_cost"):
             st.session_state.current_page = "목표 비용구조"
             st.rerun()
     
     st.markdown('<div class="ps-layer-section"></div>', unsafe_allow_html=True)
     
     # ============================================================
-    # ZONE 3: System Panels (접힘 영역)
+    # ZONE 3: 매장 데이터 지도 (System Map)
     # ============================================================
-    # 고급 사용자용 상세 현황입니다.
-    # 기본은 접힘 상태로 유지합니다.
+    # 현재 매장이 어떤 데이터 자산을 가지고 있고,
+    # 어디가 비어 있는지 한눈에 보여주는 지도입니다.
     st.markdown('<div class="ps-system-panels"></div>', unsafe_allow_html=True)
-    with st.expander("⚫ System Panels (상세 현황)", expanded=False):
-        # 우리 매장 데이터 지도
-        st.markdown("### 📊 우리 매장 데이터 지도")
-        st.caption("데이터 종류별로 현재 보유 현황을 확인하세요.")
-        
-        data_map_cols = st.columns(4)
-        with data_map_cols[0]:
-            close_status = "✅ 보유" if has_daily_close else "❌ 없음"
-            close_summary = f"최근: {last_close_date}" if last_close_date != "기록 없음" else "기록 없음"
-            _hub_status_card("일별 운영 데이터", close_status, close_summary, "completed" if has_daily_close else "warning", "delay-1")
-            if st.button("📝 일일 마감 입력", use_container_width=True, key="btn_panel_daily", type="primary" if not has_daily_close else "secondary"):
-                st.session_state.current_page = "일일 입력(통합)"
-                st.rerun()
-        
-        with data_map_cols[1]:
-            qsc_status = "✅ 보유" if r4["status"] == "completed" else "⏳ 권장"
-            _hub_status_card("운영 점검 데이터", qsc_status, r4["summary"], "completed" if r4["status"] == "completed" else "pending", "delay-2")
-            if st.button("🩺 QSC 입력", use_container_width=True, key="btn_panel_qsc"):
-                st.session_state.current_page = "건강검진 실시"
-                st.rerun()
-        
-        with data_map_cols[2]:
-            structure_status = "✅ 구축됨" if (assets.get('menu_count', 0) > 0 and assets.get('ing_count', 0) > 0) else "❌ 미구축"
-            structure_summary = f"메뉴 {assets.get('menu_count', 0)}개 / 재료 {assets.get('ing_count', 0)}개"
-            _hub_status_card("구조 데이터", structure_status, structure_summary, "completed" if structure_status == "✅ 구축됨" else "warning", "delay-3")
-            if st.button("📘 메뉴/재료 입력", use_container_width=True, key="btn_panel_structure", type="primary" if structure_status != "✅ 구축됨" else "secondary"):
-                st.session_state.current_page = "메뉴 입력"
-                st.rerun()
-        
-        with data_map_cols[3]:
-            target_status = "✅ 설정됨" if assets.get('has_target') else "❌ 미설정"
-            target_summary = f"{current_month_kst()}월" if assets.get('has_target') else "미설정"
-            _hub_status_card("기준 데이터", target_status, target_summary, "completed" if assets.get('has_target') else "pending", "delay-4")
-            if st.button("🎯 목표 입력", use_container_width=True, key="btn_panel_target", type="primary" if not assets.get('has_target') else "secondary"):
-                st.session_state.current_page = "목표 매출구조"
-                st.rerun()
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 데이터 자산 완성도 상세
-        st.markdown("### 🏗️ 데이터 자산 완성도 상세")
-        st.caption("각 데이터 자산의 완성도와 목적을 확인하세요.")
-        a1, a2, a3, a4 = st.columns(4)
-        with a1: 
-            _hub_asset_card("등록 메뉴", f"{assets.get('menu_count', 0)}개", "📘", "delay-1")
-            if assets.get('missing_price', 0) > 0: 
-                st.markdown(f"<p class='animate-in delay-2' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_price')}개 가격 누락</p>", unsafe_allow_html=True)
-            else: 
-                st.markdown("<p class='animate-in delay-2' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
-        with a2: 
-            _hub_asset_card("등록 재료", f"{assets.get('ing_count', 0)}개", "🧺", "delay-2")
-            if assets.get('missing_cost', 0) > 0: 
-                st.markdown(f"<p class='animate-in delay-3' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ {assets.get('missing_cost')}개 단가 누락</p>", unsafe_allow_html=True)
-            else: 
-                st.markdown("<p class='animate-in delay-3' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 등록 완료</p>", unsafe_allow_html=True)
-        with a3: 
-            _hub_asset_card("레시피 완성도", f"{assets.get('recipe_rate', 0):.0f}%", "🍳", "delay-3")
-            if assets.get('recipe_rate', 0) < 80: 
-                st.markdown("<p class='animate-in delay-4' style='color: #94A3B8; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>⏳ 80% 달성 권장</p>", unsafe_allow_html=True)
-            else: 
-                st.markdown("<p class='animate-in delay-4' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 정밀 분석 가능</p>", unsafe_allow_html=True)
-        with a4: 
-            goal_status = "✅ 설정 완료" if assets.get('has_target') else "❌ 미설정"
-            _hub_asset_card("이번 달 목표", goal_status, "🎯", "delay-4")
-            if not assets.get('has_target'): 
-                st.markdown("<p class='animate-in delay-4' style='color: #F59E0B; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem; font-weight: 600;'>⚠️ 목표 설정 필요</p>", unsafe_allow_html=True)
-            else: 
-                st.markdown("<p class='animate-in delay-4' style='color: #10B981; font-size: 0.8rem; margin: 0.5rem 0 0 0.5rem;'>✅ 분석 중</p>", unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # 과거 데이터 구축
-        st.markdown("### 🧮 과거 데이터 구축")
-        st.caption("과거 데이터를 일괄 입력할 때 사용합니다.")
-        past_cols = st.columns(2)
-        with past_cols[0]:
-            if st.button("🧮 매출/방문자 입력", use_container_width=True, key="btn_panel_bulk_sales"):
-                st.session_state.current_page = "매출 등록"
-                st.rerun()
-        with past_cols[1]:
-            if st.button("📦 판매량 입력", use_container_width=True, key="btn_panel_bulk_qty"):
-                st.session_state.current_page = "판매량 등록"
-                st.rerun()
+    st.markdown("### 🗺️ 매장 데이터 지도")
+    st.caption("현재 매장이 어떤 데이터 자산을 가지고 있고, 어디가 비어 있는지 한눈에 보여주는 지도입니다.")
+    
+    # 데이터 지도 카드 (4개) - 축소형
+    data_map_cols = st.columns(4)
+    
+    with data_map_cols[0]:
+        close_map_status = "구축됨" if has_daily_close else "비어 있음"
+        close_map_color = "#10B981" if has_daily_close else "#64748B"
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {close_map_color}40; min-height: 90px;">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">일별 운영</div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: {close_map_color}; margin-bottom: 0.3rem;">{close_map_status}</div>
+            <div style="font-size: 0.7rem; color: #64748B;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with data_map_cols[1]:
+        qsc_map_status = "구축됨" if r4["status"] == "completed" else "비어 있음"
+        qsc_map_color = "#10B981" if r4["status"] == "completed" else "#64748B"
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {qsc_map_color}40; min-height: 90px;">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">운영 점검</div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: {qsc_map_color}; margin-bottom: 0.3rem;">{qsc_map_status}</div>
+            <div style="font-size: 0.7rem; color: #64748B;">{r4["summary"][:15]}...</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with data_map_cols[2]:
+        structure_map_status = "구축됨" if (assets.get('menu_count', 0) > 0 and assets.get('ing_count', 0) > 0) else "비어 있음"
+        structure_map_color = "#10B981" if (assets.get('menu_count', 0) > 0 and assets.get('ing_count', 0) > 0) else "#64748B"
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {structure_map_color}40; min-height: 90px;">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">구조 데이터</div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: {structure_map_color}; margin-bottom: 0.3rem;">{structure_map_status}</div>
+            <div style="font-size: 0.7rem; color: #64748B;">메뉴 {assets.get('menu_count', 0)} / 재료 {assets.get('ing_count', 0)}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with data_map_cols[3]:
+        target_map_status = "구축됨" if assets.get('has_target') else "비어 있음"
+        target_map_color = "#10B981" if assets.get('has_target') else "#64748B"
+        st.markdown(f"""
+        <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {target_map_color}40; min-height: 90px;">
+            <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">기준 데이터</div>
+            <div style="font-size: 0.9rem; font-weight: 700; color: {target_map_color}; margin-bottom: 0.3rem;">{target_map_status}</div>
+            <div style="font-size: 0.7rem; color: #64748B;">{current_month_kst()}월</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 과거 데이터 구축 (축소형)
+    st.markdown("### 🧮 과거 데이터 구축")
+    past_cols = st.columns(2)
+    with past_cols[0]:
+        if st.button("🧮 매출/방문자 구축", use_container_width=True, key="btn_panel_bulk_sales"):
+            st.session_state.current_page = "매출 등록"
+            st.rerun()
+    with past_cols[1]:
+        if st.button("📦 판매량 구축", use_container_width=True, key="btn_panel_bulk_qty"):
+            st.session_state.current_page = "판매량 등록"
+            st.rerun()
     
     # 컨텐츠 wrapper 종료
     st.markdown('</div></div>', unsafe_allow_html=True)
