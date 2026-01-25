@@ -1344,7 +1344,17 @@ def render_input_hub_v3():
     # A. 🧱 매장 구조 자산 패널
     # ────────────────────────────────────────────────────────────
     # 매장의 구조를 정의하는 데이터 자산입니다.
-    st.markdown('<h3 class="ps-layer-title">🧱 매장 구조 자산</h3>', unsafe_allow_html=True)
+    st.markdown("""
+    <h3 class="ps-layer-title">
+        🧱 매장 구조 자산
+        <span style="
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #64748B;
+            margin-left: 0.5rem;
+        ">(메뉴·재료·레시피)</span>
+    </h3>
+    """, unsafe_allow_html=True)
     
     # 구조 자산 전체 요약 상태 계산 (운영 가능 기준)
     # '존재'가 아니라 '운영 가능' 기준으로 판단
@@ -1380,6 +1390,24 @@ def render_input_hub_v3():
         gauge_text = f"{struct_score}%"
         gauge_color = struct_summary_color
     
+    # 구조 자산 진행률 상세 정보 계산
+    struct_completed = sum([menu_operable, ing_operable, recipe_operable])
+    struct_total = 3
+    struct_remaining = struct_total - struct_completed
+    struct_progress_text = ""
+    if struct_remaining > 0:
+        struct_progress_text = f"""
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
+            ⚠️ {struct_remaining}개 항목 남음
+        </div>
+        """
+    else:
+        struct_progress_text = """
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
+            ✅ 모든 항목 완료!
+        </div>
+        """
+    
     st.markdown(f"""
     <div style="padding: 0.8rem 1rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {struct_summary_color}; margin-bottom: 1rem;">
         <div style="font-size: 0.9rem; color: {struct_summary_color}; font-weight: 600; margin-bottom: 0.5rem;">{struct_summary}</div>
@@ -1390,6 +1418,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {gauge_color}; font-weight: 600;">{gauge_text}</div>
         </div>
+        {struct_progress_text}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1463,24 +1492,85 @@ def render_input_hub_v3():
     recipe_card_data = 'data-ps-start-needed="true"' if recipe_card_class else ''
     inventory_card_data = 'data-ps-start-needed="true"' if inventory_card_class else ''
     
+    # STEP 배지 추가 (시작 필요 항목에만)
+    menu_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 1</div>
+    """ if menu_card_class else ""
+    
+    ing_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 2</div>
+    """ if ing_card_class else ""
+    
+    recipe_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 3</div>
+    """ if recipe_card_class else ""
+    
+    inventory_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 4</div>
+    """ if inventory_card_class else ""
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div class="{menu_card_class}" {menu_card_data} style="{menu_card_style}">
+            {menu_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
         <div class="{ing_card_class}" {ing_card_data} style="{ing_card_style}">
+            {ing_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
         <div class="{recipe_card_class}" {recipe_card_data} style="{recipe_card_style}">
+            {recipe_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
         <div class="{inventory_card_class}" {inventory_card_data} style="{inventory_card_style}">
+            {inventory_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
@@ -1565,7 +1655,17 @@ def render_input_hub_v3():
     # B. 📒 운영 기록 자산 패널
     # ────────────────────────────────────────────────────────────
     # 매장의 일상 기록 데이터 자산입니다.
-    st.markdown('<h3 class="ps-layer-title">📒 운영 기록 자산</h3>', unsafe_allow_html=True)
+    st.markdown("""
+    <h3 class="ps-layer-title">
+        📒 운영 기록 자산
+        <span style="
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #64748B;
+            margin-left: 0.5rem;
+        ">(일일 마감·QSC·정산)</span>
+    </h3>
+    """, unsafe_allow_html=True)
     
     # 운영 기록 자산 중심 문구
     if has_daily_close:
@@ -1591,6 +1691,24 @@ def render_input_hub_v3():
         op_gauge_text = f"{op_score}%"
         op_gauge_color = op_main_color
     
+    # 운영 기록 자산 진행률 상세 정보 계산
+    op_completed = sum([has_daily_close, r4["status"] == "completed", r5["status"] == "completed"])
+    op_total = 3
+    op_remaining = op_total - op_completed
+    op_progress_text = ""
+    if op_remaining > 0:
+        op_progress_text = f"""
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
+            ⚠️ {op_remaining}개 항목 남음
+        </div>
+        """
+    else:
+        op_progress_text = """
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
+            ✅ 모든 항목 완료!
+        </div>
+        """
+    
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {op_main_color}; margin-bottom: 1rem;">
         <div style="font-size: 1rem; color: {op_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{op_main_msg}</div>
@@ -1602,6 +1720,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {op_gauge_color}; font-weight: 600;">{op_gauge_text}</div>
         </div>
+        {op_progress_text}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1638,13 +1757,28 @@ def render_input_hub_v3():
         # 시작 필요일 때는 기본 스타일 + data 속성 (Streamlit이 클래스를 제거할 수 있으므로)
         daily_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);"
         daily_card_data = 'data-ps-start-needed="true"'
+        daily_step_badge = """
+        <div style="
+            display: inline-block;
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            margin-bottom: 0.3rem;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+        ">STEP 5</div>
+        """
     else:
         daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
         daily_card_data = ''
+        daily_step_badge = ""
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div class="{daily_card_class}" {daily_card_data} style="{daily_card_style}">
+            {daily_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
@@ -1706,7 +1840,17 @@ def render_input_hub_v3():
     # C. 🎯 판단 기준 자산 패널
     # ────────────────────────────────────────────────────────────
     # 분석과 AI의 기준선 데이터 자산입니다.
-    st.markdown('<h3 class="ps-layer-title">🎯 판단 기준 자산</h3>', unsafe_allow_html=True)
+    st.markdown("""
+    <h3 class="ps-layer-title">
+        🎯 판단 기준 자산
+        <span style="
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #64748B;
+            margin-left: 0.5rem;
+        ">(매출 목표·비용 목표)</span>
+    </h3>
+    """, unsafe_allow_html=True)
     
     # 판단 기준 자산 중심 문구 (운영 체감 언어)
     if assets.get('has_target'):
@@ -1732,6 +1876,24 @@ def render_input_hub_v3():
         target_gauge_text = f"{target_score}%"
         target_gauge_color = target_main_color
     
+    # 판단 기준 자산 진행률 상세 정보 계산
+    target_completed = sum([assets.get('has_target', False), assets.get('has_cost_target', False)])
+    target_total = 2
+    target_remaining = target_total - target_completed
+    target_progress_text = ""
+    if target_remaining > 0:
+        target_progress_text = f"""
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 0.5rem;">
+            ⚠️ {target_remaining}개 항목 남음
+        </div>
+        """
+    else:
+        target_progress_text = """
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 0.5rem;">
+            ✅ 모든 항목 완료!
+        </div>
+        """
+    
     st.markdown(f"""
     <div style="padding: 1rem 1.2rem; background: rgba(30, 41, 59, 0.5); border-radius: 10px; border-left: 3px solid {target_main_color}; margin-bottom: 1rem;">
         <div style="font-size: 1rem; color: {target_main_color}; font-weight: 700; margin-bottom: 0.5rem;">{target_main_msg}</div>
@@ -1743,6 +1905,7 @@ def render_input_hub_v3():
             </div>
             <div style="font-size: 0.75rem; color: {target_gauge_color}; font-weight: 600;">{target_gauge_text}</div>
         </div>
+        {target_progress_text}
     </div>
     """, unsafe_allow_html=True)
     
@@ -1773,14 +1936,45 @@ def render_input_hub_v3():
     target_card_data = 'data-ps-start-needed="true"' if target_card_class else ''
     cost_target_card_data = 'data-ps-start-needed="true"' if cost_target_card_class else ''
     
+    # STEP 배지 추가 (시작 필요 항목에만)
+    target_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 6</div>
+    """ if target_card_class else ""
+    
+    cost_target_step_badge = """
+    <div style="
+        display: inline-block;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.2rem 0.5rem;
+        border-radius: 10px;
+        margin-bottom: 0.3rem;
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+    ">STEP 6</div>
+    """ if cost_target_card_class else ""
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div class="{target_card_class}" {target_card_data} style="{target_card_style}">
+            {target_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
         <div class="{cost_target_card_class}" {cost_target_card_data} style="{cost_target_card_style}">
+            {cost_target_step_badge}
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
