@@ -57,41 +57,23 @@ def inject_home_premium_css():
        ============================================ */
     
     .ps-hero-card {
-        background: linear-gradient(135deg, 
-            rgba(30, 41, 59, 0.7) 0%, 
-            rgba(30, 41, 59, 0.8) 100%);
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(59, 130, 246, 0.35);
         border-radius: 16px;
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        box-shadow: 
-            0 8px 32px rgba(0, 0, 0, 0.3),
-            0 0 40px rgba(59, 130, 246, 0.15);
-        padding: 2.5rem;
-        margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
-        animation: ps-home-fadeInUp 0.8s ease-out forwards;
-        opacity: 0;
-    }
-    
-    @supports (backdrop-filter: blur(10px)) {
-        .ps-hero-card {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
+        padding: 24px;
+        margin: 10px 0 18px 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 30px rgba(59, 130, 246, 0.18);
     }
     
     .ps-neon {
         height: 6px;
-        border-radius: 3px;
-        margin-bottom: 2rem;
+        border-radius: 999px;
+        margin-bottom: 16px;
     }
     
-    .ps-neon.ps-neon-blue {
-        background: linear-gradient(90deg, 
-            #3B82F6 0%, 
-            #60A5FA 50%, 
-            #3B82F6 100%);
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    .ps-neon-blue {
+        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%);
+        box-shadow: 0 0 18px rgba(59, 130, 246, 0.55);
     }
     
     .ps-hero-body {
@@ -100,15 +82,12 @@ def inject_home_premium_css():
     }
     
     .ps-hero-title {
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         font-weight: 800;
-        line-height: 1.3;
-        margin-bottom: 1rem;
         background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
-        text-shadow: 0 0 30px rgba(96, 165, 250, 0.5);
+        margin-bottom: 10px;
         color: #60A5FA; /* fallback */
     }
     
@@ -120,16 +99,15 @@ def inject_home_premium_css():
     }
     
     .ps-hero-sub {
-        font-size: 1.3rem;
-        font-weight: 500;
         color: #94a3b8;
-        line-height: 1.5;
-        margin-bottom: 1.5rem;
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        font-weight: 600;
     }
     
     .ps-hero-desc {
-        font-size: 1rem;
         color: #cbd5e1;
+        font-size: 1rem;
         line-height: 1.6;
     }
     

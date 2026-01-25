@@ -41,12 +41,15 @@ def render_home():
     <div class="ps-hero-card">
         <div class="ps-neon ps-neon-blue"></div>
         <div class="ps-hero-body">
-            <div class="ps-hero-title">이 앱은 감이 아니라, 숫자로 매장을 운영하게 만드는 시스템입니다.</div>
+            <div class="ps-hero-title">HERO PROBE ✅ 이 앱은 감이 아니라, 숫자로 매장을 운영하게 만드는 시스템입니다.</div>
             <div class="ps-hero-sub">매출은 결과이고, 숫자는 원인입니다.</div>
             <div class="ps-hero-desc">이 앱은 아래 3단계를 반복할수록 매장이 강해지도록 설계되어 있습니다.</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # 디버그: Hero 렌더링 확인
+    st.write("HERO_RENDERED")
     
     st.markdown("---")
     
