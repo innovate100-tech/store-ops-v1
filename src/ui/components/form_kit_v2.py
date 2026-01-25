@@ -21,6 +21,13 @@ PRIMARY_INPUT_FONT_WEIGHT = 600
 PRIMARY_INPUT_BORDER_RADIUS = 14  # px
 PRIMARY_INPUT_PADDING_RIGHT = 120  # px (단위 박스 공간)
 
+# Compact 모드 스펙 (목표/보정/마감 페이지용)
+COMPACT_INPUT_HEIGHT = 40  # px (Secondary와 동일)
+COMPACT_INPUT_FONT_SIZE = 14  # px (Secondary와 동일)
+COMPACT_INPUT_FONT_WEIGHT = 500
+COMPACT_INPUT_BORDER_RADIUS = 10  # px
+COMPACT_INPUT_PADDING_RIGHT = 100  # px (단위 박스 공간)
+
 SECONDARY_INPUT_HEIGHT = 40  # px
 SECONDARY_INPUT_FONT_SIZE = 14  # px
 
@@ -33,6 +40,27 @@ INPUT_BLOCK_BORDER_RADIUS = 14  # px
 INPUT_BLOCK_MARGIN_BOTTOM = 16  # px
 
 RESPONSIVE_BREAKPOINT = 900  # px (이하에서 1열로 변경)
+
+# ============================================
+# 입력 UX 규칙 (입력 전용 페이지 표준)
+# ============================================
+"""
+입력 전용 페이지 UX 규칙 (FormKit v2 표준):
+
+1. 저장 버튼:
+   - ActionBar 하단 1곳만 존재
+   - 페이지 내부 중간 저장 버튼 금지
+
+2. 추가 버튼:
+   - 새 항목 블록 하단에 "➕ 추가" 버튼 유지
+   - ActionBar로 이동 금지 (UX 혼란 방지)
+
+3. 삭제 버튼:
+   - 각 항목 블록 우측 끝 "🗑️" 버튼 유지
+   - ActionBar로 이동 금지 (항목별 개별 삭제 필요)
+
+이 3가지는 입력 전용 페이지 표준으로 고정.
+"""
 
 
 # FormKit v2 CSS (입력 전용 스코프 - data-ps-scope 기반)
@@ -130,6 +158,29 @@ def _generate_form_kit_v2_css() -> str:
     [data-ps-scope] .ps-primary-input-wrapper [data-testid="stNumberInput"] > div > div {{
         padding-right: 16px !important;
     }}
+}}
+
+/* ============================================
+   Compact 모드 스타일 (목표/보정/마감 페이지용)
+   ============================================ */
+[data-ps-scope] .ps-primary-input-wrapper.ps-compact {{
+    margin-bottom: 12px;
+}}
+
+[data-ps-scope] .ps-primary-input-wrapper.ps-compact [data-testid="stNumberInput"] > div > div {{
+    height: {COMPACT_INPUT_HEIGHT}px !important;
+    border-radius: {COMPACT_INPUT_BORDER_RADIUS}px !important;
+    padding-right: {COMPACT_INPUT_PADDING_RIGHT}px !important;
+}}
+
+[data-ps-scope] .ps-primary-input-wrapper.ps-compact [data-testid="stNumberInput"] input {{
+    font-size: {COMPACT_INPUT_FONT_SIZE}px !important;
+    font-weight: {COMPACT_INPUT_FONT_WEIGHT} !important;
+}}
+
+[data-ps-scope] .ps-primary-input-wrapper.ps-compact::after {{
+    height: {COMPACT_INPUT_HEIGHT}px;
+    font-size: {UNIT_BOX_FONT_SIZE}px;
 }}
 
 /* ============================================
@@ -404,7 +455,8 @@ def ps_primary_money_input(
     disabled: bool = False,
     help_text: Optional[str] = None,
     unit: str = "원",
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    compact: bool = False
 ) -> Union[int, float]:
     """
     Primary 등급: 금액 입력 (핵심 수치)
@@ -420,6 +472,7 @@ def ps_primary_money_input(
         help_text: 도움말
         unit: 단위 (기본: "원")
         status: 상태 (ok/warn/danger, None이면 자동 판단)
+        compact: Compact 모드 (목표/보정/마감 페이지용, 기본: False)
     
     Returns:
         입력된 숫자값
@@ -455,6 +508,13 @@ def ps_primary_money_input(
     )
     
     # 스타일 적용 (data-ps-scope 기반, 단위는 ::after로 자동 처리)
+    # compact 모드에 따라 높이/폰트 크기 결정
+    input_height = COMPACT_INPUT_HEIGHT if compact else PRIMARY_INPUT_HEIGHT
+    input_font_size = COMPACT_INPUT_FONT_SIZE if compact else PRIMARY_INPUT_FONT_SIZE
+    input_font_weight = COMPACT_INPUT_FONT_WEIGHT if compact else PRIMARY_INPUT_FONT_WEIGHT
+    input_border_radius = COMPACT_INPUT_BORDER_RADIUS if compact else PRIMARY_INPUT_BORDER_RADIUS
+    input_padding_right = COMPACT_INPUT_PADDING_RIGHT if compact else PRIMARY_INPUT_PADDING_RIGHT
+    
     st.markdown(f"""
     <style>
     #ps-wrapper-{safe_key} {{
@@ -466,14 +526,14 @@ def ps_primary_money_input(
     #ps-wrapper-{safe_key} [data-testid="stNumberInput"] > div > div {{
         background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
         border: 1px solid rgba(255,255,255,0.12) !important;
-        border-radius: {PRIMARY_INPUT_BORDER_RADIUS}px !important;
-        height: {PRIMARY_INPUT_HEIGHT}px !important;
-        padding-right: {PRIMARY_INPUT_PADDING_RIGHT}px !important;
+        border-radius: {input_border_radius}px !important;
+        height: {input_height}px !important;
+        padding-right: {input_padding_right}px !important;
         position: relative;
     }}
     #ps-wrapper-{safe_key} [data-testid="stNumberInput"] input {{
-        font-size: {PRIMARY_INPUT_FONT_SIZE}px !important;
-        font-weight: {PRIMARY_INPUT_FONT_WEIGHT} !important;
+        font-size: {input_font_size}px !important;
+        font-weight: {input_font_weight} !important;
         color: #F8FAFC !important;
         background: transparent !important;
         border: none !important;
@@ -498,7 +558,7 @@ def ps_primary_money_input(
         background: rgba(255,255,255,0.06);
         border-left: 1px solid rgba(255,255,255,0.12);
         padding: 0 {UNIT_BOX_PADDING_H}px;
-        height: {UNIT_BOX_HEIGHT}px;
+        height: {input_height}px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -815,7 +875,8 @@ def ps_input_block(
     level: str = "primary",
     body_fn: Optional[Callable] = None,
     feedback: Optional[Dict[str, Any]] = None,
-    warning: Optional[str] = None
+    warning: Optional[str] = None,
+    compact: bool = False
 ):
     """
     입력 블록 컨테이너 (모든 핵심 입력은 이 블록 안에)
@@ -828,6 +889,7 @@ def ps_input_block(
         body_fn: 본문 렌더링 함수 (호출 가능한 함수)
         feedback: 피드백 정보 {label, value, status}
         warning: 경고 메시지
+        compact: Compact 모드 (목표/보정/마감 페이지용, 기본: False)
     """
     # HTML 이스케이프 처리
     import html
