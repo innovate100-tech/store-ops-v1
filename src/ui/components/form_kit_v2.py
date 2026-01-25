@@ -437,17 +437,21 @@ def ps_primary_money_input(
     <div class="ps-primary-input-wrapper" data-unit="{unit}" id="ps-wrapper-{safe_key}">
     """, unsafe_allow_html=True)
     
+    # value 타입 확인 (format 결정용)
+    # 금액은 항상 정수로 표시하므로 format="%.0f" 사용 (float 타입이어도 정수처럼 표시)
+    value_float = float(value) if value else 0.0
+    
     # Streamlit number_input 사용 (모든 숫자 인자를 float로 통일)
     result = st.number_input(
         label,
         min_value=float(min_value) if min_value is not None else None,
         max_value=float(max_value) if max_value is not None else None,
-        value=float(value) if value else 0.0,
+        value=value_float,
         step=float(step) if step else 1.0,
         disabled=disabled,
         key=key,
         help=help_text,
-        format="%d" if isinstance(value, int) or (isinstance(value, float) and value.is_integer()) else "%.0f"
+        format="%.0f"  # 항상 정수 형식으로 표시 (float 타입이어도 정수처럼)
     )
     
     # 스타일 적용 (data-ps-scope 기반, 단위는 ::after로 자동 처리)
@@ -827,25 +831,33 @@ def ps_input_block(
     """
     # HTML 이스케이프 처리
     import html
-    escaped_title = html.escape(title)
-    escaped_description = html.escape(description) if description else None
-    escaped_right_hint = html.escape(right_hint) if right_hint else None
+    escaped_title = html.escape(str(title))
+    escaped_description = html.escape(str(description)) if description else None
+    escaped_right_hint = html.escape(str(right_hint)) if right_hint else None
     
-    st.markdown(f"""
-    <div class="ps-input-block">
-        <div class="ps-input-block-header">
-            <div class="ps-input-block-title">{escaped_title}</div>
-            {f'<div class="ps-input-block-hint">{escaped_right_hint}</div>' if escaped_right_hint else ''}
-        </div>
-        {f'<div class="ps-input-block-description">{escaped_description}</div>' if escaped_description else ''}
-        <div class="ps-input-block-body">
-    """, unsafe_allow_html=True)
+    # 블록 컨테이너 시작
+    st.markdown('<div class="ps-input-block">', unsafe_allow_html=True)
+    
+    # 헤더 부분 (하나의 마크다운으로 통합)
+    header_parts = [f'<div class="ps-input-block-header">', f'<div class="ps-input-block-title">{escaped_title}</div>']
+    if escaped_right_hint:
+        header_parts.append(f'<div class="ps-input-block-hint">{escaped_right_hint}</div>')
+    header_parts.append('</div>')
+    st.markdown(''.join(header_parts), unsafe_allow_html=True)
+    
+    # 설명 부분
+    if escaped_description:
+        st.markdown(f'<div class="ps-input-block-description">{escaped_description}</div>', unsafe_allow_html=True)
+    
+    # 본문 시작
+    st.markdown('<div class="ps-input-block-body">', unsafe_allow_html=True)
     
     # 본문 렌더링 (호출)
     if body_fn:
         body_fn()
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 본문 닫기
+    st.markdown('</div>', unsafe_allow_html=True)
     
     # 피드백 표시
     if feedback:
@@ -860,7 +872,8 @@ def ps_input_block(
         escaped_warning = html.escape(str(warning))
         st.markdown(f'<div class="ps-input-block-warning">⚠️ {escaped_warning}</div>', unsafe_allow_html=True)
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 블록 컨테이너 닫기
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def ps_block_row(
