@@ -96,6 +96,17 @@ def render_home():
             
             # 추천 블록
             st.markdown("""
+            <div style="margin-bottom: 0.75rem;">
+                <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; color: #F59E0B;">
+                    🎯 오늘 우리 매장 추천
+                </h3>
+                <p style="font-size: 0.85rem; color: #94a3b8; margin: 0; font-style: italic;">
+                    이 앱이 오늘 데이터를 보고 판단한, 가장 우선해야 할 한 가지입니다.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("""
             <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid #F59E0B; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
                 <p style="font-weight: 600; margin-bottom: 0.5rem; font-size: 1.05rem; white-space: pre-line;">
                     {}
