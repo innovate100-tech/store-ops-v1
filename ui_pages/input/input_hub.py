@@ -1144,21 +1144,41 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (4개) - 운영 체감 언어
+    # 하위 항목 상태 스트립 (4개) - 운영 체감 언어 + 색상
     # '구축됨'이 아니라 '운영 가능' 기준
-    menu_status_text = "정상 운영" if menu_operable else ("보완 필요" if assets.get('menu_count', 0) > 0 else "시작 필요")
-    ing_status_text = "정상 운영" if ing_operable else ("보완 필요" if assets.get('ing_count', 0) > 0 else "시작 필요")
+    if menu_operable:
+        menu_status_text = "정상 운영"
+        menu_status_color = "#10B981"
+    elif assets.get('menu_count', 0) > 0:
+        menu_status_text = "보완 필요"
+        menu_status_color = "#F59E0B"
+    else:
+        menu_status_text = "시작 필요"
+        menu_status_color = "#94A3B8"
     
-    # 레시피 운영 체감 언어
+    if ing_operable:
+        ing_status_text = "정상 운영"
+        ing_status_color = "#10B981"
+    elif assets.get('ing_count', 0) > 0:
+        ing_status_text = "보완 필요"
+        ing_status_color = "#F59E0B"
+    else:
+        ing_status_text = "시작 필요"
+        ing_status_color = "#94A3B8"
+    
+    # 레시피 운영 체감 언어 + 색상
     recipe_rate = assets.get('recipe_rate', 0)
     if recipe_rate >= 80:
         recipe_status_text = "정상 운영"
+        recipe_status_color = "#10B981"
     elif recipe_rate > 0:
         recipe_status_text = f"보완 필요 ({recipe_rate:.0f}%)"
+        recipe_status_color = "#F59E0B"
     else:
         recipe_status_text = "시작 필요"
+        recipe_status_color = "#94A3B8"
     
-    # 재고 안전재고 설정 비율 운영 체감 언어
+    # 재고 안전재고 설정 비율 운영 체감 언어 + 색상
     inventory_safety_rate = assets.get('inventory_safety_rate', 0)
     if inventory_safety_rate >= 80:
         inventory_status_text = "정상 운영"
@@ -1174,17 +1194,17 @@ def render_input_hub_v3():
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{menu_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{ing_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{recipe_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
@@ -1260,26 +1280,43 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (3개) - 운영 체감 언어
-    daily_status_text = "정상 운영" if has_daily_close else "시작 필요"
-    qsc_status_text = "정상 운영" if r4["status"] == "completed" else "보완 필요"
-    settle_status_text = "정상 운영" if r5["status"] == "completed" else "보완 필요"
+    # 하위 항목 상태 스트립 (3개) - 운영 체감 언어 + 색상
+    if has_daily_close:
+        daily_status_text = "정상 운영"
+        daily_status_color = "#10B981"
+    else:
+        daily_status_text = "시작 필요"
+        daily_status_color = "#94A3B8"
+    
+    if r4["status"] == "completed":
+        qsc_status_text = "정상 운영"
+        qsc_status_color = "#10B981"
+    else:
+        qsc_status_text = "보완 필요"
+        qsc_status_color = "#F59E0B"
+    
+    if r5["status"] == "completed":
+        settle_status_text = "정상 운영"
+        settle_status_color = "#10B981"
+    else:
+        settle_status_text = "보완 필요"
+        settle_status_color = "#F59E0B"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{daily_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🩺 QSC</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{qsc_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {qsc_status_color};">{qsc_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r4["summary"]}</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📅 월간 정산</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{settle_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {settle_status_color};">{settle_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{r5["summary"]}</div>
         </div>
     </div>
@@ -1348,16 +1385,26 @@ def render_input_hub_v3():
     </div>
     """, unsafe_allow_html=True)
     
-    # 하위 항목 상태 스트립 (2개) - 운영 체감 언어
-    target_status_text = "정상 운영" if assets.get('has_target') else "시작 필요"
-    cost_target_status_text = "정상 운영" if assets.get('has_cost_target') else "시작 필요"
-    cost_target_color = "#10B981" if assets.get('has_cost_target') else "#94A3B8"
+    # 하위 항목 상태 스트립 (2개) - 운영 체감 언어 + 색상
+    if assets.get('has_target'):
+        target_status_text = "정상 운영"
+        target_status_color = "#10B981"
+    else:
+        target_status_text = "시작 필요"
+        target_status_color = "#94A3B8"
+    
+    if assets.get('has_cost_target'):
+        cost_target_status_text = "정상 운영"
+        cost_target_color = "#10B981"
+    else:
+        cost_target_status_text = "시작 필요"
+        cost_target_color = "#94A3B8"
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
-            <div style="font-size: 0.85rem; font-weight: 600; color: #E2E8F0;">{target_status_text}</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
         <div style="padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);">
@@ -1407,8 +1454,12 @@ def render_input_hub_v3():
         """, unsafe_allow_html=True)
     
     with data_map_cols[1]:
-        qsc_map_status = "정상 운영" if r4["status"] == "completed" else "보완 필요"
-        qsc_map_color = "#10B981" if r4["status"] == "completed" else "#64748B"
+        if r4["status"] == "completed":
+            qsc_map_status = "정상 운영"
+            qsc_map_color = "#10B981"
+        else:
+            qsc_map_status = "보완 필요"
+            qsc_map_color = "#F59E0B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {qsc_map_color}40; min-height: 90px;">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">운영 점검</div>
@@ -1421,8 +1472,12 @@ def render_input_hub_v3():
         # 운영 가능 기준: 메뉴와 재료가 모두 있고 가격/단가가 모두 있으면 정상 운영
         structure_operable = (assets.get('menu_count', 0) > 0 and assets.get('missing_price', 0) == 0 and 
                              assets.get('ing_count', 0) > 0 and assets.get('missing_cost', 0) == 0)
-        structure_map_status = "정상 운영" if structure_operable else "보완 필요"
-        structure_map_color = "#10B981" if structure_operable else "#64748B"
+        if structure_operable:
+            structure_map_status = "정상 운영"
+            structure_map_color = "#10B981"
+        else:
+            structure_map_status = "보완 필요"
+            structure_map_color = "#F59E0B"
         st.markdown(f"""
         <div style="padding: 0.8rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid {structure_map_color}40; min-height: 90px;">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.4rem;">구조 데이터</div>
