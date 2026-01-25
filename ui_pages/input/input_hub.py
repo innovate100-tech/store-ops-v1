@@ -101,25 +101,8 @@ def inject_input_hub_animations_css():
         animation: shimmer-bg 10s ease infinite; 
     }
     
-    /* 시작 필요 상태 강조 스타일 - 최고 우선순위 선택자 (모든 CSS보다 나중에 적용) */
-    div[data-ps-scope="input_hub"] div.ps-start-needed-card,
-    [data-ps-scope="input_hub"] div.ps-start-needed-card,
-    [data-ps-scope="input_hub"] .ps-start-needed-card {
-        /* 애니메이션 강제 적용 (최고 우선순위, 모든 다른 CSS보다 우선) */
-        animation: pulse-start-needed 2s ease-in-out infinite,
-                   glow-pulse 3s ease-in-out infinite !important;
-        animation-name: pulse-start-needed, glow-pulse !important;
-        animation-duration: 2s, 3s !important;
-        animation-timing-function: ease-in-out, ease-in-out !important;
-        animation-iteration-count: infinite, infinite !important;
-        animation-fill-mode: both, both !important;
-        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5),
-                    0 0 30px rgba(245, 158, 11, 0.3) !important;
-        position: relative !important;
-        /* transform이 FINAL_SAFETY_PIN에 의해 제거되지 않도록 */
-        transform: scale(1) !important;
-        will-change: transform, box-shadow !important;
-    }
+    /* 시작 필요 상태 강조 스타일 - JavaScript로 동적 적용 (CSS는 보조용) */
+    /* 주의: Streamlit이 클래스와 속성을 제거할 수 있으므로 JavaScript가 주로 담당 */
     
     /* 버튼 강조 - JavaScript로 동적 적용 */
     [data-ps-scope="input_hub"] button[kind="primary"]:has-text("🚀"),
@@ -1006,15 +989,28 @@ def render_input_hub_v3():
             function applyStartNeededStyles() {
                 // keyframes 먼저 확인
                 ensureKeyframes();
-                // 카드에 애니메이션 적용 (CSS가 적용되지 않을 경우를 대비한 백업)
-                const cards = document.querySelectorAll('[data-ps-scope="input_hub"] .ps-start-needed-card');
+                
+                // 카드에 애니메이션 적용 (텍스트 기반으로 찾기 - Streamlit이 속성을 제거할 수 있으므로)
+                // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있는 div 찾기
+                const allDivs = document.querySelectorAll('div');
+                const cards = Array.from(allDivs).filter(div => {
+                    const text = div.textContent || '';
+                    const style = window.getComputedStyle(div);
+                    // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있고, 주황색 테두리나 배경이 있는 div
+                    const hasStartText = text.includes('지금 시작하세요') || text.includes('시작 필요');
+                    const hasOrangeColor = style.borderColor.includes('245') || style.borderColor.includes('158') || 
+                                          style.borderColor.includes('11') || style.color.includes('245') ||
+                                          style.backgroundColor.includes('245') || style.backgroundColor.includes('158');
+                    return hasStartText && hasOrangeColor;
+                });
+                
+                if (cards.length > 0) {
+                    console.log(`[DEBUG] ${cards.length}개 카드 발견 (텍스트 기반)`);
+                }
+                
                 cards.forEach(card => {
                     if (!card.hasAttribute('data-start-needed-applied')) {
                         card.setAttribute('data-start-needed-applied', 'true');
-                        
-                        // CSS 애니메이션이 적용되지 않았을 경우를 대비해 JavaScript로 강제 적용
-                        const computedStyle = window.getComputedStyle(card);
-                        const currentAnimation = computedStyle.animation || computedStyle.getPropertyValue('animation');
                         
                         // 애니메이션 강제 적용 (항상 적용, CSS가 덮어쓸 수 있으므로)
                         // 인라인 스타일의 animation 속성 제거 후 재적용
@@ -1034,7 +1030,8 @@ def render_input_hub_v3():
                         card.style.setProperty('box-shadow', '0 0 15px rgba(245, 158, 11, 0.5), 0 0 30px rgba(245, 158, 11, 0.3)', 'important');
                         
                         // transform이 제거되지 않도록 보장
-                        card.style.setProperty('transform', 'inherit', 'important');
+                        card.style.setProperty('transform', 'scale(1)', 'important');
+                        card.style.setProperty('will-change', 'transform, box-shadow', 'important');
                     }
                 });
                 
@@ -1427,30 +1424,36 @@ def render_input_hub_v3():
         inventory_status_color = "#F59E0B"
         inventory_card_class = "ps-start-needed-card"
     
-    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 data 속성 추가 (Streamlit이 클래스를 제거할 수 있으므로)
     menu_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if menu_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     ing_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if ing_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     recipe_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if recipe_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     inventory_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if inventory_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     
+    # data 속성 추가
+    menu_card_data = 'data-ps-start-needed="true"' if menu_card_class else ''
+    ing_card_data = 'data-ps-start-needed="true"' if ing_card_class else ''
+    recipe_card_data = 'data-ps-start-needed="true"' if recipe_card_class else ''
+    inventory_card_data = 'data-ps-start-needed="true"' if inventory_card_class else ''
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{menu_card_class}" style="{menu_card_style}">
+        <div class="{menu_card_class}" {menu_card_data} style="{menu_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📘 메뉴</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {menu_status_color};">{menu_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('menu_count', 0)}개</div>
         </div>
-        <div class="{ing_card_class}" style="{ing_card_style}">
+        <div class="{ing_card_class}" {ing_card_data} style="{ing_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧺 재료</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {ing_status_color};">{ing_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{assets.get('ing_count', 0)}개</div>
         </div>
-        <div class="{recipe_card_class}" style="{recipe_card_style}">
+        <div class="{recipe_card_class}" {recipe_card_data} style="{recipe_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🍳 레시피</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {recipe_status_color};">{recipe_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">완성도 {recipe_rate:.0f}%</div>
         </div>
-        <div class="{inventory_card_class}" style="{inventory_card_style}">
+        <div class="{inventory_card_class}" {inventory_card_data} style="{inventory_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📦 재고</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {inventory_status_color};">{inventory_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">안전재고 {inventory_safety_rate:.0f}%</div>
@@ -1603,16 +1606,18 @@ def render_input_hub_v3():
         settle_status_color = "#F59E0B"
         settle_card_class = ""
     
-    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 data 속성 추가
     if daily_card_class:
-        # 시작 필요일 때는 기본 스타일 + 애니메이션 클래스
+        # 시작 필요일 때는 기본 스타일 + data 속성 (Streamlit이 클래스를 제거할 수 있으므로)
         daily_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);"
+        daily_card_data = 'data-ps-start-needed="true"'
     else:
         daily_card_style = f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
+        daily_card_data = ''
     
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{daily_card_class}" style="{daily_card_style}">
+        <div class="{daily_card_class}" {daily_card_data} style="{daily_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">📝 일일 마감</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {daily_status_color};">{daily_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{last_close_date if last_close_date != "기록 없음" else "—"}</div>
@@ -1733,18 +1738,22 @@ def render_input_hub_v3():
         cost_target_color = "#F59E0B"
         cost_target_card_class = "ps-start-needed-card"
     
-    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 클래스 추가
+    # 시작 필요 카드는 기본 스타일은 유지하되 애니메이션을 위해 data 속성 추가 (Streamlit이 클래스를 제거할 수 있으므로)
     target_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     cost_target_card_style = "padding: 0.6rem; background: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 2px solid rgba(245, 158, 11, 0.6);" if cost_target_card_class else f"padding: 0.6rem; background: rgba(30, 41, 59, 0.4); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.15);"
     
+    # data 속성 추가
+    target_card_data = 'data-ps-start-needed="true"' if target_card_class else ''
+    cost_target_card_data = 'data-ps-start-needed="true"' if cost_target_card_class else ''
+    
     st.markdown(f"""
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 1rem;">
-        <div class="{target_card_class}" style="{target_card_style}">
+        <div class="{target_card_class}" {target_card_data} style="{target_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🎯 매출 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {target_status_color};">{target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
         </div>
-        <div class="{cost_target_card_class}" style="{cost_target_card_style}">
+        <div class="{cost_target_card_class}" {cost_target_card_data} style="{cost_target_card_style}">
             <div style="font-size: 0.75rem; color: #94A3B8; margin-bottom: 0.3rem;">🧾 비용 목표</div>
             <div style="font-size: 0.85rem; font-weight: 600; color: {cost_target_color};">{cost_target_status_text}</div>
             <div style="font-size: 0.7rem; color: #64748B; margin-top: 0.2rem;">{current_month_kst()}월</div>
