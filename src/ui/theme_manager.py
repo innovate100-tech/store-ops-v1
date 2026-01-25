@@ -462,6 +462,24 @@ def inject_global_ui():
                 color: var(--ps-text) !important;
             }}
         }}
+        
+        /* ============================================
+           메인 콘텐츠 영역 상단 여백 축소
+           ============================================ */
+        
+        /* Reduce excessive top spacing in main content */
+        [data-testid="stMainBlockContainer"] {{
+            padding-top: 0.75rem !important;  /* 기본보다 줄임 */
+        }}
+        
+        [data-testid="stAppViewContainer"] .main {{
+            padding-top: 0.75rem !important;
+        }}
+        
+        /* 어떤 경우 margin이 원인일 수도 있으니 방어적으로 */
+        [data-testid="stMainBlockContainer"] > div:first-child {{
+            margin-top: 0 !important;
+        }}
     </style>
     """
     inject_theme(theme_css, "global_ui_theme")
