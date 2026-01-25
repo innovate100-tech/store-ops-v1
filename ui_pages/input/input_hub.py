@@ -954,6 +954,20 @@ def render_input_hub_v3():
         (function() {
             'use strict';
             
+            // 에러 핸들링을 위한 try-catch 래퍼
+            function safeExecute(fn, context) {
+                try {
+                    return fn.call(context);
+                } catch (error) {
+                    // 브라우저 확장 프로그램 에러는 무시 (우리 코드 문제가 아님)
+                    if (error.message && error.message.includes('message channel')) {
+                        return;
+                    }
+                    console.warn('[PS] 에러 발생 (무시됨):', error.message);
+                    return;
+                }
+            }
+            
             // keyframes를 동적으로 생성 (CSS 주입 실패 대비)
             function ensureKeyframes() {
                 const styleId = 'ps-start-needed-keyframes';
@@ -991,14 +1005,16 @@ def render_input_hub_v3():
             }
             
             function applyStartNeededStyles() {
-                // keyframes 먼저 확인
-                ensureKeyframes();
-                
-                // 카드에 애니메이션 적용 (텍스트 기반으로 찾기 - Streamlit이 속성을 제거할 수 있으므로)
-                // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있는 div 찾기
-                // 모든 요소에서 "지금 시작하세요" 텍스트 찾기 (테스트 스크립트와 동일한 로직)
-                const allElements = document.querySelectorAll('*');
-                const processedDivs = new Set(); // 중복 제거용
+                return safeExecute(function() {
+                    // keyframes 먼저 확인
+                    ensureKeyframes();
+                    
+                    // 카드에 애니메이션 적용 (텍스트 기반으로 찾기 - Streamlit이 속성을 제거할 수 있으므로)
+                    // "지금 시작하세요" 또는 "시작 필요" 텍스트가 있는 div 찾기
+                    // 모든 요소에서 "지금 시작하세요" 텍스트 찾기 (테스트 스크립트와 동일한 로직)
+                    const allElements = document.querySelectorAll('*');
+                    const processedDivs = new Set(); // 중복 제거용
+                    const cards = []; // cards 배열 초기화
                 
                 allElements.forEach(el => {
                     const text = el.textContent || '';
@@ -1155,26 +1171,34 @@ def render_input_hub_v3():
                         button.style.setProperty('border', '2px solid rgba(245, 158, 11, 0.8)', 'important');
                         button.style.setProperty('font-weight', '700', 'important');
                         
-                        // hover 효과 (이벤트 리스너는 한 번만 추가)
-                        button.addEventListener('mouseenter', function() {
-                            this.style.setProperty('transform', 'translateY(-2px) scale(1.02)', 'important');
-                            this.style.setProperty('box-shadow', '0 0 25px rgba(245, 158, 11, 0.8), 0 0 50px rgba(245, 158, 11, 0.6)', 'important');
-                        });
-                        button.addEventListener('mouseleave', function() {
-                            this.style.setProperty('transform', 'none', 'important');
-                            this.style.setProperty('box-shadow', '0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4)', 'important');
-                        });
+                        // hover 효과 (이벤트 리스너는 한 번만 추가, 에러 핸들링 포함)
+                        const mouseEnterHandler = function() {
+                            safeExecute(function() {
+                                this.style.setProperty('transform', 'translateY(-2px) scale(1.02)', 'important');
+                                this.style.setProperty('box-shadow', '0 0 25px rgba(245, 158, 11, 0.8), 0 0 50px rgba(245, 158, 11, 0.6)', 'important');
+                            }, this);
+                        };
+                        const mouseLeaveHandler = function() {
+                            safeExecute(function() {
+                                this.style.setProperty('transform', 'none', 'important');
+                                this.style.setProperty('box-shadow', '0 0 20px rgba(245, 158, 11, 0.6), 0 0 40px rgba(245, 158, 11, 0.4)', 'important');
+                            }, this);
+                        };
+                        
+                        button.addEventListener('mouseenter', mouseEnterHandler);
+                        button.addEventListener('mouseleave', mouseLeaveHandler);
                     }
                 });
+                }, this);
             }
             
-            // 즉시 실행 (여러 시점에서 실행)
+            // 즉시 실행 (여러 시점에서 실행, 에러 핸들링 포함)
             function startApplying() {
-                applyStartNeededStyles();
-                setTimeout(applyStartNeededStyles, 100);
-                setTimeout(applyStartNeededStyles, 300);
-                setTimeout(applyStartNeededStyles, 500);
-                setTimeout(applyStartNeededStyles, 1000);
+                safeExecute(applyStartNeededStyles);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 100);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 300);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 500);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 1000);
             }
             
             if (document.readyState === 'loading') {
@@ -1184,33 +1208,42 @@ def render_input_hub_v3():
             }
             
             window.addEventListener('load', function() {
-                setTimeout(applyStartNeededStyles, 100);
-                setTimeout(applyStartNeededStyles, 500);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 100);
+                setTimeout(() => safeExecute(applyStartNeededStyles), 500);
             });
             
-            // MutationObserver로 새로 추가된 요소 감지
-            const observer = new MutationObserver(function(mutations) {
-                let shouldApply = false;
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        shouldApply = true;
+            // MutationObserver로 새로 추가된 요소 감지 (에러 핸들링 포함)
+            if (typeof MutationObserver !== 'undefined') {
+                try {
+                    const observer = new MutationObserver(function(mutations) {
+                        let shouldApply = false;
+                        mutations.forEach(function(mutation) {
+                            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                                shouldApply = true;
+                            }
+                        });
+                        if (shouldApply) {
+                            setTimeout(() => safeExecute(applyStartNeededStyles), 50);
+                            setTimeout(() => safeExecute(applyStartNeededStyles), 200);
+                        }
+                    });
+                    
+                    if (document.body) {
+                        observer.observe(document.body, {
+                            childList: true,
+                            subtree: true
+                        });
                     }
-                });
-                if (shouldApply) {
-                    setTimeout(applyStartNeededStyles, 50);
-                    setTimeout(applyStartNeededStyles, 200);
+                } catch (error) {
+                    // 브라우저 확장 프로그램 에러는 무시
+                    if (error.message && !error.message.includes('message channel')) {
+                        console.warn('[PS] MutationObserver 설정 실패:', error.message);
+                    }
                 }
-            });
-            
-            if (document.body) {
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
             }
             
-            // 주기적 확인 (Streamlit rerun 대응) - 더 자주 확인
-            setInterval(applyStartNeededStyles, 500);
+            // 주기적 확인 (Streamlit rerun 대응) - 더 자주 확인 (에러 핸들링 포함)
+            setInterval(() => safeExecute(applyStartNeededStyles), 500);
         })();
         </script>
         """
