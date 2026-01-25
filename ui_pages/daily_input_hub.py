@@ -1,7 +1,6 @@
 """
 일일 마감 페이지
-매출, 네이버 방문자, 판매량, 메모를 입력하고 마감하는 통합 페이지
-FORM형 레이아웃 적용
+FormKit v2 + 블록 리듬 (탭 유지, money/quantity/note FormKit, 임시저장/마감 ActionBar만)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -10,13 +9,20 @@ import logging
 from datetime import date
 from src.ui_helpers import handle_data_error
 from src.ui.layouts.input_layouts import render_form_layout
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_primary_money_input,
+    ps_primary_quantity_input,
+    ps_note_input,
+    ps_inline_feedback,
+)
 from src.storage_supabase import (
-    load_csv, 
-    get_day_record_status, 
-    save_sales_entry, 
+    load_csv,
+    get_day_record_status,
+    save_sales_entry,
     save_daily_sales_item,
     save_daily_close,
-    load_best_available_daily_sales
+    load_best_available_daily_sales,
 )
 from src.auth import get_current_store_id, get_supabase_client
 from src.utils.time_utils import today_kst
@@ -34,13 +40,14 @@ if not check_login():
 
 
 def render_daily_input_hub():
-    """일일 마감 페이지 렌더링 (FORM형 레이아웃 적용)"""
+    """일일 마감 (FormKit v2, 탭 유지, 임시저장/마감 ActionBar만)"""
+    inject_form_kit_v2_css("daily_input_hub")
     store_id = get_current_store_id()
     if not store_id:
         st.error("매장 정보를 찾을 수 없습니다.")
         return
     
-    # 날짜 선택 (레이아웃 외부에서 처리 - Summary Strip에 포함)
+    # 날짜 선택 (Summary Strip 포함)
     selected_date = st.date_input(
         "입력할 날짜",
         value=today_kst(),
@@ -197,109 +204,33 @@ def render_daily_input_hub():
         # 탭 생성
         tab1, tab2, tab3, tab4 = st.tabs(["💰 매출", "👥 네이버 방문자", "📦 판매량", "📝 메모"])
         
-        # 탭 1: 매출 입력
+        # 탭 1: 매출 (money FormKit v2, 탭 내부 버튼 제거)
         with tab1:
             st.markdown("#### 💰 매출 입력")
-            col_card, col_cash, col_total = st.columns(3)
+            col_card, col_cash = st.columns(2)
             with col_card:
-                card_sales = st.number_input(
-                    "카드 매출",
-                    min_value=0.0,
-                    value=default_card,
-                    step=1000.0,
-                    key="daily_input_card_sales"
-                )
+                ps_primary_money_input("카드 매출", key="daily_input_card_sales", value=default_card, min_value=0, step=1000, unit="원", compact=True)
             with col_cash:
-                cash_sales = st.number_input(
-                    "현금 매출",
-                    min_value=0.0,
-                    value=default_cash,
-                    step=1000.0,
-                    key="daily_input_cash_sales"
-                )
-            with col_total:
-                # 총 매출은 자동 계산 (카드 + 현금)
-                total_sales = card_sales + cash_sales
-                st.metric("총 매출 (자동 계산)", f"{total_sales:,.0f}원")
-            
-            st.caption("💡 팁: 카드/현금 중 하나만 입력해도 됩니다.")
-            
-            # 임시 저장 버튼
-            col_save1, col_next1 = st.columns([1, 1])
-            with col_save1:
-                if st.button("💾 임시 저장", key="temp_save_sales", use_container_width=True):
-                    try:
-                        from src.ui_helpers import has_any_input, ui_flash_warning, ui_flash_success
-                        has_sales = card_sales > 0 or cash_sales > 0
-                        if has_sales:
-                            result = save_sales_entry(
-                                date=selected_date,
-                                store_name="",
-                                card_sales=card_sales,
-                                cash_sales=cash_sales,
-                                total_sales=total_sales,
-                                visitors=None
-                            )
-                            if result.get("success"):
-                                ui_flash_success("매출이 임시 저장되었습니다.")
-                                st.rerun()
-                            else:
-                                st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
-                        else:
-                            ui_flash_warning("매출을 입력해주세요.")
-                    except Exception as e:
-                        logger.error(f"임시 저장 실패: {e}")
-                        st.error(f"저장 실패: {str(e)}")
+                ps_primary_money_input("현금 매출", key="daily_input_cash_sales", value=default_cash, min_value=0, step=1000, unit="원", compact=True)
+            card = st.session_state.get("daily_input_card_sales", 0) or 0
+            cash = st.session_state.get("daily_input_cash_sales", 0) or 0
+            total = card + cash
+            ps_inline_feedback(label="총 매출", value=f"{total:,.0f}원", status="ok" if total > 0 else "warn")
+            st.caption("💡 카드/현금 중 하나만 입력해도 됩니다.")
         
-        # 탭 2: 네이버 방문자 입력
+        # 탭 2: 방문자 (quantity FormKit v2, 탭 내부 버튼 제거)
         with tab2:
             st.markdown("#### 👥 네이버 방문자 입력")
-            visitors = st.number_input(
-                "네이버 스마트플레이스 방문자 수",
-                min_value=0,
-                value=int(visitors_best) if visitors_best else 0,
-                step=1,
-                key="daily_input_visitors"
-            )
-            
+            v0 = int(visitors_best) if visitors_best else 0
+            ps_primary_quantity_input("네이버 스마트플레이스 방문자 수", key="daily_input_visitors", value=v0, min_value=0, step=1, unit="명")
             st.caption("💡 네이버 스마트플레이스에서 확인한 방문자 수를 입력하세요.")
-            
-            # 임시 저장 버튼
-            col_save2, col_next2 = st.columns([1, 1])
-            with col_save2:
-                if st.button("💾 임시 저장", key="temp_save_visitors", use_container_width=True):
-                    try:
-                        from src.ui_helpers import ui_flash_success
-                        if visitors > 0:
-                            result = save_sales_entry(
-                                date=selected_date,
-                                store_name="",
-                                card_sales=0,
-                                cash_sales=0,
-                                total_sales=0,
-                                visitors=visitors
-                            )
-                            if result.get("success"):
-                                ui_flash_success("네이버 방문자 수가 임시 저장되었습니다.")
-                                st.rerun()
-                            else:
-                                st.error(f"저장 실패: {result.get('message', '알 수 없는 오류')}")
-                        else:
-                            st.warning("방문자 수를 입력해주세요.")
-                    except Exception as e:
-                        logger.error(f"임시 저장 실패: {e}")
-                        st.error(f"저장 실패: {str(e)}")
         
-        # 탭 3: 판매량 입력
+        # 탭 3: 판매량 (quantity FormKit v2, 탭 내부 버튼 제거)
         with tab3:
             st.markdown("#### 📦 판매량 입력")
-            
             if not menu_list:
                 st.warning("먼저 메뉴를 등록해주세요.")
-                sales_items = []
             else:
-                # 메뉴별 판매량 입력 (3열 그리드)
-                sales_items = []
                 num_rows = (len(menu_list) + 2) // 3
                 for row in range(num_rows):
                     cols = st.columns(3)
@@ -308,57 +239,20 @@ def render_daily_input_hub():
                         if menu_idx < len(menu_list):
                             menu_name = menu_list[menu_idx]
                             with cols[col_idx]:
-                                qty = st.number_input(
+                                ps_primary_quantity_input(
                                     menu_name,
-                                    min_value=0,
+                                    key=f"daily_input_sales_item_{menu_name}_{selected_date}",
                                     value=existing_items.get(menu_name, 0),
+                                    min_value=0,
                                     step=1,
-                                    key=f"daily_input_sales_item_{menu_name}_{selected_date}"
+                                    unit="개",
                                 )
-                                if qty > 0:
-                                    sales_items.append((menu_name, qty))
-            
-            # 임시 저장 버튼
-            col_save3, col_next3 = st.columns([1, 1])
-            with col_save3:
-                if st.button("💾 임시 저장", key="temp_save_sales_items", use_container_width=True):
-                    try:
-                        from src.ui_helpers import ui_flash_success
-                        has_sales_items = False
-                        if sales_items:
-                            for menu_name, qty in sales_items:
-                                if qty > 0:
-                                    has_sales_items = True
-                                    try:
-                                        save_daily_sales_item(
-                                            date=selected_date,
-                                            menu_name=menu_name,
-                                            quantity=qty,
-                                            reason="일일 마감 페이지"
-                                        )
-                                    except Exception as e:
-                                        logger.error(f"판매량 저장 실패 ({menu_name}): {e}")
-                                        st.warning(f"판매량 저장 실패: {menu_name}")
-                        
-                        if has_sales_items:
-                            ui_flash_success("판매량이 임시 저장되었습니다.")
-                            st.rerun()
-                        else:
-                            st.warning("판매량을 입력해주세요.")
-                    except Exception as e:
-                        logger.error(f"임시 저장 실패: {e}")
-                        st.error(f"저장 실패: {str(e)}")
+            st.caption("💡 메뉴별 판매 수량 (0=미판매). 저장은 ActionBar에서.")
         
-        # 탭 4: 메모 입력
+        # 탭 4: 메모 (note FormKit v2)
         with tab4:
             st.markdown("#### 📝 운영 메모")
-            memo = st.text_area(
-                "운영 메모 (선택사항)",
-                placeholder="특이사항, 메모 등을 입력하세요...",
-                key="daily_input_memo",
-                height=150
-            )
-            
+            ps_note_input("운영 메모 (선택)", key="daily_input_memo", value="", height=150, placeholder="특이사항, 메모 등을 입력하세요...")
             st.caption("💡 특이사항이나 메모를 기록하세요. 마감 시 함께 저장됩니다.")
     
     # 액션 함수 정의 (session_state에서 값 읽기)

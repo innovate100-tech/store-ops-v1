@@ -1,41 +1,49 @@
 """
 목표 비용구조 페이지 (수익 구조 설계실)
+FormKit v2 + 블록 리듬 적용 (settlement_actual 기준)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
 import pandas as pd
 import time
-from src.ui_helpers import safe_get_value
+import logging
+from src.ui_helpers import safe_get_value, ui_flash_success, ui_flash_error, ui_flash_warning
 from src.ui.layouts.input_layouts import render_form_layout
-from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_money_input
+from src.ui.components.form_kit import inject_form_kit_css
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_input_block,
+    ps_primary_money_input,
+    ps_primary_ratio_input,
+    ps_inline_feedback,
+)
 from src.utils.time_utils import current_year_kst, current_month_kst
-from src.storage_supabase import load_csv, load_expense_structure, save_expense_item, update_expense_item, delete_expense_item, copy_expense_structure_from_previous_month, save_targets, get_fixed_costs, get_variable_cost_ratio, calculate_break_even_sales, load_monthly_sales_total
+from src.storage_supabase import (
+    load_csv,
+    load_expense_structure,
+    save_expense_item,
+    update_expense_item,
+    delete_expense_item,
+    copy_expense_structure_from_previous_month,
+    save_targets,
+    get_fixed_costs,
+    get_variable_cost_ratio,
+    calculate_break_even_sales,
+    load_monthly_sales_total,
+)
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
-# 분석/전략 관련 import 제거 (P3: 입력 전용 페이지로 역할 분리)
-# TODO: 분석센터로 이동 예정
-# from ui_pages.design_lab.design_lab_frame import (
-#     render_coach_board,
-#     render_structure_map_container,
-#     render_school_cards,
-#     render_design_tools_container,
-# )
-# from ui_pages.design_lab.design_lab_coach_data import get_revenue_structure_design_coach_data
-import logging
 
 # 공통 설정 제거 (app.py에서 이미 실행됨)
 # bootstrap(page_title="Target Cost Structure")
 
 
 def render_target_cost_structure():
-    """목표 비용구조 페이지 렌더링 (목표 비용 구조 입력, FORM형 레이아웃 적용)"""
-    # FormKit CSS 주입
+    """목표 비용구조 페이지 렌더링 (FormKit v2 + 블록 리듬, FORM형 레이아웃)"""
     inject_form_kit_css()
+    inject_form_kit_v2_css("target_cost_structure")
     
-    # 성능 측정 시작
     t0 = time.perf_counter()
-    
-    # 기존 기능만 유지 (공통 프레임 제거)
     store_id = get_current_store_id()
     current_year = current_year_kst()
     current_month = current_month_kst()
@@ -81,12 +89,18 @@ def render_target_cost_structure():
         # 기존 입력 기능만 렌더링
         _render_revenue_design_tools(current_year, current_month, store_id)
     
-    # Action Bar 설정
+    # ActionBar: 저장 CTA 1곳만. 수정 모드일 때 Primary = "저장 (수정)", 아니면 "목표 저장"
     action_primary = None
     action_secondary = None
     
-    # Primary 액션 설정
-    if "_target_cost_save_target_sales" in st.session_state:
+    if "_target_cost_save_edit" in st.session_state:
+        action_primary = {
+            "label": "💾 저장 (수정)",
+            "key": "target_cost_edit_save",
+            "action": st.session_state["_target_cost_save_edit"]
+        }
+        del st.session_state["_target_cost_save_edit"]
+    elif "_target_cost_save_target_sales" in st.session_state:
         action_primary = {
             "label": "💾 목표 저장",
             "key": "target_cost_primary_save",
@@ -94,7 +108,6 @@ def render_target_cost_structure():
         }
         del st.session_state["_target_cost_save_target_sales"]
     
-    # Secondary 액션 설정
     secondary_actions = []
     if "_target_cost_copy_prev_month" in st.session_state:
         secondary_actions.append({
@@ -103,7 +116,6 @@ def render_target_cost_structure():
             "action": st.session_state["_target_cost_copy_prev_month"]
         })
         del st.session_state["_target_cost_copy_prev_month"]
-    
     if secondary_actions:
         action_secondary = secondary_actions
     
@@ -125,31 +137,43 @@ def render_target_cost_structure():
 
 
 def _render_revenue_design_tools(year: int, month: int, store_id: str):
-    """목표 비용 구조 입력 페이지 렌더링"""
+    """목표 비용 구조 입력 (FormKit v2 + 블록 리듬)"""
     selected_year = year
     selected_month = month
     
-    # ========== ZONE A: 기간 선택 ==========
-    ps_section("기간 선택", icon="📅")
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        selected_year = st.number_input(
-            "연도",
-            min_value=2020,
-            max_value=2100,
-            value=year,
-            key="target_cost_structure_expense_year"
-        )
-    with col2:
-        selected_month = st.number_input(
-            "월",
-            min_value=1,
-            max_value=12,
-            value=month,
-            key="target_cost_structure_expense_month"
-        )
+    # Block 1: 기간 선택 (Secondary)
+    def _body_period():
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.number_input(
+                "연도",
+                min_value=2020,
+                max_value=2100,
+                value=int(year),
+                step=1,
+                format="%d",
+                key="target_cost_structure_expense_year"
+            )
+        with c2:
+            st.number_input(
+                "월",
+                min_value=1,
+                max_value=12,
+                value=int(month),
+                step=1,
+                format="%d",
+                key="target_cost_structure_expense_month"
+            )
     
-    # 전월 데이터 복사 버튼은 Action Bar로 이동 (Secondary)
+    ps_input_block(
+        title="기간 선택",
+        description="목표 비용을 입력할 연·월을 선택하세요",
+        level="secondary",
+        body_fn=_body_period
+    )
+    selected_year = int(st.session_state.get("target_cost_structure_expense_year", year))
+    selected_month = int(st.session_state.get("target_cost_structure_expense_month", month))
+    
     def handle_copy_prev_month():
         try:
             success, message = copy_expense_structure_from_previous_month(selected_year, selected_month)
@@ -163,7 +187,7 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
     
     st.session_state["_target_cost_copy_prev_month"] = handle_copy_prev_month
     
-    # ========== 데이터 로드 (내부 로직) ==========
+    # 데이터 로드
     # 공식 엔진 함수 사용 (헌법 준수)
     expense_df = load_expense_structure(selected_year, selected_month, store_id)
     
@@ -278,26 +302,41 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         pass  # 디버그 실패해도 페이지는 계속 동작
     
     
-    # ========== ZONE B: 기본 정보 입력 ==========
-    ps_section("목표 매출 입력", icon="🎯")
+    # Block 2: Primary 1개 — 목표 월매출
+    _target_val = int(target_sales) if target_sales > 0 else 0
+    _right = f"손익분기점: {int(breakeven_sales):,}원" if (breakeven_sales is not None and breakeven_sales > 0) else None
+    _fb = None
+    _warn = None
+    if breakeven_sales is not None and breakeven_sales > 0:
+        _fb = {"label": "손익분기 월매출", "value": f"{int(breakeven_sales):,}원", "status": "ok"}
+    else:
+        _warn = "고정비와 변동비율을 모두 입력하면 손익분기 매출이 계산됩니다."
     
-    # 목표 매출 입력 (FormKit 사용)
-    target_sales_input = ps_money_input(
-        label="목표 월매출 (원)",
-        key="target_cost_structure_target_sales_input",
-        value=int(target_sales) if target_sales > 0 else 0,
-        min_value=0,
-        step=100000,
-        help_text="이번 달 목표 매출을 입력하세요"
+    def _body_target_sales():
+        ps_primary_money_input(
+            label="목표 월매출 (원)",
+            key="target_cost_structure_target_sales_input",
+            value=_target_val,
+            min_value=0,
+            step=100000,
+            unit="원"
+        )
+    
+    ps_input_block(
+        title="목표 월매출",
+        description="이번 달 목표 매출을 입력하세요",
+        right_hint=_right,
+        level="primary",
+        body_fn=_body_target_sales,
+        feedback=_fb,
+        warning=_warn
     )
-    
-    # 목표 저장 버튼은 Action Bar로 이동 (Primary)
     def handle_save_target_sales():
         try:
-            save_targets(
-                selected_year, selected_month, 
-                target_sales_input, 0, 0, 0, 0, 0
-            )
+            val = st.session_state.get("target_cost_structure_target_sales_input", 0)
+            if isinstance(val, float) and val.is_integer():
+                val = int(val)
+            save_targets(selected_year, selected_month, val, 0, 0, 0, 0, 0)
             ui_flash_success("목표 매출이 저장되었습니다!")
             st.rerun()
         except Exception as e:
@@ -305,31 +344,7 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
     
     st.session_state["_target_cost_save_target_sales"] = handle_save_target_sales
     
-    # 평일/주말 매출 비율 설정 제거 (분석/전략 요소)
-    # TODO: 분석센터로 이동 예정
-    
-    # ========== ZONE C: 손익분기점 미리보기 (입력 상태 확인용 KPI만 유지) ==========
-    ps_section("입력 상태 확인", icon="📊")
-    
-    if breakeven_sales is not None and breakeven_sales > 0:
-        # 손익분기점 숫자만 표시 (계산 공식 제거)
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 8px; text-align: center; color: white; margin-top: 0.5rem;">
-            <div style="font-size: 1.35rem; margin-bottom: 0.5rem; opacity: 0.9;">📊 손익분기 월매출</div>
-            <div style="font-size: 1.8rem; font-weight: 700;">{int(breakeven_sales):,}원</div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        # 입력 안내만 표시 (해석 문구 제거)
-        st.markdown(f"""
-        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border-left: 4px solid #667eea;">
-            <div style="font-size: 1.2rem; margin-bottom: 0.5rem; font-weight: 600;">📊 손익분기 매출 계산</div>
-            <div style="font-size: 0.9rem; color: #666;">고정비와 변동비율을 모두 입력해야 손익분기 매출이 계산됩니다.</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # ========== ZONE D: 비용 구조 입력 ==========
-    ps_section("비용 구조 입력", icon="💰")
+    # Block 3: 비용 구조 입력 (전부 compact)
     # 5개 카테고리별 입력
     expense_categories = {
         '임차료': {'type': 'fixed', 'icon': '🏢', 'description': '고정비 (금액 직접 입력)'},
@@ -380,65 +395,63 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
         
         return "".join(parts) + "원"
     
-    # 각 카테고리별 입력 섹션
+    # Block 3: 비용 구조 입력 (카테고리별 ps_input_block, 전부 compact)
     for category, info in expense_categories.items():
-        # 카테고리별 총액 계산
         category_total = 0
         category_items = existing_items.get(category, [])
         if category_items:
+            category_total = sum(item['amount'] for item in category_items)
+        
+        _right = None
+        if category_items:
             if info['type'] == 'fixed':
-                category_total = sum(item['amount'] for item in category_items)
+                _right = f"총액: {format_korean_currency(int(category_total))}"
             else:
-                # 변동비는 비율 합계
-                category_total = sum(item['amount'] for item in category_items)
+                _right = f"총 비율: {category_total:.2f}%"
         
-        # 섹션 헤더와 총액 표시
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown(f"""
-            <div style="margin: 1.5rem 0 0.5rem 0;">
-                <h3 style="color: var(--ps-text, #101417); font-weight: 600; margin: 0;">
-                    {info['icon']} {category}
-                </h3>
-            </div>
-            """, unsafe_allow_html=True)
-            st.caption(f"{info['description']}")
-        with col2:
-            if category_items:
-                if info['type'] == 'fixed':
-                    st.markdown(f"""
-                    <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem;">
-                        <strong style="color: #667eea; font-size: 1.1rem;">
-                            총액: {format_korean_currency(int(category_total))}
-                        </strong>
-                        <div style="font-size: 0.85rem; color: #666;">
-                            ({category_total:,.0f}원)
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div style="text-align: right; margin-top: 0.5rem;">
-                        <strong style="color: #667eea; font-size: 1.1rem;">
-                            총 비율: {category_total:.2f}%
-                        </strong>
-                    </div>
-                    """, unsafe_allow_html=True)
+        def _block_body(_cat=category, _info=info, _items=category_items, _all=existing_items):
+            _render_category_block(_cat, _info, _items, _all, selected_year, selected_month, format_korean_currency)
         
-        # 기존 항목 표시 - Expander 제거하고 직접 표시 (중첩 문제 해결)
-        if category in existing_items and existing_items[category]:
-            # 기존 항목은 기본적으로 펼쳐 두고, 필요시 사용자가 접을 수 있게 처리
-            with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=True):
-                for item in existing_items[category]:
+        ps_input_block(
+            title=f"{info['icon']} {category}",
+            description=info['description'],
+            right_hint=_right,
+            level="secondary",
+            body_fn=_block_body
+        )
+    
+    t3 = time.perf_counter()
+    try:
+        from src.auth import is_dev_mode
+        if is_dev_mode():
+            total_sec = round(t3 - t0, 3)
+            load_sec = round(t1 - t0, 3)
+            transform_sec = round(t2 - t1, 3)
+            ui_sec = round(t3 - t2, 3)
+            with st.expander("🔍 DEBUG: performance", expanded=False):
+                st.write("**렌더 성능 측정:**")
+                st.write(f"  - **총 시간:** {total_sec}초")
+                st.write(f"  - **데이터 로드:** {load_sec}초")
+                st.write(f"  - **데이터 가공:** {transform_sec}초")
+                st.write(f"  - **UI 출력:** {ui_sec}초")
+    except Exception:
+        pass
+
+
+def _render_category_block(category, info, category_items, existing_items, selected_year, selected_month, format_korean_currency):
+    """카테고리별 비용 입력 블록 (기존 항목 + 새 항목, ➕ 하단 / 🗑️ 우측 유지)"""
+    if category in existing_items and existing_items[category]:
+        with st.expander(f"📋 기존 입력된 항목 ({len(existing_items[category])}개)", expanded=True):
+            for item in existing_items[category]:
                     # 수정 모드 체크
                     edit_key = f"edit_{category}_{item['id']}"
                     is_editing = st.session_state.get(edit_key, False)
                     
                     if is_editing:
-                        # 수정 모드
+                        # 수정 모드 — 저장은 ActionBar에서만 (인라인 💾 저장 제거)
                         with st.container():
                             st.markdown("---")
-                            col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                            col1, col2, col3 = st.columns([3, 2, 1])
                             with col1:
                                 edit_name = st.text_input(
                                     "항목명",
@@ -447,73 +460,69 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                                 )
                             with col2:
                                 if info['type'] == 'fixed':
-                                    # FormKit 사용
-                                    edit_amount = ps_money_input(
+                                    edit_amount = ps_primary_money_input(
                                         label="금액 (원)",
                                         key=f"edit_amount_{category}_{item['id']}",
                                         value=int(item['amount']),
                                         min_value=0,
-                                        step=10000
+                                        step=10000,
+                                        compact=True,
+                                        unit="원"
                                     )
                                 else:
-                                    edit_amount = st.number_input(
-                                        "매출 대비 비율 (%)",
+                                    edit_amount = ps_primary_ratio_input(
+                                        label="매출 대비 비율 (%)",
+                                        key=f"edit_rate_{category}_{item['id']}",
+                                        value=float(item['amount']),
                                         min_value=0.0,
                                         max_value=100.0,
-                                        value=float(item['amount']),
                                         step=0.1,
-                                        format="%.2f",
-                                        key=f"edit_rate_{category}_{item['id']}",
-                                        label_visibility="visible"
+                                        compact=True,
+                                        unit="%"
                                     )
                             with col3:
-                                st.write("")
-                                st.write("")
-                                if st.button("💾 저장", key=f"save_edit_{category}_{item['id']}"):
-                                    try:
-                                        # 변동비율 검증 (변동비인 경우)
-                                        if info['type'] == 'variable':
-                                            existing_variable_total = sum(
-                                                other_item['amount'] 
-                                                for other_item in category_items 
-                                                if other_item['id'] != item['id']
-                                            )
-                                            total_variable_rate = existing_variable_total + edit_amount
-                                            
-                                            # 모든 변동비 카테고리 합계 검증
-                                            all_variable_categories = ['재료비', '부가세&카드수수료']
-                                            all_variable_total = 0
-                                            for var_cat in all_variable_categories:
-                                                var_items = existing_items.get(var_cat, [])
-                                                if var_cat == category:
-                                                    all_variable_total += total_variable_rate
-                                                else:
-                                                    all_variable_total += sum(
-                                                        other_item['amount'] 
-                                                        for other_item in var_items
-                                                    )
-                                            
-                                            if all_variable_total > 100:
-                                                st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (합계: {all_variable_total:.2f}%)")
-                                                st.stop()
-                                        
-                                        # run_write로 통일
-                                        run_write(
-                                            "update_expense_item",
-                                            lambda: update_expense_item(item['id'], edit_name.strip(), edit_amount, item.get('notes')),
-                                            targets=["cost", "expense_structure"],
-                                            extra={"id": item['id'], "category": category},
-                                            success_message="수정되었습니다!"
-                                        )
-                                        st.session_state[edit_key] = False
-                                    except Exception as e:
-                                        st.error(f"수정 중 오류: {e}")
-                            with col4:
                                 st.write("")
                                 st.write("")
                                 if st.button("❌ 취소", key=f"cancel_edit_{category}_{item['id']}"):
                                     st.session_state[edit_key] = False
                                     st.rerun()
+                            
+                            def _make_save_edit_handler(_cat, _item, _items, _all_items, _info):
+                                def _handler():
+                                    try:
+                                        n = st.session_state.get(f"edit_name_{_cat}_{_item['id']}", "").strip()
+                                        if _info['type'] == 'fixed':
+                                            amt = st.session_state.get(f"edit_amount_{_cat}_{_item['id']}", 0)
+                                            if isinstance(amt, float) and amt.is_integer():
+                                                amt = int(amt)
+                                        else:
+                                            amt = float(st.session_state.get(f"edit_rate_{_cat}_{_item['id']}", 0.0))
+                                        if _info['type'] == 'variable':
+                                            other_tot = sum(o['amount'] for o in _items if o['id'] != _item['id'])
+                                            total_this = other_tot + amt
+                                            all_var = 0
+                                            for vc in ['재료비', '부가세&카드수수료']:
+                                                vi = _all_items.get(vc, [])
+                                                all_var += total_this if vc == _cat else sum(o['amount'] for o in vi)
+                                            if all_var > 100:
+                                                ui_flash_error(f"변동비율 합계 100% 초과 (합계: {all_var:.2f}%)")
+                                                return
+                                        run_write(
+                                            "update_expense_item",
+                                            lambda: update_expense_item(_item['id'], n, amt, _item.get('notes')),
+                                            targets=["cost", "expense_structure"],
+                                            extra={"id": _item['id'], "category": _cat},
+                                            success_message="수정되었습니다!"
+                                        )
+                                        st.session_state[f"edit_{_cat}_{_item['id']}"] = False
+                                        st.rerun()
+                                    except Exception as e:
+                                        ui_flash_error(f"수정 중 오류: {e}")
+                                return _handler
+                            
+                            st.session_state["_target_cost_save_edit"] = _make_save_edit_handler(
+                                category, item, category_items, existing_items, info
+                            )
                     else:
                         # 일반 표시 모드
                         # 마지막 두 컬럼(✏️, 🗑️ 버튼) 간격이 화면이 넓어져도 너무 벌어지지 않도록
@@ -535,7 +544,6 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                                 st.rerun()
                         with col5:
                             if st.button("🗑️", key=f"del_{category}_{item['id']}", help="삭제"):
-                                # run_write로 통일
                                 run_write(
                                     "delete_expense_item",
                                     lambda: delete_expense_item(item['id']),
@@ -543,162 +551,112 @@ def _render_revenue_design_tools(year: int, month: int, store_id: str):
                                     extra={"id": item['id'], "category": category},
                                     success_message="삭제되었습니다!"
                                 )
-        
-        # 새 항목 입력
-        if info['type'] == 'fixed':
-            # 고정비: 금액 직접 입력
-            # 입력 필드 초기화를 위한 카운터 사용
-            reset_key = f"reset_count_{category}"
-            if reset_key not in st.session_state:
-                st.session_state[reset_key] = 0
-            
-            with st.container():
-                col1, col2, col3 = st.columns([3, 2, 1])
-                with col1:
-                    # value 파라미터로 초기값 설정
-                    default_name = "" if st.session_state[reset_key] == 0 else ""
-                    new_item_name = st.text_input(
-                        "항목명",
-                        value=default_name,
-                        key=f"new_item_name_{category}_{st.session_state[reset_key]}",
-                        placeholder="예: 본점 임차료, 메인 요리사 급여 등"
-                    )
-                with col2:
-                    default_amount = 0 if st.session_state[reset_key] == 0 else 0
-                    # FormKit 사용
-                    new_amount = ps_money_input(
-                        label="금액 (원)",
-                        key=f"new_amount_{category}_{st.session_state[reset_key]}",
-                        value=default_amount,
-                        min_value=0,
-                        step=10000
-                    )
-                    # 한글 원화 표시
-                    if new_amount > 0:
-                        st.caption(f"💬 {format_korean_currency(int(new_amount))}")
-                with col3:
-                    st.write("")
-                    st.write("")
-                    if st.button("➕ 추가", key=f"add_{category}"):
-                        if new_item_name and new_item_name.strip() and new_amount > 0:
-                            # 항목명 중복 체크
-                            existing_names = [item['item_name'] for item in category_items]
-                            if new_item_name.strip() in existing_names:
-                                st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
-                            else:
-                                # run_write로 통일
-                                run_write(
-                                    "save_expense_item",
-                                    lambda: save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount),
-                                    targets=["cost", "expense_structure"],
-                                    extra={"year": selected_year, "month": selected_month, "category": category},
-                                    success_message=f"{category} 항목이 추가되었습니다!"
-                                )
-                                # 입력 필드 초기화를 위해 카운터 증가
-                                st.session_state[reset_key] += 1
-                        else:
-                            st.error("항목명과 금액을 모두 입력해주세요.")
-        else:
-            # 변동비: 매출 대비 비율 입력
-            # 입력 필드 초기화를 위한 카운터 사용
-            reset_key = f"reset_count_{category}"
-            if reset_key not in st.session_state:
-                st.session_state[reset_key] = 0
-            
-            with st.container():
-                col1, col2, col3 = st.columns([3, 2, 1])
-                with col1:
-                    # value 파라미터로 초기값 설정
-                    default_name = "" if st.session_state[reset_key] == 0 else ""
-                    new_item_name = st.text_input(
-                        "항목명",
-                        value=default_name,
-                        key=f"new_item_name_{category}_{st.session_state[reset_key]}",
-                        placeholder="예: 식자재 구매비, 카드사 수수료 등"
-                    )
-                with col2:
-                    default_rate = 0.0 if st.session_state[reset_key] == 0 else 0.0
-                    new_rate = st.number_input(
-                        "매출 대비 비율 (%)",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=default_rate,
-                        step=0.1,
-                        format="%.2f",
-                        key=f"new_rate_{category}_{st.session_state[reset_key]}"
-                    )
-                    # 비율을 금액으로 저장 (나중에 계산 시 사용)
-                    # 실제로는 비율(%)로 저장하되, amount 필드에 비율 값을 저장
-                    # 하지만 DB 스키마상 amount는 NUMERIC이므로 비율도 저장 가능
-                with col3:
-                    st.write("")
-                    st.write("")
-                    if st.button("➕ 추가", key=f"add_{category}"):
-                        if new_item_name and new_item_name.strip() and new_rate > 0:
-                            # 변동비율 합계 검증
-                            existing_variable_total = sum(item['amount'] for item in category_items)
-                            total_variable_rate = existing_variable_total + new_rate
-                            
-                            # 모든 변동비 카테고리 합계 검증
-                            all_variable_categories = ['재료비', '부가세&카드수수료']
-                            all_variable_total = 0
-                            for var_cat in all_variable_categories:
-                                var_items = existing_items.get(var_cat, [])
-                                if var_cat == category:
-                                    all_variable_total += total_variable_rate
-                                else:
-                                    all_variable_total += sum(item['amount'] for item in var_items)
-                            
-                            if all_variable_total > 100:
-                                st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (현재 합계: {all_variable_total:.2f}%)")
-                            elif new_item_name.strip() in [item['item_name'] for item in category_items]:
-                                st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
-                            else:
-                                # run_write로 통일
-                                run_write(
-                                    "save_expense_item",
-                                    lambda: save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate),
-                                    targets=["cost", "expense_structure"],
-                                    extra={"year": selected_year, "month": selected_month, "category": category},
-                                    success_message=f"{category} 항목이 추가되었습니다!"
-                                )
-                                # 입력 필드 초기화를 위해 카운터 증가
-                                st.session_state[reset_key] += 1
-                        else:
-                            st.error("항목명과 비율을 모두 입력해주세요.")
-        
-    # 분석 기능 제거: 목표매출 달성시 비용구조 분석은 분석 페이지로 이동
-    # 분석 기능 제거: 월간 집계 표시는 분석 페이지로 이동
-    # TODO: 분석센터로 이동 예정
     
-    # UI 출력 완료 시점
-    t3 = time.perf_counter()
+    # 새 항목 입력 (➕ 추가는 블록 하단 유지)
+    if info['type'] == 'fixed':
+        reset_key = f"reset_count_{category}"
+        if reset_key not in st.session_state:
+            st.session_state[reset_key] = 0
+        with st.container():
+            col1, col2, col3 = st.columns([3, 2, 1])
+            with col1:
+                default_name = "" if st.session_state[reset_key] == 0 else ""
+                new_item_name = st.text_input(
+                    "항목명",
+                    value=default_name,
+                    key=f"new_item_name_{category}_{st.session_state[reset_key]}",
+                    placeholder="예: 본점 임차료, 메인 요리사 급여 등"
+                )
+            with col2:
+                default_amount = 0 if st.session_state[reset_key] == 0 else 0
+                new_amount = ps_primary_money_input(
+                    label="금액 (원)",
+                    key=f"new_amount_{category}_{st.session_state[reset_key]}",
+                    value=default_amount,
+                    min_value=0,
+                    step=10000,
+                    compact=True,
+                    unit="원"
+                )
+                if new_amount > 0:
+                    st.caption(f"💬 {format_korean_currency(int(new_amount))}")
+            with col3:
+                st.write("")
+                st.write("")
+                if st.button("➕ 추가", key=f"add_{category}"):
+                    if new_item_name and new_item_name.strip() and new_amount > 0:
+                        existing_names = [item['item_name'] for item in category_items]
+                        if new_item_name.strip() in existing_names:
+                            st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
+                        else:
+                            run_write(
+                                "save_expense_item",
+                                lambda: save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_amount),
+                                targets=["cost", "expense_structure"],
+                                extra={"year": selected_year, "month": selected_month, "category": category},
+                                success_message=f"{category} 항목이 추가되었습니다!"
+                            )
+                            st.session_state[reset_key] += 1
+                    else:
+                        st.error("항목명과 금액을 모두 입력해주세요.")
+    else:
+        reset_key = f"reset_count_{category}"
+        if reset_key not in st.session_state:
+            st.session_state[reset_key] = 0
+        with st.container():
+            col1, col2, col3 = st.columns([3, 2, 1])
+            with col1:
+                default_name = "" if st.session_state[reset_key] == 0 else ""
+                new_item_name = st.text_input(
+                    "항목명",
+                    value=default_name,
+                    key=f"new_item_name_{category}_{st.session_state[reset_key]}",
+                    placeholder="예: 식자재 구매비, 카드사 수수료 등"
+                )
+            with col2:
+                default_rate = 0.0 if st.session_state[reset_key] == 0 else 0.0
+                new_rate = ps_primary_ratio_input(
+                    label="매출 대비 비율 (%)",
+                    key=f"new_rate_{category}_{st.session_state[reset_key]}",
+                    value=default_rate,
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.1,
+                    compact=True,
+                    unit="%"
+                )
+            with col3:
+                st.write("")
+                st.write("")
+                if st.button("➕ 추가", key=f"add_{category}"):
+                    if new_item_name and new_item_name.strip() and new_rate > 0:
+                        existing_variable_total = sum(item['amount'] for item in category_items)
+                        total_variable_rate = existing_variable_total + new_rate
+                        all_variable_categories = ['재료비', '부가세&카드수수료']
+                        all_variable_total = 0
+                        for var_cat in all_variable_categories:
+                            var_items = existing_items.get(var_cat, [])
+                            if var_cat == category:
+                                all_variable_total += total_variable_rate
+                            else:
+                                all_variable_total += sum(item['amount'] for item in var_items)
+                        if all_variable_total > 100:
+                            st.error(f"⚠️ 변동비율 합계가 100%를 초과할 수 없습니다. (현재 합계: {all_variable_total:.2f}%)")
+                        elif new_item_name.strip() in [item['item_name'] for item in category_items]:
+                            st.warning("⚠️ 동일한 항목명이 이미 존재합니다.")
+                        else:
+                            run_write(
+                                "save_expense_item",
+                                lambda: save_expense_item(selected_year, selected_month, category, new_item_name.strip(), new_rate),
+                                targets=["cost", "expense_structure"],
+                                extra={"year": selected_year, "month": selected_month, "category": category},
+                                success_message=f"{category} 항목이 추가되었습니다!"
+                            )
+                            st.session_state[reset_key] += 1
+                    else:
+                        st.error("항목명과 비율을 모두 입력해주세요.")
     
-    # 개발모드 성능 측정 표시
-    try:
-        from src.auth import is_dev_mode
-        if is_dev_mode():
-            total_sec = round(t3 - t0, 3)
-            load_sec = round(t1 - t0, 3)
-            transform_sec = round(t2 - t1, 3)
-            ui_sec = round(t3 - t2, 3)
-            
-            with st.expander("🔍 DEBUG: performance", expanded=False):
-                st.write("**렌더 성능 측정:**")
-                st.write(f"  - **총 시간:** {total_sec}초")
-                st.write(f"  - **데이터 로드:** {load_sec}초")
-                st.write(f"  - **데이터 가공:** {transform_sec}초")
-                st.write(f"  - **UI 출력:** {ui_sec}초")
-                
-                # 병목 지점 표시
-                if load_sec > 5:
-                    st.warning(f"⚠️ 데이터 로드가 느립니다 ({load_sec}초)")
-                if transform_sec > 2:
-                    st.warning(f"⚠️ 데이터 가공이 느립니다 ({transform_sec}초)")
-                if ui_sec > 2:
-                    st.warning(f"⚠️ UI 출력이 느립니다 ({ui_sec}초)")
-    except Exception:
-        pass  # 성능 측정 실패해도 페이지는 계속 동작
+    # (분석 기능 제거 — 분석센터 이동 예정)
 
 
 # Streamlit 멀티페이지에서 직접 실행될 때

@@ -649,7 +649,8 @@ def ps_primary_ratio_input(
     disabled: bool = False,
     help_text: Optional[str] = None,
     unit: str = "%",
-    status: Optional[str] = None
+    status: Optional[str] = None,
+    compact: bool = False
 ) -> float:
     """
     Primary 등급: 비율 입력 (핵심 수치)
@@ -665,6 +666,7 @@ def ps_primary_ratio_input(
         help_text: 도움말
         unit: 단위 (기본: "%")
         status: 상태 (ok/warn/danger, None이면 자동 판단)
+        compact: Compact 모드 (목표/보정/마감 페이지용)
     
     Returns:
         입력된 비율값
@@ -691,6 +693,13 @@ def ps_primary_ratio_input(
         format="%.2f"
     )
     
+    # Compact 모드 스펙
+    input_height = COMPACT_INPUT_HEIGHT if compact else PRIMARY_INPUT_HEIGHT
+    input_font_size = COMPACT_INPUT_FONT_SIZE if compact else PRIMARY_INPUT_FONT_SIZE
+    input_font_weight = COMPACT_INPUT_FONT_WEIGHT if compact else PRIMARY_INPUT_FONT_WEIGHT
+    input_border_radius = COMPACT_INPUT_BORDER_RADIUS if compact else PRIMARY_INPUT_BORDER_RADIUS
+    input_padding_right = COMPACT_INPUT_PADDING_RIGHT if compact else PRIMARY_INPUT_PADDING_RIGHT
+
     # 스타일 적용 (data-ps-scope 기반, 단위는 ::after로 자동 처리)
     st.markdown(f"""
     <style>
@@ -703,14 +712,14 @@ def ps_primary_ratio_input(
     #ps-wrapper-{safe_key} [data-testid="stNumberInput"] > div > div {{
         background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)) !important;
         border: 1px solid rgba(255,255,255,0.12) !important;
-        border-radius: {PRIMARY_INPUT_BORDER_RADIUS}px !important;
-        height: {PRIMARY_INPUT_HEIGHT}px !important;
-        padding-right: {PRIMARY_INPUT_PADDING_RIGHT}px !important;
+        border-radius: {input_border_radius}px !important;
+        height: {input_height}px !important;
+        padding-right: {input_padding_right}px !important;
         position: relative;
     }}
     #ps-wrapper-{safe_key} [data-testid="stNumberInput"] input {{
-        font-size: {PRIMARY_INPUT_FONT_SIZE}px !important;
-        font-weight: {PRIMARY_INPUT_FONT_WEIGHT} !important;
+        font-size: {input_font_size}px !important;
+        font-weight: {input_font_weight} !important;
         color: #F8FAFC !important;
         background: transparent !important;
         border: none !important;
@@ -735,7 +744,7 @@ def ps_primary_ratio_input(
         background: rgba(255,255,255,0.06);
         border-left: 1px solid rgba(255,255,255,0.12);
         padding: 0 {UNIT_BOX_PADDING_H}px;
-        height: {UNIT_BOX_HEIGHT}px;
+        height: {input_height}px;
         display: flex;
         align-items: center;
         justify-content: center;

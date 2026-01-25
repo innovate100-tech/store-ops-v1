@@ -1,6 +1,6 @@
 """
-매출 등록 페이지
-FORM형 레이아웃 적용
+매출 등록 페이지 (보정 도구)
+FormKit v2 + 블록 리듬 적용 (G2 GuideBox, ActionBar만 저장)
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -8,11 +8,20 @@ import pandas as pd
 import logging
 from src.ui_helpers import handle_data_error
 from src.storage_supabase import save_sales, save_visitor, save_sales_entry, get_day_record_status
-from src.ui import render_sales_input, render_sales_batch_input, render_visitor_input, render_visitor_batch_input
+from src.ui import render_sales_batch_input, render_visitor_batch_input
 from src.utils.crud_guard import run_write
 from src.auth import get_current_store_id
 from src.ui.layouts.input_layouts import render_form_layout
-from src.ui.components.form_kit import inject_form_kit_css, ps_section, ps_notice
+from src.ui.components.form_kit import inject_form_kit_css
+from src.ui.components.form_kit_v2 import (
+    inject_form_kit_v2_css,
+    ps_input_block,
+    ps_primary_money_input,
+    ps_primary_quantity_input,
+    ps_secondary_date,
+    ps_inline_feedback,
+)
+from src.utils.time_utils import today_kst
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +36,9 @@ if not check_login():
 
 
 def render_sales_entry():
-    """매출 등록 페이지 렌더링 (FORM형 레이아웃 적용)"""
-    # FormKit CSS 주입
+    """매출 등록 페이지 (FormKit v2 + 블록 리듬, G2, ActionBar만 저장)"""
     inject_form_kit_css()
+    inject_form_kit_v2_css("sales_entry")
     
     # 저장 액션 함수들 (action bar에서 호출)
     def handle_save_single_sales():
@@ -370,124 +379,64 @@ def render_sales_entry():
                         del st.session_state["sales_entry_message_type"]
                     # Phase 0 STEP 3: 플래그 삭제만으로 조건부 렌더링이 자동 업데이트되므로 rerun 불필요
         
-        # 카테고리 선택 (매출 / 네이버 스마트플레이스 방문자)
-        ps_section("카테고리 선택", icon="📋")
-        category = st.radio(
-            "카테고리",
-            ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
-            horizontal=True,
-            key="sales_entry_sales_category"
-        )
-        
-        # ========== 매출 입력 섹션 ==========
-        if category == "💰 매출":
-            ps_section("입력 모드 선택", icon="⚙️")
-            input_mode = st.radio(
-                "입력 모드",
-                ["단일 입력", "일괄 입력 (여러 날짜)"],
+        # Block: 카테고리 선택
+        def _body_category():
+            return st.radio(
+                "카테고리",
+                ["💰 매출", "👥 네이버 스마트플레이스 방문자"],
                 horizontal=True,
-                key="sales_input_mode"
+                key="sales_entry_sales_category"
             )
+        ps_input_block(title="카테고리 선택", description="매출 또는 방문자 입력", level="secondary", body_fn=lambda: _body_category())
+        category = st.session_state.get("sales_entry_sales_category", "💰 매출")
+        
+        if category == "💰 매출":
+            def _body_mode():
+                return st.radio("입력 모드", ["단일 입력", "일괄 입력 (여러 날짜)"], horizontal=True, key="sales_input_mode")
+            ps_input_block(title="입력 모드", level="secondary", body_fn=_body_mode)
+            input_mode = st.session_state.get("sales_input_mode", "단일 입력")
             
             if input_mode == "단일 입력":
-                ps_section("매출 입력", icon="💰")
-                # 단일 입력 폼 (st.form으로 감싸기)
-                with st.form(key="sales_entry_single_form", clear_on_submit=False):
-                    # 매출 입력 (render_sales_input은 내부에서 st.subheader를 호출하므로 제거 필요 없음)
-                    date, store, card_sales, cash_sales, total_sales = render_sales_input()
-                    
-                    # 날짜 선택 시 상태바 표시 (form 내부에서 처리)
-                    store_id = get_current_store_id()
-                    status = None
-                    if store_id and date:
-                        try:
-                            status = get_day_record_status(store_id, date)
-                        except Exception:
-                            pass
-                    
-                    # 상태바 표시
-                    if status:
-                        has_close = status["has_close"]
-                        has_sales = status["has_sales"]
-                        has_visitors = status["has_visitors"]
-                        
-                        if has_close:
-                            st.markdown("""
-                            <div style="padding: 1.2rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
-                                        border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">✅</span>
-                                    <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">마감 완료(공식)</h3>
-                                </div>
-                                <div style="font-size: 0.95rem; line-height: 1.6; color: #f0fdf4; margin-top: 0.5rem;">
-                                    이 화면에서는 매출과 네이버 방문자만 빠르게 수정합니다.<br>
-                                    판매량/메모는 점장마감에서 수정하세요.
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif has_sales or has_visitors:
-                            st.markdown("""
-                            <div style="padding: 1.2rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); 
-                                        border-radius: 12px; margin-bottom: 1.5rem; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">⚠️</span>
-                                    <h3 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">임시 기록(미마감)</h3>
-                                </div>
-                                <div style="font-size: 0.95rem; line-height: 1.6; color: #fffbeb; margin-top: 0.5rem;">
-                                    통계에는 반영되지만, 마감률/스트릭에는 반영되지 않습니다.
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown("""
-                            <div style="padding: 1.2rem; background: #f0f2f6; border-left: 4px solid #667eea; 
-                                        border-radius: 12px; margin-bottom: 1.5rem;">
-                                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                                    <span style="font-size: 1.5rem; margin-right: 0.5rem;">📝</span>
-                                    <h3 style="color: #1f4788; margin: 0; font-size: 1.1rem; font-weight: 600;">아직 기록 없음</h3>
-                                </div>
-                                <div style="font-size: 0.95rem; line-height: 1.6; color: #495057; margin-top: 0.5rem;">
-                                    매출과 네이버 방문자를 입력하세요.
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    # 네이버 방문자 입력 (매출과 함께 저장 가능)
-                    st.markdown("---")
-                    st.write("**👥 네이버 방문자 (선택사항)**")
-                    visitors_input = st.number_input(
-                        "네이버 방문자 수",
-                        min_value=0,
-                        value=status["visitors_best"] if status and status["visitors_best"] is not None else 0,
-                        step=1,
-                        key="sales_entry_visitors"
-                    )
-                    
-                    # Streamlit form 요구사항: form_submit_button 필요
-                    # 실제 저장은 action bar에서 처리하므로, 여기서는 form validation만 수행
-                    # CSS로 버튼을 숨김 처리
-                    st.markdown("""
-                    <style>
-                    div[data-testid="stFormSubmitButton"] button {
-                        display: none !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-                    submit_clicked = st.form_submit_button("저장", use_container_width=True)
-                    if submit_clicked:
-                        # form submit은 action bar의 저장 로직을 트리거하지 않음
-                        # 단순히 form validation을 위해 존재
-                        pass
+                # Block 1: 날짜·매장
+                def _body_date_store():
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        ps_secondary_date("날짜", key="sales_date", value=today_kst())
+                    with c2:
+                        store = st.text_input("매장", value="Plate&Share", key="sales_store")
+                ps_input_block(title="날짜 · 매장", level="secondary", body_fn=_body_date_store)
                 
-                # 저장 버튼 텍스트 결정 (action bar용) - form 밖에서 status 재확인
+                date = st.session_state.get("sales_date", today_kst())
                 store_id = get_current_store_id()
                 status = None
-                date = st.session_state.get("sales_date")
                 if store_id and date:
                     try:
                         status = get_day_record_status(store_id, date)
                     except Exception:
                         pass
+                status_line = "✅ 마감 완료(공식)" if status and status.get("has_close") else "⚠️ 임시(미마감)" if status and (status.get("has_sales") or status.get("has_visitors")) else "📝 기록 없음"
+                ps_inline_feedback(label="상태", value=status_line, status="ok" if status and status.get("has_close") else ("warn" if status and (status.get("has_sales") or status.get("has_visitors")) else "warn"))
+                
+                # Block 2: 카드·현금 (Primary 1개: 총매출 대표)
+                def _body_money():
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        ps_primary_money_input("카드매출 (원)", key="sales_card", value=0, min_value=0, step=1000, unit="원", compact=True)
+                    with c2:
+                        ps_primary_money_input("현금매출 (원)", key="sales_cash", value=0, min_value=0, step=1000, unit="원", compact=True)
+                    card = st.session_state.get("sales_card", 0) or 0
+                    cash = st.session_state.get("sales_cash", 0) or 0
+                    total = card + cash
+                    ps_inline_feedback(label="총매출", value=f"{total:,.0f}원", status="ok" if total > 0 else "warn")
+                ps_input_block(title="매출 입력", description="카드/현금 입력", level="primary", body_fn=_body_money)
+                
+                # Block 3: 방문자 (선택)
+                def _body_visitors():
+                    v0 = 0
+                    if status and status.get("visitors_best") is not None:
+                        v0 = int(status["visitors_best"])
+                    ps_primary_quantity_input("네이버 방문자 (선택)", key="sales_entry_visitors", value=v0, min_value=0, step=1, unit="명")
+                ps_input_block(title="네이버 방문자", description="선택 입력", level="secondary", body_fn=_body_visitors)
                 
                 if status and status.get("has_close"):
                     primary_label = "💾 매출·네이버 방문자 수정(공식 반영)"
@@ -495,86 +444,60 @@ def render_sales_entry():
                     primary_label = "💾 임시 저장"
                 else:
                     primary_label = "💾 저장"
-                
-                # action bar에 전달할 함수 저장
                 st.session_state["_sales_entry_single_save"] = handle_save_single_sales
                 st.session_state["_sales_entry_primary_label"] = primary_label
             
             else:
-                # 일괄 입력 폼
-                ps_section("매출 일괄 입력", icon="📊")
-                sales_data = render_sales_batch_input()
+                _batch_out = []
+                def _body_batch():
+                    _batch_out.clear()
+                    data = render_sales_batch_input()
+                    _batch_out.append(data)
+                ps_input_block(title="매출 일괄 입력", description="시작일~종료일, 매장 입력 후 날짜별 카드/현금 입력", level="secondary", body_fn=_body_batch)
+                sales_data = _batch_out[0] if _batch_out else []
                 
                 if sales_data:
-                    ps_section("입력 요약", icon="📋")
                     summary_df = pd.DataFrame(
-                        [(d.strftime('%Y-%m-%d'), s, f"{card:,}원", f"{cash:,}원", f"{total:,}원") 
+                        [(d.strftime('%Y-%m-%d'), s, f"{card:,}원", f"{cash:,}원", f"{total:,}원")
                          for d, s, card, cash, total in sales_data],
                         columns=['날짜', '매장', '카드매출', '현금매출', '총매출']
                     )
                     st.dataframe(summary_df, use_container_width=True, hide_index=True)
-                    
-                    total_card = sum(card for _, _, card, _, _ in sales_data)
-                    total_cash = sum(cash for _, _, _, cash, _ in sales_data)
-                    total_all = sum(total for _, _, _, _, total in sales_data)
-                    
-                    st.markdown(f"**총 {len(sales_data)}일, 카드매출: {total_card:,}원, 현금매출: {total_cash:,}원, 총 매출: {total_all:,}원**")
-                    
-                    # action bar에 전달할 함수 저장
+                    total_all = sum(t for _, _, _, _, t in sales_data)
+                    ps_inline_feedback(label="합계", value=f"{len(sales_data)}일 · {total_all:,.0f}원", status="ok")
                     st.session_state["_sales_entry_batch_save"] = handle_save_batch_sales
                     st.session_state["_sales_entry_primary_label"] = "💾 매출 보정 일괄 저장"
         
-        # ========== 네이버 스마트플레이스 방문자 입력 섹션 ==========
         else:
-            ps_section("입력 모드 선택", icon="⚙️")
-            input_mode = st.radio(
-                "입력 모드",
-                ["단일 입력", "일괄 입력 (여러 날짜)"],
-                horizontal=True,
-                key="sales_entry_visitor_input_mode"
-            )
+            def _body_vmode():
+                return st.radio("입력 모드", ["단일 입력", "일괄 입력 (여러 날짜)"], horizontal=True, key="sales_entry_visitor_input_mode")
+            ps_input_block(title="입력 모드", level="secondary", body_fn=_body_vmode)
+            input_mode = st.session_state.get("sales_entry_visitor_input_mode", "단일 입력")
             
             if input_mode == "단일 입력":
-                ps_section("방문자 입력", icon="👥")
-                # 단일 입력 폼 (st.form으로 감싸기)
-                with st.form(key="visitor_entry_single_form", clear_on_submit=False):
-                    date, visitors = render_visitor_input()
-                    # Streamlit form 요구사항: form_submit_button 필요
-                    # 실제 저장은 action bar에서 처리하므로, 여기서는 form validation만 수행
-                    # CSS로 버튼을 숨김 처리
-                    st.markdown("""
-                    <style>
-                    div[data-testid="stFormSubmitButton"] button {
-                        display: none !important;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
-                    submit_clicked = st.form_submit_button("저장", use_container_width=True)
-                    if submit_clicked:
-                        # form submit은 action bar의 저장 로직을 트리거하지 않음
-                        # 단순히 form validation을 위해 존재
-                        pass
-                
-                # action bar에 전달할 함수 저장
+                def _body_visitor_single():
+                    ps_secondary_date("날짜", key="visitor_date", value=today_kst())
+                    ps_primary_quantity_input("네이버 방문자 수", key="visitor_count", value=0, min_value=0, step=1, unit="명")
+                ps_input_block(title="방문자 입력", description="날짜별 방문자 수", level="secondary", body_fn=_body_visitor_single)
                 st.session_state["_sales_entry_single_visitor_save"] = handle_save_single_visitor
                 st.session_state["_sales_entry_primary_label"] = "💾 저장"
             
             else:
-                ps_section("방문자 일괄 입력", icon="👥")
-                # 일괄 입력 폼
-                visitor_data = render_visitor_batch_input()
-                
+                _v_batch_out = []
+                def _body_v_batch():
+                    _v_batch_out.clear()
+                    data = render_visitor_batch_input()
+                    _v_batch_out.append(data)
+                ps_input_block(title="방문자 일괄 입력", description="시작일~종료일, 날짜별 방문자 입력", level="secondary", body_fn=_body_v_batch)
+                visitor_data = _v_batch_out[0] if _v_batch_out else []
                 if visitor_data:
-                    ps_section("입력 요약", icon="📋")
                     summary_df = pd.DataFrame(
                         [(d.strftime('%Y-%m-%d'), f"{v}명") for d, v in visitor_data],
                         columns=['날짜', '네이버 스마트플레이스 방문자수']
                     )
                     st.dataframe(summary_df, use_container_width=True, hide_index=True)
-                    
-                    st.markdown(f"**총 {len(visitor_data)}일, 총 네이버 스마트플레이스 방문자수: {sum(v for _, v in visitor_data):,}명**")
-                    
-                    # action bar에 전달할 함수 저장
+                    total_v = sum(v for _, v in visitor_data)
+                    ps_inline_feedback(label="합계", value=f"{len(visitor_data)}일 · {total_v:,}명", status="ok")
                     st.session_state["_sales_entry_batch_visitor_save"] = handle_save_batch_visitor
                     st.session_state["_sales_entry_primary_label"] = "💾 일괄 저장"
     
