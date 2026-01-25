@@ -1064,14 +1064,15 @@ def render_input_hub_v3():
         gap: 0.5rem !important;
     }
     #ps-header-icon {
-        font-size: 3rem !important;
+        font-size: 2.5rem !important;
         margin-bottom: 0.5rem !important;
     }
     #ps-header-title {
-        font-size: 2rem !important;
+        font-size: 1.6rem !important;
         font-weight: 800 !important;
         color: #F8FAFC !important;
         margin: 0 !important;
+        white-space: nowrap !important;
     }
     #ps-header-subtitle {
         font-size: 0.9rem !important;
