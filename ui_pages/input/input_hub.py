@@ -1054,7 +1054,7 @@ def render_input_hub_v3():
     }
     #ps-header-unified-grid {
         display: grid !important;
-        grid-template-columns: 1fr 1.5fr !important;
+        grid-template-columns: 1.2fr 1.5fr !important;
         gap: 2rem !important;
         padding: 2rem !important;
     }
@@ -1062,17 +1062,20 @@ def render_input_hub_v3():
         display: flex !important;
         flex-direction: column !important;
         gap: 0.5rem !important;
+        min-width: 0 !important;
     }
     #ps-header-icon {
-        font-size: 2.5rem !important;
+        font-size: 2.2rem !important;
         margin-bottom: 0.5rem !important;
     }
     #ps-header-title {
-        font-size: 1.6rem !important;
+        font-size: 1.3rem !important;
         font-weight: 800 !important;
         color: #F8FAFC !important;
         margin: 0 !important;
         white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     #ps-header-subtitle {
         font-size: 0.9rem !important;
