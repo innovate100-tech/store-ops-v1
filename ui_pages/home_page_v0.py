@@ -570,11 +570,28 @@ def render_home():
         function hideStreamlitButtons() {
             const keys = ['home_step1_btn', 'home_step2_btn', 'home_step3_btn'];
             keys.forEach(key => {
-                const btn = document.querySelector(`button[key="${key}"]`);
+                // 모든 방법으로 버튼 찾기
+                let btn = null;
+                const allBtns = document.querySelectorAll('button');
+                allBtns.forEach(b => {
+                    const btnKey = b.getAttribute('key');
+                    if (btnKey === key) {
+                        btn = b;
+                    }
+                });
+                
                 if (btn) {
+                    // 컨테이너 찾기
                     let container = btn.closest('[data-testid="stButton"]');
+                    if (!container) {
+                        container = btn.parentElement;
+                        while (container && container.getAttribute('data-testid') !== 'stButton') {
+                            container = container.parentElement;
+                        }
+                    }
+                    
                     if (container) {
-                        container.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important;';
+                        container.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important;';
                     }
                     btn.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; left: -9999px !important; width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important;';
                 }
@@ -590,10 +607,13 @@ def render_home():
                 btn1.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const streamlitBtn = document.querySelector('button[key="home_step1_btn"]');
-                    if (streamlitBtn) {
-                        streamlitBtn.click();
-                    }
+                    // 모든 버튼을 순회하며 찾기
+                    const allBtns = document.querySelectorAll('button');
+                    allBtns.forEach(b => {
+                        if (b.getAttribute('key') === 'home_step1_btn') {
+                            b.click();
+                        }
+                    });
                 });
             }
             
@@ -604,10 +624,12 @@ def render_home():
                 btn2.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const streamlitBtn = document.querySelector('button[key="home_step2_btn"]');
-                    if (streamlitBtn) {
-                        streamlitBtn.click();
-                    }
+                    const allBtns = document.querySelectorAll('button');
+                    allBtns.forEach(b => {
+                        if (b.getAttribute('key') === 'home_step2_btn') {
+                            b.click();
+                        }
+                    });
                 });
             }
             
@@ -618,10 +640,12 @@ def render_home():
                 btn3.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const streamlitBtn = document.querySelector('button[key="home_step3_btn"]');
-                    if (streamlitBtn) {
-                        streamlitBtn.click();
-                    }
+                    const allBtns = document.querySelectorAll('button');
+                    allBtns.forEach(b => {
+                        if (b.getAttribute('key') === 'home_step3_btn') {
+                            b.click();
+                        }
+                    });
                 });
             }
         }
@@ -642,7 +666,7 @@ def render_home():
         }
         
         // Streamlit rerun 대응 - 여러 번 시도
-        [50, 100, 200, 300, 500, 1000, 2000, 3000].forEach(delay => {
+        [50, 100, 200, 300, 500, 1000, 2000, 3000, 5000].forEach(delay => {
             setTimeout(function() {
                 hideStreamlitButtons();
                 setupButtonTriggers();
@@ -658,7 +682,8 @@ def render_home():
         observer.observe(document.body, {
             childList: true,
             subtree: true,
-            attributes: true
+            attributes: true,
+            attributeFilter: ['key', 'data-testid']
         });
     })();
     </script>
@@ -707,7 +732,7 @@ def render_home():
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        # 숨겨진 Streamlit 버튼
         if st.button("", key="home_step1_btn", use_container_width=True):
             st.session_state.current_page = "입력 허브"
             st.rerun()
@@ -726,7 +751,7 @@ def render_home():
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        # 숨겨진 Streamlit 버튼
         if st.button("", key="home_step2_btn", use_container_width=True):
             st.session_state.current_page = "분석 허브"
             st.rerun()
@@ -745,7 +770,7 @@ def render_home():
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        # 숨겨진 Streamlit 버튼
         if st.button("", key="home_step3_btn", use_container_width=True):
             st.session_state.current_page = "가게 전략 센터"
             st.rerun()
