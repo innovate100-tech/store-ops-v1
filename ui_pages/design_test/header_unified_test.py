@@ -340,182 +340,68 @@ def render_header_unified_test():
         padding-bottom: 0 !important;
     }
     
-    /* STEP별 버튼 - 미니멀 라인 아트 스타일 */
-    button[data-testid="baseButton-secondary"]:has-text("입력하기"),
-    button:has-text("입력하기"),
-    button[data-testid="baseButton-primary"]:has-text("입력하기") {
+    /* 미니멀 라인 아트 버튼 스타일 */
+    /* 입력하기 버튼 - 키 기반 선택 */
+    button[data-testid="baseButton-primary"][aria-label*="입력하기"],
+    button[data-testid="baseButton-secondary"][aria-label*="입력하기"],
+    button:contains("입력하기") {
         background: transparent !important;
         border: 2px solid #3B82F6 !important;
         color: #3B82F6 !important;
-        position: relative !important;
         transition: all 0.3s ease !important;
+        box-shadow: none !important;
+        font-weight: 600 !important;
     }
     
-    button[data-testid="baseButton-secondary"]:has-text("입력하기")::before,
-    button:has-text("입력하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("입력하기")::before,
-    button[data-testid="baseButton-secondary"]:has-text("입력하기")::after,
-    button:has-text("입력하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("입력하기")::after {
-        content: "" !important;
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        border: 2px solid #3B82F6 !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("입력하기")::before,
-    button:has-text("입력하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("입력하기")::before {
-        top: 0 !important;
-        left: 0 !important;
-        border-right: none !important;
-        border-bottom: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("입력하기")::after,
-    button:has-text("입력하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("입력하기")::after {
-        bottom: 0 !important;
-        right: 0 !important;
-        border-left: none !important;
-        border-top: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("입력하기"):hover,
-    button:has-text("입력하기"):hover,
-    button[data-testid="baseButton-primary"]:has-text("입력하기"):hover {
+    button[data-testid="baseButton-primary"][aria-label*="입력하기"]:hover,
+    button[data-testid="baseButton-secondary"][aria-label*="입력하기"]:hover,
+    button:contains("입력하기"):hover {
         background: rgba(59, 130, 246, 0.1) !important;
         color: #60A5FA !important;
+        border-color: #60A5FA !important;
+        transform: translateY(-2px) !important;
     }
     
-    button[data-testid="baseButton-secondary"]:has-text("입력하기"):hover::before,
-    button:has-text("입력하기"):hover::before,
-    button[data-testid="baseButton-primary"]:has-text("입력하기"):hover::before,
-    button[data-testid="baseButton-secondary"]:has-text("입력하기"):hover::after,
-    button:has-text("입력하기"):hover::after,
-    button[data-testid="baseButton-primary"]:has-text("입력하기"):hover::after {
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("분석하기"),
-    button:has-text("분석하기"),
-    button[data-testid="baseButton-primary"]:has-text("분석하기") {
+    /* 분석하기 버튼 */
+    button[data-testid="baseButton-primary"][aria-label*="분석하기"],
+    button[data-testid="baseButton-secondary"][aria-label*="분석하기"],
+    button:contains("분석하기") {
         background: transparent !important;
         border: 2px solid #10B981 !important;
         color: #10B981 !important;
-        position: relative !important;
         transition: all 0.3s ease !important;
+        box-shadow: none !important;
+        font-weight: 600 !important;
     }
     
-    button[data-testid="baseButton-secondary"]:has-text("분석하기")::before,
-    button:has-text("분석하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("분석하기")::before,
-    button[data-testid="baseButton-secondary"]:has-text("분석하기")::after,
-    button:has-text("분석하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("분석하기")::after {
-        content: "" !important;
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        border: 2px solid #10B981 !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("분석하기")::before,
-    button:has-text("분석하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("분석하기")::before {
-        top: 0 !important;
-        left: 0 !important;
-        border-right: none !important;
-        border-bottom: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("분석하기")::after,
-    button:has-text("분석하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("분석하기")::after {
-        bottom: 0 !important;
-        right: 0 !important;
-        border-left: none !important;
-        border-top: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("분석하기"):hover,
-    button:has-text("분석하기"):hover,
-    button[data-testid="baseButton-primary"]:has-text("분석하기"):hover {
+    button[data-testid="baseButton-primary"][aria-label*="분석하기"]:hover,
+    button[data-testid="baseButton-secondary"][aria-label*="분석하기"]:hover,
+    button:contains("분석하기"):hover {
         background: rgba(16, 185, 129, 0.1) !important;
         color: #34D399 !important;
+        border-color: #34D399 !important;
+        transform: translateY(-2px) !important;
     }
     
-    button[data-testid="baseButton-secondary"]:has-text("분석하기"):hover::before,
-    button:has-text("분석하기"):hover::before,
-    button[data-testid="baseButton-primary"]:has-text("분석하기"):hover::before,
-    button[data-testid="baseButton-secondary"]:has-text("분석하기"):hover::after,
-    button:has-text("분석하기"):hover::after,
-    button[data-testid="baseButton-primary"]:has-text("분석하기"):hover::after {
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("설계하기"),
-    button:has-text("설계하기"),
-    button[data-testid="baseButton-primary"]:has-text("설계하기") {
+    /* 설계하기 버튼 */
+    button[data-testid="baseButton-primary"][aria-label*="설계하기"],
+    button[data-testid="baseButton-secondary"][aria-label*="설계하기"],
+    button:contains("설계하기") {
         background: transparent !important;
         border: 2px solid #A855F7 !important;
         color: #A855F7 !important;
-        position: relative !important;
         transition: all 0.3s ease !important;
+        box-shadow: none !important;
+        font-weight: 600 !important;
     }
     
-    button[data-testid="baseButton-secondary"]:has-text("설계하기")::before,
-    button:has-text("설계하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("설계하기")::before,
-    button[data-testid="baseButton-secondary"]:has-text("설계하기")::after,
-    button:has-text("설계하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("설계하기")::after {
-        content: "" !important;
-        position: absolute !important;
-        width: 0 !important;
-        height: 0 !important;
-        border: 2px solid #A855F7 !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("설계하기")::before,
-    button:has-text("설계하기")::before,
-    button[data-testid="baseButton-primary"]:has-text("설계하기")::before {
-        top: 0 !important;
-        left: 0 !important;
-        border-right: none !important;
-        border-bottom: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("설계하기")::after,
-    button:has-text("설계하기")::after,
-    button[data-testid="baseButton-primary"]:has-text("설계하기")::after {
-        bottom: 0 !important;
-        right: 0 !important;
-        border-left: none !important;
-        border-top: none !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("설계하기"):hover,
-    button:has-text("설계하기"):hover,
-    button[data-testid="baseButton-primary"]:has-text("설계하기"):hover {
+    button[data-testid="baseButton-primary"][aria-label*="설계하기"]:hover,
+    button[data-testid="baseButton-secondary"][aria-label*="설계하기"]:hover,
+    button:contains("설계하기"):hover {
         background: rgba(168, 85, 247, 0.1) !important;
         color: #C084FC !important;
-    }
-    
-    button[data-testid="baseButton-secondary"]:has-text("설계하기"):hover::before,
-    button:has-text("설계하기"):hover::before,
-    button[data-testid="baseButton-primary"]:has-text("설계하기"):hover::before,
-    button[data-testid="baseButton-secondary"]:has-text("설계하기"):hover::after,
-    button:has-text("설계하기"):hover::after,
-    button[data-testid="baseButton-primary"]:has-text("설계하기"):hover::after {
-        width: 100% !important;
-        height: 100% !important;
+        border-color: #C084FC !important;
+        transform: translateY(-2px) !important;
     }
     
     /* 반응형 */
@@ -546,6 +432,87 @@ def render_header_unified_test():
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
+    
+    # JavaScript로 버튼 스타일 적용
+    js = """
+    <script>
+    function applyMinimalButtonStyles() {
+        const buttons = document.querySelectorAll('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+        buttons.forEach(button => {
+            const text = button.textContent || button.innerText || '';
+            if (text.includes('입력하기')) {
+                button.style.background = 'transparent';
+                button.style.border = '2px solid #3B82F6';
+                button.style.color = '#3B82F6';
+                button.style.transition = 'all 0.3s ease';
+                button.style.boxShadow = 'none';
+                button.style.fontWeight = '600';
+                button.onmouseenter = function() {
+                    this.style.background = 'rgba(59, 130, 246, 0.1)';
+                    this.style.color = '#60A5FA';
+                    this.style.borderColor = '#60A5FA';
+                    this.style.transform = 'translateY(-2px)';
+                };
+                button.onmouseleave = function() {
+                    this.style.background = 'transparent';
+                    this.style.color = '#3B82F6';
+                    this.style.borderColor = '#3B82F6';
+                    this.style.transform = 'translateY(0)';
+                };
+            } else if (text.includes('분석하기')) {
+                button.style.background = 'transparent';
+                button.style.border = '2px solid #10B981';
+                button.style.color = '#10B981';
+                button.style.transition = 'all 0.3s ease';
+                button.style.boxShadow = 'none';
+                button.style.fontWeight = '600';
+                button.onmouseenter = function() {
+                    this.style.background = 'rgba(16, 185, 129, 0.1)';
+                    this.style.color = '#34D399';
+                    this.style.borderColor = '#34D399';
+                    this.style.transform = 'translateY(-2px)';
+                };
+                button.onmouseleave = function() {
+                    this.style.background = 'transparent';
+                    this.style.color = '#10B981';
+                    this.style.borderColor = '#10B981';
+                    this.style.transform = 'translateY(0)';
+                };
+            } else if (text.includes('설계하기')) {
+                button.style.background = 'transparent';
+                button.style.border = '2px solid #A855F7';
+                button.style.color = '#A855F7';
+                button.style.transition = 'all 0.3s ease';
+                button.style.boxShadow = 'none';
+                button.style.fontWeight = '600';
+                button.onmouseenter = function() {
+                    this.style.background = 'rgba(168, 85, 247, 0.1)';
+                    this.style.color = '#C084FC';
+                    this.style.borderColor = '#C084FC';
+                    this.style.transform = 'translateY(-2px)';
+                };
+                button.onmouseleave = function() {
+                    this.style.background = 'transparent';
+                    this.style.color = '#A855F7';
+                    this.style.borderColor = '#A855F7';
+                    this.style.transform = 'translateY(0)';
+                };
+            }
+        });
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyMinimalButtonStyles);
+    } else {
+        applyMinimalButtonStyles();
+    }
+    
+    // Streamlit rerun 시에도 적용
+    setTimeout(applyMinimalButtonStyles, 100);
+    setTimeout(applyMinimalButtonStyles, 500);
+    </script>
+    """
+    st.markdown(js, unsafe_allow_html=True)
     
     # ============================================
     # SECTION 1: 브랜드 히어로
@@ -583,7 +550,7 @@ def render_header_unified_test():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 입력하기", type="primary", use_container_width=True, key="test_step1_btn"):
+        if st.button("▶ 입력하기", key="test_step1_btn", use_container_width=True):
             st.info("테스트: 입력 허브로 이동")
     
     with step_col2:
@@ -594,7 +561,7 @@ def render_header_unified_test():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 분석하기", type="primary", use_container_width=True, key="test_step2_btn"):
+        if st.button("▶ 분석하기", key="test_step2_btn", use_container_width=True):
             st.info("테스트: 분석 허브로 이동")
     
     with step_col3:
@@ -605,7 +572,7 @@ def render_header_unified_test():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 설계하기", type="primary", use_container_width=True, key="test_step3_btn"):
+        if st.button("▶ 설계하기", key="test_step3_btn", use_container_width=True):
             st.info("테스트: 전략 센터로 이동")
     
     st.markdown("""
