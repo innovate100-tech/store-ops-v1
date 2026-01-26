@@ -897,7 +897,8 @@ menu = {
         ("게시판", "게시판")
     ],
     "🧪 테스트": [
-        ("화면테스트", "화면테스트")
+        ("화면테스트", "화면테스트"),
+        ("화면테스트2", "화면테스트2")
     ]
 }
 
@@ -1086,6 +1087,9 @@ elif page == "게시판":
 elif page == "화면테스트":
     from ui_pages.design_test.header_unified_test import render_header_unified_test
     render_header_unified_test()
+elif page == "화면테스트2":
+    from ui_pages.design_test.header_unified_test2 import render_header_unified_test2
+    render_header_unified_test2()
 
 # ============================================
 # CAUSE OS 푸터 (모든 페이지 하단에 공통 적용)
