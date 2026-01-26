@@ -433,83 +433,130 @@ def render_header_unified_test():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # JavaScript로 버튼 스타일 적용
+    # JavaScript로 버튼 스타일 적용 (강화 버전)
     js = """
     <script>
-    function applyMinimalButtonStyles() {
-        const buttons = document.querySelectorAll('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-        buttons.forEach(button => {
-            const text = button.textContent || button.innerText || '';
-            if (text.includes('입력하기')) {
-                button.style.background = 'transparent';
-                button.style.border = '2px solid #3B82F6';
-                button.style.color = '#3B82F6';
-                button.style.transition = 'all 0.3s ease';
-                button.style.boxShadow = 'none';
-                button.style.fontWeight = '600';
-                button.onmouseenter = function() {
-                    this.style.background = 'rgba(59, 130, 246, 0.1)';
-                    this.style.color = '#60A5FA';
-                    this.style.borderColor = '#60A5FA';
-                    this.style.transform = 'translateY(-2px)';
-                };
-                button.onmouseleave = function() {
-                    this.style.background = 'transparent';
-                    this.style.color = '#3B82F6';
-                    this.style.borderColor = '#3B82F6';
-                    this.style.transform = 'translateY(0)';
-                };
-            } else if (text.includes('분석하기')) {
-                button.style.background = 'transparent';
-                button.style.border = '2px solid #10B981';
-                button.style.color = '#10B981';
-                button.style.transition = 'all 0.3s ease';
-                button.style.boxShadow = 'none';
-                button.style.fontWeight = '600';
-                button.onmouseenter = function() {
-                    this.style.background = 'rgba(16, 185, 129, 0.1)';
-                    this.style.color = '#34D399';
-                    this.style.borderColor = '#34D399';
-                    this.style.transform = 'translateY(-2px)';
-                };
-                button.onmouseleave = function() {
-                    this.style.background = 'transparent';
-                    this.style.color = '#10B981';
-                    this.style.borderColor = '#10B981';
-                    this.style.transform = 'translateY(0)';
-                };
-            } else if (text.includes('설계하기')) {
-                button.style.background = 'transparent';
-                button.style.border = '2px solid #A855F7';
-                button.style.color = '#A855F7';
-                button.style.transition = 'all 0.3s ease';
-                button.style.boxShadow = 'none';
-                button.style.fontWeight = '600';
-                button.onmouseenter = function() {
-                    this.style.background = 'rgba(168, 85, 247, 0.1)';
-                    this.style.color = '#C084FC';
-                    this.style.borderColor = '#C084FC';
-                    this.style.transform = 'translateY(-2px)';
-                };
-                button.onmouseleave = function() {
-                    this.style.background = 'transparent';
-                    this.style.color = '#A855F7';
-                    this.style.borderColor = '#A855F7';
-                    this.style.transform = 'translateY(0)';
-                };
-            }
-        });
-    }
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyMinimalButtonStyles);
-    } else {
+    (function() {
+        const processedButtons = new WeakSet();
+        
+        function applyMinimalButtonStyles() {
+            const allButtons = document.querySelectorAll('button');
+            
+            allButtons.forEach(button => {
+                if (processedButtons.has(button)) return;
+                
+                const text = (button.textContent || button.innerText || '').trim();
+                
+                if (text.includes('입력하기')) {
+                    processedButtons.add(button);
+                    button.style.setProperty('background', 'transparent', 'important');
+                    button.style.setProperty('border', '2px solid #3B82F6', 'important');
+                    button.style.setProperty('color', '#3B82F6', 'important');
+                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
+                    button.style.setProperty('box-shadow', 'none', 'important');
+                    button.style.setProperty('font-weight', '600', 'important');
+                    
+                    const innerP = button.querySelector('p');
+                    if (innerP) {
+                        innerP.style.setProperty('color', '#3B82F6', 'important');
+                    }
+                    
+                    button.addEventListener('mouseenter', function() {
+                        this.style.setProperty('background', 'rgba(59, 130, 246, 0.1)', 'important');
+                        this.style.setProperty('border-color', '#60A5FA', 'important');
+                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#60A5FA', 'important');
+                    });
+                    
+                    button.addEventListener('mouseleave', function() {
+                        this.style.setProperty('background', 'transparent', 'important');
+                        this.style.setProperty('border-color', '#3B82F6', 'important');
+                        this.style.setProperty('transform', 'translateY(0)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#3B82F6', 'important');
+                    });
+                } else if (text.includes('분석하기')) {
+                    processedButtons.add(button);
+                    button.style.setProperty('background', 'transparent', 'important');
+                    button.style.setProperty('border', '2px solid #10B981', 'important');
+                    button.style.setProperty('color', '#10B981', 'important');
+                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
+                    button.style.setProperty('box-shadow', 'none', 'important');
+                    button.style.setProperty('font-weight', '600', 'important');
+                    
+                    const innerP = button.querySelector('p');
+                    if (innerP) {
+                        innerP.style.setProperty('color', '#10B981', 'important');
+                    }
+                    
+                    button.addEventListener('mouseenter', function() {
+                        this.style.setProperty('background', 'rgba(16, 185, 129, 0.1)', 'important');
+                        this.style.setProperty('border-color', '#34D399', 'important');
+                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#34D399', 'important');
+                    });
+                    
+                    button.addEventListener('mouseleave', function() {
+                        this.style.setProperty('background', 'transparent', 'important');
+                        this.style.setProperty('border-color', '#10B981', 'important');
+                        this.style.setProperty('transform', 'translateY(0)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#10B981', 'important');
+                    });
+                } else if (text.includes('설계하기')) {
+                    processedButtons.add(button);
+                    button.style.setProperty('background', 'transparent', 'important');
+                    button.style.setProperty('border', '2px solid #A855F7', 'important');
+                    button.style.setProperty('color', '#A855F7', 'important');
+                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
+                    button.style.setProperty('box-shadow', 'none', 'important');
+                    button.style.setProperty('font-weight', '600', 'important');
+                    
+                    const innerP = button.querySelector('p');
+                    if (innerP) {
+                        innerP.style.setProperty('color', '#A855F7', 'important');
+                    }
+                    
+                    button.addEventListener('mouseenter', function() {
+                        this.style.setProperty('background', 'rgba(168, 85, 247, 0.1)', 'important');
+                        this.style.setProperty('border-color', '#C084FC', 'important');
+                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#C084FC', 'important');
+                    });
+                    
+                    button.addEventListener('mouseleave', function() {
+                        this.style.setProperty('background', 'transparent', 'important');
+                        this.style.setProperty('border-color', '#A855F7', 'important');
+                        this.style.setProperty('transform', 'translateY(0)', 'important');
+                        if (innerP) innerP.style.setProperty('color', '#A855F7', 'important');
+                    });
+                }
+            });
+        }
+        
+        // 즉시 실행
         applyMinimalButtonStyles();
-    }
-    
-    // Streamlit rerun 시에도 적용
-    setTimeout(applyMinimalButtonStyles, 100);
-    setTimeout(applyMinimalButtonStyles, 500);
+        
+        // DOM 로드 후 실행
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', applyMinimalButtonStyles);
+        } else {
+            applyMinimalButtonStyles();
+        }
+        
+        // Streamlit rerun 대응
+        [100, 300, 500, 1000, 2000].forEach(delay => {
+            setTimeout(applyMinimalButtonStyles, delay);
+        });
+        
+        // MutationObserver로 DOM 변경 감지
+        const observer = new MutationObserver(function() {
+            applyMinimalButtonStyles();
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    })();
     </script>
     """
     st.markdown(js, unsafe_allow_html=True)
