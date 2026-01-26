@@ -31,6 +31,23 @@ def render_home():
     """
     HOME v2 - CAUSE OS 브랜드 첫 화면 + 오늘 행동 시작점
     """
+    # URL 파라미터로 페이지 이동 처리 (함수 시작 부분에서 먼저 처리)
+    query_params = st.query_params
+    if 'navigate_to' in query_params:
+        page_name = query_params['navigate_to']
+        if page_name:
+            st.session_state.current_page = page_name
+            # 파라미터 제거를 시도
+            try:
+                new_params = dict(query_params)
+                if 'navigate_to' in new_params:
+                    del new_params['navigate_to']
+                st.query_params.update(new_params)
+            except:
+                pass
+            # 즉시 rerun
+            st.rerun()
+    
     # 리뉴얼 CSS
     css = """
     <style>
@@ -532,87 +549,72 @@ def render_home():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # HTML 버튼 클릭 시 Streamlit 세션 상태 직접 업데이트
+    # HTML 버튼 클릭 시 URL 파라미터로 페이지 이동 (강화 버전)
     navigation_js = """
     <script>
     (function() {
-        function navigateToPage(pageName) {
+        // 전역 함수로 만들어서 onclick에서도 사용 가능하게
+        window.navigateToPage = function(pageName) {
             console.log('Navigating to:', pageName);
             
-            // 방법 1: Streamlit의 내부 메시지 시스템 사용
-            if (window.parent && window.parent !== window) {
-                try {
-                    // Streamlit의 세션 상태 업데이트를 위한 메시지 전송
-                    window.parent.postMessage({
-                        type: 'streamlit:setComponentValue',
-                        value: {current_page: pageName}
-                    }, '*');
-                    
-                    // rerun 트리거
-                    setTimeout(() => {
-                        window.parent.postMessage({
-                            type: 'streamlit:rerun'
-                        }, '*');
-                    }, 100);
-                    
-                    return;
-                } catch (e) {
-                    console.error('Streamlit message error:', e);
-                }
-            }
+            // URL 파라미터 설정하고 페이지 새로고침
+            const currentUrl = window.location.href;
+            const baseUrl = currentUrl.split('?')[0];
+            const newUrl = baseUrl + '?navigate_to=' + encodeURIComponent(pageName);
             
-            // 방법 2: URL 파라미터 사용 (fallback)
-            try {
-                const url = new URL(window.location.href);
-                url.searchParams.set('navigate_to', pageName);
-                window.location.href = url.toString();
-            } catch (e) {
-                console.error('URL navigation error:', e);
-            }
-        }
+            console.log('Navigating to URL:', newUrl);
+            window.location.href = newUrl;
+        };
         
         function setupButtonTriggers() {
             // 입력하기 버튼
             const btn1 = document.querySelector('.ps-minimal-btn-1[data-action="step1"]');
-            if (btn1 && !btn1.dataset.listenerAdded) {
-                btn1.dataset.listenerAdded = 'true';
-                btn1.addEventListener('click', function(e) {
+            if (btn1) {
+                // 기존 리스너 제거 후 다시 추가
+                const newBtn1 = btn1.cloneNode(true);
+                btn1.parentNode.replaceChild(newBtn1, btn1);
+                
+                newBtn1.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const pageName = btn1.getAttribute('data-page');
+                    const pageName = newBtn1.getAttribute('data-page');
                     console.log('Button 1 clicked, page:', pageName);
                     if (pageName) {
-                        navigateToPage(pageName);
+                        window.navigateToPage(pageName);
                     }
                 });
             }
             
             // 분석하기 버튼
             const btn2 = document.querySelector('.ps-minimal-btn-2[data-action="step2"]');
-            if (btn2 && !btn2.dataset.listenerAdded) {
-                btn2.dataset.listenerAdded = 'true';
-                btn2.addEventListener('click', function(e) {
+            if (btn2) {
+                const newBtn2 = btn2.cloneNode(true);
+                btn2.parentNode.replaceChild(newBtn2, btn2);
+                
+                newBtn2.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const pageName = btn2.getAttribute('data-page');
+                    const pageName = newBtn2.getAttribute('data-page');
                     console.log('Button 2 clicked, page:', pageName);
                     if (pageName) {
-                        navigateToPage(pageName);
+                        window.navigateToPage(pageName);
                     }
                 });
             }
             
             // 설계하기 버튼
             const btn3 = document.querySelector('.ps-minimal-btn-3[data-action="step3"]');
-            if (btn3 && !btn3.dataset.listenerAdded) {
-                btn3.dataset.listenerAdded = 'true';
-                btn3.addEventListener('click', function(e) {
+            if (btn3) {
+                const newBtn3 = btn3.cloneNode(true);
+                btn3.parentNode.replaceChild(newBtn3, btn3);
+                
+                newBtn3.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const pageName = btn3.getAttribute('data-page');
+                    const pageName = newBtn3.getAttribute('data-page');
                     console.log('Button 3 clicked, page:', pageName);
                     if (pageName) {
-                        navigateToPage(pageName);
+                        window.navigateToPage(pageName);
                     }
                 });
             }
@@ -688,9 +690,9 @@ def render_home():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가 - 전역 함수 사용)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('입력 허브'); return false;">
+        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브" onclick="if(window.navigateToPage) { window.navigateToPage('입력 허브'); } else { const url = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('입력 허브'); window.location.href = url; } return false;">
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -703,9 +705,9 @@ def render_home():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가 - 전역 함수 사용)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('분석 허브'); return false;">
+        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브" onclick="if(window.navigateToPage) { window.navigateToPage('분석 허브'); } else { const url = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('분석 허브'); window.location.href = url; } return false;">
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -718,9 +720,9 @@ def render_home():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가 - 전역 함수 사용)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('가게 전략 센터'); return false;">
+        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터" onclick="if(window.navigateToPage) { window.navigateToPage('가게 전략 센터'); } else { const url = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('가게 전략 센터'); window.location.href = url; } return false;">
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -730,12 +732,4 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
     
-    # URL 파라미터로 페이지 이동 처리 (Streamlit 버튼 완전 제거)
-    query_params = st.query_params
-    if 'navigate_to' in query_params:
-        page_name = query_params['navigate_to']
-        st.session_state.current_page = page_name
-        # 파라미터 제거
-        st.query_params.clear()
-        st.rerun()
     
