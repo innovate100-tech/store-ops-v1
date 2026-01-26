@@ -524,7 +524,12 @@ def render_home():
     [data-testid="column"] [data-testid="stButton"]:has(button[key="home_step3_btn"]),
     [data-testid="column"] button[key="home_step1_btn"],
     [data-testid="column"] button[key="home_step2_btn"],
-    [data-testid="column"] button[key="home_step3_btn"] {
+    [data-testid="column"] button[key="home_step3_btn"],
+    /* display: none div 내부의 버튼도 숨기기 */
+    div[style*="display: none"] button[key="home_step1_btn"],
+    div[style*="display: none"] button[key="home_step2_btn"],
+    div[style*="display: none"] button[key="home_step3_btn"],
+    div[style*="display: none"] [data-testid="stButton"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -810,16 +815,12 @@ def render_home():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼과 Streamlit 버튼 (Streamlit 버튼은 완전히 숨김)
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브">
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
-        if st.button("", key="home_step1_btn", use_container_width=True):
-            st.session_state.current_page = "입력 허브"
-            st.rerun()
     
     with step_col2:
         st.markdown("""
@@ -829,16 +830,12 @@ def render_home():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼과 Streamlit 버튼 (Streamlit 버튼은 완전히 숨김)
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브">
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
-        if st.button("", key="home_step2_btn", use_container_width=True):
-            st.session_state.current_page = "분석 허브"
-            st.rerun()
     
     with step_col3:
         st.markdown("""
@@ -848,19 +845,28 @@ def render_home():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼과 Streamlit 버튼 (Streamlit 버튼은 완전히 숨김)
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터">
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
-        if st.button("", key="home_step3_btn", use_container_width=True):
-            st.session_state.current_page = "가게 전략 센터"
-            st.rerun()
     
     st.markdown("""
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Streamlit 버튼을 컬럼 밖으로 완전히 분리 (완전히 숨김)
+    st.markdown('<div style="display: none;">', unsafe_allow_html=True)
+    if st.button("", key="home_step1_btn", use_container_width=False):
+        st.session_state.current_page = "입력 허브"
+        st.rerun()
+    if st.button("", key="home_step2_btn", use_container_width=False):
+        st.session_state.current_page = "분석 허브"
+        st.rerun()
+    if st.button("", key="home_step3_btn", use_container_width=False):
+        st.session_state.current_page = "가게 전략 센터"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
     
