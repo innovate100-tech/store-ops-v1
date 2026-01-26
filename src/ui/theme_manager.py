@@ -487,6 +487,109 @@ def inject_global_ui():
         }}
         
         /* ============================================
+           CAUSE OS 푸터 전역 스타일 (모든 페이지 공통)
+           ============================================ */
+        
+        .ps-cause-footer-wrapper {{
+            width: 100% !important;
+            display: block !important;
+            margin-top: 4rem !important;
+            padding: 2.5rem 0 1.5rem 0 !important;
+            border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
+            position: relative !important;
+            text-align: center !important;
+        }}
+        
+        .ps-cause-footer {{
+            width: 100% !important;
+            display: block !important;
+            text-align: center !important;
+            color: rgba(148, 163, 184, 0.65) !important;
+            font-size: 0.8rem !important;
+            line-height: 1.7 !important;
+            font-weight: 400 !important;
+            letter-spacing: 0.02em !important;
+        }}
+        
+        .ps-cause-footer::before {{
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+        }}
+        
+        .ps-cause-footer-brand-line {{
+            width: 100% !important;
+            display: block !important;
+            text-align: center !important;
+            margin-bottom: 0.5rem !important;
+        }}
+        
+        .ps-cause-footer-brand,
+        .ps-cause-footer-tagline,
+        .ps-cause-footer-copyright,
+        .ps-cause-footer-separator,
+        .ps-cause-footer span {{
+            text-align: center !important;
+            display: inline !important;
+        }}
+        
+        .ps-cause-footer-brand {{
+            font-weight: 700 !important;
+            color: rgba(148, 163, 184, 0.85) !important;
+            letter-spacing: 0.08em !important;
+            font-size: 0.85rem !important;
+        }}
+        
+        .ps-cause-footer-tagline {{
+            color: rgba(148, 163, 184, 0.55) !important;
+            font-size: 0.75rem !important;
+            font-weight: 400 !important;
+            letter-spacing: 0.01em !important;
+        }}
+        
+        .ps-cause-footer-copyright {{
+            color: rgba(148, 163, 184, 0.45) !important;
+            font-size: 0.7rem !important;
+            margin-top: 0.75rem !important;
+            font-weight: 300 !important;
+            letter-spacing: 0.03em !important;
+        }}
+        
+        .ps-cause-footer-separator {{
+            color: rgba(148, 163, 184, 0.35) !important;
+            margin: 0 0.6rem !important;
+            font-weight: 300 !important;
+        }}
+        
+        /* Streamlit 마크다운 컨테이너 오버라이드 */
+        [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper,
+        [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper *,
+        .stMarkdown .ps-cause-footer-wrapper,
+        .stMarkdown .ps-cause-footer-wrapper * {{
+            text-align: center !important;
+        }}
+        
+        /* 전역 transition이 푸터에 영향을 주지 않도록 */
+        .ps-cause-footer-wrapper,
+        .ps-cause-footer-wrapper *,
+        .ps-cause-footer,
+        .ps-cause-footer * {{
+            transition: none !important;
+        }}
+        
+        /* 다크 모드 대응 */
+        @media (prefers-color-scheme: dark) {{
+            .ps-cause-footer-wrapper {{
+                border-top-color: rgba(148, 163, 184, 0.15) !important;
+            }}
+        }}
+        
+        /* ============================================
            페이지 전환 순간 잔상/깨짐 마스킹 CSS
            ============================================ */
         
