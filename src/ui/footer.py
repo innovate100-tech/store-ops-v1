@@ -24,7 +24,7 @@ def render_cause_os_footer(style="default"):
         .ps-cause-footer {
             margin-top: 4rem;
             padding: 2.5rem 0 1.5rem 0;
-            text-align: center;
+            text-align: right;
             border-top: 1px solid rgba(148, 163, 184, 0.12);
             color: rgba(148, 163, 184, 0.65);
             font-size: 0.8rem;
@@ -38,8 +38,7 @@ def render_cause_os_footer(style="default"):
             content: "";
             position: absolute;
             top: 0;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 0;
             width: 60px;
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
@@ -108,7 +107,7 @@ def render_cause_os_footer(style="default"):
             <div>
                 <span class="ps-cause-footer-brand">CAUSE OS</span>
                 <span class="ps-cause-footer-separator">—</span>
-                <span>사장을 위한 숫자 운영체제</span>
+                <span>성공에는 이유가 있습니다</span>
             </div>
             <div class="ps-cause-footer-copyright">© 2026 INNOVATION100. All rights reserved.</div>
         </div>
