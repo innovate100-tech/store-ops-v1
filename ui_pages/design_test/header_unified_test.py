@@ -18,8 +18,8 @@ def render_header_unified_test():
     .ps-brand-hero {
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%) !important;
         border-radius: 24px !important;
-        padding: 5rem 3rem !important;
-        margin: 0 0 2rem 0 !important;
+        padding: 5rem 3rem 3rem 3rem !important;
+        margin: 0 0 0 0 !important;
         text-align: center !important;
         position: relative !important;
         overflow: hidden !important;
@@ -30,7 +30,8 @@ def render_header_unified_test():
     /* Streamlit 마크다운 컨테이너 오버라이드 */
     [data-testid="stMarkdownContainer"] .ps-brand-hero,
     .stMarkdown .ps-brand-hero {
-        margin: 0 0 2rem 0 !important;
+        margin: 0 0 0 0 !important;
+        padding-bottom: 3rem !important;
     }
     
     .ps-brand-hero::after {
@@ -71,6 +72,7 @@ def render_header_unified_test():
         font-weight: 500;
         color: #94A3B8;
         margin-bottom: 0;
+        padding-bottom: 2rem;
     }
     
     /* STEP 가이드 (간결형) */
