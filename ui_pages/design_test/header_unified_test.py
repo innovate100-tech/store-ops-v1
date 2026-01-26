@@ -340,68 +340,155 @@ def render_header_unified_test():
         padding-bottom: 0 !important;
     }
     
-    /* 미니멀 라인 아트 버튼 스타일 */
-    /* 입력하기 버튼 - 키 기반 선택 */
-    button[data-testid="baseButton-primary"][aria-label*="입력하기"],
-    button[data-testid="baseButton-secondary"][aria-label*="입력하기"],
-    button:contains("입력하기") {
-        background: transparent !important;
-        border: 2px solid #3B82F6 !important;
-        color: #3B82F6 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: none !important;
-        font-weight: 600 !important;
+    /* 미니멀 라인 아트 버튼 스타일 - 테스트 페이지 2와 동일 */
+    .ps-minimal-btn {
+        min-width: 150px;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        border: 2px solid;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        text-align: center;
+        font-family: inherit;
+        width: 100%;
     }
     
-    button[data-testid="baseButton-primary"][aria-label*="입력하기"]:hover,
-    button[data-testid="baseButton-secondary"][aria-label*="입력하기"]:hover,
-    button:contains("입력하기"):hover {
-        background: rgba(59, 130, 246, 0.1) !important;
-        color: #60A5FA !important;
-        border-color: #60A5FA !important;
-        transform: translateY(-2px) !important;
+    .ps-minimal-btn-1 {
+        border-color: #3B82F6;
+        color: #3B82F6;
     }
     
-    /* 분석하기 버튼 */
-    button[data-testid="baseButton-primary"][aria-label*="분석하기"],
-    button[data-testid="baseButton-secondary"][aria-label*="분석하기"],
-    button:contains("분석하기") {
-        background: transparent !important;
-        border: 2px solid #10B981 !important;
-        color: #10B981 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: none !important;
-        font-weight: 600 !important;
+    .ps-minimal-btn-1::before,
+    .ps-minimal-btn-1::after {
+        content: "";
+        position: absolute;
+        width: 0;
+        height: 0;
+        border: 2px solid #3B82F6;
+        transition: all 0.3s ease;
     }
     
-    button[data-testid="baseButton-primary"][aria-label*="분석하기"]:hover,
-    button[data-testid="baseButton-secondary"][aria-label*="분석하기"]:hover,
-    button:contains("분석하기"):hover {
-        background: rgba(16, 185, 129, 0.1) !important;
-        color: #34D399 !important;
-        border-color: #34D399 !important;
-        transform: translateY(-2px) !important;
+    .ps-minimal-btn-1::before {
+        top: 0;
+        left: 0;
+        border-right: none;
+        border-bottom: none;
     }
     
-    /* 설계하기 버튼 */
-    button[data-testid="baseButton-primary"][aria-label*="설계하기"],
-    button[data-testid="baseButton-secondary"][aria-label*="설계하기"],
-    button:contains("설계하기") {
-        background: transparent !important;
-        border: 2px solid #A855F7 !important;
-        color: #A855F7 !important;
-        transition: all 0.3s ease !important;
-        box-shadow: none !important;
-        font-weight: 600 !important;
+    .ps-minimal-btn-1::after {
+        bottom: 0;
+        right: 0;
+        border-left: none;
+        border-top: none;
     }
     
-    button[data-testid="baseButton-primary"][aria-label*="설계하기"]:hover,
-    button[data-testid="baseButton-secondary"][aria-label*="설계하기"]:hover,
-    button:contains("설계하기"):hover {
-        background: rgba(168, 85, 247, 0.1) !important;
-        color: #C084FC !important;
-        border-color: #C084FC !important;
-        transform: translateY(-2px) !important;
+    .ps-minimal-btn-1:hover {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60A5FA;
+    }
+    
+    .ps-minimal-btn-1:hover::before,
+    .ps-minimal-btn-1:hover::after {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .ps-minimal-btn-2 {
+        border-color: #10B981;
+        color: #10B981;
+    }
+    
+    .ps-minimal-btn-2::before,
+    .ps-minimal-btn-2::after {
+        content: "";
+        position: absolute;
+        width: 0;
+        height: 0;
+        border: 2px solid #10B981;
+        transition: all 0.3s ease;
+    }
+    
+    .ps-minimal-btn-2::before {
+        top: 0;
+        left: 0;
+        border-right: none;
+        border-bottom: none;
+    }
+    
+    .ps-minimal-btn-2::after {
+        bottom: 0;
+        right: 0;
+        border-left: none;
+        border-top: none;
+    }
+    
+    .ps-minimal-btn-2:hover {
+        background: rgba(16, 185, 129, 0.1);
+        color: #34D399;
+    }
+    
+    .ps-minimal-btn-2:hover::before,
+    .ps-minimal-btn-2:hover::after {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .ps-minimal-btn-3 {
+        border-color: #A855F7;
+        color: #A855F7;
+    }
+    
+    .ps-minimal-btn-3::before,
+    .ps-minimal-btn-3::after {
+        content: "";
+        position: absolute;
+        width: 0;
+        height: 0;
+        border: 2px solid #A855F7;
+        transition: all 0.3s ease;
+    }
+    
+    .ps-minimal-btn-3::before {
+        top: 0;
+        left: 0;
+        border-right: none;
+        border-bottom: none;
+    }
+    
+    .ps-minimal-btn-3::after {
+        bottom: 0;
+        right: 0;
+        border-left: none;
+        border-top: none;
+    }
+    
+    .ps-minimal-btn-3:hover {
+        background: rgba(168, 85, 247, 0.1);
+        color: #C084FC;
+    }
+    
+    .ps-minimal-btn-3:hover::before,
+    .ps-minimal-btn-3:hover::after {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .ps-minimal-btn span {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Streamlit 버튼 숨기기 - 빈 텍스트 버튼만 */
+    button[data-testid="baseButton-primary"]:empty,
+    button[data-testid="baseButton-secondary"]:empty,
+    button[data-testid="baseButton-primary"]:has(p:empty),
+    button[data-testid="baseButton-secondary"]:has(p:empty) {
+        display: none !important;
     }
     
     /* 반응형 */
@@ -433,123 +520,97 @@ def render_header_unified_test():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # JavaScript로 버튼 스타일 적용 (강화 버전)
+    # HTML 버튼 클릭 시 Streamlit 버튼 트리거
     js = """
     <script>
     (function() {
-        const processedButtons = new WeakSet();
-        
-        function applyMinimalButtonStyles() {
-            const allButtons = document.querySelectorAll('button');
+        function setupButtonTriggers() {
+            // 입력하기 버튼
+            const btn1 = document.querySelector('.ps-minimal-btn-1[data-action="step1"]');
+            if (btn1 && !btn1.dataset.listenerAdded) {
+                btn1.dataset.listenerAdded = 'true';
+                btn1.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // 같은 컬럼 내의 빈 Streamlit 버튼 찾기
+                    let parent = btn1.closest('[data-testid="column"]');
+                    if (!parent) {
+                        parent = btn1.parentElement;
+                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
+                            parent = parent.parentElement;
+                        }
+                    }
+                    if (parent) {
+                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+                        if (streamlitBtn) {
+                            streamlitBtn.click();
+                        }
+                    }
+                });
+            }
             
-            allButtons.forEach(button => {
-                if (processedButtons.has(button)) return;
-                
-                const text = (button.textContent || button.innerText || '').trim();
-                
-                if (text.includes('입력하기')) {
-                    processedButtons.add(button);
-                    button.style.setProperty('background', 'transparent', 'important');
-                    button.style.setProperty('border', '2px solid #3B82F6', 'important');
-                    button.style.setProperty('color', '#3B82F6', 'important');
-                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
-                    button.style.setProperty('box-shadow', 'none', 'important');
-                    button.style.setProperty('font-weight', '600', 'important');
-                    
-                    const innerP = button.querySelector('p');
-                    if (innerP) {
-                        innerP.style.setProperty('color', '#3B82F6', 'important');
+            // 분석하기 버튼
+            const btn2 = document.querySelector('.ps-minimal-btn-2[data-action="step2"]');
+            if (btn2 && !btn2.dataset.listenerAdded) {
+                btn2.dataset.listenerAdded = 'true';
+                btn2.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    let parent = btn2.closest('[data-testid="column"]');
+                    if (!parent) {
+                        parent = btn2.parentElement;
+                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
+                            parent = parent.parentElement;
+                        }
                     }
-                    
-                    button.addEventListener('mouseenter', function() {
-                        this.style.setProperty('background', 'rgba(59, 130, 246, 0.1)', 'important');
-                        this.style.setProperty('border-color', '#60A5FA', 'important');
-                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#60A5FA', 'important');
-                    });
-                    
-                    button.addEventListener('mouseleave', function() {
-                        this.style.setProperty('background', 'transparent', 'important');
-                        this.style.setProperty('border-color', '#3B82F6', 'important');
-                        this.style.setProperty('transform', 'translateY(0)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#3B82F6', 'important');
-                    });
-                } else if (text.includes('분석하기')) {
-                    processedButtons.add(button);
-                    button.style.setProperty('background', 'transparent', 'important');
-                    button.style.setProperty('border', '2px solid #10B981', 'important');
-                    button.style.setProperty('color', '#10B981', 'important');
-                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
-                    button.style.setProperty('box-shadow', 'none', 'important');
-                    button.style.setProperty('font-weight', '600', 'important');
-                    
-                    const innerP = button.querySelector('p');
-                    if (innerP) {
-                        innerP.style.setProperty('color', '#10B981', 'important');
+                    if (parent) {
+                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+                        if (streamlitBtn) {
+                            streamlitBtn.click();
+                        }
                     }
-                    
-                    button.addEventListener('mouseenter', function() {
-                        this.style.setProperty('background', 'rgba(16, 185, 129, 0.1)', 'important');
-                        this.style.setProperty('border-color', '#34D399', 'important');
-                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#34D399', 'important');
-                    });
-                    
-                    button.addEventListener('mouseleave', function() {
-                        this.style.setProperty('background', 'transparent', 'important');
-                        this.style.setProperty('border-color', '#10B981', 'important');
-                        this.style.setProperty('transform', 'translateY(0)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#10B981', 'important');
-                    });
-                } else if (text.includes('설계하기')) {
-                    processedButtons.add(button);
-                    button.style.setProperty('background', 'transparent', 'important');
-                    button.style.setProperty('border', '2px solid #A855F7', 'important');
-                    button.style.setProperty('color', '#A855F7', 'important');
-                    button.style.setProperty('transition', 'all 0.3s ease', 'important');
-                    button.style.setProperty('box-shadow', 'none', 'important');
-                    button.style.setProperty('font-weight', '600', 'important');
-                    
-                    const innerP = button.querySelector('p');
-                    if (innerP) {
-                        innerP.style.setProperty('color', '#A855F7', 'important');
+                });
+            }
+            
+            // 설계하기 버튼
+            const btn3 = document.querySelector('.ps-minimal-btn-3[data-action="step3"]');
+            if (btn3 && !btn3.dataset.listenerAdded) {
+                btn3.dataset.listenerAdded = 'true';
+                btn3.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    let parent = btn3.closest('[data-testid="column"]');
+                    if (!parent) {
+                        parent = btn3.parentElement;
+                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
+                            parent = parent.parentElement;
+                        }
                     }
-                    
-                    button.addEventListener('mouseenter', function() {
-                        this.style.setProperty('background', 'rgba(168, 85, 247, 0.1)', 'important');
-                        this.style.setProperty('border-color', '#C084FC', 'important');
-                        this.style.setProperty('transform', 'translateY(-2px)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#C084FC', 'important');
-                    });
-                    
-                    button.addEventListener('mouseleave', function() {
-                        this.style.setProperty('background', 'transparent', 'important');
-                        this.style.setProperty('border-color', '#A855F7', 'important');
-                        this.style.setProperty('transform', 'translateY(0)', 'important');
-                        if (innerP) innerP.style.setProperty('color', '#A855F7', 'important');
-                    });
-                }
-            });
+                    if (parent) {
+                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+                        if (streamlitBtn) {
+                            streamlitBtn.click();
+                        }
+                    }
+                });
+            }
         }
         
         // 즉시 실행
-        applyMinimalButtonStyles();
+        setupButtonTriggers();
         
         // DOM 로드 후 실행
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', applyMinimalButtonStyles);
+            document.addEventListener('DOMContentLoaded', setupButtonTriggers);
         } else {
-            applyMinimalButtonStyles();
+            setupButtonTriggers();
         }
         
         // Streamlit rerun 대응
-        [100, 300, 500, 1000, 2000].forEach(delay => {
-            setTimeout(applyMinimalButtonStyles, delay);
+        [100, 300, 500, 1000].forEach(delay => {
+            setTimeout(setupButtonTriggers, delay);
         });
         
         // MutationObserver로 DOM 변경 감지
         const observer = new MutationObserver(function() {
-            applyMinimalButtonStyles();
+            setupButtonTriggers();
         });
         
         observer.observe(document.body, {
@@ -597,7 +658,14 @@ def render_header_unified_test():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 입력하기", key="test_step1_btn", use_container_width=True):
+        # HTML 버튼
+        st.markdown("""
+        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1">
+            <span>▶ 입력하기</span>
+        </button>
+        """, unsafe_allow_html=True)
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        if st.button("", key="test_step1_btn", use_container_width=True):
             st.info("테스트: 입력 허브로 이동")
     
     with step_col2:
@@ -608,7 +676,14 @@ def render_header_unified_test():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 분석하기", key="test_step2_btn", use_container_width=True):
+        # HTML 버튼
+        st.markdown("""
+        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2">
+            <span>▶ 분석하기</span>
+        </button>
+        """, unsafe_allow_html=True)
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        if st.button("", key="test_step2_btn", use_container_width=True):
             st.info("테스트: 분석 허브로 이동")
     
     with step_col3:
@@ -619,7 +694,14 @@ def render_header_unified_test():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("▶ 설계하기", key="test_step3_btn", use_container_width=True):
+        # HTML 버튼
+        st.markdown("""
+        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3">
+            <span>▶ 설계하기</span>
+        </button>
+        """, unsafe_allow_html=True)
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
+        if st.button("", key="test_step3_btn", use_container_width=True):
             st.info("테스트: 전략 센터로 이동")
     
     st.markdown("""
