@@ -69,7 +69,7 @@ def render_header_unified_test():
     
     /* STEP 가이드 (간결형) */
     .ps-step-guide-compact {
-        margin-top: 2rem;
+        margin-top: 0;
     }
     
     .ps-step-guide-title {
@@ -159,7 +159,7 @@ def render_header_unified_test():
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
     
     # ============================================
     # SECTION 2: STEP 가이드 (간결형)
