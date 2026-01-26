@@ -1,21 +1,21 @@
 """
-홈화면 리뉴얼 테스트 페이지 2
-링크 버튼 8가지 디자인 변형
+Streamlit 버튼 디자인 갤러리
+다양한 CSS 스타일을 적용한 Streamlit 버튼 디자인 모음
 """
 import streamlit as st
 
 
 def render_header_unified_test2():
-    """링크 버튼 8가지 디자인 변형 테스트"""
+    """Streamlit 버튼 디자인 갤러리"""
     
-    st.title("🎨 링크 버튼 디자인 변형 테스트")
-    st.caption("20가지 다른 스타일과 효과를 적용한 버튼 디자인")
+    st.title("🎨 Streamlit 버튼 디자인 갤러리")
+    st.caption("CSS로 스타일링한 다양한 Streamlit 버튼 디자인")
     
-    # 8가지 디자인 변형 CSS
+    # CSS 스타일 정의
     css = """
     <style>
     /* 공통 스타일 */
-    .btn-variant-section {
+    .btn-gallery-section {
         margin-bottom: 4rem;
         padding: 2rem;
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
@@ -23,7 +23,7 @@ def render_header_unified_test2():
         border: 1px solid rgba(59, 130, 246, 0.2);
     }
     
-    .btn-variant-title {
+    .btn-gallery-title {
         font-size: 1.5rem;
         font-weight: 800;
         color: #F8FAFC;
@@ -31,641 +31,313 @@ def render_header_unified_test2():
         text-align: center;
     }
     
-    .btn-variant-desc {
+    .btn-gallery-desc {
         font-size: 0.9rem;
         color: #94A3B8;
         margin-bottom: 2rem;
         text-align: center;
     }
     
-    .btn-group {
+    .btn-row {
         display: flex;
         gap: 1.5rem;
         justify-content: center;
         flex-wrap: wrap;
+        margin-bottom: 1rem;
     }
     
-    /* 버튼 공통 기본 스타일 */
-    .link-btn {
-        min-width: 150px;
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-        text-align: center;
+    /* Streamlit 버튼 스타일링 - 변형 1: 네온 글로우 */
+    button[key="btn_neon_1"],
+    button[key="btn_neon_2"],
+    button[key="btn_neon_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
     
-    /* 변형 1: 네온 글로우 효과 */
-    .btn-neon-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    button[key="btn_neon_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
         box-shadow: 0 0 20px rgba(59, 130, 246, 0.5),
                     0 0 40px rgba(59, 130, 246, 0.3),
-                    0 0 60px rgba(59, 130, 246, 0.1);
+                    0 0 60px rgba(59, 130, 246, 0.1) !important;
     }
     
-    .btn-neon-1:hover {
+    button[key="btn_neon_1"]:hover {
         box-shadow: 0 0 30px rgba(59, 130, 246, 0.8),
                     0 0 60px rgba(59, 130, 246, 0.5),
-                    0 0 90px rgba(59, 130, 246, 0.3);
-        transform: translateY(-2px);
+                    0 0 90px rgba(59, 130, 246, 0.3) !important;
+        transform: translateY(-2px) !important;
     }
     
-    .btn-neon-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    button[key="btn_neon_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
         box-shadow: 0 0 20px rgba(16, 185, 129, 0.5),
                     0 0 40px rgba(16, 185, 129, 0.3),
-                    0 0 60px rgba(16, 185, 129, 0.1);
+                    0 0 60px rgba(16, 185, 129, 0.1) !important;
     }
     
-    .btn-neon-2:hover {
+    button[key="btn_neon_2"]:hover {
         box-shadow: 0 0 30px rgba(16, 185, 129, 0.8),
                     0 0 60px rgba(16, 185, 129, 0.5),
-                    0 0 90px rgba(16, 185, 129, 0.3);
-        transform: translateY(-2px);
+                    0 0 90px rgba(16, 185, 129, 0.3) !important;
+        transform: translateY(-2px) !important;
     }
     
-    .btn-neon-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+    button[key="btn_neon_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
         box-shadow: 0 0 20px rgba(168, 85, 247, 0.5),
                     0 0 40px rgba(168, 85, 247, 0.3),
-                    0 0 60px rgba(168, 85, 247, 0.1);
+                    0 0 60px rgba(168, 85, 247, 0.1) !important;
     }
     
-    .btn-neon-3:hover {
+    button[key="btn_neon_3"]:hover {
         box-shadow: 0 0 30px rgba(168, 85, 247, 0.8),
                     0 0 60px rgba(168, 85, 247, 0.5),
-                    0 0 90px rgba(168, 85, 247, 0.3);
-        transform: translateY(-2px);
+                    0 0 90px rgba(168, 85, 247, 0.3) !important;
+        transform: translateY(-2px) !important;
     }
     
     /* 변형 2: 그라데이션 애니메이션 */
-    .btn-gradient-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%);
-        background-size: 200% 200%;
-        animation: gradient-shift 3s ease infinite;
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-    }
-    
-    .btn-gradient-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
-        background-size: 200% 200%;
-        animation: gradient-shift 3s ease infinite;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-    }
-    
-    .btn-gradient-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%);
-        background-size: 200% 200%;
-        animation: gradient-shift 3s ease infinite;
-        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
-    }
-    
     @keyframes gradient-shift {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
     }
     
+    button[key="btn_gradient_1"],
+    button[key="btn_gradient_2"],
+    button[key="btn_gradient_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        background-size: 200% 200% !important;
+        animation: gradient-shift 3s ease infinite !important;
+    }
+    
+    button[key="btn_gradient_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%) !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    button[key="btn_gradient_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%) !important;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
+    }
+    
+    button[key="btn_gradient_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%) !important;
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4) !important;
+    }
+    
     /* 변형 3: 3D 입체 효과 */
-    .btn-3d-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    button[key="btn_3d_1"],
+    button[key="btn_3d_2"],
+    button[key="btn_3d_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        transform: perspective(1000px) rotateX(0deg) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    button[key="btn_3d_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
         box-shadow: 0 8px 0 #1E40AF,
-                    0 12px 20px rgba(0, 0, 0, 0.3);
-        transform: perspective(1000px) rotateX(0deg);
+                    0 12px 20px rgba(0, 0, 0, 0.3) !important;
     }
     
-    .btn-3d-1:hover {
-        transform: perspective(1000px) rotateX(5deg) translateY(2px);
+    button[key="btn_3d_1"]:hover {
+        transform: perspective(1000px) rotateX(5deg) translateY(2px) !important;
         box-shadow: 0 4px 0 #1E40AF,
-                    0 8px 15px rgba(0, 0, 0, 0.3);
+                    0 8px 15px rgba(0, 0, 0, 0.3) !important;
     }
     
-    .btn-3d-1:active {
-        transform: perspective(1000px) rotateX(10deg) translateY(4px);
-        box-shadow: 0 2px 0 #1E40AF,
-                    0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-    
-    .btn-3d-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    button[key="btn_3d_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
         box-shadow: 0 8px 0 #047857,
-                    0 12px 20px rgba(0, 0, 0, 0.3);
-        transform: perspective(1000px) rotateX(0deg);
+                    0 12px 20px rgba(0, 0, 0, 0.3) !important;
     }
     
-    .btn-3d-2:hover {
-        transform: perspective(1000px) rotateX(5deg) translateY(2px);
+    button[key="btn_3d_2"]:hover {
+        transform: perspective(1000px) rotateX(5deg) translateY(2px) !important;
         box-shadow: 0 4px 0 #047857,
-                    0 8px 15px rgba(0, 0, 0, 0.3);
+                    0 8px 15px rgba(0, 0, 0, 0.3) !important;
     }
     
-    .btn-3d-2:active {
-        transform: perspective(1000px) rotateX(10deg) translateY(4px);
-        box-shadow: 0 2px 0 #047857,
-                    0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-    
-    .btn-3d-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+    button[key="btn_3d_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
         box-shadow: 0 8px 0 #7E22CE,
-                    0 12px 20px rgba(0, 0, 0, 0.3);
-        transform: perspective(1000px) rotateX(0deg);
+                    0 12px 20px rgba(0, 0, 0, 0.3) !important;
     }
     
-    .btn-3d-3:hover {
-        transform: perspective(1000px) rotateX(5deg) translateY(2px);
+    button[key="btn_3d_3"]:hover {
+        transform: perspective(1000px) rotateX(5deg) translateY(2px) !important;
         box-shadow: 0 4px 0 #7E22CE,
-                    0 8px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    .btn-3d-3:active {
-        transform: perspective(1000px) rotateX(10deg) translateY(4px);
-        box-shadow: 0 2px 0 #7E22CE,
-                    0 4px 10px rgba(0, 0, 0, 0.3);
+                    0 8px 15px rgba(0, 0, 0, 0.3) !important;
     }
     
     /* 변형 4: 글래스모피즘 */
-    .btn-glass-1 {
-        background: rgba(59, 130, 246, 0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(59, 130, 246, 0.3);
+    button[key="btn_glass_1"],
+    button[key="btn_glass_2"],
+    button[key="btn_glass_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        backdrop-filter: blur(10px) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    button[key="btn_glass_1"] {
+        background: rgba(59, 130, 246, 0.2) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
         box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     }
     
-    .btn-glass-1:hover {
-        background: rgba(59, 130, 246, 0.3);
-        border-color: rgba(59, 130, 246, 0.5);
+    button[key="btn_glass_1"]:hover {
+        background: rgba(59, 130, 246, 0.3) !important;
+        border-color: rgba(59, 130, 246, 0.5) !important;
         box-shadow: 0 12px 40px rgba(59, 130, 246, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
     }
     
-    .btn-glass-2 {
-        background: rgba(16, 185, 129, 0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(16, 185, 129, 0.3);
+    button[key="btn_glass_2"] {
+        background: rgba(16, 185, 129, 0.2) !important;
+        border: 1px solid rgba(16, 185, 129, 0.3) !important;
         box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     }
     
-    .btn-glass-2:hover {
-        background: rgba(16, 185, 129, 0.3);
-        border-color: rgba(16, 185, 129, 0.5);
+    button[key="btn_glass_2"]:hover {
+        background: rgba(16, 185, 129, 0.3) !important;
+        border-color: rgba(16, 185, 129, 0.5) !important;
         box-shadow: 0 12px 40px rgba(16, 185, 129, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
     }
     
-    .btn-glass-3 {
-        background: rgba(168, 85, 247, 0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(168, 85, 247, 0.3);
+    button[key="btn_glass_3"] {
+        background: rgba(168, 85, 247, 0.2) !important;
+        border: 1px solid rgba(168, 85, 247, 0.3) !important;
         box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
     }
     
-    .btn-glass-3:hover {
-        background: rgba(168, 85, 247, 0.3);
-        border-color: rgba(168, 85, 247, 0.5);
+    button[key="btn_glass_3"]:hover {
+        background: rgba(168, 85, 247, 0.3) !important;
+        border-color: rgba(168, 85, 247, 0.5) !important;
         box-shadow: 0 12px 40px rgba(168, 85, 247, 0.3),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
     }
     
     /* 변형 5: 홀로그램 효과 */
-    .btn-holo-1 {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-holo-1::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        animation: holo-shine 2s infinite;
-    }
-    
-    .btn-holo-2 {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-holo-2::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        animation: holo-shine 2s infinite;
-    }
-    
-    .btn-holo-3 {
-        background: linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-holo-3::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        animation: holo-shine 2s infinite;
-    }
-    
     @keyframes holo-shine {
         0% { left: -100%; }
         100% { left: 100%; }
     }
     
-    /* 변형 6: 파티클 효과 */
-    .btn-particle-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_holo_1"],
+    button[key="btn_holo_2"],
+    button[key="btn_holo_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
     
-    .btn-particle-1::before {
-        content: "";
-        position: absolute;
-        width: 4px;
-        height: 4px;
-        background: white;
-        border-radius: 50%;
-        top: 20%;
-        left: 20%;
-        animation: particle-float 3s ease-in-out infinite;
-        opacity: 0.6;
+    button[key="btn_holo_1"]::before,
+    button[key="btn_holo_2"]::before,
+    button[key="btn_holo_3"]::before {
+        content: "" !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: -100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent) !important;
+        animation: holo-shine 2s infinite !important;
     }
     
-    .btn-particle-1::after {
-        content: "";
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        background: white;
-        border-radius: 50%;
-        top: 60%;
-        left: 70%;
-        animation: particle-float 2.5s ease-in-out infinite 0.5s;
-        opacity: 0.6;
+    button[key="btn_holo_1"] {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%) !important;
     }
     
-    .btn-particle-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_holo_2"] {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%) !important;
     }
     
-    .btn-particle-2::before {
-        content: "";
-        position: absolute;
-        width: 4px;
-        height: 4px;
-        background: white;
-        border-radius: 50%;
-        top: 20%;
-        left: 20%;
-        animation: particle-float 3s ease-in-out infinite;
-        opacity: 0.6;
+    button[key="btn_holo_3"] {
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%) !important;
     }
     
-    .btn-particle-2::after {
-        content: "";
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        background: white;
-        border-radius: 50%;
-        top: 60%;
-        left: 70%;
-        animation: particle-float 2.5s ease-in-out infinite 0.5s;
-        opacity: 0.6;
+    /* 변형 6: 미니멀 라인 아트 */
+    button[key="btn_minimal_1"],
+    button[key="btn_minimal_2"],
+    button[key="btn_minimal_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        border: 2px solid !important;
+        position: relative !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-particle-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_minimal_1"] {
+        border-color: #3B82F6 !important;
+        color: #3B82F6 !important;
     }
     
-    .btn-particle-3::before {
-        content: "";
-        position: absolute;
-        width: 4px;
-        height: 4px;
-        background: white;
-        border-radius: 50%;
-        top: 20%;
-        left: 20%;
-        animation: particle-float 3s ease-in-out infinite;
-        opacity: 0.6;
+    button[key="btn_minimal_1"]:hover {
+        background: rgba(59, 130, 246, 0.1) !important;
+        color: #60A5FA !important;
     }
     
-    .btn-particle-3::after {
-        content: "";
-        position: absolute;
-        width: 3px;
-        height: 3px;
-        background: white;
-        border-radius: 50%;
-        top: 60%;
-        left: 70%;
-        animation: particle-float 2.5s ease-in-out infinite 0.5s;
-        opacity: 0.6;
+    button[key="btn_minimal_2"] {
+        border-color: #10B981 !important;
+        color: #10B981 !important;
     }
     
-    @keyframes particle-float {
-        0%, 100% { transform: translateY(0) translateX(0); opacity: 0.6; }
-        50% { transform: translateY(-10px) translateX(10px); opacity: 1; }
+    button[key="btn_minimal_2"]:hover {
+        background: rgba(16, 185, 129, 0.1) !important;
+        color: #34D399 !important;
     }
     
-    /* 변형 7: 마이크로 인터랙션 */
-    .btn-micro-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
+    button[key="btn_minimal_3"] {
+        border-color: #A855F7 !important;
+        color: #A855F7 !important;
     }
     
-    .btn-micro-1::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
+    button[key="btn_minimal_3"]:hover {
+        background: rgba(168, 85, 247, 0.1) !important;
+        color: #C084FC !important;
     }
     
-    .btn-micro-1:hover::before {
-        width: 300px;
-        height: 300px;
-    }
-    
-    .btn-micro-1:hover {
-        transform: scale(1.05);
-    }
-    
-    .btn-micro-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-    }
-    
-    .btn-micro-2::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
-    }
-    
-    .btn-micro-2:hover::before {
-        width: 300px;
-        height: 300px;
-    }
-    
-    .btn-micro-2:hover {
-        transform: scale(1.05);
-    }
-    
-    .btn-micro-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-    }
-    
-    .btn-micro-3::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
-    }
-    
-    .btn-micro-3:hover::before {
-        width: 300px;
-        height: 300px;
-    }
-    
-    .btn-micro-3:hover {
-        transform: scale(1.05);
-    }
-    
-    /* 변형 8: 미니멀 라인 아트 */
-    .btn-minimal-1 {
-        background: transparent;
-        border: 2px solid #3B82F6;
-        color: #3B82F6;
-        position: relative;
-    }
-    
-    .btn-minimal-1::before,
-    .btn-minimal-1::after {
-        content: "";
-        position: absolute;
-        width: 0;
-        height: 0;
-        border: 2px solid #3B82F6;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-minimal-1::before {
-        top: 0;
-        left: 0;
-        border-right: none;
-        border-bottom: none;
-    }
-    
-    .btn-minimal-1::after {
-        bottom: 0;
-        right: 0;
-        border-left: none;
-        border-top: none;
-    }
-    
-    .btn-minimal-1:hover {
-        background: rgba(59, 130, 246, 0.1);
-        color: #60A5FA;
-    }
-    
-    .btn-minimal-1:hover::before,
-    .btn-minimal-1:hover::after {
-        width: 100%;
-        height: 100%;
-    }
-    
-    .btn-minimal-2 {
-        background: transparent;
-        border: 2px solid #10B981;
-        color: #10B981;
-        position: relative;
-    }
-    
-    .btn-minimal-2::before,
-    .btn-minimal-2::after {
-        content: "";
-        position: absolute;
-        width: 0;
-        height: 0;
-        border: 2px solid #10B981;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-minimal-2::before {
-        top: 0;
-        left: 0;
-        border-right: none;
-        border-bottom: none;
-    }
-    
-    .btn-minimal-2::after {
-        bottom: 0;
-        right: 0;
-        border-left: none;
-        border-top: none;
-    }
-    
-    .btn-minimal-2:hover {
-        background: rgba(16, 185, 129, 0.1);
-        color: #34D399;
-    }
-    
-    .btn-minimal-2:hover::before,
-    .btn-minimal-2:hover::after {
-        width: 100%;
-        height: 100%;
-    }
-    
-    .btn-minimal-3 {
-        background: transparent;
-        border: 2px solid #A855F7;
-        color: #A855F7;
-        position: relative;
-    }
-    
-    .btn-minimal-3::before,
-    .btn-minimal-3::after {
-        content: "";
-        position: absolute;
-        width: 0;
-        height: 0;
-        border: 2px solid #A855F7;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-minimal-3::before {
-        top: 0;
-        left: 0;
-        border-right: none;
-        border-bottom: none;
-    }
-    
-    .btn-minimal-3::after {
-        bottom: 0;
-        right: 0;
-        border-left: none;
-        border-top: none;
-    }
-    
-    .btn-minimal-3:hover {
-        background: rgba(168, 85, 247, 0.1);
-        color: #C084FC;
-    }
-    
-    .btn-minimal-3:hover::before,
-    .btn-minimal-3:hover::after {
-        width: 100%;
-        height: 100%;
-    }
-    
-    /* 변형 9: 메탈릭 효과 */
-    .btn-metallic-1 {
-        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
-                    0 4px 8px rgba(0, 0, 0, 0.3),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .btn-metallic-1:hover {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1E40AF 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
-                    0 6px 12px rgba(59, 130, 246, 0.4),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-    }
-    
-    .btn-metallic-2 {
-        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
-                    0 4px 8px rgba(0, 0, 0, 0.3),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .btn-metallic-2:hover {
-        background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
-                    0 6px 12px rgba(16, 185, 129, 0.4),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-    }
-    
-    .btn-metallic-3 {
-        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
-                    0 4px 8px rgba(0, 0, 0, 0.3),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .btn-metallic-3:hover {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%);
-        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
-                    0 6px 12px rgba(168, 85, 247, 0.4),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* 변형 10: 펄스 효과 */
-    .btn-pulse-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        animation: pulse-glow-btn 2s ease-in-out infinite;
-    }
-    
-    .btn-pulse-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        animation: pulse-glow-btn 2s ease-in-out infinite;
-    }
-    
-    .btn-pulse-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        animation: pulse-glow-btn 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse-glow-btn {
+    /* 변형 7: 펄스 효과 */
+    @keyframes pulse-glow {
         0%, 100% {
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.5),
                         0 0 40px rgba(59, 130, 246, 0.3);
@@ -678,256 +350,424 @@ def render_header_unified_test2():
         }
     }
     
+    button[key="btn_pulse_1"],
+    button[key="btn_pulse_2"],
+    button[key="btn_pulse_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        animation: pulse-glow 2s ease-in-out infinite !important;
+    }
+    
+    button[key="btn_pulse_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+    }
+    
+    button[key="btn_pulse_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    }
+    
+    button[key="btn_pulse_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
+    }
+    
+    /* 변형 8: 메탈릭 효과 */
+    button[key="btn_metallic_1"],
+    button[key="btn_metallic_2"],
+    button[key="btn_metallic_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    button[key="btn_metallic_1"] {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    button[key="btn_metallic_1"]:hover {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1E40AF 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(59, 130, 246, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    button[key="btn_metallic_2"] {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    button[key="btn_metallic_2"]:hover {
+        background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(16, 185, 129, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    button[key="btn_metallic_3"] {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    button[key="btn_metallic_3"]:hover {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%) !important;
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(168, 85, 247, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    /* 변형 9: 스트로크 효과 */
+    button[key="btn_stroke_1"],
+    button[key="btn_stroke_2"],
+    button[key="btn_stroke_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        border: 3px solid !important;
+        position: relative !important;
+        transition: all 0.4s ease !important;
+    }
+    
+    button[key="btn_stroke_1"] {
+        border-color: #3B82F6 !important;
+        color: #3B82F6 !important;
+    }
+    
+    button[key="btn_stroke_1"]:hover {
+        color: white !important;
+        background: #3B82F6 !important;
+    }
+    
+    button[key="btn_stroke_2"] {
+        border-color: #10B981 !important;
+        color: #10B981 !important;
+    }
+    
+    button[key="btn_stroke_2"]:hover {
+        color: white !important;
+        background: #10B981 !important;
+    }
+    
+    button[key="btn_stroke_3"] {
+        border-color: #A855F7 !important;
+        color: #A855F7 !important;
+    }
+    
+    button[key="btn_stroke_3"]:hover {
+        color: white !important;
+        background: #A855F7 !important;
+    }
+    
+    /* 변형 10: 라디얼 그라데이션 */
+    button[key="btn_radial_1"],
+    button[key="btn_radial_2"],
+    button[key="btn_radial_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    button[key="btn_radial_1"] {
+        background: radial-gradient(circle at center, #3B82F6 0%, #2563EB 100%) !important;
+    }
+    
+    button[key="btn_radial_1"]:hover {
+        background: radial-gradient(circle at center, #60A5FA 0%, #3B82F6 100%) !important;
+        transform: scale(1.05) !important;
+    }
+    
+    button[key="btn_radial_2"] {
+        background: radial-gradient(circle at center, #10B981 0%, #059669 100%) !important;
+    }
+    
+    button[key="btn_radial_2"]:hover {
+        background: radial-gradient(circle at center, #34D399 0%, #10B981 100%) !important;
+        transform: scale(1.05) !important;
+    }
+    
+    button[key="btn_radial_3"] {
+        background: radial-gradient(circle at center, #A855F7 0%, #9333EA 100%) !important;
+    }
+    
+    button[key="btn_radial_3"]:hover {
+        background: radial-gradient(circle at center, #C084FC 0%, #A855F7 100%) !important;
+        transform: scale(1.05) !important;
+    }
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+    
+    # 변형 1: 네온 글로우 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 1: 네온 글로우 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">강렬한 네온 빛 효과로 시선을 끄는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_neon_1", use_container_width=True):
+            st.info("네온 글로우 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_neon_2", use_container_width=True):
+            st.info("네온 글로우 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_neon_3", use_container_width=True):
+            st.info("네온 글로우 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 2: 그라데이션 애니메이션
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 2: 그라데이션 애니메이션</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">움직이는 그라데이션으로 생동감 있는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_gradient_1", use_container_width=True):
+            st.info("그라데이션 애니메이션 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_gradient_2", use_container_width=True):
+            st.info("그라데이션 애니메이션 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_gradient_3", use_container_width=True):
+            st.info("그라데이션 애니메이션 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 3: 3D 입체 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 3: 3D 입체 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">눌리는 듯한 입체감을 주는 3D 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_3d_1", use_container_width=True):
+            st.info("3D 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_3d_2", use_container_width=True):
+            st.info("3D 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_3d_3", use_container_width=True):
+            st.info("3D 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 4: 글래스모피즘
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 4: 글래스모피즘</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">반투명 유리 효과의 세련된 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_glass_1", use_container_width=True):
+            st.info("글래스모피즘 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_glass_2", use_container_width=True):
+            st.info("글래스모피즘 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_glass_3", use_container_width=True):
+            st.info("글래스모피즘 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 5: 홀로그램 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 5: 홀로그램 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">빛이 지나가는 홀로그램 스타일 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_holo_1", use_container_width=True):
+            st.info("홀로그램 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_holo_2", use_container_width=True):
+            st.info("홀로그램 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_holo_3", use_container_width=True):
+            st.info("홀로그램 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 6: 미니멀 라인 아트
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 6: 미니멀 라인 아트</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">깔끔한 라인으로 구성된 미니멀 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_minimal_1", use_container_width=True):
+            st.info("미니멀 라인 아트 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_minimal_2", use_container_width=True):
+            st.info("미니멀 라인 아트 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_minimal_3", use_container_width=True):
+            st.info("미니멀 라인 아트 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 7: 펄스 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 7: 펄스 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">지속적으로 맥박치는 듯한 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_pulse_1", use_container_width=True):
+            st.info("펄스 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_pulse_2", use_container_width=True):
+            st.info("펄스 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_pulse_3", use_container_width=True):
+            st.info("펄스 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 8: 메탈릭 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 8: 메탈릭 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">금속 질감의 고급스러운 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_metallic_1", use_container_width=True):
+            st.info("메탈릭 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_metallic_2", use_container_width=True):
+            st.info("메탈릭 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_metallic_3", use_container_width=True):
+            st.info("메탈릭 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 9: 스트로크 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 9: 스트로크 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">테두리에서 안쪽으로 채워지는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_stroke_1", use_container_width=True):
+            st.info("스트로크 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_stroke_2", use_container_width=True):
+            st.info("스트로크 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_stroke_3", use_container_width=True):
+            st.info("스트로크 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 10: 라디얼 그라데이션
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 10: 라디얼 그라데이션</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">중앙에서 퍼지는 원형 그라데이션 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_radial_1", use_container_width=True):
+            st.info("라디얼 그라데이션 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_radial_2", use_container_width=True):
+            st.info("라디얼 그라데이션 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_radial_3", use_container_width=True):
+            st.info("라디얼 그라데이션 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 추가 CSS 스타일 (변형 11-20)
+    additional_css = """
+    <style>
     /* 변형 11: 슬라이드 효과 */
-    .btn-slide-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_slide_1"],
+    button[key="btn_slide_2"],
+    button[key="btn_slide_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-slide-1::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.2);
-        transition: left 0.5s ease;
+    button[key="btn_slide_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-slide-1:hover::before {
-        left: 100%;
+    button[key="btn_slide_1"]:hover {
+        transform: translateX(5px) !important;
     }
     
-    .btn-slide-1:hover {
-        transform: translateX(5px);
+    button[key="btn_slide_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-slide-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_slide_2"]:hover {
+        transform: translateX(5px) !important;
     }
     
-    .btn-slide-2::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.2);
-        transition: left 0.5s ease;
+    button[key="btn_slide_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-slide-2:hover::before {
-        left: 100%;
+    button[key="btn_slide_3"]:hover {
+        transform: translateX(5px) !important;
     }
     
-    .btn-slide-2:hover {
-        transform: translateX(5px);
+    /* 변형 12: 스케치 효과 */
+    button[key="btn_sketch_1"],
+    button[key="btn_sketch_2"],
+    button[key="btn_sketch_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        border: 2px dashed !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-slide-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_sketch_1"] {
+        border-color: #3B82F6 !important;
+        color: #3B82F6 !important;
     }
     
-    .btn-slide-3::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.2);
-        transition: left 0.5s ease;
+    button[key="btn_sketch_1"]:hover {
+        background: rgba(59, 130, 246, 0.1) !important;
+        border-style: solid !important;
     }
     
-    .btn-slide-3:hover::before {
-        left: 100%;
+    button[key="btn_sketch_2"] {
+        border-color: #10B981 !important;
+        color: #10B981 !important;
     }
     
-    .btn-slide-3:hover {
-        transform: translateX(5px);
+    button[key="btn_sketch_2"]:hover {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-style: solid !important;
     }
     
-    /* 변형 12: 스플릿 효과 */
-    .btn-split-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_sketch_3"] {
+        border-color: #A855F7 !important;
+        color: #A855F7 !important;
     }
     
-    .btn-split-1::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 50%;
-        width: 0;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.3);
-        transition: width 0.3s ease, left 0.3s ease;
+    button[key="btn_sketch_3"]:hover {
+        background: rgba(168, 85, 247, 0.1) !important;
+        border-style: solid !important;
     }
     
-    .btn-split-1:hover::before {
-        left: 0;
-        width: 100%;
-    }
-    
-    .btn-split-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-split-2::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 50%;
-        width: 0;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.3);
-        transition: width 0.3s ease, left 0.3s ease;
-    }
-    
-    .btn-split-2:hover::before {
-        left: 0;
-        width: 100%;
-    }
-    
-    .btn-split-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-split-3::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 50%;
-        width: 0;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.3);
-        transition: width 0.3s ease, left 0.3s ease;
-    }
-    
-    .btn-split-3:hover::before {
-        left: 0;
-        width: 100%;
-    }
-    
-    /* 변형 13: 스케치 효과 */
-    .btn-sketch-1 {
-        background: transparent;
-        border: 2px dashed #3B82F6;
-        color: #3B82F6;
-        position: relative;
-    }
-    
-    .btn-sketch-1::before {
-        content: "";
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border: 2px solid #3B82F6;
-        border-radius: 12px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .btn-sketch-1:hover {
-        background: rgba(59, 130, 246, 0.1);
-        border-style: solid;
-    }
-    
-    .btn-sketch-1:hover::before {
-        opacity: 1;
-    }
-    
-    .btn-sketch-2 {
-        background: transparent;
-        border: 2px dashed #10B981;
-        color: #10B981;
-        position: relative;
-    }
-    
-    .btn-sketch-2::before {
-        content: "";
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border: 2px solid #10B981;
-        border-radius: 12px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .btn-sketch-2:hover {
-        background: rgba(16, 185, 129, 0.1);
-        border-style: solid;
-    }
-    
-    .btn-sketch-2:hover::before {
-        opacity: 1;
-    }
-    
-    .btn-sketch-3 {
-        background: transparent;
-        border: 2px dashed #A855F7;
-        color: #A855F7;
-        position: relative;
-    }
-    
-    .btn-sketch-3::before {
-        content: "";
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        right: -2px;
-        bottom: -2px;
-        border: 2px solid #A855F7;
-        border-radius: 12px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .btn-sketch-3:hover {
-        background: rgba(168, 85, 247, 0.1);
-        border-style: solid;
-    }
-    
-    .btn-sketch-3:hover::before {
-        opacity: 1;
-    }
-    
-    /* 변형 14: 글로우 펄스 */
-    .btn-glow-pulse-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
-        animation: glow-pulse 2s ease-in-out infinite;
-    }
-    
-    .btn-glow-pulse-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-        animation: glow-pulse 2s ease-in-out infinite;
-    }
-    
-    .btn-glow-pulse-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
-        animation: glow-pulse 2s ease-in-out infinite;
-    }
-    
+    /* 변형 13: 글로우 펄스 */
     @keyframes glow-pulse {
         0%, 100% {
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.6),
@@ -940,621 +780,457 @@ def render_header_unified_test2():
         }
     }
     
-    /* 변형 15: 웨이브 효과 */
-    .btn-wave-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_glow_pulse_1"],
+    button[key="btn_glow_pulse_2"],
+    button[key="btn_glow_pulse_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        animation: glow-pulse 2s ease-in-out infinite !important;
     }
     
-    .btn-wave-1::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.4);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
+    button[key="btn_glow_pulse_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6) !important;
     }
     
-    .btn-wave-1:hover::before {
-        width: 400px;
-        height: 400px;
+    button[key="btn_glow_pulse_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6) !important;
     }
     
-    .btn-wave-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_glow_pulse_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.6) !important;
     }
     
-    .btn-wave-2::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.4);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
+    /* 변형 14: 셔터 효과 */
+    button[key="btn_shutter_1"],
+    button[key="btn_shutter_2"],
+    button[key="btn_shutter_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-wave-2:hover::before {
-        width: 400px;
-        height: 400px;
+    button[key="btn_shutter_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-wave-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_shutter_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-wave-3::before {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.4);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s ease, height 0.6s ease;
+    button[key="btn_shutter_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-wave-3:hover::before {
-        width: 400px;
-        height: 400px;
+    /* 변형 15: 다이아몬드 효과 */
+    button[key="btn_diamond_1"],
+    button[key="btn_diamond_2"],
+    button[key="btn_diamond_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%) !important;
+        transition: all 0.3s ease !important;
     }
     
-    /* 변형 16: 다이아몬드 효과 */
-    .btn-diamond-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
-        transition: clip-path 0.3s ease;
+    button[key="btn_diamond_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-diamond-1:hover {
-        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
-        transform: rotate(5deg) scale(1.05);
+    button[key="btn_diamond_1"]:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%) !important;
+        transform: rotate(5deg) scale(1.05) !important;
     }
     
-    .btn-diamond-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
-        transition: clip-path 0.3s ease;
+    button[key="btn_diamond_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-diamond-2:hover {
-        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
-        transform: rotate(5deg) scale(1.05);
+    button[key="btn_diamond_2"]:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%) !important;
+        transform: rotate(5deg) scale(1.05) !important;
     }
     
-    .btn-diamond-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
-        transition: clip-path 0.3s ease;
+    button[key="btn_diamond_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-diamond-3:hover {
-        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
-        transform: rotate(5deg) scale(1.05);
+    button[key="btn_diamond_3"]:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%) !important;
+        transform: rotate(5deg) scale(1.05) !important;
     }
     
-    /* 변형 17: 스트로크 효과 */
-    .btn-stroke-1 {
-        background: transparent;
-        border: 3px solid #3B82F6;
-        color: #3B82F6;
-        position: relative;
+    /* 변형 16: 웨이브 효과 */
+    button[key="btn_wave_1"],
+    button[key="btn_wave_2"],
+    button[key="btn_wave_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-stroke-1::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 100%;
-        background: #3B82F6;
-        transition: width 0.4s ease;
-        z-index: -1;
+    button[key="btn_wave_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-stroke-1:hover::before {
-        width: 100%;
+    button[key="btn_wave_1"]:hover {
+        transform: scale(1.05) !important;
     }
     
-    .btn-stroke-1:hover {
-        color: white;
+    button[key="btn_wave_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-stroke-2 {
-        background: transparent;
-        border: 3px solid #10B981;
-        color: #10B981;
-        position: relative;
+    button[key="btn_wave_2"]:hover {
+        transform: scale(1.05) !important;
     }
     
-    .btn-stroke-2::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 100%;
-        background: #10B981;
-        transition: width 0.4s ease;
-        z-index: -1;
+    button[key="btn_wave_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-stroke-2:hover::before {
-        width: 100%;
+    button[key="btn_wave_3"]:hover {
+        transform: scale(1.05) !important;
     }
     
-    .btn-stroke-2:hover {
-        color: white;
+    /* 변형 17: 스플릿 효과 */
+    button[key="btn_split_1"],
+    button[key="btn_split_2"],
+    button[key="btn_split_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-stroke-3 {
-        background: transparent;
-        border: 3px solid #A855F7;
-        color: #A855F7;
-        position: relative;
+    button[key="btn_split_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-stroke-3::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 100%;
-        background: #A855F7;
-        transition: width 0.4s ease;
-        z-index: -1;
+    button[key="btn_split_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-stroke-3:hover::before {
-        width: 100%;
+    button[key="btn_split_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-stroke-3:hover {
-        color: white;
-    }
-    
-    /* 변형 18: 셔터 효과 */
-    .btn-shutter-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-shutter-1::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 0;
-        background: rgba(255, 255, 255, 0.3);
-        transition: height 0.4s ease;
-    }
-    
-    .btn-shutter-1:hover::before {
-        height: 100%;
-    }
-    
-    .btn-shutter-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-shutter-2::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 0;
-        background: rgba(255, 255, 255, 0.3);
-        transition: height 0.4s ease;
-    }
-    
-    .btn-shutter-2:hover::before {
-        height: 100%;
-    }
-    
-    .btn-shutter-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-shutter-3::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 0;
-        background: rgba(255, 255, 255, 0.3);
-        transition: height 0.4s ease;
-    }
-    
-    .btn-shutter-3:hover::before {
-        height: 100%;
-    }
-    
-    /* 변형 19: 라디얼 그라데이션 */
-    .btn-radial-1 {
-        background: radial-gradient(circle at center, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-    }
-    
-    .btn-radial-1:hover {
-        background: radial-gradient(circle at center, #60A5FA 0%, #3B82F6 100%);
-        transform: scale(1.05);
-    }
-    
-    .btn-radial-2 {
-        background: radial-gradient(circle at center, #10B981 0%, #059669 100%);
-        position: relative;
-    }
-    
-    .btn-radial-2:hover {
-        background: radial-gradient(circle at center, #34D399 0%, #10B981 100%);
-        transform: scale(1.05);
-    }
-    
-    .btn-radial-3 {
-        background: radial-gradient(circle at center, #A855F7 0%, #9333EA 100%);
-        position: relative;
-    }
-    
-    .btn-radial-3:hover {
-        background: radial-gradient(circle at center, #C084FC 0%, #A855F7 100%);
-        transform: scale(1.05);
-    }
-    
-    /* 변형 20: 매트릭스 효과 */
-    .btn-matrix-1 {
-        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-matrix-1::before {
-        content: "";
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(255, 255, 255, 0.1) 2px,
-            rgba(255, 255, 255, 0.1) 4px
-        );
-        animation: matrix-move 3s linear infinite;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    
-    .btn-matrix-1:hover::before {
-        opacity: 1;
-    }
-    
+    /* 변형 18: 매트릭스 효과 */
     @keyframes matrix-move {
         0% { transform: translateY(0); }
         100% { transform: translateY(20px); }
     }
     
-    .btn-matrix-2 {
-        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_matrix_1"],
+    button[key="btn_matrix_2"],
+    button[key="btn_matrix_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
     }
     
-    .btn-matrix-2::before {
-        content: "";
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(255, 255, 255, 0.1) 2px,
-            rgba(255, 255, 255, 0.1) 4px
-        );
-        animation: matrix-move 3s linear infinite;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+    button[key="btn_matrix_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
     }
     
-    .btn-matrix-2:hover::before {
-        opacity: 1;
+    button[key="btn_matrix_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     }
     
-    .btn-matrix-3 {
-        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
-        position: relative;
-        overflow: hidden;
+    button[key="btn_matrix_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
     }
     
-    .btn-matrix-3::before {
-        content: "";
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(255, 255, 255, 0.1) 2px,
-            rgba(255, 255, 255, 0.1) 4px
-        );
-        animation: matrix-move 3s linear infinite;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+    /* 변형 19: 그라데이션 보더 */
+    button[key="btn_border_grad_1"],
+    button[key="btn_border_grad_2"],
+    button[key="btn_border_grad_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+        border: 3px solid !important;
+        position: relative !important;
+        transition: all 0.3s ease !important;
     }
     
-    .btn-matrix-3:hover::before {
-        opacity: 1;
+    button[key="btn_border_grad_1"] {
+        border-image: linear-gradient(135deg, #3B82F6, #2563EB) 1 !important;
+        color: #3B82F6 !important;
     }
     
-    /* 버튼 텍스트 z-index */
-    .link-btn span {
-        position: relative;
-        z-index: 1;
+    button[key="btn_border_grad_1"]:hover {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)) !important;
     }
     
-    /* 반응형 */
-    @media (max-width: 768px) {
-        .btn-group {
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .link-btn {
-            width: 100%;
-            max-width: 300px;
-        }
+    button[key="btn_border_grad_2"] {
+        border-image: linear-gradient(135deg, #10B981, #059669) 1 !important;
+        color: #10B981 !important;
+    }
+    
+    button[key="btn_border_grad_2"]:hover {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)) !important;
+    }
+    
+    button[key="btn_border_grad_3"] {
+        border-image: linear-gradient(135deg, #A855F7, #9333EA) 1 !important;
+        color: #A855F7 !important;
+    }
+    
+    button[key="btn_border_grad_3"]:hover {
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(147, 51, 234, 0.1)) !important;
+    }
+    
+    /* 변형 20: 반사 효과 */
+    button[key="btn_reflect_1"],
+    button[key="btn_reflect_2"],
+    button[key="btn_reflect_3"] {
+        min-width: 150px !important;
+        padding: 1rem 2rem !important;
+        border-radius: 12px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        border: none !important;
+        position: relative !important;
+        overflow: hidden !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    button[key="btn_reflect_1"] {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    button[key="btn_reflect_1"]:hover {
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    button[key="btn_reflect_2"] {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    button[key="btn_reflect_2"]:hover {
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    button[key="btn_reflect_3"] {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    button[key="btn_reflect_3"]:hover {
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px) !important;
     }
     </style>
     """
-    st.markdown(css, unsafe_allow_html=True)
-    
-    # 변형 1: 네온 글로우 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 1: 네온 글로우 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">강렬한 네온 빛 효과로 시선을 끄는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-neon-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-neon-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-neon-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 2: 그라데이션 애니메이션
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 2: 그라데이션 애니메이션</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">움직이는 그라데이션으로 생동감 있는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-gradient-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-gradient-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-gradient-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 3: 3D 입체 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 3: 3D 입체 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">눌리는 듯한 입체감을 주는 3D 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-3d-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-3d-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-3d-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 4: 글래스모피즘
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 4: 글래스모피즘</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">반투명 유리 효과의 세련된 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glass-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glass-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glass-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 5: 홀로그램 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 5: 홀로그램 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">빛이 지나가는 홀로그램 스타일 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-holo-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-holo-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-holo-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 6: 파티클 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 6: 파티클 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">떠다니는 파티클로 역동적인 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-particle-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-particle-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-particle-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 7: 마이크로 인터랙션
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 7: 마이크로 인터랙션</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">호버 시 리플 효과가 퍼지는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-micro-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-micro-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-micro-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 8: 미니멀 라인 아트
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 8: 미니멀 라인 아트</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">깔끔한 라인으로 구성된 미니멀 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-minimal-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-minimal-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-minimal-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 9: 메탈릭 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 9: 메탈릭 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">금속 질감의 고급스러운 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-metallic-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-metallic-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-metallic-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 10: 펄스 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 10: 펄스 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">지속적으로 맥박치는 듯한 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-pulse-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-pulse-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-pulse-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(additional_css, unsafe_allow_html=True)
     
     # 변형 11: 슬라이드 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 11: 슬라이드 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">호버 시 빛이 지나가며 이동하는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-slide-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-slide-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-slide-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 12: 스플릿 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 12: 스플릿 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">중앙에서 양쪽으로 퍼지는 빛 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-split-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-split-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-split-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 11: 슬라이드 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">호버 시 이동하는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_slide_1", use_container_width=True):
+            st.info("슬라이드 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_slide_2", use_container_width=True):
+            st.info("슬라이드 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_slide_3", use_container_width=True):
+            st.info("슬라이드 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 변형 13: 스케치 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 13: 스케치 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">손그림 느낌의 스케치 스타일 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-sketch-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-sketch-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-sketch-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 14: 글로우 펄스
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 14: 글로우 펄스</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">빛이 맥박치듯 강해지는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glow-pulse-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glow-pulse-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-glow-pulse-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 변형 12: 스케치 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 12: 스케치 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">손그림 느낌의 스케치 스타일 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_sketch_1", use_container_width=True):
+            st.info("스케치 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_sketch_2", use_container_width=True):
+            st.info("스케치 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_sketch_3", use_container_width=True):
+            st.info("스케치 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 변형 15: 웨이브 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 15: 웨이브 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">호버 시 파도처럼 퍼지는 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-wave-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-wave-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-wave-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 16: 다이아몬드 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 16: 다이아몬드 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">다이아몬드 모양으로 변형되는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-diamond-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-diamond-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-diamond-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 변형 13: 글로우 펄스
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 13: 글로우 펄스</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">빛이 맥박치듯 강해지는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_glow_pulse_1", use_container_width=True):
+            st.info("글로우 펄스 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_glow_pulse_2", use_container_width=True):
+            st.info("글로우 펄스 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_glow_pulse_3", use_container_width=True):
+            st.info("글로우 펄스 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 변형 17: 스트로크 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 17: 스트로크 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">테두리에서 안쪽으로 채워지는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-stroke-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-stroke-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-stroke-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # 변형 18: 셔터 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 18: 셔터 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">위에서 아래로 내려오는 셔터 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-shutter-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-shutter-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-shutter-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 변형 14: 셔터 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 14: 셔터 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">위에서 아래로 내려오는 셔터 효과</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_shutter_1", use_container_width=True):
+            st.info("셔터 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_shutter_2", use_container_width=True):
+            st.info("셔터 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_shutter_3", use_container_width=True):
+            st.info("셔터 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 변형 19: 라디얼 그라데이션
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 19: 라디얼 그라데이션</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">중앙에서 퍼지는 원형 그라데이션 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-radial-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-radial-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-radial-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 변형 15: 다이아몬드 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 15: 다이아몬드 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">다이아몬드 모양으로 변형되는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_diamond_1", use_container_width=True):
+            st.info("다이아몬드 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_diamond_2", use_container_width=True):
+            st.info("다이아몬드 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_diamond_3", use_container_width=True):
+            st.info("다이아몬드 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 변형 20: 매트릭스 효과
-    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-title">변형 20: 매트릭스 효과</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-variant-desc">호버 시 매트릭스 코드가 흐르는 버튼</div>', unsafe_allow_html=True)
-    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-matrix-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-matrix-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
-    st.markdown('<button class="link-btn btn-matrix-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    # 변형 16: 웨이브 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 16: 웨이브 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">호버 시 파도처럼 퍼지는 효과</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_wave_1", use_container_width=True):
+            st.info("웨이브 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_wave_2", use_container_width=True):
+            st.info("웨이브 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_wave_3", use_container_width=True):
+            st.info("웨이브 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 17: 스플릿 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 17: 스플릿 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">중앙에서 양쪽으로 퍼지는 빛 효과</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_split_1", use_container_width=True):
+            st.info("스플릿 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_split_2", use_container_width=True):
+            st.info("스플릿 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_split_3", use_container_width=True):
+            st.info("스플릿 버튼 3 클릭됨")
     st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 18: 매트릭스 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 18: 매트릭스 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">호버 시 매트릭스 코드가 흐르는 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_matrix_1", use_container_width=True):
+            st.info("매트릭스 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_matrix_2", use_container_width=True):
+            st.info("매트릭스 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_matrix_3", use_container_width=True):
+            st.info("매트릭스 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 19: 그라데이션 보더
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 19: 그라데이션 보더</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">그라데이션 테두리를 가진 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_border_grad_1", use_container_width=True):
+            st.info("그라데이션 보더 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_border_grad_2", use_container_width=True):
+            st.info("그라데이션 보더 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_border_grad_3", use_container_width=True):
+            st.info("그라데이션 보더 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 20: 반사 효과
+    st.markdown('<div class="btn-gallery-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-title">변형 20: 반사 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-gallery-desc">유리처럼 반사되는 효과의 버튼</div>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("▶ 입력하기", key="btn_reflect_1", use_container_width=True):
+            st.info("반사 효과 버튼 1 클릭됨")
+    with col2:
+        if st.button("▶ 분석하기", key="btn_reflect_2", use_container_width=True):
+            st.info("반사 효과 버튼 2 클릭됨")
+    with col3:
+        if st.button("▶ 설계하기", key="btn_reflect_3", use_container_width=True):
+            st.info("반사 효과 버튼 3 클릭됨")
+    st.markdown('</div>', unsafe_allow_html=True)
+
