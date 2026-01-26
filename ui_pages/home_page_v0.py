@@ -4,6 +4,7 @@ CAUSE OS 브랜드 첫 화면 + 오늘 행동 시작점
 """
 from src.bootstrap import bootstrap
 import streamlit as st
+import streamlit.components.v1 as components
 import logging
 from src.auth import get_current_store_id, get_current_store_name, check_login, show_login_page
 
@@ -531,11 +532,45 @@ def render_home():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # Streamlit 버튼 완전히 숨기기 및 HTML 버튼 클릭 처리
-    js = """
+    # HTML 버튼 클릭 시 Streamlit 세션 상태 직접 업데이트
+    navigation_js = """
     <script>
     (function() {
-        // HTML 버튼 클릭 시 URL 파라미터로 페이지 이동 (Streamlit 버튼 완전 제거)
+        function navigateToPage(pageName) {
+            console.log('Navigating to:', pageName);
+            
+            // 방법 1: Streamlit의 내부 메시지 시스템 사용
+            if (window.parent && window.parent !== window) {
+                try {
+                    // Streamlit의 세션 상태 업데이트를 위한 메시지 전송
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        value: {current_page: pageName}
+                    }, '*');
+                    
+                    // rerun 트리거
+                    setTimeout(() => {
+                        window.parent.postMessage({
+                            type: 'streamlit:rerun'
+                        }, '*');
+                    }, 100);
+                    
+                    return;
+                } catch (e) {
+                    console.error('Streamlit message error:', e);
+                }
+            }
+            
+            // 방법 2: URL 파라미터 사용 (fallback)
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('navigate_to', pageName);
+                window.location.href = url.toString();
+            } catch (e) {
+                console.error('URL navigation error:', e);
+            }
+        }
+        
         function setupButtonTriggers() {
             // 입력하기 버튼
             const btn1 = document.querySelector('.ps-minimal-btn-1[data-action="step1"]');
@@ -545,11 +580,9 @@ def render_home():
                     e.preventDefault();
                     e.stopPropagation();
                     const pageName = btn1.getAttribute('data-page');
+                    console.log('Button 1 clicked, page:', pageName);
                     if (pageName) {
-                        // URL 파라미터 설정하고 페이지 새로고침
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('navigate_to', pageName);
-                        window.location.href = url.toString();
+                        navigateToPage(pageName);
                     }
                 });
             }
@@ -562,10 +595,9 @@ def render_home():
                     e.preventDefault();
                     e.stopPropagation();
                     const pageName = btn2.getAttribute('data-page');
+                    console.log('Button 2 clicked, page:', pageName);
                     if (pageName) {
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('navigate_to', pageName);
-                        window.location.href = url.toString();
+                        navigateToPage(pageName);
                     }
                 });
             }
@@ -578,10 +610,9 @@ def render_home():
                     e.preventDefault();
                     e.stopPropagation();
                     const pageName = btn3.getAttribute('data-page');
+                    console.log('Button 3 clicked, page:', pageName);
                     if (pageName) {
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('navigate_to', pageName);
-                        window.location.href = url.toString();
+                        navigateToPage(pageName);
                     }
                 });
             }
@@ -619,7 +650,7 @@ def render_home():
     })();
     </script>
     """
-    st.markdown(js, unsafe_allow_html=True)
+    components.html(navigation_js, height=0, width=0)
     
     # ============================================
     # SECTION 1: 브랜드 히어로
@@ -657,9 +688,9 @@ def render_home():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브">
+        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('입력 허브'); return false;">
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -672,9 +703,9 @@ def render_home():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브">
+        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('분석 허브'); return false;">
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -687,9 +718,9 @@ def render_home():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼만 사용 (onclick 핸들러 직접 추가)
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터">
+        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터" onclick="window.location.href = window.location.href.split('?')[0] + '?navigate_to=' + encodeURIComponent('가게 전략 센터'); return false;">
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
