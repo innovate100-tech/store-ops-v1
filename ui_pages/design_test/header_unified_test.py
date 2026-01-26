@@ -259,6 +259,85 @@ def render_header_unified_test():
         color: #94A3B8;
     }
     
+    /* 앱 가이드 블록 (맥락 추가) */
+    .ps-app-guide {
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin: 0 0 2.5rem 0;
+        text-align: center;
+    }
+    
+    .ps-app-guide p {
+        font-size: 0.95rem;
+        color: #94A3B8;
+        line-height: 1.7;
+        margin: 0.5rem 0;
+    }
+    
+    .ps-app-guide p:first-child {
+        font-size: 1.05rem;
+        color: #E2E8F0;
+        font-weight: 500;
+    }
+    
+    /* STEP 카드 (설명 포함) */
+    .ps-step-card-full {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 0 0 1.5rem 0;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .ps-step-card-full::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 16px 16px 0 0;
+    }
+    
+    .ps-step-card-full.step-1::before {
+        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%);
+    }
+    
+    .ps-step-card-full.step-2::before {
+        background: linear-gradient(90deg, #10B981 0%, #34D399 50%, #10B981 100%);
+    }
+    
+    .ps-step-card-full.step-3::before {
+        background: linear-gradient(90deg, #A855F7 0%, #C084FC 50%, #A855F7 100%);
+    }
+    
+    .ps-step-title-full {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #F8FAFC;
+        margin-bottom: 0.5rem;
+    }
+    
+    .ps-step-subtitle-full {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #94A3B8;
+        margin-bottom: 1rem;
+        font-style: italic;
+    }
+    
+    .ps-step-desc-full {
+        font-size: 0.9rem;
+        color: #CBD5E1;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+    
     /* 반응형 */
     @media (max-width: 768px) {
         .ps-step-buttons-grid {
@@ -401,11 +480,11 @@ def render_header_unified_test():
     st.info("💡 **위: 통합형 2단 구조 (상태+추천+STEP 통합)**")
     
     st.markdown("---")
-    st.markdown("### 🎯 제거 버전: 최대 간결형")
-    st.caption("상태 요약 + 추천 블록 제거 - 브랜드 히어로 + STEP 가이드만")
+    st.markdown("### 🎯 최대 간결형 + 맥락 추가 버전")
+    st.caption("상태+추천 제거 + 앱 설명 블록 추가 + STEP 설명 포함")
     
     # ============================================
-    # 제거 버전: 브랜드 히어로 + STEP 가이드만
+    # 맥락 추가 버전: 히어로 + 앱 가이드 + STEP (설명 포함)
     # ============================================
     st.markdown("""
     <div class="ps-brand-hero">
@@ -421,75 +500,79 @@ def render_header_unified_test():
     """, unsafe_allow_html=True)
     
     # 메인 CTA 버튼
-    if st.button("오늘 숫자 입력하기", type="primary", use_container_width=True, key="test_brand_hero_cta_removed"):
+    if st.button("오늘 숫자 입력하기", type="primary", use_container_width=True, key="test_brand_hero_cta_context"):
         st.info("테스트: 일일 입력(통합) 페이지로 이동")
     
-    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
     
-    # STEP 가이드만 (확장 버전)
+    # 앱 가이드 블록 (맥락 추가)
     st.markdown("""
-    <div class="ps-action-center">
-        <div class="ps-step-guide-compact">
-            <div class="ps-step-guide-title">3단계 운영 흐름</div>
-            <div class="ps-step-buttons-grid">
+    <div class="ps-app-guide">
+        <p>입력 → 분석 → 설계 3단계로 매장을 데이터 기반으로 운영합니다.</p>
+        <p>레시피만 등록하면 원가율이 자동 계산되고, 원가율 5% 개선으로 월 100만원 추가 이익을 만들 수 있습니다.</p>
+    </div>
     """, unsafe_allow_html=True)
     
-    # STEP 버튼 그룹 (3개 컬럼)
-    step_col1_v2, step_col2_v2, step_col3_v2 = st.columns(3)
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
     
-    with step_col1_v2:
-        st.markdown("""
-        <div class="ps-step-button step-1">
-            <div class="ps-step-icon">📝</div>
-            <div class="ps-step-name">STEP 1: 입력</div>
-            <div class="ps-step-desc">데이터 자산 만들기</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("▶ 입력하기", type="primary", use_container_width=True, key="test_step1_btn_v2"):
-            st.info("테스트: 입력 허브로 이동")
-    
-    with step_col2_v2:
-        st.markdown("""
-        <div class="ps-step-button step-2">
-            <div class="ps-step-icon">📊</div>
-            <div class="ps-step-name">STEP 2: 분석</div>
-            <div class="ps-step-desc">숫자가 말하는 문제</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("▶ 분석하기", type="primary", use_container_width=True, key="test_step2_btn_v2"):
-            st.info("테스트: 분석 허브로 이동")
-    
-    with step_col3_v2:
-        st.markdown("""
-        <div class="ps-step-button step-3">
-            <div class="ps-step-icon">🎯</div>
-            <div class="ps-step-name">STEP 3: 설계</div>
-            <div class="ps-step-desc">행동으로 바꾸기</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("▶ 설계하기", type="primary", use_container_width=True, key="test_step3_btn_v2"):
-            st.info("테스트: 전략 센터로 이동")
-    
+    # STEP 1: 입력 (설명 포함)
     st.markdown("""
-            </div>
+    <div class="ps-step-card-full step-1">
+        <div class="ps-step-title-full">STEP 1. 입력</div>
+        <div class="ps-step-subtitle-full">매장을 '데이터 자산'으로 만든다</div>
+        <div class="ps-step-desc-full">
+            메뉴, 재료, 레시피, 매출, 비용을 입력하면 분석과 전략이 자동으로 작동합니다.<br>
+            입력은 기록이 아니라 매장을 시스템으로 만드는 작업입니다.
         </div>
     </div>
     """, unsafe_allow_html=True)
     
+    col1_v3, col2_v3 = st.columns(2)
+    with col1_v3:
+        if st.button("▶ 오늘 입력하기", type="primary", use_container_width=True, key="test_step1_btn_v3"):
+            st.info("테스트: 일일 입력(통합) 페이지로 이동")
+    with col2_v3:
+        if st.button("▶ 데이터 입력센터", type="secondary", use_container_width=True, key="test_step1_btn2_v3"):
+            st.info("테스트: 입력 허브로 이동")
+    
+    # STEP 2: 분석 (설명 포함)
+    st.markdown("""
+    <div class="ps-step-card-full step-2">
+        <div class="ps-step-title-full">STEP 2. 분석</div>
+        <div class="ps-step-subtitle-full">숫자가 문제를 말해준다</div>
+        <div class="ps-step-desc-full">
+            분석은 보고서가 아니라 "왜 이런 결과가 나왔는지"를 알려주는 엔진입니다.<br>
+            매출이 왜 이 숫자인지, 어디서 새고 있는지, 무엇을 키워야 하는지를 데이터로 확인합니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("▶ 데이터 분석센터", type="primary", use_container_width=True, key="test_step2_btn_v3"):
+        st.info("테스트: 분석 허브로 이동")
+    
+    # STEP 3: 설계 (설명 포함)
+    st.markdown("""
+    <div class="ps-step-card-full step-3">
+        <div class="ps-step-title-full">STEP 3. 설계</div>
+        <div class="ps-step-subtitle-full">숫자를 행동으로 바꾼다</div>
+        <div class="ps-step-desc-full">
+            설계는 조언이 아니라 사장의 '다음 행동'을 만드는 단계입니다.<br>
+            개선 우선순위, 전략 보드, 메뉴/비용/운영 방향을 데이터 기반으로 결정합니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("▶ 가게 전략 센터", type="primary", use_container_width=True, key="test_step3_btn_v3"):
+        st.info("테스트: 전략 센터로 이동")
+    
     # 비교 요약
     st.markdown("---")
-    st.success("✅ **제거 버전의 장점:**")
+    st.success("✅ **맥락 추가 버전의 특징:**")
     st.markdown("""
-    - 섹션 수: 3개 → 2개
-    - 카드 수: 4개 → 2개  
-    - 정보 밀도: 최소화
-    - 브랜드 정체성: 더 강조
-    - "어렵다"는 느낌: 해소
+    - 섹션 수: 4개 (히어로 + 가이드 + STEP 3개)
+    - 간결함 유지하면서 앱 설명 추가
+    - 각 STEP에 활용 맥락 포함
+    - "어렵다"는 느낌 해소 + 이해도 향상
     """)
     
-    st.warning("⚠️ **제거 시 고려사항:**")
-    st.markdown("""
-    - 상태 정보는 각 페이지에서 확인 가능
-    - 추천 기능은 컨텍스트에서 제공 가능
-    - 홈의 역할: "브랜드 랜딩 + 시작점"으로 재정의
-    """)
+    st.info("💡 **구조:** 브랜드 히어로 → 앱 가이드(얇은 설명) → STEP 1-3(각각 설명 포함)")
