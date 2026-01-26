@@ -1,0 +1,115 @@
+"""
+CAUSE OS 전용 제품 푸터 컴포넌트
+모든 페이지 하단에 표시되는 브랜드 시그니처
+"""
+import streamlit as st
+
+
+def render_cause_os_footer(style="default"):
+    """
+    CAUSE OS 푸터 렌더링
+    
+    Args:
+        style: "default" (기본형) 또는 "brand" (브랜드형)
+    
+    Note:
+        - OS 명판 / 브랜드 시그니처 역할
+        - 얇고 작은 폰트, 연한 톤
+        - 페이지 맨 아래 마침표 역할
+    """
+    # CSS 주입 (1회만)
+    if not st.session_state.get("_ps_footer_css_injected", False):
+        css = """
+        <style id="ps-footer-style">
+        .ps-cause-footer {
+            margin-top: 4rem;
+            padding: 2.5rem 0 1.5rem 0;
+            text-align: center;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            color: rgba(148, 163, 184, 0.65);
+            font-size: 0.8rem;
+            line-height: 1.7;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            position: relative;
+        }
+        
+        .ps-cause-footer::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+        }
+        
+        .ps-cause-footer > div:first-child {
+            margin-bottom: 0.5rem;
+        }
+        
+        .ps-cause-footer-brand {
+            font-weight: 700;
+            color: rgba(148, 163, 184, 0.85);
+            letter-spacing: 0.08em;
+            font-size: 0.85rem;
+        }
+        
+        .ps-cause-footer-tagline {
+            color: rgba(148, 163, 184, 0.55);
+            font-size: 0.75rem;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+        }
+        
+        .ps-cause-footer-copyright {
+            color: rgba(148, 163, 184, 0.45);
+            font-size: 0.7rem;
+            margin-top: 0.75rem;
+            font-weight: 300;
+            letter-spacing: 0.03em;
+        }
+        
+        .ps-cause-footer-separator {
+            color: rgba(148, 163, 184, 0.35);
+            margin: 0 0.6rem;
+            font-weight: 300;
+        }
+        
+        /* 다크 모드 대응 */
+        @media (prefers-color-scheme: dark) {
+            .ps-cause-footer {
+                border-top-color: rgba(148, 163, 184, 0.15);
+            }
+        }
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+        st.session_state["_ps_footer_css_injected"] = True
+    
+    # 푸터 내용 렌더링
+    if style == "brand":
+        # 2안: 브랜드형
+        st.markdown("""
+        <div class="ps-cause-footer">
+            <div>
+                <span class="ps-cause-footer-brand">CAUSE OS</span>
+                <span class="ps-cause-footer-separator">·</span>
+                <span class="ps-cause-footer-tagline">우리는 매출을 보지 않습니다. 원인을 봅니다.</span>
+            </div>
+            <div class="ps-cause-footer-copyright">by INNOVATION100</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # 1안: 기본형
+        st.markdown("""
+        <div class="ps-cause-footer">
+            <div>
+                <span class="ps-cause-footer-brand">CAUSE OS</span>
+                <span class="ps-cause-footer-separator">—</span>
+                <span>사장을 위한 숫자 운영체제</span>
+            </div>
+            <div class="ps-cause-footer-copyright">© 2026 INNOVATION100. All rights reserved.</div>
+        </div>
+        """, unsafe_allow_html=True)
