@@ -31,18 +31,6 @@ def render_home():
     """
     HOME v2 - CAUSE OS 브랜드 첫 화면 + 오늘 행동 시작점
     """
-    # Streamlit 버튼을 먼저 생성 (완전히 숨김, HTML 버튼이 클릭 트리거)
-    # 컬럼 밖에 배치하여 레이아웃에 영향을 주지 않도록 함
-    if st.button("", key="home_step1_btn", use_container_width=False):
-        st.session_state.current_page = "입력 허브"
-        st.rerun()
-    if st.button("", key="home_step2_btn", use_container_width=False):
-        st.session_state.current_page = "분석 허브"
-        st.rerun()
-    if st.button("", key="home_step3_btn", use_container_width=False):
-        st.session_state.current_page = "가게 전략 센터"
-        st.rerun()
-    
     # 리뉴얼 CSS
     css = """
     <style>
@@ -515,13 +503,17 @@ def render_home():
         z-index: 1;
     }
     
-    /* Streamlit 버튼 완전히 숨기기 */
+    /* Streamlit 버튼 완전히 숨기기 - 모든 가능한 선택자 */
     button[key="home_step1_btn"],
     button[key="home_step2_btn"],
     button[key="home_step3_btn"],
     [data-testid="stButton"]:has(button[key="home_step1_btn"]),
     [data-testid="stButton"]:has(button[key="home_step2_btn"]),
-    [data-testid="stButton"]:has(button[key="home_step3_btn"]) {
+    [data-testid="stButton"]:has(button[key="home_step3_btn"]),
+    div[style*="display: none"] button[key="home_step1_btn"],
+    div[style*="display: none"] button[key="home_step2_btn"],
+    div[style*="display: none"] button[key="home_step3_btn"],
+    div[style*="display: none"] [data-testid="stButton"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -532,6 +524,21 @@ def render_home():
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
+        pointer-events: none !important;
+        z-index: -9999 !important;
+    }
+    
+    /* display: none div 내부의 모든 요소도 숨기기 */
+    div[style*="display: none"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
         pointer-events: none !important;
         z-index: -9999 !important;
     }
@@ -759,4 +766,17 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
     
+    # Streamlit 버튼을 페이지 맨 아래에 배치 (완전히 숨김, HTML 버튼이 클릭 트리거)
+    # display: none div로 감싸서 완전히 숨김
+    st.markdown('<div style="display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important;">', unsafe_allow_html=True)
+    if st.button("", key="home_step1_btn", use_container_width=False):
+        st.session_state.current_page = "입력 허브"
+        st.rerun()
+    if st.button("", key="home_step2_btn", use_container_width=False):
+        st.session_state.current_page = "분석 허브"
+        st.rerun()
+    if st.button("", key="home_step3_btn", use_container_width=False):
+        st.session_state.current_page = "가게 전략 센터"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
     
