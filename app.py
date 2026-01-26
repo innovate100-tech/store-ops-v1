@@ -1221,6 +1221,23 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     [data-testid="stAppViewContainer"] > *:not([data-testid="stSidebar"]):not([data-testid="stMain"]) {
       pointer-events: auto !important;
     }
+    
+    /* ===== Footer right-align guarantee (all pages) ===== */
+    .ps-cause-footer-wrapper,
+    .ps-cause-footer-wrapper *,
+    .ps-cause-footer,
+    .ps-cause-footer * {
+      text-align: right !important;
+      direction: ltr !important;
+    }
+    
+    [data-testid="stMarkdownContainer"]:has(.ps-cause-footer-wrapper),
+    [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper,
+    .stMarkdown:has(.ps-cause-footer-wrapper),
+    .stMarkdown .ps-cause-footer-wrapper {
+      text-align: right !important;
+      direction: ltr !important;
+    }
     </style>
     """
     inject_rescue(final_safety_pin_css, "final_safety_pin")
