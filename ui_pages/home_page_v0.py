@@ -502,66 +502,6 @@ def render_home():
         z-index: 1;
     }
     
-    /* Streamlit 버튼 완전히 숨기기 - 모든 가능한 선택자 사용 */
-    button[key="home_step1_btn"],
-    button[key="home_step2_btn"],
-    button[key="home_step3_btn"],
-    button[data-baseweb="button"][key="home_step1_btn"],
-    button[data-baseweb="button"][key="home_step2_btn"],
-    button[data-baseweb="button"][key="home_step3_btn"],
-    [data-testid="stButton"]:has(button[key="home_step1_btn"]),
-    [data-testid="stButton"]:has(button[key="home_step2_btn"]),
-    [data-testid="stButton"]:has(button[key="home_step3_btn"]),
-    [data-testid="stButton"] button[key="home_step1_btn"],
-    [data-testid="stButton"] button[key="home_step2_btn"],
-    [data-testid="stButton"] button[key="home_step3_btn"],
-    div:has(button[key="home_step1_btn"]),
-    div:has(button[key="home_step2_btn"]),
-    div:has(button[key="home_step3_btn"]),
-    /* 컬럼 내부의 Streamlit 버튼 컨테이너 */
-    [data-testid="column"] [data-testid="stButton"]:has(button[key="home_step1_btn"]),
-    [data-testid="column"] [data-testid="stButton"]:has(button[key="home_step2_btn"]),
-    [data-testid="column"] [data-testid="stButton"]:has(button[key="home_step3_btn"]),
-    [data-testid="column"] button[key="home_step1_btn"],
-    [data-testid="column"] button[key="home_step2_btn"],
-    [data-testid="column"] button[key="home_step3_btn"],
-    /* display: none div 내부의 버튼도 숨기기 */
-    div[style*="display: none"] button[key="home_step1_btn"],
-    div[style*="display: none"] button[key="home_step2_btn"],
-    div[style*="display: none"] button[key="home_step3_btn"],
-    div[style*="display: none"] [data-testid="stButton"] {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        position: absolute !important;
-        left: -9999px !important;
-        width: 0 !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        pointer-events: none !important;
-        z-index: -9999 !important;
-    }
-    
-    /* Streamlit 버튼 컨테이너도 숨기기 */
-    [data-testid="stButton"]:has(button[key="home_step1_btn"]),
-    [data-testid="stButton"]:has(button[key="home_step2_btn"]),
-    [data-testid="stButton"]:has(button[key="home_step3_btn"]) {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        pointer-events: none !important;
-        position: absolute !important;
-        left: -9999px !important;
-        width: 0 !important;
-        z-index: -9999 !important;
-    }
-    
     /* 반응형 */
     @media (max-width: 768px) {
         .ps-step-buttons-grid {
@@ -595,61 +535,7 @@ def render_home():
     js = """
     <script>
     (function() {
-        // Streamlit 버튼과 컨테이너 완전히 숨기기 (강화 버전)
-        function hideStreamlitButtons() {
-            const keys = ['home_step1_btn', 'home_step2_btn', 'home_step3_btn'];
-            keys.forEach(key => {
-                // 모든 버튼을 순회하며 찾기
-                const allBtns = document.querySelectorAll('button');
-                allBtns.forEach(btn => {
-                    const btnKey = btn.getAttribute('key');
-                    if (btnKey === key) {
-                        // 버튼 자체 숨기기
-                        btn.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; left: -9999px !important; width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important; pointer-events: none !important; z-index: -9999 !important;';
-                        
-                        // 모든 가능한 컨테이너 찾기 및 숨기기
-                        let current = btn;
-                        let depth = 0;
-                        while (current && depth < 10) {
-                            const testId = current.getAttribute('data-testid');
-                            const tagName = current.tagName.toLowerCase();
-                            
-                            // stButton 컨테이너
-                            if (testId === 'stButton') {
-                                current.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important;';
-                            }
-                            
-                            // column 컨테이너 내부의 버튼인 경우
-                            if (testId === 'column' && current.querySelector(`button[key="${key}"]`)) {
-                                const buttonContainer = current.querySelector('[data-testid="stButton"]');
-                                if (buttonContainer) {
-                                    buttonContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important;';
-                                }
-                            }
-                            
-                            current = current.parentElement;
-                            depth++;
-                        }
-                        
-                        // 추가: 모든 부모 div도 확인
-                        let parent = btn.parentElement;
-                        depth = 0;
-                        while (parent && depth < 5) {
-                            if (parent.querySelector && parent.querySelector(`button[key="${key}"]`)) {
-                                const stButtonContainer = parent.querySelector('[data-testid="stButton"]');
-                                if (stButtonContainer) {
-                                    stButtonContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important; pointer-events: none !important; z-index: -9999 !important;';
-                                }
-                            }
-                            parent = parent.parentElement;
-                            depth++;
-                        }
-                    }
-                });
-            });
-        }
-        
-        // HTML 버튼 클릭 시 Streamlit 버튼 트리거
+        // HTML 버튼 클릭 시 URL 파라미터로 페이지 이동 (Streamlit 버튼 완전 제거)
         function setupButtonTriggers() {
             // 입력하기 버튼
             const btn1 = document.querySelector('.ps-minimal-btn-1[data-action="step1"]');
@@ -658,17 +544,12 @@ def render_home():
                 btn1.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // Streamlit 버튼 찾아서 클릭
-                    const allBtns = document.querySelectorAll('button');
-                    let found = false;
-                    allBtns.forEach(b => {
-                        if (b.getAttribute('key') === 'home_step1_btn') {
-                            b.click();
-                            found = true;
-                        }
-                    });
-                    if (!found) {
-                        console.warn('Streamlit button not found for step1');
+                    const pageName = btn1.getAttribute('data-page');
+                    if (pageName) {
+                        // URL 파라미터 설정하고 페이지 새로고침
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('navigate_to', pageName);
+                        window.location.href = url.toString();
                     }
                 });
             }
@@ -680,16 +561,11 @@ def render_home():
                 btn2.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const allBtns = document.querySelectorAll('button');
-                    let found = false;
-                    allBtns.forEach(b => {
-                        if (b.getAttribute('key') === 'home_step2_btn') {
-                            b.click();
-                            found = true;
-                        }
-                    });
-                    if (!found) {
-                        console.warn('Streamlit button not found for step2');
+                    const pageName = btn2.getAttribute('data-page');
+                    if (pageName) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('navigate_to', pageName);
+                        window.location.href = url.toString();
                     }
                 });
             }
@@ -701,79 +577,45 @@ def render_home():
                 btn3.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const allBtns = document.querySelectorAll('button');
-                    let found = false;
-                    allBtns.forEach(b => {
-                        if (b.getAttribute('key') === 'home_step3_btn') {
-                            b.click();
-                            found = true;
-                        }
-                    });
-                    if (!found) {
-                        console.warn('Streamlit button not found for step3');
+                    const pageName = btn3.getAttribute('data-page');
+                    if (pageName) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('navigate_to', pageName);
+                        window.location.href = url.toString();
                     }
                 });
             }
         }
         
         // 즉시 실행
-        hideStreamlitButtons();
         setupButtonTriggers();
         
         // DOM 로드 후 실행
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
-                hideStreamlitButtons();
                 setupButtonTriggers();
             });
         } else {
-            hideStreamlitButtons();
             setupButtonTriggers();
         }
         
-        // Streamlit rerun 대응 - 여러 번 시도 (더 자주)
-        [10, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 7000, 10000].forEach(delay => {
+        // Streamlit rerun 대응 - 여러 번 시도
+        [50, 100, 200, 300, 500, 1000, 2000].forEach(delay => {
             setTimeout(function() {
-                hideStreamlitButtons();
                 setupButtonTriggers();
             }, delay);
         });
         
-        // MutationObserver로 DOM 변경 감지 (더 적극적으로)
-        const observer = new MutationObserver(function(mutations) {
-            let shouldHide = false;
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(function(node) {
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            const btn = node.tagName === 'BUTTON' ? node : node.querySelector('button');
-                            if (btn) {
-                                const key = btn.getAttribute('key');
-                                if (key && (key === 'home_step1_btn' || key === 'home_step2_btn' || key === 'home_step3_btn')) {
-                                    shouldHide = true;
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-            if (shouldHide) {
-                hideStreamlitButtons();
-                setupButtonTriggers();
-            }
+        // MutationObserver로 DOM 변경 감지
+        const observer = new MutationObserver(function() {
+            setupButtonTriggers();
         });
         
         observer.observe(document.body, {
             childList: true,
             subtree: true,
-            attributes: true,
-            attributeFilter: ['key', 'data-testid']
+            attributes: true
         });
-        
-        // 주기적으로 확인 (Streamlit의 동적 렌더링 대응)
-        setInterval(function() {
-            hideStreamlitButtons();
-        }, 500);
     })();
     </script>
     """
@@ -857,16 +699,12 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
     
-    # Streamlit 버튼을 컬럼 밖으로 완전히 분리 (완전히 숨김)
-    st.markdown('<div style="display: none;">', unsafe_allow_html=True)
-    if st.button("", key="home_step1_btn", use_container_width=False):
-        st.session_state.current_page = "입력 허브"
+    # URL 파라미터로 페이지 이동 처리 (Streamlit 버튼 완전 제거)
+    query_params = st.query_params
+    if 'navigate_to' in query_params:
+        page_name = query_params['navigate_to']
+        st.session_state.current_page = page_name
+        # 파라미터 제거
+        st.query_params.clear()
         st.rerun()
-    if st.button("", key="home_step2_btn", use_container_width=False):
-        st.session_state.current_page = "분석 허브"
-        st.rerun()
-    if st.button("", key="home_step3_btn", use_container_width=False):
-        st.session_state.current_page = "가게 전략 센터"
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
     
