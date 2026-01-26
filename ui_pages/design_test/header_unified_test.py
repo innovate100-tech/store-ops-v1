@@ -332,7 +332,7 @@ def render_header_unified_test():
                 매출이 아니라 원인을 봅니다.<br>
                 그래서 결과가 달라집니다.
             </div>
-            <div class="ps-brand-subtitle">경영 의사결정 OS</div>
+            <div class="ps-brand-subtitle">경영의사결정 OS</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
