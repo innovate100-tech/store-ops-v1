@@ -13,8 +13,20 @@ import os
 from src.bootstrap import bootstrap
 bootstrap(page_title="Store Ops")
 
+# ============================================
+# 전역 CSS 주입 최우선 실행 (페이지 전환 잔상 방지)
+# ============================================
 from src.ui.theme_manager import inject_global_ui
-inject_global_ui()
+inject_global_ui()  # 항상 먼저 실행되어 전환 시에도 스타일이 안정적으로 유지됨
+
+# Theme and CSS - 폰트 import (CSS 주입 후)
+# @import 규칙은 반드시 별도의 스타일 블록에서 최상단에 위치해야 함
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+</style>
+""", unsafe_allow_html=True)
 
 from src.auth import check_login, show_login_page, get_current_store_name, logout, get_current_store_id, get_user_stores, switch_store, needs_onboarding
 from src.ui.css_manager import inject_dom, inject_rescue
@@ -79,15 +91,6 @@ def _diagnose_supabase_connection():
 # Data Storage and Analytics Imports
 from src.storage_supabase import load_csv, create_backup
 from src.ui_helpers import render_page_header, render_section_divider
-
-# Theme and CSS
-# @import 규칙은 반드시 별도의 스타일 블록에서 최상단에 위치해야 함
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
-    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-</style>
-""", unsafe_allow_html=True)
 
 # ============================================
 # 사이드바 프리미엄 CSS 주입 함수

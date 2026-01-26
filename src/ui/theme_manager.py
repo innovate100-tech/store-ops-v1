@@ -485,6 +485,72 @@ def inject_global_ui():
         [data-testid="stMainBlockContainer"] > div:first-child {{
             margin-top: 0 !important;
         }}
+        
+        /* ============================================
+           페이지 전환 순간 잔상/깨짐 마스킹 CSS
+           ============================================ */
+        
+        /* prevent flash of unstyled content during navigation */
+        [data-testid="stAppViewContainer"] {{
+            background: var(--ps-bg, #0b0f14) !important;
+            transition: background-color 80ms linear !important;
+        }}
+        
+        [data-testid="stHeader"] {{
+            background: var(--ps-bg, #0b0f14) !important;
+            transition: background-color 80ms linear !important;
+        }}
+        
+        [data-testid="stSidebar"] {{
+            background: var(--ps-surface, #101823) !important;
+            transition: background-color 80ms linear !important;
+        }}
+        
+        /* 전환 시 색상 변화를 부드럽게 */
+        [data-testid="stAppViewContainer"] * {{
+            transition: color 80ms linear, background-color 80ms linear, border-color 80ms linear !important;
+        }}
+        
+        /* 메인 블록 전환 중 안정화 */
+        section.main {{
+            background: var(--ps-bg, #0b0f14) !important;
+            transition: background-color 80ms linear !important;
+        }}
+        
+        /* 스피너/로더 시각적 점프 최소화 */
+        [data-testid="stStatusWidget"],
+        [data-testid="stSpinner"] {{
+            filter: none !important;
+            backdrop-filter: none !important;
+            transform: none !important;
+        }}
+        
+        /* ============================================
+           전환 중 깜빡임을 유발하는 CSS 금지
+           (메인/사이드바 컨테이너에는 적용하지 않음)
+           ============================================ */
+        
+        /* 메인 컨테이너와 사이드바에는 GPU 레이어 변경 요소 금지 */
+        [data-testid="stAppViewContainer"],
+        [data-testid="stSidebar"],
+        [data-testid="stMain"],
+        [data-testid="stMainBlockContainer"],
+        section.main {{
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            filter: none !important;
+            transform: none !important;
+            will-change: auto !important;
+        }}
+        
+        /* 헤더도 전환 중 안정화 */
+        header[data-testid="stHeader"] {{
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            filter: none !important;
+            transform: none !important;
+            will-change: auto !important;
+        }}
     </style>
     """
     inject_theme(theme_css, "global_ui_theme")
