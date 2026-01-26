@@ -87,11 +87,28 @@ def render_header_unified_test():
     }
     
     .ps-step-guide-title {
-        font-size: 1.5rem;
-        font-weight: 700;
+        font-size: 1.75rem;
+        font-weight: 800;
         color: #F8FAFC;
         margin-bottom: 2rem;
         text-align: center;
+        position: relative;
+        padding-bottom: 1rem;
+    }
+    
+    .ps-step-guide-title::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(59, 130, 246, 0.8), 
+            transparent);
+        border-radius: 2px;
     }
     
     .ps-step-buttons-grid {
@@ -101,51 +118,146 @@ def render_header_unified_test():
     }
     
     .ps-step-button {
+        position: relative;
+        overflow: hidden;
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%);
-        border: 1px solid rgba(59, 130, 246, 0.3);
         border-radius: 16px;
         padding: 2rem 1.5rem;
         text-align: center;
-        transition: all 0.3s ease;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         margin-bottom: 1.5rem;
     }
     
+    /* 상단 네온 바 */
+    .ps-step-button::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        opacity: 0.8;
+    }
+    
+    /* 리플 효과 */
+    .ps-step-button::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+    
+    .ps-step-button:hover::after {
+        width: 300px;
+        height: 300px;
+    }
+    
     .ps-step-button:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 40px rgba(59, 130, 246, 0.4);
-        border-color: rgba(59, 130, 246, 0.6);
+        transform: translateY(-6px) scale(1.02);
     }
     
+    /* STEP 1: 입력 (파란색) */
     .ps-step-button.step-1 {
-        border-color: rgba(59, 130, 246, 0.4);
+        background: linear-gradient(135deg, 
+            rgba(59, 130, 246, 0.15) 0%, 
+            rgba(30, 41, 59, 0.85) 50%, 
+            rgba(15, 23, 42, 0.75) 100%);
+        border: 2px solid rgba(59, 130, 246, 0.5);
     }
     
+    .ps-step-button.step-1::before {
+        background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 50%, #3B82F6 100%);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+    
+    .ps-step-button.step-1:hover {
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 
+                    0 0 40px rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.7);
+    }
+    
+    /* STEP 2: 분석 (녹색) */
     .ps-step-button.step-2 {
-        border-color: rgba(16, 185, 129, 0.4);
+        background: linear-gradient(135deg, 
+            rgba(16, 185, 129, 0.15) 0%, 
+            rgba(30, 41, 59, 0.85) 50%, 
+            rgba(15, 23, 42, 0.75) 100%);
+        border: 2px solid rgba(16, 185, 129, 0.5);
     }
     
+    .ps-step-button.step-2::before {
+        background: linear-gradient(90deg, #10B981 0%, #34D399 50%, #10B981 100%);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+    
+    .ps-step-button.step-2:hover {
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 
+                    0 0 40px rgba(16, 185, 129, 0.3);
+        border-color: rgba(16, 185, 129, 0.7);
+    }
+    
+    /* STEP 3: 설계 (보라색) */
     .ps-step-button.step-3 {
-        border-color: rgba(168, 85, 247, 0.4);
+        background: linear-gradient(135deg, 
+            rgba(168, 85, 247, 0.15) 0%, 
+            rgba(30, 41, 59, 0.85) 50%, 
+            rgba(15, 23, 42, 0.75) 100%);
+        border: 2px solid rgba(168, 85, 247, 0.5);
+    }
+    
+    .ps-step-button.step-3::before {
+        background: linear-gradient(90deg, #A855F7 0%, #C084FC 50%, #A855F7 100%);
+        box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+    
+    .ps-step-button.step-3:hover {
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 
+                    0 0 40px rgba(168, 85, 247, 0.3);
+        border-color: rgba(168, 85, 247, 0.7);
     }
     
     .ps-step-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.75rem;
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .ps-step-button:hover .ps-step-icon {
+        transform: scale(1.1) rotate(5deg);
     }
     
     .ps-step-name {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #F8FAFC;
-        margin-bottom: 0.5rem;
+        font-size: 1.2rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        position: relative;
+        z-index: 1;
     }
     
     .ps-step-desc {
-        font-size: 0.85rem;
-        color: #94A3B8;
-        line-height: 1.5;
+        font-size: 0.9rem;
+        color: #CBD5E1;
+        line-height: 1.6;
+        font-weight: 400;
+        position: relative;
+        z-index: 1;
     }
     
     /* Streamlit 마크다운 블록 사이 간격 제거 */
@@ -161,10 +273,48 @@ def render_header_unified_test():
         padding-bottom: 0 !important;
     }
     
+    /* STEP별 버튼 색상 연계 */
+    button[data-testid="baseButton-secondary"]:has-text("입력하기"),
+    button:has-text("입력하기") {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        border-color: rgba(59, 130, 246, 0.5) !important;
+    }
+    
+    button[data-testid="baseButton-secondary"]:has-text("분석하기"),
+    button:has-text("분석하기") {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+        border-color: rgba(16, 185, 129, 0.5) !important;
+    }
+    
+    button[data-testid="baseButton-secondary"]:has-text("설계하기"),
+    button:has-text("설계하기") {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%) !important;
+        border-color: rgba(168, 85, 247, 0.5) !important;
+    }
+    
     /* 반응형 */
     @media (max-width: 768px) {
         .ps-step-buttons-grid {
             grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .ps-step-button {
+            padding: 1.5rem 1rem;
+        }
+        
+        .ps-brand-name {
+            font-size: 3.5rem;
+        }
+        
+        .ps-brand-tagline {
+            font-size: 1.4rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .ps-brand-hero {
+            padding: 3rem 1.5rem 1.5rem 1.5rem !important;
         }
     }
     </style>
