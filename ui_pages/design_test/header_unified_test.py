@@ -203,23 +203,3 @@ def render_header_unified_test():
     if selected_option != "아직 결정 안함":
         st.success(f"✅ **{selected_option}** 선택 완료! 실제 적용은 개발자가 진행하겠습니다.")
         st.caption("선택하신 옵션을 `input_hub.py`에 적용하시면 됩니다.")
-    
-    # ============================================
-    # CAUSE OS 푸터 (테스트)
-    # ============================================
-    from src.ui.footer import render_cause_os_footer
-    
-    st.markdown("---")
-    st.markdown("### 🧪 CAUSE OS 푸터 테스트")
-    st.caption("아래에 CAUSE OS 전용 제품 푸터가 표시됩니다.")
-    
-    # 푸터 스타일 선택
-    footer_style = st.radio(
-        "푸터 스타일 선택",
-        ["기본형 (1안)", "브랜드형 (2안)"],
-        horizontal=True,
-        key="footer_style_radio"
-    )
-    
-    # 푸터 렌더링
-    render_cause_os_footer(style="brand" if footer_style == "브랜드형 (2안)" else "default")

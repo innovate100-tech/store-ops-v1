@@ -91,15 +91,29 @@ def render_cause_os_footer(style="default"):
             font-weight: 300;
         }
         
-        /* Streamlit 기본 스타일 오버라이드 */
+        /* Streamlit 기본 스타일 오버라이드 - 모든 가능한 선택자 */
         [data-testid="stMarkdownContainer"] .ps-cause-footer,
+        [data-testid="stMarkdownContainer"] .ps-cause-footer *,
         .stMarkdown .ps-cause-footer,
-        .ps-cause-footer {
+        .stMarkdown .ps-cause-footer *,
+        .ps-cause-footer,
+        .ps-cause-footer * {
             text-align: right !important;
+            direction: rtl !important;
         }
         
-        [data-testid="stMarkdownContainer"] .ps-cause-footer > div,
-        .stMarkdown .ps-cause-footer > div {
+        /* 방향을 다시 ltr로 (텍스트는 오른쪽 정렬) */
+        .ps-cause-footer,
+        .ps-cause-footer * {
+            direction: ltr !important;
+            text-align: right !important;
+            margin-left: auto !important;
+            margin-right: 0 !important;
+        }
+        
+        /* 부모 컨테이너도 오른쪽 정렬 */
+        [data-testid="stMarkdownContainer"]:has(.ps-cause-footer),
+        .stMarkdown:has(.ps-cause-footer) {
             text-align: right !important;
         }
         
@@ -110,6 +124,44 @@ def render_cause_os_footer(style="default"):
             }
         }
         </style>
+        <script>
+        (function() {
+            function forceFooterRightAlign() {
+                var footers = document.querySelectorAll('.ps-cause-footer');
+                footers.forEach(function(footer) {
+                    footer.style.setProperty('text-align', 'right', 'important');
+                    footer.style.setProperty('margin-left', 'auto', 'important');
+                    footer.style.setProperty('margin-right', '0', 'important');
+                    
+                    var children = footer.querySelectorAll('*');
+                    children.forEach(function(child) {
+                        child.style.setProperty('text-align', 'right', 'important');
+                    });
+                });
+            }
+            
+            // 즉시 실행
+            forceFooterRightAlign();
+            
+            // DOM 로드 후 실행
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', forceFooterRightAlign);
+            } else {
+                setTimeout(forceFooterRightAlign, 100);
+            }
+            
+            // MutationObserver로 새로 추가된 푸터 감지
+            if (window.MutationObserver) {
+                var observer = new MutationObserver(function() {
+                    forceFooterRightAlign();
+                });
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        })();
+        </script>
         """
         st.markdown(css, unsafe_allow_html=True)
         st.session_state["_ps_footer_css_injected"] = True
@@ -130,12 +182,12 @@ def render_cause_os_footer(style="default"):
     else:
         # 1안: 기본형
         st.markdown("""
-        <div class="ps-cause-footer" style="text-align: right !important;">
-            <div style="text-align: right !important;">
-                <span class="ps-cause-footer-brand">CAUSE OS</span>
+        <div class="ps-cause-footer" style="text-align: right !important; margin-left: auto !important; margin-right: 0 !important; width: 100% !important; display: block !important;">
+            <div style="text-align: right !important; margin-left: auto !important; margin-right: 0 !important; display: block !important;">
+                <span class="ps-cause-footer-brand" style="text-align: right !important;">CAUSE OS</span>
                 <span class="ps-cause-footer-separator">—</span>
-                <span>성공에는 이유가 있습니다</span>
+                <span style="text-align: right !important;">성공에는 이유가 있습니다</span>
             </div>
-            <div class="ps-cause-footer-copyright" style="text-align: right !important;">© 2026 INNOVATION100. All rights reserved.</div>
+            <div class="ps-cause-footer-copyright" style="text-align: right !important; margin-left: auto !important; margin-right: 0 !important; display: block !important;">© 2026 INNOVATION100. All rights reserved.</div>
         </div>
         """, unsafe_allow_html=True)

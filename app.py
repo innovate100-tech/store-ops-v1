@@ -1162,6 +1162,62 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
       pointer-events: none !important;
       z-index: -1 !important;
     }
+    
+    /* ===== Sidebar scroll hard-fix (must be last) ===== */
+    [data-testid="stSidebar"] {
+      height: 100vh !important;
+      overflow: auto !important;
+      overscroll-behavior: contain !important;
+      position: relative !important;
+      transform: none !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+    
+    [data-testid="stSidebar"] > div {
+      height: 100vh !important;
+      overflow: auto !important;
+      overscroll-behavior: contain !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+      scroll-margin-top: 0px !important;
+    }
+    
+    /* inner sidebar content wrappers */
+    [data-testid="stSidebarContent"],
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"] section {
+      overflow: auto !important;
+      height: 100vh !important;
+      overscroll-behavior: contain !important;
+    }
+    
+    /* 사이드바 내부 버튼의 transform은 허용하되, 사이드바 자체는 transform 금지 */
+    [data-testid="stSidebar"] {
+      transform: none !important;
+    }
+    
+    /* 사이드바 위를 덮는 모든 overlay 요소 차단 */
+    /* decorative overlays must not block sidebar scroll */
+    .ps-ultra-bg, .ps-mesh, .ps-overlay, .ultra-bg, .mesh-bg, .animated-bg,
+    .overlay, .backdrop, .background, .bg-layer,
+    div[style*="position: fixed"],
+    div[style*="position: sticky"] {
+      pointer-events: none !important;
+    }
+    
+    /* 사이드바 영역 내부는 pointer-events 정상화 */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebar"] * {
+      pointer-events: auto !important;
+    }
+    
+    /* 사이드바 위를 덮는 형제 요소 차단 (더 구체적) */
+    [data-testid="stAppViewContainer"] > *:not([data-testid="stSidebar"]):not([data-testid="stMain"]) {
+      pointer-events: auto !important;
+    }
     </style>
     """
     inject_rescue(final_safety_pin_css, "final_safety_pin")

@@ -242,6 +242,11 @@ def inject_global_ui():
             background: var(--ps-surface) !important;
             color: var(--ps-text) !important;
             border-right: 1px solid var(--ps-border);
+            /* 사이드바 스크롤 안정화 - transform/filter 제거 */
+            transform: none !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }}
         
         /* ps-leftpanel은 내부 구조용으로 유지 */
