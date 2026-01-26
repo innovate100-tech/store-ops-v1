@@ -16,15 +16,21 @@ def render_header_unified_test():
     <style>
     /* 브랜드 히어로 */
     .ps-brand-hero {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%);
-        border-radius: 24px;
-        padding: 5rem 3rem;
-        margin: 0 0 2rem 0;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(59, 130, 246, 0.15);
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%) !important;
+        border-radius: 24px !important;
+        padding: 5rem 3rem !important;
+        margin: 0 0 2rem 0 !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(59, 130, 246, 0.15) !important;
+        border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    /* Streamlit 마크다운 컨테이너 오버라이드 */
+    [data-testid="stMarkdownContainer"] .ps-brand-hero,
+    .stMarkdown .ps-brand-hero {
+        margin: 0 0 2rem 0 !important;
     }
     
     .ps-brand-hero::after {
@@ -69,7 +75,13 @@ def render_header_unified_test():
     
     /* STEP 가이드 (간결형) */
     .ps-step-guide-compact {
-        margin-top: 0;
+        margin-top: 0 !important;
+    }
+    
+    /* Streamlit 마크다운 컨테이너 오버라이드 */
+    [data-testid="stMarkdownContainer"] .ps-step-guide-compact,
+    .stMarkdown .ps-step-guide-compact {
+        margin-top: 0 !important;
     }
     
     .ps-step-guide-title {
@@ -132,6 +144,19 @@ def render_header_unified_test():
         font-size: 0.85rem;
         color: #94A3B8;
         line-height: 1.5;
+    }
+    
+    /* Streamlit 마크다운 블록 사이 간격 제거 */
+    [data-testid="stMarkdownContainer"]:has(.ps-brand-hero) + [data-testid="stMarkdownContainer"]:has(.ps-step-guide-compact),
+    [data-testid="stMarkdownContainer"]:has(.ps-brand-hero) ~ [data-testid="stMarkdownContainer"]:has(.ps-step-guide-compact) {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+    
+    /* 브랜드 히어로 다음 마크다운 컨테이너 간격 제거 */
+    [data-testid="stMarkdownContainer"]:has(.ps-brand-hero) {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
     }
     
     /* 반응형 */
