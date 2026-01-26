@@ -566,57 +566,17 @@ def render_home():
     js = """
     <script>
     (function() {
-        // Streamlit 버튼 숨기기 (제거하지 않고 완전히 숨김)
+        // Streamlit 버튼 완전히 숨기기
         function hideStreamlitButtons() {
-            // key 속성으로 찾기
             const keys = ['home_step1_btn', 'home_step2_btn', 'home_step3_btn'];
             keys.forEach(key => {
                 const btn = document.querySelector(`button[key="${key}"]`);
                 if (btn) {
-                    // 버튼 컨테이너 숨기기
                     let container = btn.closest('[data-testid="stButton"]');
                     if (container) {
-                        container.style.display = 'none';
-                        container.style.visibility = 'hidden';
-                        container.style.height = '0';
-                        container.style.margin = '0';
-                        container.style.padding = '0';
-                        container.style.overflow = 'hidden';
-                        container.style.position = 'absolute';
-                        container.style.left = '-9999px';
+                        container.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important;';
                     }
-                    // 버튼 자체도 숨기기
-                    btn.style.display = 'none';
-                    btn.style.visibility = 'hidden';
-                    btn.style.opacity = '0';
-                    btn.style.position = 'absolute';
-                    btn.style.left = '-9999px';
-                    btn.style.width = '0';
-                    btn.style.height = '0';
-                    btn.style.padding = '0';
-                    btn.style.margin = '0';
-                    btn.style.border = 'none';
-                }
-            });
-            
-            // 빈 버튼도 숨기기
-            const allBtns = document.querySelectorAll('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-            allBtns.forEach(btn => {
-                const text = (btn.textContent || btn.innerText || '').trim();
-                if (text === '') {
-                    let container = btn.closest('[data-testid="stButton"]');
-                    if (container) {
-                        container.style.display = 'none';
-                        container.style.visibility = 'hidden';
-                        container.style.height = '0';
-                        container.style.margin = '0';
-                        container.style.padding = '0';
-                    }
-                    btn.style.display = 'none';
-                    btn.style.visibility = 'hidden';
-                    btn.style.opacity = '0';
-                    btn.style.position = 'absolute';
-                    btn.style.left = '-9999px';
+                    btn.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; left: -9999px !important; width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important;';
                 }
             });
         }
@@ -741,9 +701,9 @@ def render_home():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1">
+        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브">
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -760,9 +720,9 @@ def render_home():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2">
+        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브">
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
@@ -779,9 +739,9 @@ def render_home():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼만 사용
+        # HTML 버튼
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3">
+        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터">
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
