@@ -487,67 +487,6 @@ def inject_global_ui():
         }}
         
         /* ============================================
-           CAUSE OS 푸터 전역 스타일 (모든 페이지 공통)
-           ============================================ */
-        
-        /* 푸터 메인 컨테이너 */
-        .causeos-footer {{
-            width: 100% !important;
-            margin-top: 18px !important;
-            padding: 10px 0 6px 0 !important;
-            text-align: center !important;
-            opacity: 0.72 !important;
-            font-size: 12px !important;
-            line-height: 1.35 !important;
-            letter-spacing: 0.2px !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-            display: block !important;
-            color: rgba(148, 163, 184, 0.65) !important;
-        }}
-        
-        /* 첫 번째 줄 (브랜드 + 태그라인) */
-        .causeos-footer__line1 {{
-            text-align: center !important;
-            display: block !important;
-            font-weight: 600 !important;
-            color: rgba(148, 163, 184, 0.85) !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }}
-        
-        /* 두 번째 줄 (저작권) */
-        .causeos-footer__line2 {{
-            text-align: center !important;
-            display: block !important;
-            margin-top: 2px !important;
-            opacity: 0.9 !important;
-            font-size: 11px !important;
-            color: rgba(148, 163, 184, 0.45) !important;
-            font-weight: 300 !important;
-        }}
-        
-        /* Streamlit 마크다운 컨테이너 오버라이드 */
-        [data-testid="stMarkdownContainer"] .causeos-footer,
-        [data-testid="stMarkdownContainer"] .causeos-footer *,
-        .stMarkdown .causeos-footer,
-        .stMarkdown .causeos-footer * {{
-            text-align: center !important;
-        }}
-        
-        /* 전역 transition이 푸터에 영향을 주지 않도록 */
-        .causeos-footer,
-        .causeos-footer * {{
-            transition: none !important;
-        }}
-        
-        /* 다크 모드 대응 */
-        @media (prefers-color-scheme: dark) {{
-            .causeos-footer {{
-                border-top-color: rgba(148, 163, 184, 0.15) !important;
-            }}
-        }}
-        
-        /* ============================================
            페이지 전환 순간 잔상/깨짐 마스킹 CSS
            ============================================ */
         
