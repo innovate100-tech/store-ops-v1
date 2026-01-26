@@ -1088,12 +1088,6 @@ elif page == "화면테스트":
     render_header_unified_test()
 
 # ============================================
-# CAUSE OS 푸터 (모든 페이지 하단에 공통 적용)
-# ============================================
-from src.ui.footer import render_cause_os_footer
-render_cause_os_footer(style="default")  # 1안: 기본형
-
-# ============================================
 # 최종 안전핀 CSS (모든 CSS 주입 후 마지막에 주입)
 # ============================================
 if not st.session_state.get("_ps_final_safety_pin_injected", False):
@@ -1220,23 +1214,6 @@ if not st.session_state.get("_ps_final_safety_pin_injected", False):
     /* 사이드바 위를 덮는 형제 요소 차단 (더 구체적) */
     [data-testid="stAppViewContainer"] > *:not([data-testid="stSidebar"]):not([data-testid="stMain"]) {
       pointer-events: auto !important;
-    }
-    
-    /* ===== Footer right-align guarantee (all pages) ===== */
-    .ps-cause-footer-wrapper,
-    .ps-cause-footer-wrapper *,
-    .ps-cause-footer,
-    .ps-cause-footer * {
-      text-align: right !important;
-      direction: ltr !important;
-    }
-    
-    [data-testid="stMarkdownContainer"]:has(.ps-cause-footer-wrapper),
-    [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper,
-    .stMarkdown:has(.ps-cause-footer-wrapper),
-    .stMarkdown .ps-cause-footer-wrapper {
-      text-align: right !important;
-      direction: ltr !important;
     }
     </style>
     """
