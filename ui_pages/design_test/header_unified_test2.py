@@ -11,7 +11,7 @@ def render_header_unified_test2():
     st.title("🎨 Streamlit 버튼 디자인 갤러리")
     st.caption("CSS와 JavaScript로 스타일링한 다양한 Streamlit 버튼 디자인")
     
-    # CSS 스타일 정의
+    # CSS 스타일 정의 - 더 강력한 선택자 사용
     css = """
     <style>
     /* 공통 스타일 */
@@ -38,8 +38,13 @@ def render_header_unified_test2():
         text-align: center;
     }
     
-    /* Streamlit 버튼 기본 스타일 오버라이드 */
-    .stButton > button {
+    /* Streamlit 버튼 기본 스타일 오버라이드 - 모든 가능한 선택자 */
+    .btn-gallery-section .stButton > button,
+    .btn-gallery-section button[data-testid],
+    .btn-gallery-section button,
+    .btn-gallery-section .stButton button,
+    .btn-gallery-section [class*="stButton"] button,
+    .btn-gallery-section [data-testid*="button"] {
         width: 100% !important;
         min-width: 150px !important;
         padding: 1rem 2rem !important;
@@ -49,47 +54,76 @@ def render_header_unified_test2():
         transition: all 0.3s ease !important;
         position: relative !important;
         overflow: hidden !important;
+        cursor: pointer !important;
+        border: none !important;
+    }
+    
+    /* Streamlit 기본 버튼 스타일 강제 오버라이드 */
+    .btn-gallery-section button {
+        background-color: transparent !important;
+        border-color: transparent !important;
+    }
+    
+    /* 애니메이션 키프레임 */
+    @keyframes gradient-shift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes pulse-glow {
+        0%, 100% {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
+            transform: scale(1.02);
+        }
     }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # JavaScript로 버튼 스타일 적용
+    # JavaScript로 버튼 스타일 적용 - 더 강력한 방법
     style_js = """
     <script>
     (function() {
-        // 애니메이션 키프레임 먼저 추가
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            @keyframes gradient-shift {
-                0%, 100% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-            }
-            @keyframes pulse-glow {
-                0%, 100% {
-                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
-                    transform: scale(1);
-                }
-                50% {
-                    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
-                    transform: scale(1.02);
-                }
-            }
-        `;
-        document.head.appendChild(styleSheet);
+        'use strict';
         
         function applyButtonStyles() {
-            // 갤러리 섹션 내부의 버튼만 찾기
+            // 모든 가능한 방법으로 버튼 찾기
             const gallerySections = document.querySelectorAll('.btn-gallery-section');
             let allButtons = [];
             
             gallerySections.forEach(section => {
-                const sectionButtons = section.querySelectorAll('.stButton > button');
-                sectionButtons.forEach(btn => allButtons.push(btn));
+                // 여러 선택자로 버튼 찾기
+                const selectors = [
+                    '.stButton > button',
+                    '.stButton button',
+                    'button[data-testid]',
+                    'button'
+                ];
+                
+                selectors.forEach(selector => {
+                    const buttons = section.querySelectorAll(selector);
+                    buttons.forEach(btn => {
+                        // 중복 제거
+                        if (!allButtons.includes(btn) && btn.textContent.trim().includes('입력하기') || 
+                            btn.textContent.trim().includes('분석하기') || 
+                            btn.textContent.trim().includes('설계하기')) {
+                            allButtons.push(btn);
+                        }
+                    });
+                });
             });
             
             const buttons = allButtons;
-            console.log('Found buttons in gallery:', buttons.length);
+            console.log('Found buttons:', buttons.length);
+            
+            if (buttons.length === 0) {
+                console.warn('No buttons found!');
+                return;
+            }
             
             // 버튼 스타일 맵핑
             const buttonStyles = {
@@ -272,38 +306,96 @@ def render_header_unified_test2():
                 }
             };
             
-            // 모든 버튼을 순서대로 스타일 적용
-            const allKeys = [
-                'btn_neon_1', 'btn_neon_2', 'btn_neon_3',
-                'btn_gradient_1', 'btn_gradient_2', 'btn_gradient_3',
-                'btn_3d_1', 'btn_3d_2', 'btn_3d_3',
-                'btn_glass_1', 'btn_glass_2', 'btn_glass_3',
-                'btn_holo_1', 'btn_holo_2', 'btn_holo_3',
-                'btn_minimal_1', 'btn_minimal_2', 'btn_minimal_3',
-                'btn_pulse_1', 'btn_pulse_2', 'btn_pulse_3',
-                'btn_metallic_1', 'btn_metallic_2', 'btn_metallic_3',
-                'btn_stroke_1', 'btn_stroke_2', 'btn_stroke_3',
-                'btn_radial_1', 'btn_radial_2', 'btn_radial_3'
+            // 섹션별로 버튼 스타일 적용
+            const styleMap = [
+                // 섹션 1: 네온
+                [
+                    { bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3), 0 0 60px rgba(59, 130, 246, 0.1)' },
+                    { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.3), 0 0 60px rgba(16, 185, 129, 0.1)' },
+                    { bg: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 0 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.3), 0 0 60px rgba(168, 85, 247, 0.1)' }
+                ],
+                // 섹션 2: 그라데이션
+                [
+                    { bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%)', shadow: '0 4px 15px rgba(59, 130, 246, 0.4)', anim: 'gradient-shift 3s ease infinite', bgSize: '200% 200%' },
+                    { bg: 'linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)', shadow: '0 4px 15px rgba(16, 185, 129, 0.4)', anim: 'gradient-shift 3s ease infinite', bgSize: '200% 200%' },
+                    { bg: 'linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%)', shadow: '0 4px 15px rgba(168, 85, 247, 0.4)', anim: 'gradient-shift 3s ease infinite', bgSize: '200% 200%' }
+                ],
+                // 섹션 3: 3D
+                [
+                    { bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', shadow: '0 8px 0 #1E40AF, 0 12px 20px rgba(0, 0, 0, 0.3)' },
+                    { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', shadow: '0 8px 0 #047857, 0 12px 20px rgba(0, 0, 0, 0.3)' },
+                    { bg: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', shadow: '0 8px 0 #7E22CE, 0 12px 20px rgba(0, 0, 0, 0.3)' }
+                ],
+                // 섹션 4: 글래스
+                [
+                    { bg: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.3)', shadow: '0 8px 32px rgba(59, 130, 246, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)', blur: 'blur(10px)' },
+                    { bg: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.3)', shadow: '0 8px 32px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)', blur: 'blur(10px)' },
+                    { bg: 'rgba(168, 85, 247, 0.2)', border: '1px solid rgba(168, 85, 247, 0.3)', shadow: '0 8px 32px rgba(168, 85, 247, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)', blur: 'blur(10px)' }
+                ],
+                // 섹션 5: 홀로그램
+                [
+                    { bg: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%)' },
+                    { bg: 'linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.9) 100%)' },
+                    { bg: 'linear-gradient(135deg, rgba(168, 85, 247, 0.9) 0%, rgba(147, 51, 234, 0.9) 100%)' }
+                ],
+                // 섹션 6: 미니멀
+                [
+                    { bg: 'transparent', color: '#3B82F6', border: '2px solid #3B82F6' },
+                    { bg: 'transparent', color: '#10B981', border: '2px solid #10B981' },
+                    { bg: 'transparent', color: '#A855F7', border: '2px solid #A855F7' }
+                ],
+                // 섹션 7: 펄스
+                [
+                    { bg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', anim: 'pulse-glow 2s ease-in-out infinite' },
+                    { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', anim: 'pulse-glow 2s ease-in-out infinite' },
+                    { bg: 'linear-gradient(135deg, #A855F7 0%, #9333EA 100%)', anim: 'pulse-glow 2s ease-in-out infinite' }
+                ],
+                // 섹션 8: 메탈릭
+                [
+                    { bg: 'linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%)', border: '1px solid rgba(255, 255, 255, 0.1)', shadow: 'inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.3)' },
+                    { bg: 'linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%)', border: '1px solid rgba(255, 255, 255, 0.1)', shadow: 'inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.3)' },
+                    { bg: 'linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%)', border: '1px solid rgba(255, 255, 255, 0.1)', shadow: 'inset 0 2px 4px rgba(255, 255, 255, 0.2), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.3)' }
+                ],
+                // 섹션 9: 스트로크
+                [
+                    { bg: 'transparent', color: '#3B82F6', border: '3px solid #3B82F6' },
+                    { bg: 'transparent', color: '#10B981', border: '3px solid #10B981' },
+                    { bg: 'transparent', color: '#A855F7', border: '3px solid #A855F7' }
+                ],
+                // 섹션 10: 라디얼
+                [
+                    { bg: 'radial-gradient(circle at center, #3B82F6 0%, #2563EB 100%)' },
+                    { bg: 'radial-gradient(circle at center, #10B981 0%, #059669 100%)' },
+                    { bg: 'radial-gradient(circle at center, #A855F7 0%, #9333EA 100%)' }
+                ]
             ];
             
-            // 페이지의 모든 버튼을 순서대로 처리
-            buttons.forEach((btn, index) => {
-                if (index >= allKeys.length) return;
+            // 섹션별로 버튼 스타일 적용
+            gallerySections.forEach((section, sectionIndex) => {
+                if (sectionIndex >= styleMap.length) return;
                 
-                const key = allKeys[index];
+                const sectionStyles = styleMap[sectionIndex];
+                const sectionButtons = Array.from(section.querySelectorAll('.stButton > button, button')).slice(0, 3);
                 
-                // 스타일 적용
-                if (key && buttonStyles[key]) {
-                    const style = buttonStyles[key];
-                    console.log('Applying style to button', index, key);
+                sectionButtons.forEach((btn, btnIndex) => {
+                    if (btnIndex >= sectionStyles.length) return;
                     
-                    // 기본 스타일 적용
-                    Object.keys(style).forEach(prop => {
-                        const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-                        btn.style.setProperty(cssProp, style[prop], 'important');
-                    });
+                    const style = sectionStyles[btnIndex];
+                    console.log('Applying style to button', sectionIndex, btnIndex, style);
                     
-                    // 추가 스타일 속성
+                    // 기본 스타일 강제 적용
+                    if (style.bg) btn.style.setProperty('background', style.bg, 'important');
+                    if (style.color) btn.style.setProperty('color', style.color, 'important');
+                    if (style.border) btn.style.setProperty('border', style.border, 'important');
+                    if (style.shadow) btn.style.setProperty('box-shadow', style.shadow, 'important');
+                    if (style.anim) btn.style.setProperty('animation', style.anim, 'important');
+                    if (style.bgSize) btn.style.setProperty('background-size', style.bgSize, 'important');
+                    if (style.blur) btn.style.setProperty('backdrop-filter', style.blur, 'important');
+                    
+                    // 기본 속성 강제 설정
+                    if (!style.color) btn.style.setProperty('color', 'white', 'important');
+                    if (!style.border) btn.style.setProperty('border', 'none', 'important');
+                    
                     btn.style.setProperty('min-width', '150px', 'important');
                     btn.style.setProperty('padding', '1rem 2rem', 'important');
                     btn.style.setProperty('border-radius', '12px', 'important');
@@ -313,85 +405,52 @@ def render_header_unified_test2():
                     btn.style.setProperty('position', 'relative', 'important');
                     btn.style.setProperty('overflow', 'hidden', 'important');
                     btn.style.setProperty('cursor', 'pointer', 'important');
-                    
-                    // 호버 효과 추가 (기존 리스너 제거 후 추가)
-                    const newBtn = btn.cloneNode(true);
-                    btn.parentNode.replaceChild(newBtn, btn);
-                    
-                    newBtn.addEventListener('mouseenter', function() {
-                        if (key.startsWith('btn_neon_')) {
-                            this.style.setProperty('box-shadow', '0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5), 0 0 90px rgba(59, 130, 246, 0.3)', 'important');
-                            this.style.setProperty('transform', 'translateY(-2px)', 'important');
-                        } else if (key.startsWith('btn_3d_')) {
-                            this.style.setProperty('transform', 'perspective(1000px) rotateX(5deg) translateY(2px)', 'important');
-                            this.style.setProperty('box-shadow', '0 4px 0 #1E40AF, 0 8px 15px rgba(0, 0, 0, 0.3)', 'important');
-                        } else if (key.startsWith('btn_glass_')) {
-                            const bg = this.style.background;
-                            if (bg.includes('0.2')) {
-                                this.style.setProperty('background', bg.replace('0.2', '0.3'), 'important');
-                            }
-                        } else if (key.startsWith('btn_minimal_')) {
-                            this.style.setProperty('background', 'rgba(59, 130, 246, 0.1)', 'important');
-                        } else if (key.startsWith('btn_stroke_')) {
-                            const color = this.style.color;
-                            this.style.setProperty('background', color, 'important');
-                            this.style.setProperty('color', 'white', 'important');
-                        } else if (key.startsWith('btn_radial_')) {
-                            this.style.setProperty('transform', 'scale(1.05)', 'important');
-                        }
-                    });
-                    
-                    newBtn.addEventListener('mouseleave', function() {
-                        if (key.startsWith('btn_neon_')) {
-                            this.style.setProperty('box-shadow', style.boxShadow, 'important');
-                            this.style.setProperty('transform', 'none', 'important');
-                        } else if (key.startsWith('btn_3d_')) {
-                            this.style.setProperty('transform', 'perspective(1000px) rotateX(0deg)', 'important');
-                            this.style.setProperty('box-shadow', style.boxShadow, 'important');
-                        } else if (key.startsWith('btn_glass_')) {
-                            this.style.setProperty('background', style.background, 'important');
-                        } else if (key.startsWith('btn_minimal_')) {
-                            this.style.setProperty('background', 'transparent', 'important');
-                        } else if (key.startsWith('btn_stroke_')) {
-                            this.style.setProperty('background', 'transparent', 'important');
-                            this.style.setProperty('color', style.color, 'important');
-                        } else if (key.startsWith('btn_radial_')) {
-                            this.style.setProperty('transform', 'none', 'important');
-                        }
-                    });
-                }
+                    btn.style.setProperty('width', '100%', 'important');
+                });
             });
         }
         
-        // 즉시 실행
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(applyButtonStyles, 500);
-            });
-        } else {
+        // 즉시 여러 번 실행 (Streamlit의 동적 렌더링 대응)
+        function runMultipleTimes() {
+            applyButtonStyles();
+            setTimeout(applyButtonStyles, 100);
+            setTimeout(applyButtonStyles, 300);
             setTimeout(applyButtonStyles, 500);
+            setTimeout(applyButtonStyles, 1000);
+            setTimeout(applyButtonStyles, 2000);
+        }
+        
+        // 즉시 실행
+        runMultipleTimes();
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', runMultipleTimes);
         }
         
         // DOM 변경 감지
         const observer = new MutationObserver(function() {
-            setTimeout(applyButtonStyles, 200);
+            setTimeout(applyButtonStyles, 100);
         });
         
         if (document.body) {
             observer.observe(document.body, {
                 childList: true,
                 subtree: true,
-                attributes: true
+                attributes: true,
+                attributeFilter: ['class', 'style']
             });
         }
         
-        // 주기적 확인 (더 자주)
-        setInterval(applyButtonStyles, 500);
+        // 주기적 확인 (매우 자주)
+        setInterval(applyButtonStyles, 300);
         
         // 페이지 로드 후에도 실행
-        window.addEventListener('load', function() {
-            setTimeout(applyButtonStyles, 1000);
-        });
+        window.addEventListener('load', runMultipleTimes);
+        
+        // Streamlit의 rerun 대응
+        if (window.parent !== window) {
+            window.parent.addEventListener('load', runMultipleTimes);
+        }
     })();
     </script>
     """
