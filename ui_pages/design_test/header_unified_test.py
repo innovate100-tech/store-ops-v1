@@ -386,3 +386,338 @@ def render_header_unified_test():
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # ============================================
+    # 히어로 박스 화려한 디자인 예시안
+    # ============================================
+    st.markdown("---")
+    st.markdown("### 🎨 히어로 박스 화려한 디자인 예시안")
+    
+    # 예시안 CSS
+    hero_variants_css = """
+    <style>
+    /* 예시안 1: 강화된 글로우 + 애니메이션 */
+    .ps-hero-variant-1 {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.98) 100%) !important;
+        border-radius: 24px !important;
+        padding: 5rem 3rem 2rem 3rem !important;
+        margin: 2rem 0 !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 
+                    0 0 120px rgba(59, 130, 246, 0.25),
+                    inset 0 0 60px rgba(59, 130, 246, 0.1) !important;
+        border: 2px solid rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    .ps-hero-variant-1::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .ps-hero-variant-1::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(59, 130, 246, 0.8), 
+            rgba(96, 165, 250, 1), 
+            rgba(59, 130, 246, 0.8), 
+            transparent);
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+        animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 1; }
+    }
+    
+    /* 예시안 2: 입체감 + 다중 레이어 */
+    .ps-hero-variant-2 {
+        background: 
+            linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%),
+            radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 80% 50%, rgba(96, 165, 250, 0.15) 0%, transparent 50%) !important;
+        border-radius: 24px !important;
+        padding: 5rem 3rem 2rem 3rem !important;
+        margin: 2rem 0 !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 
+            0 25px 70px rgba(0, 0, 0, 0.5),
+            0 0 100px rgba(59, 130, 246, 0.2),
+            0 0 200px rgba(59, 130, 246, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+        transform: perspective(1000px) rotateX(0deg);
+        transition: transform 0.3s ease;
+    }
+    
+    .ps-hero-variant-2:hover {
+        transform: perspective(1000px) rotateX(2deg) translateY(-5px);
+    }
+    
+    .ps-hero-variant-2::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+            transparent 0%,
+            rgba(59, 130, 246, 0.6) 20%,
+            rgba(96, 165, 250, 1) 50%,
+            rgba(59, 130, 246, 0.6) 80%,
+            transparent 100%);
+        box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+        animation: pulse-glow 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-glow {
+        0%, 100% { 
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+            opacity: 0.8;
+        }
+        50% { 
+            box-shadow: 0 0 60px rgba(59, 130, 246, 0.9);
+            opacity: 1;
+        }
+    }
+    
+    /* 예시안 3: 네온 효과 + 강화된 그라데이션 */
+    .ps-hero-variant-3 {
+        background: linear-gradient(135deg, 
+            rgba(15, 23, 42, 0.98) 0%, 
+            rgba(30, 41, 59, 0.95) 25%,
+            rgba(59, 130, 246, 0.1) 50%,
+            rgba(30, 41, 59, 0.95) 75%,
+            rgba(15, 23, 42, 0.98) 100%) !important;
+        border-radius: 24px !important;
+        padding: 5rem 3rem 2rem 3rem !important;
+        margin: 2rem 0 !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.5),
+            0 0 80px rgba(59, 130, 246, 0.2),
+            0 0 120px rgba(59, 130, 246, 0.1),
+            inset 0 0 80px rgba(59, 130, 246, 0.05) !important;
+        border: 2px solid rgba(59, 130, 246, 0.5) !important;
+    }
+    
+    .ps-hero-variant-3::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, 
+            rgba(59, 130, 246, 0.8),
+            rgba(96, 165, 250, 0.8),
+            rgba(59, 130, 246, 0.8),
+            rgba(96, 165, 250, 0.8));
+        border-radius: 24px;
+        z-index: -1;
+        animation: border-rotate 3s linear infinite;
+        filter: blur(8px);
+    }
+    
+    @keyframes border-rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .ps-hero-variant-3::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+            transparent,
+            rgba(59, 130, 246, 1),
+            rgba(96, 165, 250, 1),
+            rgba(59, 130, 246, 1),
+            transparent);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+    }
+    
+    /* 예시안 4: 홀로그램 효과 */
+    .ps-hero-variant-4 {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%) !important;
+        border-radius: 24px !important;
+        padding: 5rem 3rem 2rem 3rem !important;
+        margin: 2rem 0 !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(59, 130, 246, 0.15) !important;
+        border: 1px solid rgba(59, 130, 246, 0.2) !important;
+    }
+    
+    .ps-hero-variant-4::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            transparent,
+            rgba(255, 255, 255, 0.1),
+            transparent);
+        animation: shine 3s infinite;
+    }
+    
+    @keyframes shine {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+    
+    .ps-hero-variant-4::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(59, 130, 246, 0.6), 
+            rgba(96, 165, 250, 0.8), 
+            rgba(59, 130, 246, 0.6), 
+            transparent);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+    
+    /* 공통 스타일 (예시안용) */
+    .ps-hero-variant-name {
+        font-size: 5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 30%, #2563EB 50%, #3B82F6 70%, #60A5FA 100%);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+        color: #60A5FA;
+        position: relative;
+        z-index: 1;
+        animation: gradient-shift 3s ease infinite;
+    }
+    
+    @keyframes gradient-shift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    .ps-hero-variant-tagline {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #F8FAFC;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .ps-hero-variant-subtitle {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #94A3B8;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        position: relative;
+        z-index: 1;
+    }
+    </style>
+    """
+    st.markdown(hero_variants_css, unsafe_allow_html=True)
+    
+    # 예시안 1: 강화된 글로우 + 애니메이션
+    st.markdown("#### 예시안 1: 강화된 글로우 + 애니메이션")
+    st.caption("회전하는 배경 그라데이션 + 펄스 효과 네온 바")
+    st.markdown("""
+    <div class="ps-hero-variant-1">
+        <div class="ps-brand-hero-content">
+            <div class="ps-hero-variant-name">CAUSE OS</div>
+            <div class="ps-hero-variant-tagline">
+                매출이 아니라 원인을 봅니다.<br>
+                그래서 결과가 달라집니다.
+            </div>
+            <div class="ps-hero-variant-subtitle">경영의사결정 OS</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 예시안 2: 입체감 + 다중 레이어
+    st.markdown("#### 예시안 2: 입체감 + 다중 레이어")
+    st.caption("3D 효과 + 다중 배경 레이어 + 펄스 글로우")
+    st.markdown("""
+    <div class="ps-hero-variant-2">
+        <div class="ps-brand-hero-content">
+            <div class="ps-hero-variant-name">CAUSE OS</div>
+            <div class="ps-hero-variant-tagline">
+                매출이 아니라 원인을 봅니다.<br>
+                그래서 결과가 달라집니다.
+            </div>
+            <div class="ps-hero-variant-subtitle">경영의사결정 OS</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 예시안 3: 네온 효과 + 강화된 그라데이션
+    st.markdown("#### 예시안 3: 네온 효과 + 강화된 그라데이션")
+    st.caption("회전하는 네온 테두리 + 강화된 내부 그라데이션")
+    st.markdown("""
+    <div class="ps-hero-variant-3">
+        <div class="ps-brand-hero-content">
+            <div class="ps-hero-variant-name">CAUSE OS</div>
+            <div class="ps-hero-variant-tagline">
+                매출이 아니라 원인을 봅니다.<br>
+                그래서 결과가 달라집니다.
+            </div>
+            <div class="ps-hero-variant-subtitle">경영의사결정 OS</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 예시안 4: 홀로그램 효과
+    st.markdown("#### 예시안 4: 홀로그램 효과")
+    st.caption("빛이 지나가는 효과 + 그라데이션 텍스트 애니메이션")
+    st.markdown("""
+    <div class="ps-hero-variant-4">
+        <div class="ps-brand-hero-content">
+            <div class="ps-hero-variant-name">CAUSE OS</div>
+            <div class="ps-hero-variant-tagline">
+                매출이 아니라 원인을 봅니다.<br>
+                그래서 결과가 달라집니다.
+            </div>
+            <div class="ps-hero-variant-subtitle">경영의사결정 OS</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
