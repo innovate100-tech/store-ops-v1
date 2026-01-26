@@ -9,7 +9,7 @@ def render_header_unified_test2():
     """링크 버튼 8가지 디자인 변형 테스트"""
     
     st.title("🎨 링크 버튼 디자인 변형 테스트")
-    st.caption("8가지 다른 스타일과 효과를 적용한 버튼 디자인")
+    st.caption("20가지 다른 스타일과 효과를 적용한 버튼 디자인")
     
     # 8가지 디자인 변형 CSS
     css = """
@@ -603,6 +603,720 @@ def render_header_unified_test2():
         height: 100%;
     }
     
+    /* 변형 9: 메탈릭 효과 */
+    .btn-metallic-1 {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-metallic-1:hover {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1E40AF 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(59, 130, 246, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-metallic-2 {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-metallic-2:hover {
+        background: linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(16, 185, 129, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-metallic-3 {
+        background: linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.2),
+                    0 4px 8px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-metallic-3:hover {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 50%, #7E22CE 100%);
+        box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    0 6px 12px rgba(168, 85, 247, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* 변형 10: 펄스 효과 */
+    .btn-pulse-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        animation: pulse-glow-btn 2s ease-in-out infinite;
+    }
+    
+    .btn-pulse-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        animation: pulse-glow-btn 2s ease-in-out infinite;
+    }
+    
+    .btn-pulse-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        animation: pulse-glow-btn 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-glow-btn {
+        0%, 100% {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5),
+                        0 0 40px rgba(59, 130, 246, 0.3);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8),
+                        0 0 60px rgba(59, 130, 246, 0.5);
+            transform: scale(1.02);
+        }
+    }
+    
+    /* 변형 11: 슬라이드 효과 */
+    .btn-slide-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-slide-1::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.5s ease;
+    }
+    
+    .btn-slide-1:hover::before {
+        left: 100%;
+    }
+    
+    .btn-slide-1:hover {
+        transform: translateX(5px);
+    }
+    
+    .btn-slide-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-slide-2::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.5s ease;
+    }
+    
+    .btn-slide-2:hover::before {
+        left: 100%;
+    }
+    
+    .btn-slide-2:hover {
+        transform: translateX(5px);
+    }
+    
+    .btn-slide-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-slide-3::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.5s ease;
+    }
+    
+    .btn-slide-3:hover::before {
+        left: 100%;
+    }
+    
+    .btn-slide-3:hover {
+        transform: translateX(5px);
+    }
+    
+    /* 변형 12: 스플릿 효과 */
+    .btn-split-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-split-1::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 0;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.3);
+        transition: width 0.3s ease, left 0.3s ease;
+    }
+    
+    .btn-split-1:hover::before {
+        left: 0;
+        width: 100%;
+    }
+    
+    .btn-split-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-split-2::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 0;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.3);
+        transition: width 0.3s ease, left 0.3s ease;
+    }
+    
+    .btn-split-2:hover::before {
+        left: 0;
+        width: 100%;
+    }
+    
+    .btn-split-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-split-3::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 0;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.3);
+        transition: width 0.3s ease, left 0.3s ease;
+    }
+    
+    .btn-split-3:hover::before {
+        left: 0;
+        width: 100%;
+    }
+    
+    /* 변형 13: 스케치 효과 */
+    .btn-sketch-1 {
+        background: transparent;
+        border: 2px dashed #3B82F6;
+        color: #3B82F6;
+        position: relative;
+    }
+    
+    .btn-sketch-1::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border: 2px solid #3B82F6;
+        border-radius: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-sketch-1:hover {
+        background: rgba(59, 130, 246, 0.1);
+        border-style: solid;
+    }
+    
+    .btn-sketch-1:hover::before {
+        opacity: 1;
+    }
+    
+    .btn-sketch-2 {
+        background: transparent;
+        border: 2px dashed #10B981;
+        color: #10B981;
+        position: relative;
+    }
+    
+    .btn-sketch-2::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border: 2px solid #10B981;
+        border-radius: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-sketch-2:hover {
+        background: rgba(16, 185, 129, 0.1);
+        border-style: solid;
+    }
+    
+    .btn-sketch-2:hover::before {
+        opacity: 1;
+    }
+    
+    .btn-sketch-3 {
+        background: transparent;
+        border: 2px dashed #A855F7;
+        color: #A855F7;
+        position: relative;
+    }
+    
+    .btn-sketch-3::before {
+        content: "";
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border: 2px solid #A855F7;
+        border-radius: 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-sketch-3:hover {
+        background: rgba(168, 85, 247, 0.1);
+        border-style: solid;
+    }
+    
+    .btn-sketch-3:hover::before {
+        opacity: 1;
+    }
+    
+    /* 변형 14: 글로우 펄스 */
+    .btn-glow-pulse-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        animation: glow-pulse 2s ease-in-out infinite;
+    }
+    
+    .btn-glow-pulse-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        animation: glow-pulse 2s ease-in-out infinite;
+    }
+    
+    .btn-glow-pulse-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+        animation: glow-pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes glow-pulse {
+        0%, 100% {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6),
+                        0 0 40px rgba(59, 130, 246, 0.4);
+        }
+        50% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.9),
+                        0 0 60px rgba(59, 130, 246, 0.6),
+                        0 0 90px rgba(59, 130, 246, 0.3);
+        }
+    }
+    
+    /* 변형 15: 웨이브 효과 */
+    .btn-wave-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-wave-1::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+    
+    .btn-wave-1:hover::before {
+        width: 400px;
+        height: 400px;
+    }
+    
+    .btn-wave-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-wave-2::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+    
+    .btn-wave-2:hover::before {
+        width: 400px;
+        height: 400px;
+    }
+    
+    .btn-wave-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-wave-3::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+    
+    .btn-wave-3:hover::before {
+        width: 400px;
+        height: 400px;
+    }
+    
+    /* 변형 16: 다이아몬드 효과 */
+    .btn-diamond-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+        transition: clip-path 0.3s ease;
+    }
+    
+    .btn-diamond-1:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
+        transform: rotate(5deg) scale(1.05);
+    }
+    
+    .btn-diamond-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+        transition: clip-path 0.3s ease;
+    }
+    
+    .btn-diamond-2:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
+        transform: rotate(5deg) scale(1.05);
+    }
+    
+    .btn-diamond-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+        transition: clip-path 0.3s ease;
+    }
+    
+    .btn-diamond-3:hover {
+        clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
+        transform: rotate(5deg) scale(1.05);
+    }
+    
+    /* 변형 17: 스트로크 효과 */
+    .btn-stroke-1 {
+        background: transparent;
+        border: 3px solid #3B82F6;
+        color: #3B82F6;
+        position: relative;
+    }
+    
+    .btn-stroke-1::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 100%;
+        background: #3B82F6;
+        transition: width 0.4s ease;
+        z-index: -1;
+    }
+    
+    .btn-stroke-1:hover::before {
+        width: 100%;
+    }
+    
+    .btn-stroke-1:hover {
+        color: white;
+    }
+    
+    .btn-stroke-2 {
+        background: transparent;
+        border: 3px solid #10B981;
+        color: #10B981;
+        position: relative;
+    }
+    
+    .btn-stroke-2::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 100%;
+        background: #10B981;
+        transition: width 0.4s ease;
+        z-index: -1;
+    }
+    
+    .btn-stroke-2:hover::before {
+        width: 100%;
+    }
+    
+    .btn-stroke-2:hover {
+        color: white;
+    }
+    
+    .btn-stroke-3 {
+        background: transparent;
+        border: 3px solid #A855F7;
+        color: #A855F7;
+        position: relative;
+    }
+    
+    .btn-stroke-3::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 100%;
+        background: #A855F7;
+        transition: width 0.4s ease;
+        z-index: -1;
+    }
+    
+    .btn-stroke-3:hover::before {
+        width: 100%;
+    }
+    
+    .btn-stroke-3:hover {
+        color: white;
+    }
+    
+    /* 변형 18: 셔터 효과 */
+    .btn-shutter-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-shutter-1::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        transition: height 0.4s ease;
+    }
+    
+    .btn-shutter-1:hover::before {
+        height: 100%;
+    }
+    
+    .btn-shutter-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-shutter-2::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        transition: height 0.4s ease;
+    }
+    
+    .btn-shutter-2:hover::before {
+        height: 100%;
+    }
+    
+    .btn-shutter-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-shutter-3::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        transition: height 0.4s ease;
+    }
+    
+    .btn-shutter-3:hover::before {
+        height: 100%;
+    }
+    
+    /* 변형 19: 라디얼 그라데이션 */
+    .btn-radial-1 {
+        background: radial-gradient(circle at center, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+    }
+    
+    .btn-radial-1:hover {
+        background: radial-gradient(circle at center, #60A5FA 0%, #3B82F6 100%);
+        transform: scale(1.05);
+    }
+    
+    .btn-radial-2 {
+        background: radial-gradient(circle at center, #10B981 0%, #059669 100%);
+        position: relative;
+    }
+    
+    .btn-radial-2:hover {
+        background: radial-gradient(circle at center, #34D399 0%, #10B981 100%);
+        transform: scale(1.05);
+    }
+    
+    .btn-radial-3 {
+        background: radial-gradient(circle at center, #A855F7 0%, #9333EA 100%);
+        position: relative;
+    }
+    
+    .btn-radial-3:hover {
+        background: radial-gradient(circle at center, #C084FC 0%, #A855F7 100%);
+        transform: scale(1.05);
+    }
+    
+    /* 변형 20: 매트릭스 효과 */
+    .btn-matrix-1 {
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-matrix-1::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 255, 255, 0.1) 2px,
+            rgba(255, 255, 255, 0.1) 4px
+        );
+        animation: matrix-move 3s linear infinite;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-matrix-1:hover::before {
+        opacity: 1;
+    }
+    
+    @keyframes matrix-move {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(20px); }
+    }
+    
+    .btn-matrix-2 {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-matrix-2::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 255, 255, 0.1) 2px,
+            rgba(255, 255, 255, 0.1) 4px
+        );
+        animation: matrix-move 3s linear infinite;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-matrix-2:hover::before {
+        opacity: 1;
+    }
+    
+    .btn-matrix-3 {
+        background: linear-gradient(135deg, #A855F7 0%, #9333EA 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-matrix-3::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 255, 255, 0.1) 2px,
+            rgba(255, 255, 255, 0.1) 4px
+        );
+        animation: matrix-move 3s linear infinite;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .btn-matrix-3:hover::before {
+        opacity: 1;
+    }
+    
     /* 버튼 텍스트 z-index */
     .link-btn span {
         position: relative;
@@ -710,5 +1424,137 @@ def render_header_unified_test2():
     st.markdown('<button class="link-btn btn-minimal-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
     st.markdown('<button class="link-btn btn-minimal-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
     st.markdown('<button class="link-btn btn-minimal-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 9: 메탈릭 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 9: 메탈릭 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">금속 질감의 고급스러운 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-metallic-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-metallic-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-metallic-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 10: 펄스 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 10: 펄스 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">지속적으로 맥박치는 듯한 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-pulse-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-pulse-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-pulse-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 11: 슬라이드 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 11: 슬라이드 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">호버 시 빛이 지나가며 이동하는 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-slide-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-slide-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-slide-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 12: 스플릿 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 12: 스플릿 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">중앙에서 양쪽으로 퍼지는 빛 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-split-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-split-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-split-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 13: 스케치 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 13: 스케치 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">손그림 느낌의 스케치 스타일 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-sketch-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-sketch-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-sketch-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 14: 글로우 펄스
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 14: 글로우 펄스</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">빛이 맥박치듯 강해지는 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-glow-pulse-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-glow-pulse-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-glow-pulse-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 15: 웨이브 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 15: 웨이브 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">호버 시 파도처럼 퍼지는 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-wave-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-wave-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-wave-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 16: 다이아몬드 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 16: 다이아몬드 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">다이아몬드 모양으로 변형되는 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-diamond-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-diamond-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-diamond-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 17: 스트로크 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 17: 스트로크 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">테두리에서 안쪽으로 채워지는 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-stroke-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-stroke-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-stroke-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 18: 셔터 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 18: 셔터 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">위에서 아래로 내려오는 셔터 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-shutter-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-shutter-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-shutter-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 19: 라디얼 그라데이션
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 19: 라디얼 그라데이션</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">중앙에서 퍼지는 원형 그라데이션 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-radial-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-radial-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-radial-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 변형 20: 매트릭스 효과
+    st.markdown('<div class="btn-variant-section">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-title">변형 20: 매트릭스 효과</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-variant-desc">호버 시 매트릭스 코드가 흐르는 버튼</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-group">', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-matrix-1"><span>▶ 입력하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-matrix-2"><span>▶ 분석하기</span></button>', unsafe_allow_html=True)
+    st.markdown('<button class="link-btn btn-matrix-3"><span>▶ 설계하기</span></button>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
