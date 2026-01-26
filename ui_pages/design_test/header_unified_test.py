@@ -19,7 +19,7 @@ def render_header_unified_test():
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%);
         border-radius: 24px;
         padding: 5rem 3rem;
-        margin: 0 0 3rem 0;
+        margin: 0 0 0 0;
         text-align: center;
         position: relative;
         overflow: hidden;
@@ -159,8 +159,6 @@ def render_header_unified_test():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("<div style='height: 0rem;'></div>", unsafe_allow_html=True)
     
     # ============================================
     # SECTION 2: STEP 가이드 (간결형)
