@@ -24,7 +24,7 @@ def render_cause_os_footer(style="default"):
         .ps-cause-footer {
             margin-top: 4rem;
             padding: 2.5rem 0 1.5rem 0;
-            text-align: right;
+            text-align: right !important;
             border-top: 1px solid rgba(148, 163, 184, 0.12);
             color: rgba(148, 163, 184, 0.65);
             font-size: 0.8rem;
@@ -32,6 +32,7 @@ def render_cause_os_footer(style="default"):
             font-weight: 400;
             letter-spacing: 0.02em;
             position: relative;
+            display: block !important;
         }
         
         .ps-cause-footer::before {
@@ -44,8 +45,22 @@ def render_cause_os_footer(style="default"):
             background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
         }
         
+        .ps-cause-footer > div,
+        .ps-cause-footer div {
+            text-align: right !important;
+            display: block !important;
+            width: 100% !important;
+        }
+        
         .ps-cause-footer > div:first-child {
             margin-bottom: 0.5rem;
+        }
+        
+        .ps-cause-footer-brand,
+        .ps-cause-footer-tagline,
+        .ps-cause-footer-copyright,
+        .ps-cause-footer-separator {
+            text-align: right !important;
         }
         
         .ps-cause-footer-brand {
@@ -76,6 +91,18 @@ def render_cause_os_footer(style="default"):
             font-weight: 300;
         }
         
+        /* Streamlit 기본 스타일 오버라이드 */
+        [data-testid="stMarkdownContainer"] .ps-cause-footer,
+        .stMarkdown .ps-cause-footer,
+        .ps-cause-footer {
+            text-align: right !important;
+        }
+        
+        [data-testid="stMarkdownContainer"] .ps-cause-footer > div,
+        .stMarkdown .ps-cause-footer > div {
+            text-align: right !important;
+        }
+        
         /* 다크 모드 대응 */
         @media (prefers-color-scheme: dark) {
             .ps-cause-footer {
@@ -91,24 +118,24 @@ def render_cause_os_footer(style="default"):
     if style == "brand":
         # 2안: 브랜드형
         st.markdown("""
-        <div class="ps-cause-footer">
-            <div>
+        <div class="ps-cause-footer" style="text-align: right !important;">
+            <div style="text-align: right !important;">
                 <span class="ps-cause-footer-brand">CAUSE OS</span>
                 <span class="ps-cause-footer-separator">·</span>
                 <span class="ps-cause-footer-tagline">우리는 매출을 보지 않습니다. 원인을 봅니다.</span>
             </div>
-            <div class="ps-cause-footer-copyright">by INNOVATION100</div>
+            <div class="ps-cause-footer-copyright" style="text-align: right !important;">by INNOVATION100</div>
         </div>
         """, unsafe_allow_html=True)
     else:
         # 1안: 기본형
         st.markdown("""
-        <div class="ps-cause-footer">
-            <div>
+        <div class="ps-cause-footer" style="text-align: right !important;">
+            <div style="text-align: right !important;">
                 <span class="ps-cause-footer-brand">CAUSE OS</span>
                 <span class="ps-cause-footer-separator">—</span>
                 <span>성공에는 이유가 있습니다</span>
             </div>
-            <div class="ps-cause-footer-copyright">© 2026 INNOVATION100. All rights reserved.</div>
+            <div class="ps-cause-footer-copyright" style="text-align: right !important;">© 2026 INNOVATION100. All rights reserved.</div>
         </div>
         """, unsafe_allow_html=True)
