@@ -58,9 +58,38 @@ def render_header_unified_test2():
     style_js = """
     <script>
     (function() {
+        // 애니메이션 키프레임 먼저 추가
+        const styleSheet = document.createElement('style');
+        styleSheet.textContent = `
+            @keyframes gradient-shift {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+            }
+            @keyframes pulse-glow {
+                0%, 100% {
+                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+                    transform: scale(1);
+                }
+                50% {
+                    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
+                    transform: scale(1.02);
+                }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+        
         function applyButtonStyles() {
-            // 모든 Streamlit 버튼 찾기
-            const buttons = document.querySelectorAll('.stButton > button');
+            // 갤러리 섹션 내부의 버튼만 찾기
+            const gallerySections = document.querySelectorAll('.btn-gallery-section');
+            let allButtons = [];
+            
+            gallerySections.forEach(section => {
+                const sectionButtons = section.querySelectorAll('.stButton > button');
+                sectionButtons.forEach(btn => allButtons.push(btn));
+            });
+            
+            const buttons = allButtons;
+            console.log('Found buttons in gallery:', buttons.length);
             
             // 버튼 스타일 맵핑
             const buttonStyles = {
@@ -243,120 +272,126 @@ def render_header_unified_test2():
                 }
             };
             
-            // 섹션별로 버튼 찾기 (더 정확한 방법)
-            const sections = document.querySelectorAll('.btn-gallery-section');
-            const keyPatterns = [
-                ['btn_neon_1', 'btn_neon_2', 'btn_neon_3'],
-                ['btn_gradient_1', 'btn_gradient_2', 'btn_gradient_3'],
-                ['btn_3d_1', 'btn_3d_2', 'btn_3d_3'],
-                ['btn_glass_1', 'btn_glass_2', 'btn_glass_3'],
-                ['btn_holo_1', 'btn_holo_2', 'btn_holo_3'],
-                ['btn_minimal_1', 'btn_minimal_2', 'btn_minimal_3'],
-                ['btn_pulse_1', 'btn_pulse_2', 'btn_pulse_3'],
-                ['btn_metallic_1', 'btn_metallic_2', 'btn_metallic_3'],
-                ['btn_stroke_1', 'btn_stroke_2', 'btn_stroke_3'],
-                ['btn_radial_1', 'btn_radial_2', 'btn_radial_3']
+            // 모든 버튼을 순서대로 스타일 적용
+            const allKeys = [
+                'btn_neon_1', 'btn_neon_2', 'btn_neon_3',
+                'btn_gradient_1', 'btn_gradient_2', 'btn_gradient_3',
+                'btn_3d_1', 'btn_3d_2', 'btn_3d_3',
+                'btn_glass_1', 'btn_glass_2', 'btn_glass_3',
+                'btn_holo_1', 'btn_holo_2', 'btn_holo_3',
+                'btn_minimal_1', 'btn_minimal_2', 'btn_minimal_3',
+                'btn_pulse_1', 'btn_pulse_2', 'btn_pulse_3',
+                'btn_metallic_1', 'btn_metallic_2', 'btn_metallic_3',
+                'btn_stroke_1', 'btn_stroke_2', 'btn_stroke_3',
+                'btn_radial_1', 'btn_radial_2', 'btn_radial_3'
             ];
             
-            sections.forEach((section, sectionIndex) => {
-                if (sectionIndex >= keyPatterns.length) return;
+            // 페이지의 모든 버튼을 순서대로 처리
+            buttons.forEach((btn, index) => {
+                if (index >= allKeys.length) return;
                 
-                const sectionButtons = section.querySelectorAll('.stButton > button');
-                const sectionKeys = keyPatterns[sectionIndex];
-                
-                sectionButtons.forEach((btn, btnIndex) => {
-                    if (btnIndex >= sectionKeys.length) return;
-                    
-                    const key = sectionKeys[btnIndex];
+                const key = allKeys[index];
                 
                 // 스타일 적용
                 if (key && buttonStyles[key]) {
                     const style = buttonStyles[key];
+                    console.log('Applying style to button', index, key);
+                    
+                    // 기본 스타일 적용
                     Object.keys(style).forEach(prop => {
                         const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
                         btn.style.setProperty(cssProp, style[prop], 'important');
                     });
                     
-                    // 호버 효과 추가
-                    btn.addEventListener('mouseenter', function() {
+                    // 추가 스타일 속성
+                    btn.style.setProperty('min-width', '150px', 'important');
+                    btn.style.setProperty('padding', '1rem 2rem', 'important');
+                    btn.style.setProperty('border-radius', '12px', 'important');
+                    btn.style.setProperty('font-size', '1rem', 'important');
+                    btn.style.setProperty('font-weight', '600', 'important');
+                    btn.style.setProperty('transition', 'all 0.3s ease', 'important');
+                    btn.style.setProperty('position', 'relative', 'important');
+                    btn.style.setProperty('overflow', 'hidden', 'important');
+                    btn.style.setProperty('cursor', 'pointer', 'important');
+                    
+                    // 호버 효과 추가 (기존 리스너 제거 후 추가)
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    
+                    newBtn.addEventListener('mouseenter', function() {
                         if (key.startsWith('btn_neon_')) {
-                            this.style.boxShadow = '0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5), 0 0 90px rgba(59, 130, 246, 0.3)';
-                            this.style.transform = 'translateY(-2px)';
+                            this.style.setProperty('box-shadow', '0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5), 0 0 90px rgba(59, 130, 246, 0.3)', 'important');
+                            this.style.setProperty('transform', 'translateY(-2px)', 'important');
                         } else if (key.startsWith('btn_3d_')) {
-                            this.style.transform = 'perspective(1000px) rotateX(5deg) translateY(2px)';
-                            this.style.boxShadow = '0 4px 0 #1E40AF, 0 8px 15px rgba(0, 0, 0, 0.3)';
+                            this.style.setProperty('transform', 'perspective(1000px) rotateX(5deg) translateY(2px)', 'important');
+                            this.style.setProperty('box-shadow', '0 4px 0 #1E40AF, 0 8px 15px rgba(0, 0, 0, 0.3)', 'important');
                         } else if (key.startsWith('btn_glass_')) {
-                            this.style.background = this.style.background.replace('0.2', '0.3');
+                            const bg = this.style.background;
+                            if (bg.includes('0.2')) {
+                                this.style.setProperty('background', bg.replace('0.2', '0.3'), 'important');
+                            }
                         } else if (key.startsWith('btn_minimal_')) {
-                            this.style.background = 'rgba(59, 130, 246, 0.1)';
+                            this.style.setProperty('background', 'rgba(59, 130, 246, 0.1)', 'important');
                         } else if (key.startsWith('btn_stroke_')) {
-                            this.style.background = this.style.color;
-                            this.style.color = 'white';
+                            const color = this.style.color;
+                            this.style.setProperty('background', color, 'important');
+                            this.style.setProperty('color', 'white', 'important');
                         } else if (key.startsWith('btn_radial_')) {
-                            this.style.transform = 'scale(1.05)';
+                            this.style.setProperty('transform', 'scale(1.05)', 'important');
                         }
                     });
                     
-                    btn.addEventListener('mouseleave', function() {
+                    newBtn.addEventListener('mouseleave', function() {
                         if (key.startsWith('btn_neon_')) {
-                            this.style.boxShadow = style.boxShadow;
-                            this.style.transform = 'none';
+                            this.style.setProperty('box-shadow', style.boxShadow, 'important');
+                            this.style.setProperty('transform', 'none', 'important');
                         } else if (key.startsWith('btn_3d_')) {
-                            this.style.transform = 'perspective(1000px) rotateX(0deg)';
-                            this.style.boxShadow = style.boxShadow;
+                            this.style.setProperty('transform', 'perspective(1000px) rotateX(0deg)', 'important');
+                            this.style.setProperty('box-shadow', style.boxShadow, 'important');
                         } else if (key.startsWith('btn_glass_')) {
-                            this.style.background = style.background;
+                            this.style.setProperty('background', style.background, 'important');
                         } else if (key.startsWith('btn_minimal_')) {
-                            this.style.background = 'transparent';
+                            this.style.setProperty('background', 'transparent', 'important');
                         } else if (key.startsWith('btn_stroke_')) {
-                            this.style.background = 'transparent';
-                            this.style.color = style.color;
+                            this.style.setProperty('background', 'transparent', 'important');
+                            this.style.setProperty('color', style.color, 'important');
                         } else if (key.startsWith('btn_radial_')) {
-                            this.style.transform = 'none';
+                            this.style.setProperty('transform', 'none', 'important');
                         }
                     });
                 }
-                });
             });
         }
         
-        // 애니메이션 키프레임 추가
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = `
-            @keyframes gradient-shift {
-                0%, 100% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-            }
-            @keyframes pulse-glow {
-                0%, 100% {
-                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
-                    transform: scale(1);
-                }
-                50% {
-                    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
-                    transform: scale(1.02);
-                }
-            }
-        `;
-        document.head.appendChild(styleSheet);
-        
         // 즉시 실행
-        applyButtonStyles();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(applyButtonStyles, 500);
+            });
+        } else {
+            setTimeout(applyButtonStyles, 500);
+        }
         
         // DOM 변경 감지
         const observer = new MutationObserver(function() {
-            setTimeout(applyButtonStyles, 100);
+            setTimeout(applyButtonStyles, 200);
         });
         
         if (document.body) {
             observer.observe(document.body, {
                 childList: true,
-                subtree: true
+                subtree: true,
+                attributes: true
             });
         }
         
-        // 주기적 확인
-        setInterval(applyButtonStyles, 1000);
+        // 주기적 확인 (더 자주)
+        setInterval(applyButtonStyles, 500);
+        
+        // 페이지 로드 후에도 실행
+        window.addEventListener('load', function() {
+            setTimeout(applyButtonStyles, 1000);
+        });
     })();
     </script>
     """
