@@ -502,14 +502,35 @@ def render_home():
         z-index: 1;
     }
     
-    /* 모든 Streamlit 버튼 숨기기 */
+    /* 모든 Streamlit 버튼 완전히 숨기기 */
     button[data-testid="baseButton-primary"],
-    button[data-testid="baseButton-secondary"] {
+    button[data-testid="baseButton-secondary"],
+    [data-testid="stButton"] button[data-testid="baseButton-primary"],
+    [data-testid="stButton"] button[data-testid="baseButton-secondary"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         position: absolute !important;
         left: -9999px !important;
+        width: 0 !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+    }
+    
+    /* Streamlit 버튼 컨테이너도 숨기기 */
+    [data-testid="stButton"]:has(button[data-testid="baseButton-primary"]:empty),
+    [data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]:empty),
+    [data-testid="stButton"]:has(button[data-testid="baseButton-primary"]),
+    [data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
     /* 반응형 */
@@ -547,24 +568,50 @@ def render_home():
     (function() {
         // 모든 Streamlit 버튼 완전 제거
         function removeStreamlitButtons() {
+            // 빈 버튼 또는 특정 텍스트가 있는 버튼 찾기
             const streamlitBtns = document.querySelectorAll('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
             streamlitBtns.forEach(btn => {
-                // 버튼 완전히 제거
-                if (btn.parentElement) {
-                    btn.parentElement.removeChild(btn);
+                const text = (btn.textContent || btn.innerText || '').trim();
+                // 빈 버튼이거나 특정 키를 가진 버튼 제거
+                if (text === '' || btn.getAttribute('key')?.includes('home_step')) {
+                    // 버튼 컨테이너 찾기
+                    let container = btn.closest('[data-testid="stButton"]');
+                    if (container) {
+                        container.style.display = 'none';
+                        container.style.visibility = 'hidden';
+                        container.style.height = '0';
+                        container.style.margin = '0';
+                        container.style.padding = '0';
+                        container.style.overflow = 'hidden';
+                    }
+                    // 버튼 자체도 숨기기
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                    btn.style.opacity = '0';
+                    btn.style.position = 'absolute';
+                    btn.style.left = '-9999px';
+                    btn.style.width = '0';
+                    btn.style.height = '0';
+                    btn.style.padding = '0';
+                    btn.style.margin = '0';
+                    btn.style.border = 'none';
                 }
             });
             
-            // 버튼 컨테이너도 제거
+            // 모든 빈 버튼 컨테이너 제거
             const containers = document.querySelectorAll('[data-testid="stButton"]');
             containers.forEach(container => {
                 const btn = container.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-                if (btn && (btn.textContent.trim() === '' || btn.textContent.includes('입력하기') || btn.textContent.includes('분석하기') || btn.textContent.includes('설계하기'))) {
-                    container.style.display = 'none';
-                    container.style.visibility = 'hidden';
-                    container.style.height = '0';
-                    container.style.margin = '0';
-                    container.style.padding = '0';
+                if (btn) {
+                    const text = (btn.textContent || btn.innerText || '').trim();
+                    if (text === '' || btn.getAttribute('key')?.includes('home_step')) {
+                        container.style.display = 'none';
+                        container.style.visibility = 'hidden';
+                        container.style.height = '0';
+                        container.style.margin = '0';
+                        container.style.padding = '0';
+                        container.style.overflow = 'hidden';
+                    }
                 }
             });
         }
@@ -580,7 +627,7 @@ def render_home():
         }
         
         // Streamlit rerun 대응 - 여러 번 시도
-        [50, 100, 200, 300, 500, 1000, 2000].forEach(delay => {
+        [50, 100, 200, 300, 500, 1000, 2000, 3000].forEach(delay => {
             setTimeout(removeStreamlitButtons, delay);
         });
         
@@ -591,7 +638,8 @@ def render_home():
         
         observer.observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true
         });
     })();
     </script>
@@ -640,7 +688,7 @@ def render_home():
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 버튼 클릭 처리
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
         if st.button("", key="home_step1_btn", use_container_width=True):
             st.session_state.current_page = "입력 허브"
             st.rerun()
@@ -659,7 +707,7 @@ def render_home():
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 버튼 클릭 처리
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
         if st.button("", key="home_step2_btn", use_container_width=True):
             st.session_state.current_page = "분석 허브"
             st.rerun()
@@ -678,7 +726,7 @@ def render_home():
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 버튼 클릭 처리
+        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
         if st.button("", key="home_step3_btn", use_container_width=True):
             st.session_state.current_page = "가게 전략 센터"
             st.rerun()
