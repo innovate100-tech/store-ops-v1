@@ -506,7 +506,10 @@ def render_home():
     button[data-testid="baseButton-primary"],
     button[data-testid="baseButton-secondary"],
     [data-testid="stButton"] button[data-testid="baseButton-primary"],
-    [data-testid="stButton"] button[data-testid="baseButton-secondary"] {
+    [data-testid="stButton"] button[data-testid="baseButton-secondary"],
+    button[key="home_step1_btn"],
+    button[key="home_step2_btn"],
+    button[key="home_step3_btn"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -518,19 +521,39 @@ def render_home():
         margin: 0 !important;
         border: none !important;
         overflow: hidden !important;
+        pointer-events: none !important;
     }
     
     /* Streamlit 버튼 컨테이너도 숨기기 */
     [data-testid="stButton"]:has(button[data-testid="baseButton-primary"]:empty),
     [data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]:empty),
     [data-testid="stButton"]:has(button[data-testid="baseButton-primary"]),
-    [data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]) {
+    [data-testid="stButton"]:has(button[data-testid="baseButton-secondary"]),
+    [data-testid="stButton"]:has(button[key="home_step1_btn"]),
+    [data-testid="stButton"]:has(button[key="home_step2_btn"]),
+    [data-testid="stButton"]:has(button[key="home_step3_btn"]) {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         height: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
+    
+    /* 특정 key를 가진 버튼의 부모 컨테이너도 숨기기 */
+    div:has(> button[key="home_step1_btn"]),
+    div:has(> button[key="home_step2_btn"]),
+    div:has(> button[key="home_step3_btn"]) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
     }
     
     /* 반응형 */
@@ -562,39 +585,35 @@ def render_home():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # Streamlit 버튼 숨기기 및 HTML 버튼 클릭 처리
+    # Streamlit 버튼 완전히 숨기기 및 HTML 버튼 클릭 처리
     js = """
     <script>
     (function() {
-        // Streamlit 버튼 완전히 숨기기
+        // Streamlit 버튼과 컨테이너 완전히 숨기기
         function hideStreamlitButtons() {
             const keys = ['home_step1_btn', 'home_step2_btn', 'home_step3_btn'];
             keys.forEach(key => {
-                // 모든 방법으로 버튼 찾기
-                let btn = null;
+                // 모든 버튼을 순회하며 찾기
                 const allBtns = document.querySelectorAll('button');
-                allBtns.forEach(b => {
-                    const btnKey = b.getAttribute('key');
+                allBtns.forEach(btn => {
+                    const btnKey = btn.getAttribute('key');
                     if (btnKey === key) {
-                        btn = b;
+                        // 컨테이너 찾기
+                        let container = btn.closest('[data-testid="stButton"]');
+                        if (!container) {
+                            container = btn.parentElement;
+                            while (container && container.getAttribute('data-testid') !== 'stButton') {
+                                container = container.parentElement;
+                            }
+                        }
+                        
+                        // 컨테이너와 버튼 완전히 숨기기
+                        if (container) {
+                            container.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important; pointer-events: none !important;';
+                        }
+                        btn.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; left: -9999px !important; width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important; pointer-events: none !important;';
                     }
                 });
-                
-                if (btn) {
-                    // 컨테이너 찾기
-                    let container = btn.closest('[data-testid="stButton"]');
-                    if (!container) {
-                        container = btn.parentElement;
-                        while (container && container.getAttribute('data-testid') !== 'stButton') {
-                            container = container.parentElement;
-                        }
-                    }
-                    
-                    if (container) {
-                        container.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; position: absolute !important; left: -9999px !important; width: 0 !important;';
-                    }
-                    btn.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; left: -9999px !important; width: 0 !important; height: 0 !important; padding: 0 !important; margin: 0 !important; border: none !important;';
-                }
             });
         }
         
@@ -607,7 +626,7 @@ def render_home():
                 btn1.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    // 모든 버튼을 순회하며 찾기
+                    // Streamlit 버튼 찾아서 클릭
                     const allBtns = document.querySelectorAll('button');
                     allBtns.forEach(b => {
                         if (b.getAttribute('key') === 'home_step1_btn') {
@@ -726,13 +745,15 @@ def render_home():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼과 Streamlit 버튼을 같은 위치에 배치
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브">
-            <span>▶ 입력하기</span>
-        </button>
+        <div style="position: relative;">
+            <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1" data-page="입력 허브" style="position: relative; z-index: 10;">
+                <span>▶ 입력하기</span>
+            </button>
+        </div>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼
+        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
         if st.button("", key="home_step1_btn", use_container_width=True):
             st.session_state.current_page = "입력 허브"
             st.rerun()
@@ -745,13 +766,15 @@ def render_home():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼과 Streamlit 버튼을 같은 위치에 배치
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브">
-            <span>▶ 분석하기</span>
-        </button>
+        <div style="position: relative;">
+            <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2" data-page="분석 허브" style="position: relative; z-index: 10;">
+                <span>▶ 분석하기</span>
+            </button>
+        </div>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼
+        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
         if st.button("", key="home_step2_btn", use_container_width=True):
             st.session_state.current_page = "분석 허브"
             st.rerun()
@@ -764,13 +787,15 @@ def render_home():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼과 Streamlit 버튼을 같은 위치에 배치
         st.markdown("""
-        <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터">
-            <span>▶ 설계하기</span>
-        </button>
+        <div style="position: relative;">
+            <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3" data-page="가게 전략 센터" style="position: relative; z-index: 10;">
+                <span>▶ 설계하기</span>
+            </button>
+        </div>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼
+        # Streamlit 버튼 (완전히 숨김, HTML 버튼이 클릭 트리거)
         if st.button("", key="home_step3_btn", use_container_width=True):
             st.session_state.current_page = "가게 전략 센터"
             st.rerun()
