@@ -82,37 +82,31 @@ def render_header_unified_test2():
     # ============================================
     # 테스트 섹션들
     # ============================================
-    st.markdown("""
-    <div class="test2-container">
-        <div class="test2-section">
-            <div class="test2-title">테스트 페이지 2</div>
-            <div class="test2-description">
-                이 페이지는 다양한 디자인 변형과 실험을 위한 공간입니다.
-            </div>
-            
-            <div class="test2-card">
-                <div class="test2-card-title">카드 1: 기본 스타일</div>
-                <div class="test2-card-content">
-                    이것은 기본 스타일의 카드입니다. 호버 효과가 적용되어 있습니다.
-                </div>
-            </div>
-            
-            <div class="test2-card">
-                <div class="test2-card-title">카드 2: 디자인 변형</div>
-                <div class="test2-card-content">
-                    다양한 디자인 변형을 테스트할 수 있는 공간입니다.
-                </div>
-            </div>
-            
-            <div class="test2-card">
-                <div class="test2-card-title">카드 3: 실험 공간</div>
-                <div class="test2-card-content">
-                    새로운 UI/UX 아이디어를 실험해볼 수 있습니다.
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="test2-container">', unsafe_allow_html=True)
+    st.markdown('<div class="test2-section">', unsafe_allow_html=True)
+    st.markdown('<div class="test2-title">테스트 페이지 2</div>', unsafe_allow_html=True)
+    st.markdown('<div class="test2-description">이 페이지는 다양한 디자인 변형과 실험을 위한 공간입니다.</div>', unsafe_allow_html=True)
+    
+    # 카드 1
+    st.markdown('<div class="test2-card">', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-title">카드 1: 기본 스타일</div>', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-content">이것은 기본 스타일의 카드입니다. 호버 효과가 적용되어 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 카드 2
+    st.markdown('<div class="test2-card">', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-title">카드 2: 디자인 변형</div>', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-content">다양한 디자인 변형을 테스트할 수 있는 공간입니다.</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 카드 3
+    st.markdown('<div class="test2-card">', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-title">카드 3: 실험 공간</div>', unsafe_allow_html=True)
+    st.markdown('<div class="test2-card-content">새로운 UI/UX 아이디어를 실험해볼 수 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)  # test2-section 닫기
+    st.markdown('</div>', unsafe_allow_html=True)  # test2-container 닫기
     
     # 추가 테스트 컨텐츠
     st.markdown("---")
