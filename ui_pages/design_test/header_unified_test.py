@@ -70,7 +70,7 @@ def render_header_unified_test():
         font-size: 1.2rem;
         font-weight: 500;
         color: #94A3B8;
-        margin-bottom: 3rem;
+        margin-bottom: 0;
     }
     
     /* STEP 가이드 (간결형) */
