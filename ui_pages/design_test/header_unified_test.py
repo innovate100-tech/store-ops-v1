@@ -329,10 +329,10 @@ def render_header_unified_test():
         <div class="ps-brand-hero-content">
             <div class="ps-brand-name">CAUSE OS</div>
             <div class="ps-brand-tagline">
-                우리는 매출을 보지 않습니다.<br>
-                원인을 봅니다.
+                매출이 아니라 원인을 봅니다.<br>
+                그래서 결과가 달라집니다.
             </div>
-            <div class="ps-brand-subtitle">사장을 위한 숫자 운영체제</div>
+            <div class="ps-brand-subtitle">경영 의사결정 분석 OS</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
