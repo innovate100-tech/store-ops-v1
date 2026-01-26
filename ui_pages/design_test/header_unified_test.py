@@ -16,7 +16,9 @@ def render_header_unified_test():
     <style>
     /* 브랜드 히어로 - 홀로그램 효과 */
     .ps-brand-hero {
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%) !important;
+        background: 
+            linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%),
+            linear-gradient(45deg, rgba(59, 130, 246, 0.05) 0%, transparent 50%, rgba(96, 165, 250, 0.05) 100%) !important;
         border-radius: 24px !important;
         padding: 5rem 3rem 2rem 3rem !important;
         margin: 0 0 0 0 !important;
@@ -27,25 +29,32 @@ def render_header_unified_test():
         border: 1px solid rgba(59, 130, 246, 0.2) !important;
     }
     
-    /* 홀로그램 shine 효과 */
+    /* 홀로그램 shine 효과 - 강화 */
     .ps-brand-hero::before {
         content: "";
         position: absolute;
         top: 0;
-        left: -100%;
-        width: 100%;
+        left: -150%;
+        width: 50%;
         height: 100%;
         background: linear-gradient(90deg, 
-            transparent,
-            rgba(255, 255, 255, 0.1),
-            transparent);
-        animation: shine 3s infinite;
+            transparent 0%,
+            rgba(255, 255, 255, 0.2) 20%,
+            rgba(255, 255, 255, 0.4) 50%,
+            rgba(255, 255, 255, 0.2) 80%,
+            transparent 100%);
+        animation: shine 4s ease-in-out infinite;
         z-index: 1;
+        transform: skewX(-20deg);
+        filter: blur(1px);
     }
     
     @keyframes shine {
-        0% { left: -100%; }
-        100% { left: 100%; }
+        0% { left: -150%; opacity: 0; }
+        10% { opacity: 1; }
+        50% { left: 150%; opacity: 1; }
+        51% { opacity: 0; }
+        100% { left: 150%; opacity: 0; }
     }
     
     /* Streamlit 마크다운 컨테이너 오버라이드 */
@@ -65,6 +74,30 @@ def render_header_unified_test():
         background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), rgba(96, 165, 250, 0.8), rgba(59, 130, 246, 0.6), transparent);
         box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
         z-index: 2;
+    }
+    
+    /* 홀로그램 추가 레이어 효과 */
+    .ps-brand-hero-content {
+        position: relative;
+        z-index: 3;
+    }
+    
+    .ps-brand-hero-content::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+        animation: hologram-rotate 8s linear infinite;
+        z-index: -1;
+        pointer-events: none;
+    }
+    
+    @keyframes hologram-rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
     
     .ps-brand-name {
