@@ -483,12 +483,14 @@ def render_header_unified_test():
         z-index: 1;
     }
     
-    /* Streamlit 버튼 숨기기 - 빈 텍스트 버튼만 */
-    button[data-testid="baseButton-primary"]:empty,
-    button[data-testid="baseButton-secondary"]:empty,
-    button[data-testid="baseButton-primary"]:has(p:empty),
-    button[data-testid="baseButton-secondary"]:has(p:empty) {
+    /* 모든 Streamlit 버튼 숨기기 (테스트 페이지 1에서) */
+    button[data-testid="baseButton-primary"],
+    button[data-testid="baseButton-secondary"] {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        position: absolute !important;
+        left: -9999px !important;
     }
     
     /* 반응형 */
@@ -520,97 +522,52 @@ def render_header_unified_test():
     """
     st.markdown(css, unsafe_allow_html=True)
     
-    # HTML 버튼 클릭 시 Streamlit 버튼 트리거
+    # Streamlit 버튼 완전 제거 및 HTML 버튼만 사용
     js = """
     <script>
     (function() {
-        function setupButtonTriggers() {
-            // 입력하기 버튼
-            const btn1 = document.querySelector('.ps-minimal-btn-1[data-action="step1"]');
-            if (btn1 && !btn1.dataset.listenerAdded) {
-                btn1.dataset.listenerAdded = 'true';
-                btn1.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    // 같은 컬럼 내의 빈 Streamlit 버튼 찾기
-                    let parent = btn1.closest('[data-testid="column"]');
-                    if (!parent) {
-                        parent = btn1.parentElement;
-                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
-                            parent = parent.parentElement;
-                        }
-                    }
-                    if (parent) {
-                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-                        if (streamlitBtn) {
-                            streamlitBtn.click();
-                        }
-                    }
-                });
-            }
+        // 모든 Streamlit 버튼 완전 제거
+        function removeStreamlitButtons() {
+            const streamlitBtns = document.querySelectorAll('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+            streamlitBtns.forEach(btn => {
+                // 버튼 완전히 제거
+                if (btn.parentElement) {
+                    btn.parentElement.removeChild(btn);
+                }
+            });
             
-            // 분석하기 버튼
-            const btn2 = document.querySelector('.ps-minimal-btn-2[data-action="step2"]');
-            if (btn2 && !btn2.dataset.listenerAdded) {
-                btn2.dataset.listenerAdded = 'true';
-                btn2.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    let parent = btn2.closest('[data-testid="column"]');
-                    if (!parent) {
-                        parent = btn2.parentElement;
-                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
-                            parent = parent.parentElement;
-                        }
-                    }
-                    if (parent) {
-                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-                        if (streamlitBtn) {
-                            streamlitBtn.click();
-                        }
-                    }
-                });
-            }
-            
-            // 설계하기 버튼
-            const btn3 = document.querySelector('.ps-minimal-btn-3[data-action="step3"]');
-            if (btn3 && !btn3.dataset.listenerAdded) {
-                btn3.dataset.listenerAdded = 'true';
-                btn3.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    let parent = btn3.closest('[data-testid="column"]');
-                    if (!parent) {
-                        parent = btn3.parentElement;
-                        while (parent && !parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]')) {
-                            parent = parent.parentElement;
-                        }
-                    }
-                    if (parent) {
-                        const streamlitBtn = parent.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
-                        if (streamlitBtn) {
-                            streamlitBtn.click();
-                        }
-                    }
-                });
-            }
+            // 버튼 컨테이너도 제거
+            const containers = document.querySelectorAll('[data-testid="stButton"]');
+            containers.forEach(container => {
+                const btn = container.querySelector('button[data-testid="baseButton-primary"], button[data-testid="baseButton-secondary"]');
+                if (btn && (btn.textContent.trim() === '' || btn.textContent.includes('입력하기') || btn.textContent.includes('분석하기') || btn.textContent.includes('설계하기'))) {
+                    container.style.display = 'none';
+                    container.style.visibility = 'hidden';
+                    container.style.height = '0';
+                    container.style.margin = '0';
+                    container.style.padding = '0';
+                }
+            });
         }
         
         // 즉시 실행
-        setupButtonTriggers();
+        removeStreamlitButtons();
         
         // DOM 로드 후 실행
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupButtonTriggers);
+            document.addEventListener('DOMContentLoaded', removeStreamlitButtons);
         } else {
-            setupButtonTriggers();
+            removeStreamlitButtons();
         }
         
-        // Streamlit rerun 대응
-        [100, 300, 500, 1000].forEach(delay => {
-            setTimeout(setupButtonTriggers, delay);
+        // Streamlit rerun 대응 - 여러 번 시도
+        [50, 100, 200, 300, 500, 1000, 2000].forEach(delay => {
+            setTimeout(removeStreamlitButtons, delay);
         });
         
         // MutationObserver로 DOM 변경 감지
         const observer = new MutationObserver(function() {
-            setupButtonTriggers();
+            removeStreamlitButtons();
         });
         
         observer.observe(document.body, {
@@ -658,15 +615,16 @@ def render_header_unified_test():
             <div class="ps-step-desc">데이터 자산 만들기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-1" data-action="step1">
             <span>▶ 입력하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
-        if st.button("", key="test_step1_btn", use_container_width=True):
+        # 세션 상태로 클릭 처리
+        if st.session_state.get("test_step1_clicked", False):
             st.info("테스트: 입력 허브로 이동")
+            st.session_state.test_step1_clicked = False
     
     with step_col2:
         st.markdown("""
@@ -676,15 +634,16 @@ def render_header_unified_test():
             <div class="ps-step-desc">숫자가 말하는 문제</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-2" data-action="step2">
             <span>▶ 분석하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
-        if st.button("", key="test_step2_btn", use_container_width=True):
+        # 세션 상태로 클릭 처리
+        if st.session_state.get("test_step2_clicked", False):
             st.info("테스트: 분석 허브로 이동")
+            st.session_state.test_step2_clicked = False
     
     with step_col3:
         st.markdown("""
@@ -694,15 +653,16 @@ def render_header_unified_test():
             <div class="ps-step-desc">행동으로 바꾸기</div>
         </div>
         """, unsafe_allow_html=True)
-        # HTML 버튼
+        # HTML 버튼만 사용
         st.markdown("""
         <button class="ps-minimal-btn ps-minimal-btn-3" data-action="step3">
             <span>▶ 설계하기</span>
         </button>
         """, unsafe_allow_html=True)
-        # 숨겨진 Streamlit 버튼 (클릭 트리거용)
-        if st.button("", key="test_step3_btn", use_container_width=True):
+        # 세션 상태로 클릭 처리
+        if st.session_state.get("test_step3_clicked", False):
             st.info("테스트: 전략 센터로 이동")
+            st.session_state.test_step3_clicked = False
     
     st.markdown("""
         </div>
