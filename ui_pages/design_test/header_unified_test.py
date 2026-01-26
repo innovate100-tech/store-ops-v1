@@ -398,5 +398,98 @@ def render_header_unified_test():
     
     # 비교 안내
     st.markdown("---")
-    st.info("💡 **이 구조는 현재 홈화면의 3개 섹션을 2개로 통합한 버전입니다.**")
-    st.caption("브랜드 히어로 + 오늘의 액션 센터(상태+추천+STEP 통합)")
+    st.info("💡 **위: 통합형 2단 구조 (상태+추천+STEP 통합)**")
+    
+    st.markdown("---")
+    st.markdown("### 🎯 제거 버전: 최대 간결형")
+    st.caption("상태 요약 + 추천 블록 제거 - 브랜드 히어로 + STEP 가이드만")
+    
+    # ============================================
+    # 제거 버전: 브랜드 히어로 + STEP 가이드만
+    # ============================================
+    st.markdown("""
+    <div class="ps-brand-hero">
+        <div class="ps-brand-hero-content">
+            <div class="ps-brand-name">CAUSE OS</div>
+            <div class="ps-brand-tagline">
+                우리는 매출을 보지 않습니다.<br>
+                원인을 봅니다.
+            </div>
+            <div class="ps-brand-subtitle">사장을 위한 숫자 운영체제</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 메인 CTA 버튼
+    if st.button("오늘 숫자 입력하기", type="primary", use_container_width=True, key="test_brand_hero_cta_removed"):
+        st.info("테스트: 일일 입력(통합) 페이지로 이동")
+    
+    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
+    
+    # STEP 가이드만 (확장 버전)
+    st.markdown("""
+    <div class="ps-action-center">
+        <div class="ps-step-guide-compact">
+            <div class="ps-step-guide-title">3단계 운영 흐름</div>
+            <div class="ps-step-buttons-grid">
+    """, unsafe_allow_html=True)
+    
+    # STEP 버튼 그룹 (3개 컬럼)
+    step_col1_v2, step_col2_v2, step_col3_v2 = st.columns(3)
+    
+    with step_col1_v2:
+        st.markdown("""
+        <div class="ps-step-button step-1">
+            <div class="ps-step-icon">📝</div>
+            <div class="ps-step-name">STEP 1: 입력</div>
+            <div class="ps-step-desc">데이터 자산 만들기</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("▶ 입력하기", type="primary", use_container_width=True, key="test_step1_btn_v2"):
+            st.info("테스트: 입력 허브로 이동")
+    
+    with step_col2_v2:
+        st.markdown("""
+        <div class="ps-step-button step-2">
+            <div class="ps-step-icon">📊</div>
+            <div class="ps-step-name">STEP 2: 분석</div>
+            <div class="ps-step-desc">숫자가 말하는 문제</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("▶ 분석하기", type="primary", use_container_width=True, key="test_step2_btn_v2"):
+            st.info("테스트: 분석 허브로 이동")
+    
+    with step_col3_v2:
+        st.markdown("""
+        <div class="ps-step-button step-3">
+            <div class="ps-step-icon">🎯</div>
+            <div class="ps-step-name">STEP 3: 설계</div>
+            <div class="ps-step-desc">행동으로 바꾸기</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("▶ 설계하기", type="primary", use_container_width=True, key="test_step3_btn_v2"):
+            st.info("테스트: 전략 센터로 이동")
+    
+    st.markdown("""
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 비교 요약
+    st.markdown("---")
+    st.success("✅ **제거 버전의 장점:**")
+    st.markdown("""
+    - 섹션 수: 3개 → 2개
+    - 카드 수: 4개 → 2개  
+    - 정보 밀도: 최소화
+    - 브랜드 정체성: 더 강조
+    - "어렵다"는 느낌: 해소
+    """)
+    
+    st.warning("⚠️ **제거 시 고려사항:**")
+    st.markdown("""
+    - 상태 정보는 각 페이지에서 확인 가능
+    - 추천 기능은 컨텍스트에서 제공 가능
+    - 홈의 역할: "브랜드 랜딩 + 시작점"으로 재정의
+    """)
