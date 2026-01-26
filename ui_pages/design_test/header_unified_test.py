@@ -95,6 +95,7 @@ def render_header_unified_test():
         transition: all 0.3s ease;
         cursor: pointer;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        margin-bottom: 1.5rem;
     }
     
     .ps-step-button:hover {
@@ -159,7 +160,7 @@ def render_header_unified_test():
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
     
     # ============================================
     # SECTION 2: STEP 가이드 (간결형)
