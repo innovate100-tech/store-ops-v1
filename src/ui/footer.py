@@ -91,30 +91,35 @@ def render_cause_os_footer(style="default"):
             font-weight: 300;
         }
         
-        /* Streamlit 기본 스타일 오버라이드 - 모든 가능한 선택자 */
+        /* Streamlit 기본 스타일 오버라이드 - 모든 가능한 선택자 (강화) */
         [data-testid="stMarkdownContainer"] .ps-cause-footer,
         [data-testid="stMarkdownContainer"] .ps-cause-footer *,
         .stMarkdown .ps-cause-footer,
         .stMarkdown .ps-cause-footer *,
         .ps-cause-footer,
-        .ps-cause-footer * {
+        .ps-cause-footer *,
+        .ps-cause-footer > div,
+        .ps-cause-footer > div *,
+        .ps-cause-footer span,
+        .ps-cause-footer div {
             text-align: right !important;
-            direction: rtl !important;
-        }
-        
-        /* 방향을 다시 ltr로 (텍스트는 오른쪽 정렬) */
-        .ps-cause-footer,
-        .ps-cause-footer * {
             direction: ltr !important;
-            text-align: right !important;
             margin-left: auto !important;
             margin-right: 0 !important;
+            display: block !important;
         }
         
         /* 부모 컨테이너도 오른쪽 정렬 */
         [data-testid="stMarkdownContainer"]:has(.ps-cause-footer),
-        .stMarkdown:has(.ps-cause-footer) {
+        .stMarkdown:has(.ps-cause-footer),
+        [data-testid="stAppViewContainer"]:has(.ps-cause-footer) {
             text-align: right !important;
+        }
+        
+        /* 전역 transition이 푸터에 영향을 주지 않도록 */
+        .ps-cause-footer,
+        .ps-cause-footer * {
+            transition: none !important;
         }
         
         /* 다크 모드 대응 */
@@ -129,14 +134,29 @@ def render_cause_os_footer(style="default"):
             function forceFooterRightAlign() {
                 var footers = document.querySelectorAll('.ps-cause-footer');
                 footers.forEach(function(footer) {
+                    // 푸터 자체 스타일 강제
                     footer.style.setProperty('text-align', 'right', 'important');
                     footer.style.setProperty('margin-left', 'auto', 'important');
                     footer.style.setProperty('margin-right', '0', 'important');
+                    footer.style.setProperty('width', '100%', 'important');
+                    footer.style.setProperty('display', 'block', 'important');
+                    footer.style.setProperty('direction', 'ltr', 'important');
                     
+                    // 모든 자식 요소 스타일 강제
                     var children = footer.querySelectorAll('*');
                     children.forEach(function(child) {
                         child.style.setProperty('text-align', 'right', 'important');
+                        child.style.setProperty('margin-left', 'auto', 'important');
+                        child.style.setProperty('margin-right', '0', 'important');
+                        child.style.setProperty('direction', 'ltr', 'important');
+                        child.style.setProperty('display', 'block', 'important');
                     });
+                    
+                    // 부모 컨테이너도 강제
+                    var parent = footer.parentElement;
+                    if (parent) {
+                        parent.style.setProperty('text-align', 'right', 'important');
+                    }
                 });
             }
             
@@ -145,21 +165,50 @@ def render_cause_os_footer(style="default"):
             
             // DOM 로드 후 실행
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', forceFooterRightAlign);
+                document.addEventListener('DOMContentLoaded', function() {
+                    forceFooterRightAlign();
+                    setTimeout(forceFooterRightAlign, 50);
+                    setTimeout(forceFooterRightAlign, 200);
+                });
             } else {
-                setTimeout(forceFooterRightAlign, 100);
+                setTimeout(forceFooterRightAlign, 50);
+                setTimeout(forceFooterRightAlign, 200);
             }
+            
+            // load 이벤트
+            window.addEventListener('load', function() {
+                setTimeout(forceFooterRightAlign, 100);
+            });
             
             // MutationObserver로 새로 추가된 푸터 감지
             if (window.MutationObserver) {
-                var observer = new MutationObserver(function() {
-                    forceFooterRightAlign();
+                var observer = new MutationObserver(function(mutations) {
+                    var hasFooter = false;
+                    mutations.forEach(function(mutation) {
+                        if (mutation.addedNodes) {
+                            mutation.addedNodes.forEach(function(node) {
+                                if (node.nodeType === 1) {
+                                    if (node.classList && node.classList.contains('ps-cause-footer')) {
+                                        hasFooter = true;
+                                    } else if (node.querySelector && node.querySelector('.ps-cause-footer')) {
+                                        hasFooter = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                    if (hasFooter) {
+                        setTimeout(forceFooterRightAlign, 10);
+                    }
                 });
                 observer.observe(document.body, {
                     childList: true,
                     subtree: true
                 });
             }
+            
+            // 주기적 확인 (덜 자주)
+            setInterval(forceFooterRightAlign, 2000);
         })();
         </script>
         """

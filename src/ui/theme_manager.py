@@ -506,9 +506,19 @@ def inject_global_ui():
             transition: background-color 80ms linear !important;
         }}
         
-        /* 전환 시 색상 변화를 부드럽게 */
-        [data-testid="stAppViewContainer"] * {{
+        /* 전환 시 색상 변화를 부드럽게 (푸터 제외) */
+        [data-testid="stAppViewContainer"] *:not(.ps-cause-footer):not(.ps-cause-footer *) {{
             transition: color 80ms linear, background-color 80ms linear, border-color 80ms linear !important;
+        }}
+        
+        /* 푸터는 전환 제외 및 오른쪽 정렬 보장 */
+        .ps-cause-footer,
+        .ps-cause-footer * {{
+            transition: none !important;
+            text-align: right !important;
+            direction: ltr !important;
+            margin-left: auto !important;
+            margin-right: 0 !important;
         }}
         
         /* 메인 블록 전환 중 안정화 */
