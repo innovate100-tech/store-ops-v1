@@ -53,7 +53,7 @@ def inject_home_premium_css():
     
     /* prefers-reduced-motion 지원 */
     @media (prefers-reduced-motion: reduce) {
-        .ps-hero-card,
+        .ps-brand-hero,
         .ps-status-card,
         .ps-step-card,
         .ps-quote-card {
@@ -62,7 +62,117 @@ def inject_home_premium_css():
     }
     
     /* ============================================
-       SECTION 1: Hero Card (프리미엄) - 업그레이드
+       SECTION 0: CAUSE OS 브랜드 히어로 영역
+       ============================================ */
+    
+    .ps-brand-hero {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 50%, rgba(15, 23, 42, 0.95) 100%);
+        border-radius: 24px;
+        padding: 5rem 3rem;
+        margin: 0 0 3rem 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(59, 130, 246, 0.15);
+        animation: ps-home-fadeInUp 1s ease-out forwards;
+        opacity: 0;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .ps-brand-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    
+    .ps-brand-hero::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), rgba(96, 165, 250, 0.8), rgba(59, 130, 246, 0.6), transparent);
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+    
+    @supports (backdrop-filter: blur(16px)) {
+        .ps-brand-hero {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+    }
+    
+    .ps-brand-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .ps-brand-name {
+        font-size: 5rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 30%, #2563EB 50%, #3B82F6 70%, #60A5FA 100%);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+        text-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
+        animation: gradient-shift 6s ease infinite;
+        color: #60A5FA; /* fallback */
+    }
+    
+    @supports not (-webkit-background-clip: text) {
+        .ps-brand-name {
+            -webkit-text-fill-color: #60A5FA;
+            color: #60A5FA;
+        }
+    }
+    
+    .ps-brand-tagline {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #F8FAFC;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        letter-spacing: -0.02em;
+    }
+    
+    .ps-brand-subtitle {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #94A3B8;
+        margin-bottom: 3rem;
+        letter-spacing: 0.01em;
+    }
+    
+    /* 브랜드 히어로 CTA 버튼 스타일 */
+    .ps-brand-hero .stButton > button {
+        font-size: 1.2rem !important;
+        font-weight: 800 !important;
+        padding: 1.25rem 2.5rem !important;
+        border-radius: 16px !important;
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        border: none !important;
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        min-height: 64px !important;
+    }
+    
+    .ps-brand-hero .stButton > button:hover {
+        transform: translateY(-4px) scale(1.02) !important;
+        box-shadow: 0 12px 32px rgba(59, 130, 246, 0.6), 0 0 50px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    /* ============================================
+       SECTION 1: Hero Card (프리미엄) - 업그레이드 (사용 안 함, 레거시)
        ============================================ */
     
     .ps-hero-card {
@@ -171,7 +281,7 @@ def inject_home_premium_css():
         border: 1px solid rgba(245, 158, 11, 0.4);
         border-radius: 20px;
         padding: 32px;
-        margin: 2rem 0;
+        margin: 0 0 2rem 0;
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 60px rgba(245, 158, 11, 0.15);
         animation: ps-home-fadeInUp 0.9s ease-out forwards;
         animation-delay: 0.15s;
@@ -211,7 +321,7 @@ def inject_home_premium_css():
     }
     
     .ps-status-title {
-        font-size: 2rem;
+        font-size: 1.75rem;
         font-weight: 800;
         color: #F8FAFC;
         line-height: 1.3;
@@ -326,7 +436,7 @@ def inject_home_premium_css():
         border: 1px solid rgba(59, 130, 246, 0.35);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 40px rgba(59, 130, 246, 0.12);
         padding: 32px;
-        margin: 2rem 0;
+        margin: 0 0 2rem 0;
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         animation: ps-home-fadeInUp 0.9s ease-out forwards;
         opacity: 0;
@@ -546,28 +656,43 @@ def inject_home_premium_css():
        ============================================ */
     
     @media (max-width: 768px) {
-        .ps-hero-card,
+        .ps-brand-hero {
+            padding: 3rem 1.5rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+        }
+        
+        .ps-brand-name {
+            font-size: 3.5rem;
+        }
+        
+        .ps-brand-tagline {
+            font-size: 1.4rem;
+        }
+        
+        .ps-brand-subtitle {
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .ps-brand-hero .stButton > button {
+            font-size: 1rem !important;
+            padding: 1rem 1.5rem !important;
+            min-height: 56px !important;
+        }
+        
         .ps-status-card,
-        .ps-step-card,
-        .ps-quote-card {
+        .ps-step-card {
             padding: 1.5rem 1.25rem;
             border-radius: 16px;
         }
         
-        .ps-hero-title {
-            font-size: 1.9rem;
-        }
-        
         .ps-status-title {
-            font-size: 1.6rem;
+            font-size: 1.5rem;
         }
         
         .ps-step-title {
             font-size: 1.4rem;
-        }
-        
-        .ps-quote-text {
-            font-size: 1.1rem;
         }
         
         .ps-metric-card {

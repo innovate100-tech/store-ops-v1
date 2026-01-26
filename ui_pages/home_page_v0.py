@@ -1,6 +1,6 @@
 """
-홈 화면 (HOME v1)
-앱 정체성 + 운영 원칙 + 3단 구조 안내 화면
+홈 화면 (HOME v2)
+CAUSE OS 브랜드 첫 화면 + 오늘 행동 시작점
 """
 from src.bootstrap import bootstrap
 import streamlit as st
@@ -18,9 +18,33 @@ if not check_login():
     st.stop()
 
 
+def render_brand_hero():
+    """
+    CAUSE OS 브랜드 히어로 영역
+    홈 화면 최상단에 표시되는 브랜드 정체성 영역
+    """
+    st.markdown("""
+    <div class="ps-brand-hero">
+        <div class="ps-brand-hero-content">
+            <div class="ps-brand-name">CAUSE OS</div>
+            <div class="ps-brand-tagline">
+                우리는 매출을 보지 않습니다.<br>
+                원인을 봅니다.
+            </div>
+            <div class="ps-brand-subtitle">사장을 위한 숫자 운영체제</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 메인 CTA 버튼
+    if st.button("오늘 숫자 입력하기", type="primary", use_container_width=True, key="brand_hero_cta"):
+        st.session_state.current_page = "일일 입력(통합)"
+        st.rerun()
+
+
 def render_home():
     """
-    HOME v1 - 앱 정체성 + 운영 원칙 + 3단 구조 안내
+    HOME v2 - CAUSE OS 브랜드 첫 화면 + 오늘 행동 시작점
     """
     # 프리미엄 CSS 주입 (HOME에서만)
     from src.ui.home_premium_style import inject_home_premium_css
@@ -29,30 +53,24 @@ def render_home():
     # DEV 모드에서만 워터마크 표시
     from src.auth import is_dev_mode
     if is_dev_mode():
-        st.error("HOME V1 LOADED ✅  ui_pages/home_page_v0.py  (2026-01-26)")
+        st.error("HOME V2 LOADED ✅  ui_pages/home_page_v0.py  (2026-01-26)")
     
     # ============================================
-    # SECTION 1: 앱 정체성 (Hero Section) - 프리미엄 카드
+    # SECTION 1: CAUSE OS 브랜드 히어로 영역
     # ============================================
-    st.markdown("""
-    <div class="ps-hero-card">
-        <div class="ps-neon ps-neon-blue"></div>
-        <div class="ps-hero-body">
-            <div class="ps-hero-title">이 앱은 감이 아니라, 숫자로 매장을 운영하게 만드는 시스템입니다.</div>
-            <div class="ps-hero-sub">매출은 결과이고, 숫자는 원인입니다.</div>
-            <div class="ps-hero-desc">이 앱은 아래 3단계를 반복할수록 매장이 강해지도록 설계되어 있습니다.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_brand_hero()
+    
+    # 여백 추가
+    st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
     
     # ============================================
-    # SECTION 2: 현재 위치 (Status Dashboard) - 프리미엄 카드
+    # SECTION 2: 오늘 상태 / 오늘 할 일
     # ============================================
     st.markdown("""
     <div class="ps-status-card">
         <div class="ps-neon ps-neon-amber"></div>
         <div class="ps-status-content">
-            <div class="ps-status-title">📍 지금 당신의 매장은 이 단계에 있습니다</div>
+            <div class="ps-status-title">📍 오늘 당신의 매장은</div>
     """, unsafe_allow_html=True)
     
     # 추천 엔진 호출
@@ -125,7 +143,7 @@ def render_home():
                 logger.warning(f"Failed to log shown event: {e}")
             
             # 버튼 클릭 처리
-            button_clicked = st.button(f"▶ {action_label}", type="primary", use_container_width=True)
+            button_clicked = st.button(f"▶ {action_label}", type="primary", use_container_width=True, key="reco_action_btn")
             if button_clicked:
                 # clicked 이벤트 로깅
                 try:
@@ -220,8 +238,11 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
     
+    # 여백 추가
+    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+    
     # ============================================
-    # SECTION 3: 핵심 구조 (입력 → 분석 → 설계)
+    # SECTION 3: 분석/전략/STEP 정보 (하단으로 이동)
     # ============================================
     
     # STEP 1: 입력
@@ -244,11 +265,11 @@ def render_home():
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("▶ 오늘 입력하기", type="primary", use_container_width=True):
+        if st.button("▶ 오늘 입력하기", type="primary", use_container_width=True, key="step1_btn1"):
             st.session_state.current_page = "일일 입력(통합)"
             st.rerun()
     with col2:
-        if st.button("▶ 데이터 입력센터", type="secondary", use_container_width=True):
+        if st.button("▶ 데이터 입력센터", type="secondary", use_container_width=True, key="step1_btn2"):
             st.session_state.current_page = "입력 허브"
             st.rerun()
     
@@ -310,18 +331,5 @@ def render_home():
     
     st.markdown("""
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # ============================================
-    # SECTION 4: 매일 각인 문장 (Quote Section) - 프리미엄 카드
-    # ============================================
-    st.markdown("""
-    <div class="ps-quote-card">
-        <p class="ps-quote-text">
-            "입력 안 하면, 이 앱은 아무 의미 없습니다.<br>
-            숫자를 안 보면, 장사는 항상 운입니다.<br>
-            바쁜 매장이 망하고, 관리하는 매장이 남습니다."
-        </p>
     </div>
     """, unsafe_allow_html=True)
