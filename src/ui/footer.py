@@ -21,25 +21,29 @@ def render_cause_os_footer(style="default"):
     if not st.session_state.get("_ps_footer_css_injected", False):
         css = """
         <style id="ps-footer-style">
-        /* 본질적 해결: 푸터를 완전히 독립적인 구조로 */
+        /* 본질적 해결: 모든 부모 요소까지 오른쪽 정렬 강제 */
+        .ps-cause-footer-wrapper,
+        .ps-cause-footer-wrapper *,
+        .ps-cause-footer,
+        .ps-cause-footer * {
+            text-align: right !important;
+            direction: ltr !important;
+        }
+        
         .ps-cause-footer-wrapper {
             width: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-end !important;
-            justify-content: flex-end !important;
+            display: block !important;
             margin-top: 4rem !important;
             padding: 2.5rem 0 1.5rem 0 !important;
             border-top: 1px solid rgba(148, 163, 184, 0.12) !important;
             position: relative !important;
+            text-align: right !important;
+            direction: ltr !important;
         }
         
         .ps-cause-footer {
             width: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-end !important;
-            justify-content: flex-end !important;
+            display: block !important;
             text-align: right !important;
             color: rgba(148, 163, 184, 0.65) !important;
             font-size: 0.8rem !important;
@@ -61,10 +65,7 @@ def render_cause_os_footer(style="default"):
         
         .ps-cause-footer > div {
             width: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-end !important;
-            justify-content: flex-end !important;
+            display: block !important;
             text-align: right !important;
             direction: ltr !important;
         }
@@ -80,7 +81,7 @@ def render_cause_os_footer(style="default"):
         .ps-cause-footer span {
             text-align: right !important;
             direction: ltr !important;
-            display: inline-block !important;
+            display: inline !important;
         }
         
         .ps-cause-footer-brand {
@@ -111,29 +112,13 @@ def render_cause_os_footer(style="default"):
             font-weight: 300 !important;
         }
         
-        /* Streamlit 기본 스타일 완전 오버라이드 */
+        /* Streamlit 마크다운 컨테이너 완전 오버라이드 */
+        [data-testid="stMarkdownContainer"]:has(.ps-cause-footer-wrapper),
         [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper,
-        [data-testid="stMarkdownContainer"] .ps-cause-footer-wrapper *,
-        .stMarkdown .ps-cause-footer-wrapper,
-        .stMarkdown .ps-cause-footer-wrapper *,
-        .ps-cause-footer-wrapper,
-        .ps-cause-footer-wrapper *,
-        .ps-cause-footer,
-        .ps-cause-footer * {
+        .stMarkdown:has(.ps-cause-footer-wrapper),
+        .stMarkdown .ps-cause-footer-wrapper {
             text-align: right !important;
             direction: ltr !important;
-            align-items: flex-end !important;
-            justify-content: flex-end !important;
-        }
-        
-        /* 부모 컨테이너도 오른쪽 정렬 */
-        [data-testid="stMarkdownContainer"]:has(.ps-cause-footer-wrapper),
-        .stMarkdown:has(.ps-cause-footer-wrapper),
-        [data-testid="stAppViewContainer"]:has(.ps-cause-footer-wrapper) {
-            text-align: right !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-end !important;
         }
         
         /* 전역 transition이 푸터에 영향을 주지 않도록 */
@@ -156,43 +141,44 @@ def render_cause_os_footer(style="default"):
             function forceFooterRightAlign() {
                 var wrappers = document.querySelectorAll('.ps-cause-footer-wrapper');
                 wrappers.forEach(function(wrapper) {
-                    // Flexbox로 강제 오른쪽 정렬
-                    wrapper.style.setProperty('display', 'flex', 'important');
-                    wrapper.style.setProperty('flex-direction', 'column', 'important');
-                    wrapper.style.setProperty('align-items', 'flex-end', 'important');
-                    wrapper.style.setProperty('justify-content', 'flex-end', 'important');
-                    wrapper.style.setProperty('width', '100%', 'important');
+                    // 푸터 자체
                     wrapper.style.setProperty('text-align', 'right', 'important');
                     wrapper.style.setProperty('direction', 'ltr', 'important');
+                    wrapper.style.setProperty('width', '100%', 'important');
+                    wrapper.style.setProperty('display', 'block', 'important');
                     
-                    var footer = wrapper.querySelector('.ps-cause-footer');
-                    if (footer) {
-                        footer.style.setProperty('display', 'flex', 'important');
-                        footer.style.setProperty('flex-direction', 'column', 'important');
-                        footer.style.setProperty('align-items', 'flex-end', 'important');
-                        footer.style.setProperty('justify-content', 'flex-end', 'important');
-                        footer.style.setProperty('width', '100%', 'important');
-                        footer.style.setProperty('text-align', 'right', 'important');
-                        footer.style.setProperty('direction', 'ltr', 'important');
-                        
-                        // 모든 자식 요소
-                        var children = footer.querySelectorAll('*');
-                        children.forEach(function(child) {
-                            child.style.setProperty('text-align', 'right', 'important');
-                            child.style.setProperty('direction', 'ltr', 'important');
-                        });
-                    }
+                    // 모든 자식 요소
+                    var allChildren = wrapper.querySelectorAll('*');
+                    allChildren.forEach(function(child) {
+                        child.style.setProperty('text-align', 'right', 'important');
+                        child.style.setProperty('direction', 'ltr', 'important');
+                    });
                     
-                    // 부모 컨테이너도 강제
+                    // 모든 부모 요소를 찾아서 오른쪽 정렬 강제
                     var parent = wrapper.parentElement;
-                    if (parent) {
+                    var depth = 0;
+                    while (parent && depth < 10) { // 최대 10단계까지
                         parent.style.setProperty('text-align', 'right', 'important');
-                        var computed = window.getComputedStyle(parent);
-                        if (computed.display !== 'flex') {
-                            parent.style.setProperty('display', 'flex', 'important');
-                            parent.style.setProperty('flex-direction', 'column', 'important');
-                            parent.style.setProperty('align-items', 'flex-end', 'important');
+                        parent.style.setProperty('direction', 'ltr', 'important');
+                        
+                        // Streamlit 마크다운 컨테이너인 경우 특별 처리
+                        if (parent.hasAttribute && parent.hasAttribute('data-testid')) {
+                            var testid = parent.getAttribute('data-testid');
+                            if (testid === 'stMarkdownContainer' || testid.includes('Markdown')) {
+                                parent.style.setProperty('text-align', 'right', 'important');
+                                parent.style.setProperty('direction', 'ltr', 'important');
+                                parent.style.setProperty('display', 'block', 'important');
+                            }
                         }
+                        
+                        // 클래스명으로도 확인
+                        if (parent.classList && parent.classList.contains('stMarkdown')) {
+                            parent.style.setProperty('text-align', 'right', 'important');
+                            parent.style.setProperty('direction', 'ltr', 'important');
+                        }
+                        
+                        parent = parent.parentElement;
+                        depth++;
                     }
                 });
             }
@@ -206,15 +192,18 @@ def render_cause_os_footer(style="default"):
                     forceFooterRightAlign();
                     setTimeout(forceFooterRightAlign, 50);
                     setTimeout(forceFooterRightAlign, 200);
+                    setTimeout(forceFooterRightAlign, 500);
                 });
             } else {
                 setTimeout(forceFooterRightAlign, 50);
                 setTimeout(forceFooterRightAlign, 200);
+                setTimeout(forceFooterRightAlign, 500);
             }
             
             // load 이벤트
             window.addEventListener('load', function() {
                 setTimeout(forceFooterRightAlign, 100);
+                setTimeout(forceFooterRightAlign, 500);
             });
             
             // MutationObserver로 새로 추가된 푸터 감지
@@ -236,6 +225,7 @@ def render_cause_os_footer(style="default"):
                     });
                     if (hasFooter) {
                         setTimeout(forceFooterRightAlign, 10);
+                        setTimeout(forceFooterRightAlign, 100);
                     }
                 });
                 observer.observe(document.body, {
@@ -244,40 +234,40 @@ def render_cause_os_footer(style="default"):
                 });
             }
             
-            // 주기적 확인
-            setInterval(forceFooterRightAlign, 2000);
+            // 주기적 확인 (더 자주)
+            setInterval(forceFooterRightAlign, 1000);
         })();
         </script>
         """
         st.markdown(css, unsafe_allow_html=True)
         st.session_state["_ps_footer_css_injected"] = True
     
-    # 푸터 내용 렌더링 - Flexbox 구조로 변경
+    # 푸터 내용 렌더링 - 인라인 스타일로 강제
     if style == "brand":
         # 2안: 브랜드형
         st.markdown("""
-        <div class="ps-cause-footer-wrapper">
-            <div class="ps-cause-footer">
-                <div>
-                    <span class="ps-cause-footer-brand">CAUSE OS</span>
+        <div class="ps-cause-footer-wrapper" style="text-align: right !important; direction: ltr !important; width: 100% !important; display: block !important;">
+            <div class="ps-cause-footer" style="text-align: right !important; direction: ltr !important; width: 100% !important; display: block !important;">
+                <div style="text-align: right !important; direction: ltr !important; display: block !important;">
+                    <span class="ps-cause-footer-brand" style="text-align: right !important;">CAUSE OS</span>
                     <span class="ps-cause-footer-separator">·</span>
-                    <span class="ps-cause-footer-tagline">우리는 매출을 보지 않습니다. 원인을 봅니다.</span>
+                    <span class="ps-cause-footer-tagline" style="text-align: right !important;">우리는 매출을 보지 않습니다. 원인을 봅니다.</span>
                 </div>
-                <div class="ps-cause-footer-copyright">by INNOVATION100</div>
+                <div class="ps-cause-footer-copyright" style="text-align: right !important; direction: ltr !important; display: block !important;">by INNOVATION100</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
     else:
         # 1안: 기본형
         st.markdown("""
-        <div class="ps-cause-footer-wrapper">
-            <div class="ps-cause-footer">
-                <div>
-                    <span class="ps-cause-footer-brand">CAUSE OS</span>
+        <div class="ps-cause-footer-wrapper" style="text-align: right !important; direction: ltr !important; width: 100% !important; display: block !important;">
+            <div class="ps-cause-footer" style="text-align: right !important; direction: ltr !important; width: 100% !important; display: block !important;">
+                <div style="text-align: right !important; direction: ltr !important; display: block !important;">
+                    <span class="ps-cause-footer-brand" style="text-align: right !important;">CAUSE OS</span>
                     <span class="ps-cause-footer-separator">—</span>
-                    <span>성공에는 이유가 있습니다</span>
+                    <span style="text-align: right !important;">성공에는 이유가 있습니다</span>
                 </div>
-                <div class="ps-cause-footer-copyright">© 2026 INNOVATION100. All rights reserved.</div>
+                <div class="ps-cause-footer-copyright" style="text-align: right !important; direction: ltr !important; display: block !important;">© 2026 INNOVATION100. All rights reserved.</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
