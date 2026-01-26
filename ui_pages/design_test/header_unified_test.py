@@ -159,10 +159,6 @@ def render_header_unified_test():
     </div>
     """, unsafe_allow_html=True)
     
-    # 메인 CTA 버튼
-    if st.button("오늘 숫자 입력하기", type="primary", use_container_width=True, key="test_brand_hero_cta"):
-        st.info("테스트: 일일 입력(통합) 페이지로 이동")
-    
     st.markdown("<div style='height: 3rem;'></div>", unsafe_allow_html=True)
     
     # ============================================
