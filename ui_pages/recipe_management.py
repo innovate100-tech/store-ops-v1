@@ -57,6 +57,18 @@ def render_recipe_management():
             
             st.markdown("---")
             st.write(f"**📋 총 {ingredient_count}개 재료 입력**")
+            # 재료가 많을 때 드롭다운 목록을 좁히기 위한 공통 검색
+            global_search = st.text_input(
+                "🔍 재료 검색 (아래 모든 행의 드롭다운에 공통 적용)",
+                key="recipe_management_ingredient_search",
+                placeholder="재료명 일부를 입력하면 선택 목록이 필터됩니다..."
+            )
+            if global_search and global_search.strip():
+                base_ingredient_list = [ing for ing in ingredient_list if global_search.strip().lower() in ing.lower()]
+                if not base_ingredient_list:
+                    base_ingredient_list = ingredient_list
+            else:
+                base_ingredient_list = ingredient_list
             
             # 재료 정보를 딕셔너리로 변환 (검색 및 단위/단가 조회용)
             ingredient_info_dict = {}
@@ -164,27 +176,10 @@ def render_recipe_management():
                     col1, col2, col3, col4 = st.columns([3, 1.5, 2, 2])
                     
                     with col1:
-                        # 재료 검색 기능
-                        search_key = f"recipe_search_{i}"
-                        search_term = st.text_input(
-                            "",
-                            key=search_key,
-                            placeholder="🔍 재료명 검색...",
-                            label_visibility="collapsed"
-                        )
-                        
-                        # 검색어로 필터링된 재료 목록 (단위 정보 포함)
-                        if search_term and search_term.strip():
-                            filtered_ingredients = [ing for ing in ingredient_list if search_term.lower() in ing.lower()]
-                            if not filtered_ingredients:
-                                filtered_ingredients = ingredient_list
-                        else:
-                            filtered_ingredients = ingredient_list
-                        
-                        # 재료 선택 옵션에 단위 정보 표시
+                        # 재료 선택 옵션 (상단 검색으로 필터된 목록 사용)
                         ingredient_options = []
                         if '발주단위' in ingredient_df.columns:
-                            for ing in filtered_ingredients:
+                            for ing in base_ingredient_list:
                                 ing_row = ingredient_df[ingredient_df['재료명'] == ing]
                                 if not ing_row.empty:
                                     # Phase 1: 안전한 DataFrame 접근
@@ -197,9 +192,9 @@ def render_recipe_management():
                                 else:
                                     ingredient_options.append(ing)
                         else:
-                            ingredient_options = filtered_ingredients
+                            ingredient_options = base_ingredient_list
                         
-                        # 재료 선택 (필터링된 목록에서)
+                        # 재료 선택 (상단 검색 필터 적용된 목록)
                         ingredient_key = f"batch_recipe_ingredient_{i}"
                         selected_ingredient_option = st.selectbox(
                             "",

@@ -511,25 +511,14 @@ def login(email: str, password: str) -> tuple[bool, str]:
                 ensure_user_profile(response.user.id)
                 profile_result = client.table("user_profiles").select("id, default_store_id, store_id, role").eq("id", response.user.id).execute()
             
-            # store_id 확인 (store_members 우선, 없으면 default_store_id, 없으면 store_id)
+            # store_id·역할: profiles(user_profiles) 단일 소스 (store_members 폐기)
             store_id = None
             if profile_result.data:
-                # store_members에서 첫 번째 매장 확인
                 from src.ui_helpers import safe_resp_first_data
-                members_result = client.table("store_members").select("store_id, role").eq("user_id", response.user.id).order("created_at").limit(1).execute()
-                members_data = safe_resp_first_data(members_result)
-                if members_data:
-                    store_id = members_data.get('store_id')
-                    st.session_state.user_role = members_data.get('role', 'manager')
-                else:
-                    # default_store_id 확인
-                    profile_data = safe_resp_first_data(profile_result)
-                    if profile_data:
-                        store_id = profile_data.get('default_store_id')
-                        if not store_id:
-                            # 레거시 store_id 확인
-                            store_id = profile_data.get('store_id')
-                        st.session_state.user_role = profile_data.get('role', 'manager')
+                profile_data = safe_resp_first_data(profile_result)
+                if profile_data:
+                    store_id = profile_data.get('store_id') or profile_data.get('default_store_id')
+                    st.session_state.user_role = profile_data.get('role', 'manager')
             
             # store_id가 없어도 로그인은 성공 (매장 생성 플로우로 연결)
             if store_id:

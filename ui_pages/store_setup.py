@@ -35,16 +35,10 @@ def create_store_for_user(user_id: str, store_name: str) -> tuple[bool, str, str
         
         store_id = store_result.data[0]["id"]
         
-        # 2. store_members에 owner로 등록
-        client.table("store_members").insert({
-            "store_id": store_id,
-            "user_id": user_id,
-            "role": "owner"
-        }).execute()
-        
-        # 3. user_profiles.default_store_id 업데이트
+        # 2. profiles(user_profiles)에 매장·역할만 업데이트 (store_members 폐기, 단일 소스)
         client.table("user_profiles").update({
-            "default_store_id": store_id
+            "store_id": store_id,
+            "role": "owner"
         }).eq("id", user_id).execute()
         
         logger.info(f"Store created: {store_name} (store_id: {store_id}, owner: {user_id})")
